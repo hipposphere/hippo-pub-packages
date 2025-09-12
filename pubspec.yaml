@@ -1,0 +1,18 @@
+name: hippo_packages
+description: A monorepo for Hippo packages.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.9.2 <4.0.0"
+dev_dependencies:
+  melos: ^7.1.1
+
+workspace:
+  - packages/hippo_components
+  - packages/hippo_utils
+
+melos:
+  ide:
+    intellij:
+      enabled: false

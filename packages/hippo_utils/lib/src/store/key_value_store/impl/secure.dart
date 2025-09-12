@@ -1,0 +1,79 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../key_value_store.dart';
+
+class SecureKeyValueStore implements KeyValueStore {
+  final FlutterSecureStorage secureStorage;
+  final String? storePrefix;
+
+  SecureKeyValueStore({this.storePrefix}) : secureStorage = FlutterSecureStorage();
+
+  @override
+  Future<bool> containsKey(String key) {
+    return secureStorage.containsKey(key: _buildKey(key));
+  }
+
+  @override
+  Future<bool?> getBool(String key) async {
+    final value = await secureStorage.read(key: _buildKey(key));
+    if (value == null) {
+      return null;
+    }
+    return bool.tryParse(value);
+  }
+
+  @override
+  Future<double?> getDouble(String key) async {
+    final value = await secureStorage.read(key: _buildKey(key));
+    if (value == null) {
+      return null;
+    }
+    return double.tryParse(value);
+  }
+
+  @override
+  Future<int?> getInt(String key) async {
+    final value = await secureStorage.read(key: _buildKey(key));
+    if (value == null) {
+      return null;
+    }
+    return int.tryParse(value);
+  }
+
+  @override
+  Future<String?> getString(String key) async {
+    final value = await secureStorage.read(key: _buildKey(key));
+    return value;
+  }
+
+  @override
+  Future<void> setBool(String key, bool value) async {
+    await secureStorage.write(key: _buildKey(key), value: value.toString());
+  }
+
+  @override
+  Future<void> setDouble(String key, double value) async {
+    await secureStorage.write(key: _buildKey(key), value: value.toString());
+  }
+
+  @override
+  Future<void> setInt(String key, int value) async {
+    await secureStorage.write(key: _buildKey(key), value: value.toString());
+  }
+
+  @override
+  Future<void> setString(String key, String value) async {
+    await secureStorage.write(key: _buildKey(key), value: value);
+  }
+
+  @override
+  Future<void> removeValue(String key) async {
+    await secureStorage.delete(key: _buildKey(key));
+  }
+
+  String _buildKey(String key) {
+    if (storePrefix == null) {
+      return key;
+    }
+    return '$storePrefix.$key';
+  }
+}

@@ -1,0 +1,11 @@
+arb-dir: l10n
+template-arb-file: components_en.arb
+output-dir: lib/localizations
+output-localization-file: components_localizations.g.dart
+output-class: ComponentsLocalizations
+synthetic-package: false
+arb-translate-model-provider: gemini
+arb-translate-model: gemini-1.5-flash
+arb-translate-context: A Medical learning app called MediHippo, which is a platform for medical students to learn and practice medical knowledge. Allows for question, flashcard and script creation.
+arb-translate-api-key: YOUR_API_KEY
+format: true

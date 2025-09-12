@@ -1,0 +1,64 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:forui/forui.dart';
+import 'package:hippo_components/hippo_components.dart';
+
+class App extends StatelessWidget {
+  final String title;
+  final Brightness brightness;
+  final Widget? home;
+  final Locale? locale;
+  final GlobalKey<NavigatorState>? navigatorKey;
+  final List<LocalizationsDelegate> localizationsDelegate;
+  final List<NavigatorObserver> navigatorObservers;
+  const App({
+    super.key,
+    required this.brightness,
+    this.title = '',
+    this.locale,
+    this.navigatorKey,
+    this.localizationsDelegate = const [],
+    this.navigatorObservers = const [],
+    this.home,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FTheme(
+      data: brightness == Brightness.light ? lightForuiTheme : darkForuiTheme,
+      child: Theme(
+        data: brightness == Brightness.light ? lightMaterialTheme : darkMaterialTheme,
+        child: CupertinoApp(
+          title: title,
+          navigatorKey: navigatorKey,
+          localizationsDelegates: [
+            ComponentsLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            ...localizationsDelegate,
+          ],
+          scrollBehavior: MaterialScrollBehavior().copyWith(
+            dragDevices: {
+              PointerDeviceKind.mouse,
+              PointerDeviceKind.touch,
+              PointerDeviceKind.trackpad,
+              PointerDeviceKind.unknown,
+            },
+          ),
+          navigatorObservers: navigatorObservers,
+          locale: locale,
+          supportedLocales: ComponentsLocalizations.supportedLocales,
+          debugShowCheckedModeBanner: false,
+          theme: brightness == Brightness.light ? lightCupertinoTheme : darkCupertinoTheme,
+          home: home,
+          onGenerateRoute: (settings) {
+            return MaterialPageRoute(settings: settings, builder: (context) => home!);
+          },
+        ),
+      ),
+    );
+  }
+}

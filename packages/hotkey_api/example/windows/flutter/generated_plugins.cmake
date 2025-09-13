@@ -3,7 +3,16 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  audioplayers_windows
+  file_saver
+  file_selector_windows
+  flutter_secure_storage_windows
   hotkey_api
+  irondash_engine_context
+  share_plus
+  super_native_extensions
+  url_launcher_windows
+  zstandard_windows
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

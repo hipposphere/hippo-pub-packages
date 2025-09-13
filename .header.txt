@@ -1,0 +1,2 @@
+// This file is part of the hipposphere project.
+// Copyright (c) 2025 hipposphere. All rights reserved.

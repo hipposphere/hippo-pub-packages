@@ -10,7 +10,9 @@ dev_dependencies:
 
 workspace:
   - packages/dictation_support
+  - packages/dictation_support/example
   - packages/hid_api
+  - packages/hid_api/example
   - packages/hippo_auth
   - packages/hippo_components
   - packages/hippo_utils
@@ -19,3 +21,18 @@ melos:
   ide:
     intellij:
       enabled: false
+  scripts:
+    format:
+      run: dart format .
+      description: Format all Dart files in the repository
+    check-format:
+      run: dart format --set-exit-if-changed .
+      description: Check if all Dart files are formatted
+    test:
+      run: flutter test
+      description: Run all tests
+    ci:
+      run: |
+        melos run check-format
+        melos run test
+      description: Check formatting and run tests

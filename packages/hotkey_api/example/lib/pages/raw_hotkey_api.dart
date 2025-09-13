@@ -102,6 +102,8 @@ class RawHotkeyBloc extends BlocBase {
     _defaultFilterKeys,
   );
 
+  final includeRepeatingSubject = DataSubject<bool>.seeded(false);
+
   final eventsSubject =
       DataSubject<List<({DateTime dateTime, HotkeyEvent event})>>.seeded([]);
 

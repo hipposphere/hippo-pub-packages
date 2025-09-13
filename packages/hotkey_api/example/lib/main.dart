@@ -6,7 +6,7 @@ import 'package:hotkey_api_example/pages/raw_hotkey_api.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(MaterialApp(home: _HomePage()));
+  runApp(MaterialApp(home: _HomePage(), debugShowCheckedModeBanner: false));
 }
 
 class _HomePage extends StatelessWidget {
@@ -14,9 +14,10 @@ class _HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PageContainer(
-      title: 'Hotkey API Example',
-      body: CustomScrollView(
+    return Scaffold(
+      body: DashboardContent(
+        title: 'Hotkey API Example',
+
         slivers: [
           SliverGap(32),
           SliverColumn(

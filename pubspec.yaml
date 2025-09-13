@@ -33,15 +33,15 @@ melos:
       description: Run all tests
     ci:
       run: |
-        melos run check-headers
+        melos run license-check-headers
         melos run check-format
         melos run test
       description: Check headers, formatting, and run tests
-    add-headers:
+    license-add-headers:
       run: npx -y license-check-and-add add
       description: "Add/update license headers across the repo"
       select-package: false
-    check-headers:
+    license-check-headers:
       run: npx -y license-check-and-add check
       description: "Fail if headers are missing (CI-friendly)"
       select-package: false

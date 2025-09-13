@@ -1,3 +1,12 @@
+/*
+// ---------------------------------------------------------------------------
+// Copyright (c) 2025 HippoSphere UG (haftungsbeschränkt). All rights reserved.
+// Use, copying, modification, or distribution of this software is prohibited 
+// without express written permission from Hipposphere UG.
+//
+// SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
+// ---------------------------------------------------------------------------
+*/
 // Actions
 export 'base/actions/get_text_modal.dart';
 export 'base/actions/future_loading_modal.dart';
@@ -27,7 +36,6 @@ export 'base/other/optional_tooltip.dart';
 export 'base/other/alert.dart';
 export 'base/other/tile.dart';
 export 'base/other/section.dart';
-export 'base/other/hippo_logo.dart';
 export 'base/other/pencil_field.dart';
 export 'base/other/breadcrumb.dart';
 export 'base/other/native_context_menu.dart';

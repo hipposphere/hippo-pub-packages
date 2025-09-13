@@ -9,10 +9,44 @@ dev_dependencies:
   melos: ^7.1.1
 
 workspace:
+  - packages/dictation_support
+  - packages/dictation_support/example
+  - packages/hid_api
+  - packages/hid_api/example
+  - packages/hippo_auth
   - packages/hippo_components
+  - packages/hippo_ui
   - packages/hippo_utils
+  - packages/postgres_base_models
+  - packages/postgres_models_builder
 
 melos:
   ide:
     intellij:
       enabled: false
+  scripts:
+    format:
+      run: dart format .
+      description: Format all Dart files in the repository
+    check-format:
+      run: dart format --set-exit-if-changed .
+      description: Check if all Dart files are formatted
+    analyze:
+      run: dart analyze
+      description: Run Dart analyzer to check for lint errors
+    test:
+      run: melos exec --dir-exists=test -- flutter test
+      description: Run all tests
+    ci:
+      run: |
+        melos run check-format
+        melos run analyze
+        melos run test
+      description: Check formatting, analyze for lint errors, and run tests
+    # Not required for now, but useful to have in the future
+    license-add-headers:
+      run: npx -y license-check-and-add add
+      description: "Add/update license headers across the repo"
+    license-check-headers:
+      run: npx -y license-check-and-add check
+      description: "Fail if headers are missing (CI-friendly)"

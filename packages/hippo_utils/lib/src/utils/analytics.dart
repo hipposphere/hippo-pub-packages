@@ -1,3 +1,12 @@
+/*
+// ---------------------------------------------------------------------------
+// Copyright (c) 2025 HippoSphere UG (haftungsbeschränkt). All rights reserved.
+// Use, copying, modification, or distribution of this software is prohibited 
+// without express written permission from Hipposphere UG.
+//
+// SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
+// ---------------------------------------------------------------------------
+*/
 // ignore_for_file: avoid_print
 import 'package:flutter/widgets.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';

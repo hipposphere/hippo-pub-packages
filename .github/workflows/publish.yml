@@ -1,0 +1,36 @@
+name: Publish Dart Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package to publish (leave empty to publish all)"
+        required: false
+        default: ""
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap workspace
+        run: dart pub global run melos bootstrap
+
+      - name: Publish packages
+        env:
+          PUB_CREDENTIALS: ${{ secrets.PUB_CREDENTIALS }}
+        run: |
+          if [ -z "${{ github.event.inputs.package }}" ]; then
+            dart pub global run melos publish --no-dry-run --yes
+          else
+            cd packages/${{ github.event.inputs.package }}
+            dart pub publish --force
+          fi

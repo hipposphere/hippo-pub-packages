@@ -1,0 +1,112 @@
+{
+    // VS Code tasks for Hippo Packages monorepo
+    // Use Terminal > Run Task... to invoke.
+    "version": "2.0.0",
+    // NOTE: VS Code tasks do not support dynamically populating pickString options
+    // from a command (e.g. `melos list`). When you add a new package, update
+    // the `options` array of the `packagePick` input below to include it.
+    // If fully dynamic behavior is required, implement a custom VS Code extension
+    // or use a simple wrapper script that prompts then dispatches to `dart pub publish`.
+    "inputs": [
+        {
+            "id": "packagePick",
+            "type": "pickString",
+            "description": "Select a package to operate on (update this list when adding new packages)",
+            "options": [
+                "dictation_support",
+                "hid_api",
+                "hippo_auth",
+                "hippo_components",
+                "hippo_ui",
+                "hippo_utils",
+                "postgres_base_models",
+                "postgres_models_builder"
+            ]
+        }
+    ],
+    "tasks": [
+        {
+            "label": "Melos: Bootstrap Workspace",
+            "type": "shell",
+            "command": "dart run melos bootstrap",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Melos: CI Checks",
+            "type": "shell",
+            "command": "dart run melos run ci",
+            "group": "test",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Check Format and Test (Melos)",
+            "type": "shell",
+            "command": "dart run melos run ci",
+            "group": "test",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Melos: Publish",
+            "type": "shell",
+            "command": "dart run melos publish",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Melos: List Packages",
+            "type": "shell",
+            "command": "dart run melos list",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Melos: Add Headers",
+            "type": "shell",
+            "command": "dart run melos run add-header",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Package: Dry Run Publish",
+            "type": "shell",
+            "command": "pwsh -NoLogo -NoProfile -Command \"Set-Location \"packages/${input:packagePick}\"; dart pub publish --dry-run\"",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Package: Publish",
+            "type": "shell",
+            "command": "pwsh -NoLogo -NoProfile -Command \"Set-Location \"packages/${input:packagePick}\"; if ('${input:publishTag}' -ne '') { dart pub publish --tag ${input:publishTag} } else { dart pub publish }\"",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+    ]
+}

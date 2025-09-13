@@ -1,0 +1,8 @@
+{
+    "path": ".",
+    "license": "license_header.txt",
+    "mode": "update",
+    "ignore": [
+        "**/!(*.dart|*.swift|*.cpp|*.h)"
+    ]
+}

@@ -17,7 +17,10 @@
                 "hid_api",
                 "hippo_auth",
                 "hippo_components",
-                "hippo_utils"
+                "hippo_ui",
+                "hippo_utils",
+                "postgres_base_models",
+                "postgres_models_builder"
             ]
         }
     ],

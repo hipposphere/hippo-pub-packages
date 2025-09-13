@@ -15,7 +15,10 @@ workspace:
   - packages/hid_api/example
   - packages/hippo_auth
   - packages/hippo_components
+  - packages/hippo_ui
   - packages/hippo_utils
+  - packages/postgres_base_models
+  - packages/postgres_models_builder
 
 melos:
   ide:
@@ -35,7 +38,7 @@ melos:
       run: |
         melos run check-format
         melos run test
-      description: Check headers, formatting, and run tests
+      description: Check formatting, and run tests
     # Not required for now, but useful to have in the future
     license-add-headers:
       run: npx -y license-check-and-add add

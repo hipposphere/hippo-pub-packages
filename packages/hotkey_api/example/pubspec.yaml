@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
   hotkey_api:
     path: ../
+  hippo_utils:
+    path: ../../hippo_utils
 
 dev_dependencies:
   integration_test:

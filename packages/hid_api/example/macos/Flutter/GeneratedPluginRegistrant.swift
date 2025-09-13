@@ -5,8 +5,6 @@
 import FlutterMacOS
 import Foundation
 
-import hotkey_api
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
-  HotkeyApiPlugin.register(with: registry.registrar(forPlugin: "HotkeyApiPlugin"))
 }

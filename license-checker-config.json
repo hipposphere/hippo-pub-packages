@@ -1,0 +1,38 @@
+{
+    "path": ".",
+    "license": "tool/header.txt",
+    "mode": "update",
+    "include": [
+        "**/*.dart",
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.js",
+        "**/*.jsx",
+        "**/*.kt",
+        "**/*.swift",
+        "**/*.java",
+        "**/*.go",
+        "**/*.c",
+        "**/*.h",
+        "**/*.cpp",
+        "**/*.hpp",
+        "**/*.py",
+        "**/*.sh",
+        "**/*.yaml",
+        "**/*.yml"
+    ],
+    "exclude": [
+        "**/build/**",
+        "**/dist/**",
+        "**/.dart_tool/**",
+        "**/.git/**",
+        "**/node_modules/**",
+        "**/.next/**",
+        "**/.vercel/**",
+        "**/coverage/**",
+        "**/ios/Pods/**",
+        "**/android/.gradle/**"
+    ],
+    "author": "Hipposphere UG",
+    "years": "2025"
+}

@@ -1,5 +1,5 @@
 name: dictation_support
-description: "A new Flutter package project."
+description: "Support dictation devices using the hid_api package."
 version: 0.0.1
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace

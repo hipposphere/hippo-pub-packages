@@ -1,16 +1,41 @@
 # hippo_components
 
-Reusable, opinionated Flutter UI building blocks used across Hipposphere apps: base primitives, layout containers, charts, composite widgets, theming helpers, localization, and animated assets.
+A comprehensive Flutter UI component library providing reusable, opinionated building blocks for Hipposphere applications. Features modals, charts, themes, sliver utilities, and cross-platform adaptive widgets.
 
 ## Features
 
-- Consistent design‑system primitives (buttons, cards, modals, slivers, themes)
-- Layout containers (dashboard, master/detail, page scaffolds)
-- Charts & visualizations (stacked bar, heatmap, studyplan timeline – expanding)
-- Animation assets for empty states, success, onboarding (Lottie JSON in `assets/`)
-- Centralized constants & theme tokens
-- Localization ready (ARB + generated localizations)
-- Utility tooling (list view controller, etc.)
+### 🎯 Core Components
+- **Modal System**: Cupertino-style modals, info dialogs, confirmation prompts, text input modals, file selection, and multi-select interfaces
+- **Button Components**: Customizable buttons, symbols, tappable areas, and text buttons with consistent styling
+- **Cards & Layout**: Gradient cards, tiles, sections, and layout containers
+- **Form Elements**: Styled text fields, pencil input fields, color pickers, and PIN input components
+
+### 📊 Charts & Visualizations  
+- **Study Plan Charts**: Timeline visualizations for learning progress
+- **Year Heatmaps**: Calendar-style activity visualizations
+- **Stacked Bar Charts**: Multi-category data visualization
+
+### 🎨 Theme System
+- **Adaptive Theming**: Cross-platform theme support with `HippoThemeBuilder`
+- **Color System**: Comprehensive color palette and theme extensions
+- **Design Tokens**: Centralized constants for consistent styling
+
+### 🛠️ Sliver Utilities
+- **Layout Slivers**: `SliverColumn`, `SliverGap`, `SliverChild`, `SliverExpansion`
+- **Advanced Slivers**: `SliverFillAligned`, `SliverExpansionTile` for complex layouts
+
+### 🌍 Internationalization
+- **Multi-language Support**: ARB-based localization with generated localizations
+- **Component Strings**: Built-in translations for UI component text
+
+### 🎭 Assets & Animations
+- **Lottie Animations**: Ready-to-use animations for empty states, loading, and feedback
+- **Asset Management**: Centralized asset referencing and management utilities
+
+### 🔧 Developer Tools
+- **List View Controller**: Enhanced list view management with scroll-to-index support
+- **Toast System**: Notification and feedback system with `ToastBuilder` and `ToastRunner`
+- **Utility Widgets**: Gap spacing, app versioning, time formatting, and more
 
 ## Getting Started
 
@@ -33,17 +58,29 @@ import 'package:hippo_components/hippo_components.dart';
 
 ```
 lib/
-	hippo_components.dart        # Barrel export
-	src/
-		base/                      # Core primitives (buttons, etc.)
-		complex/                   # Composite widgets
-		charts/                    # Chart implementations
-		container/                 # High‑level layout containers
-		assets/                    # Asset referencing helper(s)
-		tools/                     # Misc utilities (controllers, helpers)
-	localizations/               # Generated localization files
-l10n/                          # ARB source files
-assets/                        # Lottie animations and other shared assets
+  hippo_components.dart          # Barrel export - main entry point
+  src/
+    base/                        # Core UI primitives
+      actions/                   # Modal dialogs and user interactions
+      buttons/                   # Button components and variations
+      cards/                     # Card layouts and containers
+      cupertino_modal/          # iOS-style modal system
+      modals/                   # Modal utilities and common bodies
+      other/                    # Miscellaneous UI components
+      slivers/                  # Custom sliver implementations
+      themes/                   # Theme system and color schemes
+      utils/                    # Base utility widgets and helpers
+    charts/                     # Chart and visualization widgets
+      studyplan/               # Study plan timeline charts
+    complex/                    # Composite and advanced widgets
+    container/                  # High-level layout containers
+    assets/                     # Asset management utilities
+    tools/                      # Developer tools and controllers
+    constants.dart              # Design tokens and constants
+  localizations/                # Generated localization files
+l10n/                          # ARB source files for translations
+assets/                        # Lottie animations and shared assets
+  other/                       # Animation files and resources
 ```
 
 ## Localization
@@ -66,31 +103,114 @@ Review machine output manually before committing.
 
 ## Example Usage
 
+### Modal Components
 ```dart
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 
-class DashboardScreen extends StatelessWidget {
-	const DashboardScreen({super.key});
+// Info Modal
+showInfoModal(
+  context,
+  title: 'Welcome',
+  message: 'Welcome to the app!',
+);
 
-	@override
-	Widget build(BuildContext context) {
-		return HippoDashboardContainer(
-			header: const Text('Overview'),
-			body: ListView(
-				children: const [
-					// Hypothetical primitives / composites
-					HippoStatCard(title: 'Sessions', value: '42'),
-					SizedBox(height: 12),
-					HippoStackedBarChart(/* data */),
-				],
-			),
-		);
-	}
-}
+// Confirmation Modal
+final confirmed = await showConfirmModal(
+  context,
+  title: 'Delete Item',
+  message: 'Are you sure you want to delete this item?',
+);
+
+// Text Input Modal
+final text = await showGetTextModal(
+  context,
+  title: 'Enter Name',
+  placeholder: 'Your name...',
+);
+
+// Selection Modal
+final selected = await showSelectModal<String>(
+  context,
+  title: 'Choose Option',
+  items: SelectItemsList(['Option 1', 'Option 2', 'Option 3']),
+  itemBuilder: (item) => Text(item),
+);
 ```
 
-> NOTE: Class names above are illustrative; adjust to actual exported symbols present in `src/`.
+### Chart Components
+```dart
+// Study Plan Chart
+StudyplanChart(
+  data: studyPlanData,
+  onDayTapped: (date) => print('Tapped: $date'),
+)
+
+// Year Heatmap
+YearHeatmap(
+  year: 2024,
+  data: activityData,
+  colorScheme: YearHeatmapColorScheme.green,
+)
+
+// Stacked Bar Chart  
+StackedBarChart(
+  data: chartData,
+  maxValue: 100,
+  height: 200,
+)
+```
+
+### Theme & Layout
+```dart
+// Theme Builder
+HippoThemeBuilder(
+  builder: (context, theme) => MaterialApp(
+    theme: theme,
+    home: MyHomePage(),
+  ),
+)
+
+// Sliver Layout
+CustomScrollView(
+  slivers: [
+    SliverColumn(
+      children: [
+        SliverChild(child: Text('Header')),
+        SliverGap(height: 16),
+        SliverExpansionTile(
+          title: Text('Expandable Section'),
+          children: [
+            Text('Content 1'),
+            Text('Content 2'),
+          ],
+        ),
+      ],
+    ),
+  ],
+)
+```
+
+### Utility Components
+```dart
+// Toast Notifications
+ToastBuilder.success(
+  context,
+  title: 'Success!',
+  description: 'Operation completed successfully',
+).show();
+
+// Smart Time Display
+SmartTimeagoText(
+  date: DateTime.now().subtract(Duration(hours: 2)),
+)
+
+// Adaptive Builder
+AdaptiveBuilder(
+  ios: (context) => CupertinoButton(child: Text('iOS')),
+  material: (context) => ElevatedButton(child: Text('Material')),
+)
+```
 
 ## Asset Usage
 
@@ -122,12 +242,24 @@ dart analyze .
 3. Document breaking changes in `CHANGELOG.md`.
 4. Add examples and (future) golden/screenshot tests where visual regressions matter.
 
-## Roadmap (Abridged)
+## Roadmap
 
-- Storybook / demo showcase
-- Theme token extraction & design sync
-- More chart types & accessibility review
-- Visual regression testing pipeline
+### Short Term
+- **Storybook Integration**: Interactive component showcase and documentation
+- **Accessibility Audit**: Enhanced screen reader and keyboard navigation support
+- **Performance Optimization**: Widget performance profiling and improvements
+
+### Medium Term  
+- **Design System Documentation**: Comprehensive design token and usage guidelines
+- **Visual Regression Testing**: Automated screenshot testing for UI consistency
+- **Advanced Chart Types**: Line charts, pie charts, and custom visualizations
+- **Theme Customization**: Enhanced theming API with runtime theme switching
+
+### Long Term
+- **Component Testing Suite**: Comprehensive widget testing framework
+- **Animation Library Expansion**: More Lottie animations and custom transitions
+- **Platform-Specific Optimizations**: Enhanced iOS and Android native integrations
+- **Developer Tooling**: VS Code extension for component scaffolding
 
 ---
 

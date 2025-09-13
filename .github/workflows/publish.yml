@@ -32,7 +32,7 @@ jobs:
           PUB_TOKEN: ${{ secrets.PUB_CREDENTIALS }}
         run: |
           # Add token for custom registry using dart pub token add
-          dart pub token add https://registry.hippolabs.org/pub/internal-pub/ $PUB_TOKEN
+          dart pub token add https://registry.hippolabs.org/pub/internal-pub/ --env-var PUB_TOKEN
 
       - name: Publish packages
         run: |

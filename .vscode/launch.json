@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "hid_api (example)",
+            "cwd": "${workspaceFolder}/packages/hid_api/example",
+            "request": "launch",
+            "type": "dart",
+        },
+        {
+            "name": "hotkey_api (example)",
+            "cwd": "${workspaceFolder}/packages/hotkey_api/example",
+            "request": "launch",
+            "type": "dart",
+        },
+        {
+            "name": "hippo_ui (widgets preview)",
+            "cwd": "${workspaceFolder}/packages/hippo_ui",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "flutter",
+            "args": [
+                "widget-preview",
+                "start"
+            ],
+            "console": "integratedTerminal"
+        }
+    ]
+}

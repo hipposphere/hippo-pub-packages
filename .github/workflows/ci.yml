@@ -23,6 +23,7 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
           cache-key: ${{ runner.OS }}-flutter-${{  env.FLUTTER_VERSION }}
+          pub-cache-key: ${{ runner.OS }}-pub-${{  env.FLUTTER_VERSION }}
 
       - name: Install Melos
         run: dart pub global activate melos

@@ -66,9 +66,19 @@
             }
         },
         {
-            "label": "Melos: List Packages (helper)",
+            "label": "Melos: List Packages",
             "type": "shell",
             "command": "dart run melos list",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Melos: Add Headers",
+            "type": "shell",
+            "command": "dart run melos run add-header",
             "problemMatcher": [],
             "presentation": {
                 "reveal": "always",

@@ -21,8 +21,5 @@ jobs:
       - name: Bootstrap workspace
         run: dart pub global run melos bootstrap
 
-      - name: Check formatting
-        run: dart pub global run melos run check-format
-
-      - name: Run tests
-        run: dart pub global run melos run test
+      - name: Run Melos CI script
+        run: dart pub global run melos run ci

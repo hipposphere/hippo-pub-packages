@@ -33,6 +33,18 @@ melos:
       description: Run all tests
     ci:
       run: |
+        melos run check-header
         melos run check-format
         melos run test
-      description: Check formatting and run tests
+      description: Check headers, formatting, and run tests
+    check-header:
+      run: npx --yes license-header -f .header.txt -i '**/*.dart' --check
+      description: Check all Dart files for the hipposphere header
+    add-headers:
+      # add to all source files you care about; repeat -ignore for more paths
+      run: >
+        addlicense
+        -f tool/header.txt
+        -ignore "build/**"
+        .
+      description: "Add/update license headers across the repo"

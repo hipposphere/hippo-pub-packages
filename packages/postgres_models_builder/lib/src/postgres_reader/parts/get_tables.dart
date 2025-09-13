@@ -10,10 +10,7 @@ Future<List<DatabaseTable>> _getTables({
   List<ForeignKeyRelation>? foreignKeyRelations,
 }) async {
   tableNames ??= const <String>[];
-  final rawQuery = buildColumnTypesQuery(
-    tableNames: tableNames,
-    schemaName: schemaName,
-  );
+  final rawQuery = buildColumnTypesQuery(tableNames: tableNames, schemaName: schemaName);
 
   Log.trace('executing the following query:\n$rawQuery');
 
@@ -27,9 +24,7 @@ Future<List<DatabaseTable>> _getTables({
   final tables = <DatabaseTable>[];
   print(omitTableNames);
   for (final result in resList) {
-    final tableName = result[InfoSchemaColumnNames.tableName]
-        .toString()
-        .replaceAll(' ', '_');
+    final tableName = result[InfoSchemaColumnNames.tableName].toString().replaceAll(' ', '_');
     // the query ensures the table names are sorted so we can do this
     if (tables.isEmpty || tableName != tables.last.tableName) {
       print('reading: $schemaName.$tableName');
@@ -45,14 +40,12 @@ Future<List<DatabaseTable>> _getTables({
     final columnName = result?[InfoSchemaColumnNames.columnName];
     final dataType = result?[InfoSchemaColumnNames.dataType];
 
-    final isNullable =
-        result?[InfoSchemaColumnNames.isNullable].toLowerCase() == 'yes'
+    final isNullable = result?[InfoSchemaColumnNames.isNullable].toLowerCase() == 'yes'
         ? true
         : false;
     final columnDefault = result?[InfoSchemaColumnNames.columnDefault];
     final ordinalPosition = result?[InfoSchemaColumnNames.ordinalPosition];
-    final identityGeneration =
-        result?[InfoSchemaColumnNames.identityGeneration];
+    final identityGeneration = result?[InfoSchemaColumnNames.identityGeneration];
 
     Log.trace('read column: $columnName');
 
@@ -64,9 +57,7 @@ Future<List<DatabaseTable>> _getTables({
     );
 
     if (schemaName == 'package_cloud' && tableName == 'package') {
-      print(
-        'COLUMN NAME $columnName has foreign key relation $foreignKeyRelation',
-      );
+      print('COLUMN NAME $columnName has foreign key relation $foreignKeyRelation');
     }
 
     final columnData = DatabaseColumn(
@@ -81,32 +72,21 @@ Future<List<DatabaseTable>> _getTables({
     );
 
     tables.last.columns.add(columnData);
-    tables.last.columns.sort(
-      (c1, c2) => c1.ordinalPosition.compareTo(c2.ordinalPosition),
-    );
+    tables.last.columns.sort((c1, c2) => c1.ordinalPosition.compareTo(c2.ordinalPosition));
   }
 
   for (final table in tables) {
     for (final column in table.columns) {
       if (column.foreignKeyRelation != null) {
         final relatedColumn = tables
-            .where(
-              (element) =>
-                  element.tableName ==
-                  column.foreignKeyRelation!.foreignTableName,
-            )
+            .where((element) => element.tableName == column.foreignKeyRelation!.foreignTableName)
             .firstOrNull
             ?.columns
-            .where(
-              (element) =>
-                  element.columnKey ==
-                  column.foreignKeyRelation!.foreignColumnName,
-            )
+            .where((element) => element.columnKey == column.foreignKeyRelation!.foreignColumnName)
             .firstOrNull;
 
         if (relatedColumn == null ||
-            (relatedColumn.isKeyId == false &&
-                relatedColumn.foreignKeyRelation == null)) {
+            (relatedColumn.isKeyId == false && relatedColumn.foreignKeyRelation == null)) {
           // column.foreignKeyRelation = null;
         }
       }
@@ -116,10 +96,7 @@ Future<List<DatabaseTable>> _getTables({
   return tables;
 }
 
-String buildColumnTypesQuery({
-  required String schemaName,
-  required List<String> tableNames,
-}) {
+String buildColumnTypesQuery({required String schemaName, required List<String> tableNames}) {
   final columns = InfoSchemaColumnNames.all.reduce((c1, c2) => c1 + ', ' + c2);
   String rawQuery =
       '''
@@ -131,10 +108,7 @@ WHERE table_schema = '$schemaName'
     rawQuery = rawQuery + "AND table_name = '${tableNames[0]}'";
   } else if (tableNames.length > 1) {
     rawQuery =
-        rawQuery +
-        'AND table_name in (' +
-        tableNames.reduce((t1, t2) => "'$t1', '$t2'") +
-        ')';
+        rawQuery + 'AND table_name in (' + tableNames.reduce((t1, t2) => "'$t1', '$t2'") + ')';
   }
 
   rawQuery = rawQuery + 'ORDER BY table_name ASC;';
@@ -196,16 +170,13 @@ ForeignKeyRelation? _findForeignKeyRelation(
   required String tableName,
   required String columnName,
 }) {
-  ForeignKeyRelation? foreignKeyRelation = foreignKeyRelationsList.where((
-    element,
-  ) {
+  ForeignKeyRelation? foreignKeyRelation = foreignKeyRelationsList.where((element) {
     return element.tableSchema == schemaName &&
         element.tableName == tableName &&
         element.columnName == columnName;
   }).firstOrNull;
 
-  if (foreignKeyRelation == null ||
-      foreignKeyRelation.foreignTableSchema == 'auth') {
+  if (foreignKeyRelation == null || foreignKeyRelation.foreignTableSchema == 'auth') {
     return null;
   }
 

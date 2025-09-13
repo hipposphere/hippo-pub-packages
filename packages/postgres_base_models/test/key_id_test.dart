@@ -44,9 +44,7 @@ void main() {
       const stringKey = TestStringKeyId('123456');
       const intKey = TestIntKeyId(123456);
 
-      final dataMap = jsonDecode(
-        jsonEncode({'stringKey': stringKey, 'intKey': intKey}),
-      );
+      final dataMap = jsonDecode(jsonEncode({'stringKey': stringKey, 'intKey': intKey}));
 
       expect(dataMap['stringKey'], '123456');
       expect(dataMap['intKey'], 123456);

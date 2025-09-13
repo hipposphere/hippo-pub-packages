@@ -25,12 +25,7 @@ class PostgresModelsBuilderRunner extends CommandRunner<void> {
       help: 'The output directory for the generated dart files',
     );
 
-    argParser.addOption(
-      'schema',
-      abbr: 's',
-      defaultsTo: 'public',
-      help: 'specify the schema',
-    );
+    argParser.addOption('schema', abbr: 's', defaultsTo: 'public', help: 'specify the schema');
 
     argParser.addMultiOption(
       'tables',
@@ -49,18 +44,9 @@ class PostgresModelsBuilderRunner extends CommandRunner<void> {
           '(defaults to none)',
     );
 
-    argParser.addFlag(
-      'verbose',
-      abbr: 'v',
-      negatable: false,
-      help: 'Enable verbose logging.',
-    );
+    argParser.addFlag('verbose', abbr: 'v', negatable: false, help: 'Enable verbose logging.');
 
-    argParser.addFlag(
-      'version',
-      negatable: false,
-      help: 'Print the current version.',
-    );
+    argParser.addFlag('version', negatable: false, help: 'Print the current version.');
   }
 
   @override

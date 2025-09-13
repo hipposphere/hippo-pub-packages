@@ -42,10 +42,7 @@ class PostgresReader {
     // expected format: postgresql://<username>:<password>@<host>:<port>/<database-name>
     connectionString = connectionString.trim();
     if (connectionString.startsWith('postgres://')) {
-      connectionString = connectionString.replaceFirst(
-        'postgres://',
-        'postgresql://',
-      );
+      connectionString = connectionString.replaceFirst('postgres://', 'postgresql://');
     }
     if (!connectionString.startsWith('postgresql://')) {
       throw FormatException(
@@ -92,9 +89,7 @@ class PostgresReader {
     databaseName = parts[4];
   }
 
-  Future<List<ForeignKeyRelation>> getForeignKeyRelations({
-    String schemaName = 'public',
-  }) {
+  Future<List<ForeignKeyRelation>> getForeignKeyRelations({String schemaName = 'public'}) {
     return _getForeignKeyRelations(schemaName: schemaName, query: query);
   }
 
@@ -118,12 +113,7 @@ class PostgresReader {
     List<String>? omitRpcNames,
     List<DatabaseEnum> enums = const [],
   }) {
-    return _getRpcs(
-      schemaName: schemaName,
-      query: query,
-      omitRpcNames: omitRpcNames,
-      enums: enums,
-    );
+    return _getRpcs(schemaName: schemaName, query: query, omitRpcNames: omitRpcNames, enums: enums);
   }
 
   Future<List<DatabaseEnum>> getEnums({String schemaName = 'public'}) {

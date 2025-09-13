@@ -11,9 +11,7 @@ extension StringUtils on String {
   String convertSnakeCaseToCamelCase() {
     if (!contains('_')) return this;
 
-    return split(
-      '_',
-    ).reduce((value, element) => value + element.toUpperCaseFirst());
+    return split('_').reduce((value, element) => value + element.toUpperCaseFirst());
   }
 
   String toSnakeCase() {

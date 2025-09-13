@@ -25,10 +25,7 @@ abstract class SyncableDto {
 
     // Choose the one that is after the other
     final thisLatestUpdatedAt = chooseTheLater(updatedAt, localUpdatedAt);
-    final otherLatestUpdatedAt = chooseTheLater(
-      other.updatedAt,
-      otherLocalUpdatedAt,
-    );
+    final otherLatestUpdatedAt = chooseTheLater(other.updatedAt, otherLocalUpdatedAt);
     return thisLatestUpdatedAt.isAfter(otherLatestUpdatedAt);
   }
 

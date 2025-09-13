@@ -26,8 +26,7 @@ Future<List<DatabaseRpc>> _getRpcs({
       uniqueFunctionNames.add(functionName);
       return functionName;
     }
-    final newName =
-        '${functionName}_${uniqueFunctionNames.where((e) => e == functionName).length}';
+    final newName = '${functionName}_${uniqueFunctionNames.where((e) => e == functionName).length}';
     uniqueFunctionNames.add(newName);
     return newName;
   }
@@ -49,10 +48,7 @@ Future<List<DatabaseRpc>> _getRpcs({
     final returnType = result?[FunctionColumnNames.returnType];
     final String arguments = result?[FunctionColumnNames.arguments];
 
-    final splittedArguments = arguments
-        .split(',')
-        .map((e) => e.trim())
-        .toList();
+    final splittedArguments = arguments.split(',').map((e) => e.trim()).toList();
 
     final rpcData = DatabaseRpc(
       uniqueFunctionName: getUniqueFunctionName(functionName),
@@ -69,9 +65,7 @@ Future<List<DatabaseRpc>> _getRpcs({
         return DatabaseRpcArgument(
           argumentName: argumentName,
           udtType: split.sublist(1).join(' '),
-          enumType: enums
-              .where((element) => element.enumType == udtType)
-              .firstOrNull,
+          enumType: enums.where((element) => element.enumType == udtType).firstOrNull,
         );
       }).toList(),
     );

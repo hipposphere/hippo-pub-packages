@@ -32,8 +32,7 @@ class EnumClassBuilder {
     // from JsonString method
     classBuilder.methods.add(
       Method((b) {
-        var returnStatement =
-            '''return  ${databaseEnum.enumName}.values.byName(value);''';
+        var returnStatement = '''return  ${databaseEnum.enumName}.values.byName(value);''';
 
         for (final value in databaseEnum.values) {
           if (value != databaseEnum.getDartSafeEnumValue(value)) {
@@ -75,15 +74,12 @@ class EnumClassBuilder {
 
     String source = generateSource();
 
-    if (databaseEnum.values.any(
-      (element) => element == element.toUpperCase(),
-    )) {
+    if (databaseEnum.values.any((element) => element == element.toUpperCase())) {
       source = "// ignore: constant_identifier_names ";
     }
 
     return source;
   }
 
-  String generateSource() =>
-      classBuilder.build().accept(dartEmitter).toString();
+  String generateSource() => classBuilder.build().accept(dartEmitter).toString();
 }

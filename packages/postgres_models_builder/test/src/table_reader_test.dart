@@ -10,8 +10,7 @@ const _port = 54322;
 const _username = 'some_user-name';
 const _password = 'pass123word456';
 // the '@' symbol should be replaced with `%40`
-const _invalidConnectionString =
-    'postgresql://postgres:pass@word@localhost:54322/postgres';
+const _invalidConnectionString = 'postgresql://postgres:pass@word@localhost:54322/postgres';
 
 void main() {
   group('postgres_reader.dart', () {
@@ -44,9 +43,7 @@ void main() {
       test('filtered tables', () async {
         final tableReader = TableReaderMock(_connectionString);
         final subTables = tablesForTest.sublist(0, 2);
-        final tables = await tableReader.getTables(
-          tableNames: tablesForTest.sublist(0, 2),
-        );
+        final tables = await tableReader.getTables(tableNames: tablesForTest.sublist(0, 2));
 
         expect(tables.length, subTables.length);
         expect(tables[0].tableName, subTables[0]);

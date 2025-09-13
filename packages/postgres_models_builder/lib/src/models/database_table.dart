@@ -9,8 +9,7 @@ class DatabaseTable {
 
   const DatabaseTable(this.schemaName, this.tableName, this.columns);
 
-  String get dartClassName =>
-      tableName.convertSnakeCaseToCamelCase().toUpperCaseFirst();
+  String get dartClassName => tableName.convertSnakeCaseToCamelCase().toUpperCaseFirst();
 
   String toSchemaTableName() {
     return '${schemaName.isEmpty ? '' : '"$schemaName".'}$tableName';

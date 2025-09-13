@@ -50,6 +50,5 @@ class TableDefinitionsBuilder {
     return source;
   }
 
-  String generateSource() =>
-      classBuilder.build().accept(dartEmitter).toString();
+  String generateSource() => classBuilder.build().accept(dartEmitter).toString();
 }

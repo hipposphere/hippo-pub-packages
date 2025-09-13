@@ -65,14 +65,10 @@ class SchemaConverter {
     Log.trace('connecting to database');
     await reader.connect();
 
-    enums = [
-      for (final schema in schemaList)
-        ...await reader.getEnums(schemaName: schema),
-    ];
+    enums = [for (final schema in schemaList) ...await reader.getEnums(schemaName: schema)];
 
     final List<ForeignKeyRelation> foreignKeyRelations = [
-      for (final schema in schemaList)
-        ...await reader.getForeignKeyRelations(schemaName: schema),
+      for (final schema in schemaList) ...await reader.getForeignKeyRelations(schemaName: schema),
     ];
 
     Log.trace('calling PostgresReader.getTables with omitting $omitTableNames');
@@ -89,11 +85,7 @@ class SchemaConverter {
     Log.trace('calling PostgresReader.getRpcs with omitting $omitRpcNames');
     rpcs = [
       for (final schema in schemaList)
-        ...await reader.getRpcs(
-          schemaName: schema,
-          omitRpcNames: omitRpcNames,
-          enums: enums,
-        ),
+        ...await reader.getRpcs(schemaName: schema, omitRpcNames: omitRpcNames, enums: enums),
     ];
     Log.trace('calling PostgresReader.getRpcs');
 
@@ -119,78 +111,42 @@ class SchemaConverter {
       final tableFiles = table.value;
       for (final tableFile in tableFiles) {
         final file = File(
-          p.join(
-            outputDirectory.path,
-            'models/$tableName/',
-            '${tableFile.fileName}.g.dart',
-          ),
+          p.join(outputDirectory.path, 'models/$tableName/', '${tableFile.fileName}.g.dart'),
         );
         futures.add(
-          file
-              .create(recursive: true)
-              .then((value) => file.writeAsString(tableFile.sourceCode)),
+          file.create(recursive: true).then((value) => file.writeAsString(tableFile.sourceCode)),
         );
       }
     }
     for (final generatedEnum in typesGenerator.generatedEnums) {
-      final file = File(
-        p.join(
-          outputDirectory.path,
-          'enums/',
-          '${generatedEnum.fileName}.g.dart',
-        ),
-      );
+      final file = File(p.join(outputDirectory.path, 'enums/', '${generatedEnum.fileName}.g.dart'));
       futures.add(
-        file
-            .create(recursive: true)
-            .then((value) => file.writeAsString(generatedEnum.sourceCode)),
+        file.create(recursive: true).then((value) => file.writeAsString(generatedEnum.sourceCode)),
       );
     }
     for (final generatedRpcs in typesGenerator.generatedRpcs) {
-      final file = File(
-        p.join(
-          outputDirectory.path,
-          'rpcs/',
-          '${generatedRpcs.fileName}.g.dart',
-        ),
-      );
+      final file = File(p.join(outputDirectory.path, 'rpcs/', '${generatedRpcs.fileName}.g.dart'));
       futures.add(
-        file
-            .create(recursive: true)
-            .then((value) => file.writeAsString(generatedRpcs.sourceCode)),
+        file.create(recursive: true).then((value) => file.writeAsString(generatedRpcs.sourceCode)),
       );
     }
 
     for (final generatedKey in typesGenerator.generatedKeyIds) {
-      final file = File(
-        p.join(
-          outputDirectory.path,
-          'keys/',
-          '${generatedKey.fileName}.g.dart',
-        ),
-      );
+      final file = File(p.join(outputDirectory.path, 'keys/', '${generatedKey.fileName}.g.dart'));
       futures.add(
-        file
-            .create(recursive: true)
-            .then((value) => file.writeAsString(generatedKey.sourceCode)),
+        file.create(recursive: true).then((value) => file.writeAsString(generatedKey.sourceCode)),
       );
     }
-    final libraryFile = File(
-      p.join(outputDirectory.path, 'public_supabase_models.dart'),
-    );
+    final libraryFile = File(p.join(outputDirectory.path, 'public_supabase_models.dart'));
     futures.add(
       libraryFile
           .create(recursive: true)
           .then(
-            (value) => libraryFile.writeAsString(
-              typesGenerator.generatedExportLibrary.sourceCode,
-            ),
+            (value) => libraryFile.writeAsString(typesGenerator.generatedExportLibrary.sourceCode),
           ),
     );
 
-    final tableDefintionsFile = File(
-      p.join(outputDirectory.path, 'table_definitions.dart'),
-    );
+    final tableDefintionsFile = File(p.join(outputDirectory.path, 'table_definitions.dart'));
     futures.add(
       tableDefintionsFile
           .create(recursive: true)

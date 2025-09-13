@@ -40,9 +40,7 @@ class KeyIdClassBuilder {
       }),
     );
 
-    classBuilder.extend = refer(
-      column.keyIdType == KeyIdType.string ? 'StringId' : 'IntId',
-    );
+    classBuilder.extend = refer(column.keyIdType == KeyIdType.string ? 'StringId' : 'IntId');
 
     classBuilder.constructors.add(
       Constructor((c) {
@@ -90,11 +88,9 @@ class KeyIdClassBuilder {
     );
 
     String source = generateSource();
-    source =
-        "import 'package:postgres_base_models/postgres_base_models.dart';\n$source";
+    source = "import 'package:postgres_base_models/postgres_base_models.dart';\n$source";
     return source;
   }
 
-  String generateSource() =>
-      classBuilder.build().accept(dartEmitter).toString();
+  String generateSource() => classBuilder.build().accept(dartEmitter).toString();
 }

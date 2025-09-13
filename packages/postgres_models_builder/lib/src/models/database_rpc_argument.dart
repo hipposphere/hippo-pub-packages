@@ -8,11 +8,7 @@ class DatabaseRpcArgument {
   // if this is an enum, then this will be set
   final DatabaseEnum? enumType;
 
-  const DatabaseRpcArgument({
-    required this.argumentName,
-    required this.udtType,
-    this.enumType,
-  });
+  const DatabaseRpcArgument({required this.argumentName, required this.udtType, this.enumType});
 
   String get dartArgumentName => argumentName.convertSnakeCaseToCamelCase();
 

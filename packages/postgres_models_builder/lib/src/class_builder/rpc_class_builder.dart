@@ -24,9 +24,7 @@ class RpcClassBuilder {
   String build() {
     // assign the class name
     classBuilder.name = databaseRpc.dartClassName;
-    classBuilder.implements = ListBuilder([
-      refer('RpcFunctionDefinition<dynamic>'),
-    ]);
+    classBuilder.implements = ListBuilder([refer('RpcFunctionDefinition<dynamic>')]);
 
     /// arguments & constructor
 
@@ -106,19 +104,16 @@ class RpcClassBuilder {
 
     String source = generateSource();
     // \nimport 'package:app_tools/universal_tools.dart';
-    source =
-        "import 'package:postgres_base_models/postgres_base_models.dart';  \n$source";
+    source = "import 'package:postgres_base_models/postgres_base_models.dart';  \n$source";
 
     for (final argument in databaseRpc.arguments) {
       if (argument.enumType != null) {
-        source =
-            "import '../enums/${argument.enumType!.enumType}.g.dart';\n$source";
+        source = "import '../enums/${argument.enumType!.enumType}.g.dart';\n$source";
       }
     }
 
     return source;
   }
 
-  String generateSource() =>
-      classBuilder.build().accept(dartEmitter).toString();
+  String generateSource() => classBuilder.build().accept(dartEmitter).toString();
 }

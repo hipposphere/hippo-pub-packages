@@ -1,4 +1,4 @@
-name: Publish Dart Packages
+name: Publish Packages
 
 on:
   workflow_dispatch:
@@ -15,8 +15,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Dart
-        uses: dart-lang/setup-dart@v1
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
 
       - name: Install Melos
         run: dart pub global activate melos

@@ -27,9 +27,14 @@ jobs:
       - name: Bootstrap workspace
         run: dart pub global run melos bootstrap
 
-      - name: Publish packages
+      - name: Set up pub credentials
         env:
-          PUB_CREDENTIALS: ${{ secrets.PUB_CREDENTIALS }}
+          PUB_TOKEN: ${{ secrets.PUB_CREDENTIALS }}
+        run: |
+          # Add token for custom registry using dart pub token add
+          dart pub token add https://registry.hippolabs.org/pub/internal-pub/ $PUB_TOKEN
+
+      - name: Publish packages
         run: |
           if [ -z "${{ github.event.inputs.package }}" ]; then
             dart pub global run melos publish --no-dry-run --yes

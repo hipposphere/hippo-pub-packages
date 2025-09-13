@@ -224,7 +224,7 @@ environment:
 dependencies:
 	hippo_utils: any      # local workspace reference
 dev_dependencies:
-	flutter_lints: ^5.0.0 # (if Flutter)
+	flutter_lints: ^6.0.0 # (if Flutter)
 ```
 
 ### 5. Analysis & Lints

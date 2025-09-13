@@ -6,7 +6,8 @@ public class HotkeyApiPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
   static let eventChannelName  = "hotkey_api/events"
 
   var eventSink: FlutterEventSink?
-  var eventMonitor: Any?
+  var localEventMonitor: Any?
+  var globalEventMonitor: Any?
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let methodChannel = FlutterMethodChannel(name: methodChannelName, binaryMessenger: registrar.messenger)
@@ -32,22 +33,28 @@ public class HotkeyApiPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         .flagsChanged,
     ]
     // events when the app is in focus
-    self.eventMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { (event) in
+    self.localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { (event) in
         self.handle(event: event)
+        return event  // Return the event to pass it through to the system
     }
     // events when the app is out of focus
-    self.eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { (event) in
+    self.globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { (event) in
         self.handle(event: event)
+        // Global monitor doesn't return anything
     }
     
     return nil
   }
 
   public func onCancel(withArguments arguments: Any?) -> FlutterError? {
-    if let monitor = self.eventMonitor {
+    if let monitor = self.localEventMonitor {
         NSEvent.removeMonitor(monitor)
     }
-    self.eventMonitor = nil
+    if let monitor = self.globalEventMonitor {
+        NSEvent.removeMonitor(monitor)
+    }
+    self.localEventMonitor = nil
+    self.globalEventMonitor = nil
     self.eventSink = nil
     return nil
   }
@@ -55,20 +62,50 @@ public class HotkeyApiPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
   private func handle(event: NSEvent) {
     if let sink = self.eventSink {
         let eventType: String
+        var keyCode: Int
+        
         switch event.type {
         case .keyDown:
             eventType = "down"
+            keyCode = Int(event.keyCode)
         case .keyUp:
             eventType = "up"
+            keyCode = Int(event.keyCode)
+        case .flagsChanged:
+            // Handle modifier key changes
+            let modifierFlags = event.modifierFlags
+            
+            // Predefined modifier mappings
+            let modifierMappings: [(NSEvent.ModifierFlags, Int)] = [
+                (.command, 55),   // Command key
+                (.shift, 56),     // Shift key
+                (.capsLock, 57),  // Caps Lock key
+                (.option, 58),    // Option key
+                (.control, 59),   // Control key
+            ]
+            
+            // Find which modifier key changed
+            var foundModifier = false
+            for (flag, code) in modifierMappings {
+                if modifierFlags.contains(flag) {
+                    eventType = "down"
+                    keyCode = code
+                    foundModifier = true
+                    break
+                }
+            }
+            
+            if !foundModifier {
+                // No modifier flags set, so this is a release event
+                eventType = "up"
+                keyCode = Int(event.keyCode)
+            }
         default:
-            // For flagsChanged events, we can treat them as key down events
-            // for the purpose of simplicity. The specific modifier key can
-            // be extracted from the event if needed.
-            eventType = "down"
+            return // Skip other event types
         }
 
         sink([
-            "key": Int(event.keyCode),
+            "key": keyCode,
             "type": eventType,
         ])
     }

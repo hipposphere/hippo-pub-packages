@@ -1,8 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-import 'folders/logo_assets.dart';
-
-export 'folders/logo_assets.dart';
 export 'folders/other_assets.dart';
 
 enum HippoAssetType { png, jpg, webp, svg, ogg, mp3, json, html }
@@ -48,6 +45,4 @@ class HippoAssets {
   const HippoAssets._();
 
   static const packagePrefix = 'packages/hippo_components';
-
-  static const logoAssets = [LogoAssets.branding, LogoAssets.logo, LogoAssets.logoForeground];
 }

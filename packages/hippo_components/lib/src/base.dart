@@ -27,7 +27,6 @@ export 'base/other/optional_tooltip.dart';
 export 'base/other/alert.dart';
 export 'base/other/tile.dart';
 export 'base/other/section.dart';
-export 'base/other/hippo_logo.dart';
 export 'base/other/pencil_field.dart';
 export 'base/other/breadcrumb.dart';
 export 'base/other/native_context_menu.dart';

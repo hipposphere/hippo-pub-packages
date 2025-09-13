@@ -33,8 +33,6 @@ dependencies:
   fsrs: 2.0.1
   file_selector: ^1.0.3
   share_plus: ^12.0.0
-  purchases_flutter: 9.6.0
-  purchases_ui_flutter: 9.6.0
   posthog_flutter: ^5.5.0
   content_resolver: ^0.3.3
   package_info_plus: ^9.0.0

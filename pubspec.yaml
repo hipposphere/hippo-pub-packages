@@ -9,6 +9,9 @@ dev_dependencies:
   melos: ^7.1.1
 
 workspace:
+  - packages/dictation_support
+  - packages/hid_api
+  - packages/hippo_auth
   - packages/hippo_components
   - packages/hippo_utils
 

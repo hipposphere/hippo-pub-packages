@@ -18,6 +18,8 @@ workspace:
   - packages/hippo_components
   - packages/hippo_ui
   - packages/hippo_utils
+  - packages/hotkey_api
+  - packages/hotkey_api/example
   - packages/postgres_base_models
   - packages/postgres_models_builder
 

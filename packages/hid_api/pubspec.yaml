@@ -1,6 +1,7 @@
 name: hid_api
 description: "A new Flutter FFI plugin project."
 version: 0.0.1
+homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
 

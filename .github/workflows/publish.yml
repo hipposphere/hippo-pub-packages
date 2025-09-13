@@ -1,4 +1,4 @@
-name: Publish Dart Packages
+name: Publish Packages
 
 on:
   workflow_dispatch:
@@ -15,8 +15,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Dart
-        uses: dart-lang/setup-dart@v1
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
 
       - name: Install Melos
         run: dart pub global activate melos
@@ -24,9 +27,14 @@ jobs:
       - name: Bootstrap workspace
         run: dart pub global run melos bootstrap
 
-      - name: Publish packages
+      - name: Set up pub credentials
         env:
-          PUB_CREDENTIALS: ${{ secrets.PUB_CREDENTIALS }}
+          PUB_TOKEN: ${{ secrets.PUB_CREDENTIALS }}
+        run: |
+          # Add the actual token value (not an env var reference)
+          echo "$PUB_TOKEN" | dart pub token add https://registry.hippolabs.org/pub/internal-pub/
+
+      - name: Publish packages
         run: |
           if [ -z "${{ github.event.inputs.package }}" ]; then
             dart pub global run melos publish --no-dry-run --yes

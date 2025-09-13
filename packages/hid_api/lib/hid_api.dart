@@ -58,7 +58,6 @@ final DynamicLibrary _dylib = () {
 /// The bindings to the native functions in [_dylib].
 final HidApiBindings _bindings = HidApiBindings(_dylib);
 
-
 /// A request to compute `sum`.
 ///
 /// Typically sent from one isolate to another.

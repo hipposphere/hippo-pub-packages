@@ -79,30 +79,30 @@ jobs:
             const analyzeDetails = '${{ steps.analyze.outputs.details }}';
             const testStatus = '${{ steps.test.outputs.status }}';
             const testDetails = '${{ steps.test.outputs.details }}';
-            
+
             const body = `## 🤖 CI Report
-            
+
             | Check | Status | Details |
             |-------|--------|---------|
             | **Format** | ${formatStatus} | ${formatDetails} |
             | **Analyzer** | ${analyzeStatus} | ${analyzeDetails} |
             | **Tests** | ${testStatus} | ${testDetails} |
-            
+
             ---
             *Last updated: ${new Date().toISOString()}*
             *Commit: ${context.sha.substring(0, 7)}*`;
-            
+
             // Find existing comment
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
-            
+
             const botComment = comments.data.find(comment => 
               comment.user.type === 'Bot' && comment.body.includes('🤖 CI Report')
             );
-            
+
             if (botComment) {
               // Update existing comment
               await github.rest.issues.updateComment({

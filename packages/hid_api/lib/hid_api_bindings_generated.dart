@@ -1,3 +1,12 @@
+/*
+// ---------------------------------------------------------------------------
+// Copyright (c) 2025 HippoSphere UG (haftungsbeschränkt). All rights reserved.
+// Use, copying, modification, or distribution of this software is prohibited 
+// without express written permission from Hipposphere UG.
+//
+// SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
+// ---------------------------------------------------------------------------
+*/
 // ignore_for_file: always_specify_types
 // ignore_for_file: camel_case_types
 // ignore_for_file: non_constant_identifier_names

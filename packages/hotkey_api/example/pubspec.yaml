@@ -1,6 +1,7 @@
 name: hotkey_api_example
 description: "Demonstrates how to use the hotkey_api plugin."
 publish_to: "none"
+resolution: workspace
 
 environment:
   sdk: ^3.9.2

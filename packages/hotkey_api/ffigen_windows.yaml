@@ -1,0 +1,104 @@
+# FFI generation for Windows using native Win32 APIs
+# Run with `dart run ffigen --config ffigen_windows.yaml`
+name: WindowsHotkeyBindings
+description: |
+  Bindings for Windows native hotkey APIs using SetWindowsHookEx and RegisterHotKey.
+
+  Regenerate bindings with `dart run ffigen --config ffigen_windows.yaml`.
+output: "lib/generated/windows_hotkey_bindings.dart"
+headers:
+  entry-points:
+    # Windows SDK headers - these paths will need to be adjusted based on Windows SDK installation
+    - "windows.h"
+    - "winuser.h"
+  include-directives:
+    - "windows.h"
+    - "winuser.h"
+
+compiler-opts:
+  - "-DWIN32"
+  - "-D_WIN32"
+  - "-DWINDOWS"
+  - "-DWIN32_LEAN_AND_MEAN"
+
+preamble: |
+  // ignore_for_file: always_specify_types
+  // ignore_for_file: camel_case_types
+  // ignore_for_file: non_constant_identifier_names
+  // ignore_for_file: unused_import
+  // ignore_for_file: constant_identifier_names
+
+comments:
+  style: any
+  length: full
+
+# Focus on hotkey-related functions
+functions:
+  include:
+    # Windows hotkey functions
+    - "RegisterHotKey"
+    - "UnregisterHotKey"
+    - "SetWindowsHookEx.*"
+    - "UnhookWindowsHookEx"
+    - "CallNextHookEx"
+    - "GetMessage.*"
+    - "PeekMessage.*"
+    - "PostMessage.*"
+    - "DispatchMessage.*"
+    - "TranslateMessage"
+    - "DefWindowProc.*"
+    - "CreateWindow.*"
+    - "DestroyWindow"
+    - "GetModuleHandle.*"
+    - "RegisterClass.*"
+    - "UnregisterClass.*"
+    # Thread functions for background processing
+    - "CreateThread"
+    - "CloseHandle"
+    - "WaitForSingleObject"
+    - "GetCurrentThreadId"
+    - "PostThreadMessage.*"
+
+structs:
+  include:
+    - "MSG"
+    - "WNDCLASS.*"
+    - "POINT"
+    - "RECT"
+    - "KBDLLHOOKSTRUCT"
+    - "MSLLHOOKSTRUCT"
+
+enums:
+  include:
+    - "WM_.*"
+    - "VK_.*"
+    - "MOD_.*"
+    - "WH_.*"
+    - "HC_.*"
+
+typedefs:
+  include:
+    - "HWND"
+    - "HANDLE"
+    - "HINSTANCE"
+    - "HMODULE"
+    - "WPARAM"
+    - "LPARAM"
+    - "LRESULT"
+    - "DWORD"
+    - "UINT"
+    - "BOOL"
+    - "WNDPROC"
+    - "HOOKPROC"
+    - "HHOOK"
+
+macros:
+  include:
+    # Virtual key codes
+    - "VK_.*"
+    # Window messages
+    - "WM_.*"
+    # Modifier keys
+    - "MOD_.*"
+    # Hook types
+    - "WH_.*"

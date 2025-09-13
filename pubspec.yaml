@@ -32,7 +32,7 @@ melos:
       run: dart format --set-exit-if-changed .
       description: Check if all Dart files are formatted
     test:
-      run: flutter test
+      run: melos exec --dir-exists=test -- flutter test
       description: Run all tests
     ci:
       run: |

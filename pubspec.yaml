@@ -31,14 +31,18 @@ melos:
     check-format:
       run: dart format --set-exit-if-changed .
       description: Check if all Dart files are formatted
+    analyze:
+      run: dart analyze
+      description: Run Dart analyzer to check for lint errors
     test:
       run: melos exec --dir-exists=test -- flutter test
       description: Run all tests
     ci:
       run: |
         melos run check-format
+        melos run analyze
         melos run test
-      description: Check formatting, and run tests
+      description: Check formatting, analyze for lint errors, and run tests
     # Not required for now, but useful to have in the future
     license-add-headers:
       run: npx -y license-check-and-add add

@@ -6,6 +6,9 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,5 +24,108 @@ jobs:
       - name: Bootstrap workspace
         run: dart pub global run melos bootstrap
 
-      - name: Run Melos CI script
-        run: dart pub global run melos run ci
+      - name: Check formatting
+        id: format
+        run: |
+          echo "## 📝 Format Check" >> $GITHUB_STEP_SUMMARY
+          if dart pub global run melos run check-format; then
+            echo "✅ All files are properly formatted" >> $GITHUB_STEP_SUMMARY
+            echo "status=✅ PASSED" >> $GITHUB_OUTPUT
+            echo "details=All files are properly formatted" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Some files need formatting" >> $GITHUB_STEP_SUMMARY
+            echo "status=❌ FAILED" >> $GITHUB_OUTPUT
+            echo "details=Some files need formatting. Run \`melos run format\` to fix." >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Run analyzer
+        id: analyze
+        run: |
+          echo "## 🔍 Dart Analyzer" >> $GITHUB_STEP_SUMMARY
+          if dart pub global run melos run analyze; then
+            echo "✅ No analyzer issues found" >> $GITHUB_STEP_SUMMARY
+            echo "status=✅ PASSED" >> $GITHUB_OUTPUT
+            echo "details=No analyzer issues found" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Analyzer found issues" >> $GITHUB_STEP_SUMMARY
+            echo "status=❌ FAILED" >> $GITHUB_OUTPUT
+            echo "details=Analyzer found issues. Check the logs for details." >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Run tests
+        id: test
+        run: |
+          echo "## 🧪 Tests" >> $GITHUB_STEP_SUMMARY
+          if dart pub global run melos run test; then
+            echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+            echo "status=✅ PASSED" >> $GITHUB_OUTPUT
+            echo "details=All tests passed" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Some tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "status=❌ FAILED" >> $GITHUB_OUTPUT
+            echo "details=Some tests failed. Check the logs for details." >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Create or update PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const formatStatus = '${{ steps.format.outputs.status }}';
+            const formatDetails = '${{ steps.format.outputs.details }}';
+            const analyzeStatus = '${{ steps.analyze.outputs.status }}';
+            const analyzeDetails = '${{ steps.analyze.outputs.details }}';
+            const testStatus = '${{ steps.test.outputs.status }}';
+            const testDetails = '${{ steps.test.outputs.details }}';
+            
+            const body = `## 🤖 CI Report
+            
+            | Check | Status | Details |
+            |-------|--------|---------|
+            | **Format** | ${formatStatus} | ${formatDetails} |
+            | **Analyzer** | ${analyzeStatus} | ${analyzeDetails} |
+            | **Tests** | ${testStatus} | ${testDetails} |
+            
+            ---
+            *Last updated: ${new Date().toISOString()}*
+            *Commit: ${context.sha.substring(0, 7)}*`;
+            
+            // Find existing comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.data.find(comment => 
+              comment.user.type === 'Bot' && comment.body.includes('🤖 CI Report')
+            );
+            
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+
+      - name: Fail if any check failed
+        run: |
+          if [[ "${{ steps.format.outputs.status }}" == *"FAILED"* ]] || \
+             [[ "${{ steps.analyze.outputs.status }}" == *"FAILED"* ]] || \
+             [[ "${{ steps.test.outputs.status }}" == *"FAILED"* ]]; then
+            echo "One or more checks failed"
+            exit 1
+          fi

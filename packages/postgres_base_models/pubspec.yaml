@@ -1,6 +1,7 @@
 name: postgres_base_models
 description: Provider-Like State-Management-System and more useful tools
 version: 0.1.0
+homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
 

@@ -18,25 +18,47 @@ void main() {
   );
 }
 
-const _defaultKeys = [PhysicalKeyboardKey.controlRight];
+const _defaultKeys = [
+  PhysicalKeyboardKey.keyA,
+  PhysicalKeyboardKey.keyB,
+  PhysicalKeyboardKey.arrowUp,
+];
 
 class HotkeyBloc extends BlocBase {
   final selectedKeysSubject = DataSubject<List<PhysicalKeyboardKey>>.seeded(
     _defaultKeys,
   );
 
-  final eventsSubject = DataSubject<List<HotkeyEvent>>.seeded([]);
+  final eventsSubject =
+      DataSubject<List<({DateTime dateTime, HotkeyEvent event})>>.seeded([]);
 
   final isListeningSubject = DataSubject<bool>.seeded(false);
+
+  final ScrollController scrollController = ScrollController();
 
   StreamSubscription? _subscription;
 
   void startListening() {
     _subscription?.cancel();
     final keys = selectedKeysSubject.value;
-    _subscription = HotkeyApi.streamHotkeyEvents(keys: keys).listen((event) {
+    _subscription = HotkeyApi.streamHotkeyEvents().listen((event) {
+      if (event.key == null) return;
+      if (!keys.contains(event.key!)) return;
       final currentEvents = eventsSubject.value;
-      eventsSubject.add([...currentEvents, event]);
+      eventsSubject.add([
+        ...currentEvents,
+        (dateTime: DateTime.now(), event: event),
+      ]);
+      // Auto scroll to bottom
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (scrollController.hasClients) {
+          scrollController.animateTo(
+            scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
     });
     isListeningSubject.add(true);
   }
@@ -75,6 +97,7 @@ class Page extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text('Hotkey API Example')),
       body: CustomScrollView(
+        controller: bloc.scrollController,
         slivers: [
           CombinedDataSubjectBuilder(
             subject1: bloc.isListeningSubject,
@@ -82,7 +105,7 @@ class Page extends StatelessWidget {
             builder: (context, isListening, selectedKeys) {
               return SliverColumn(
                 children: [
-                  PaddedSectionHeader(text: 'Selected Keys'),
+                  PaddedSectionHeader(text: 'Filtered Keys'),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Wrap(
@@ -123,7 +146,7 @@ class Page extends StatelessWidget {
                   SliverChild(
                     child: PaddedSectionHeader(text: 'Event History'),
                   ),
-                  _EventHistory(events: events),
+                  LimitedSliverPadded(sliver: _EventHistory(events: events)),
                 ],
               );
             },
@@ -135,7 +158,7 @@ class Page extends StatelessWidget {
 }
 
 class _EventHistory extends StatelessWidget {
-  final List<HotkeyEvent> events;
+  final List<({DateTime dateTime, HotkeyEvent event})> events;
   const _EventHistory({required this.events});
 
   @override
@@ -143,8 +166,10 @@ class _EventHistory extends StatelessWidget {
     return SliverBodyListItems(
       items: events,
       itemBuilder: (context, item) {
-        return ListTile(
-          title: Text("${item.key?.debugName}: ${item.type.name}"),
+        final dateTime = item.dateTime;
+        final event = item.event;
+        return Text(
+          "$dateTime: ${event.key?.debugName ?? event.key?.usbHidUsage} - ${event.type.name}",
         );
       },
     );

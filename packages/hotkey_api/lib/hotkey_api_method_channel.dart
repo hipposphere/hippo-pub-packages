@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:hotkey_api/src/models/hot_key_event.dart';
-import 'package:hotkey_api/src/utils/map_physical_keyboard_key.dart';
 
 import 'hotkey_api_platform_interface.dart';
 
@@ -13,13 +12,9 @@ class MethodChannelHotkeyApi extends HotkeyApiPlatform {
   final eventChannel = const EventChannel('hotkey_api/events');
 
   @override
-  Stream<HotkeyEvent> streamHotkeyEvents({
-    required List<PhysicalKeyboardKey> keys,
-  }) {
-    return eventChannel
-        .receiveBroadcastStream({
-          'keys': keys.map((e) => mapPhysicalKeyboardKey(e)).toList(),
-        })
-        .map((event) => HotkeyEvent.fromMap(event));
+  Stream<HotkeyEvent> streamHotkeyEvents() {
+    return eventChannel.receiveBroadcastStream().map(
+      (event) => HotkeyEvent.fromMap(event),
+    );
   }
 }

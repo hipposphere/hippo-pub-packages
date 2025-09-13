@@ -15,6 +15,9 @@
 
 namespace hotkey_api {
 
+// Static instance pointer
+HotkeyApiPlugin* HotkeyApiPlugin::instance_ = nullptr;
+
 // static
 void HotkeyApiPlugin::RegisterWithRegistrar(
     flutter::PluginRegistrarWindows* registrar) {
@@ -53,9 +56,15 @@ void HotkeyApiPlugin::RegisterWithRegistrar(
   registrar->AddPlugin(std::move(plugin));
 }
 
-HotkeyApiPlugin::HotkeyApiPlugin() {}
+HotkeyApiPlugin::HotkeyApiPlugin() {
+  instance_ = this;
+}
 
-HotkeyApiPlugin::~HotkeyApiPlugin() {}
+HotkeyApiPlugin::~HotkeyApiPlugin() {
+  if (instance_ == this) {
+    instance_ = nullptr;
+  }
+}
 
 void HotkeyApiPlugin::HandleMethodCall(
     const flutter::MethodCall<flutter::EncodableValue>& method_call,
@@ -89,7 +98,7 @@ HotkeyApiPlugin::OnCancel(const flutter::EncodableValue* arguments) {
 
 LRESULT CALLBACK HotkeyApiPlugin::KeyboardProc(int nCode, WPARAM wParam,
                                                LPARAM lParam) {
-  if (nCode == HC_ACTION) {
+  if (nCode == HC_ACTION && instance_ && instance_->event_sink_) {
     KBDLLHOOKSTRUCT* pkbhs = (KBDLLHOOKSTRUCT*)lParam;
     if (pkbhs) {
       flutter::EncodableMap event;
@@ -97,14 +106,27 @@ LRESULT CALLBACK HotkeyApiPlugin::KeyboardProc(int nCode, WPARAM wParam,
           flutter::EncodableValue((int)pkbhs->vkCode);
 
       if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
-        event[flutter::EncodableValue("type")] =
-            flutter::EncodableValue("down");
+        // Check if this is a repeat event using the flags
+        if (pkbhs->flags & LLKHF_INJECTED) {
+          // Skip injected events to avoid duplicates
+          return CallNextHookEx(nullptr, nCode, wParam, lParam);
+        }
+        
+        // On Windows, repeat events are detected by checking the previous key state
+        // If the key was already down, this is a repeat
+        if (GetAsyncKeyState(pkbhs->vkCode) & 0x8000) {
+          event[flutter::EncodableValue("type")] =
+              flutter::EncodableValue("repeat");
+        } else {
+          event[flutter::EncodableValue("type")] =
+              flutter::EncodableValue("down");
+        }
       } else if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP) {
         event[flutter::EncodableValue("type")] =
             flutter::EncodableValue("up");
       }
 
-      // event_sink_->Success(event);
+      instance_->event_sink_->Success(event);
     }
   }
 

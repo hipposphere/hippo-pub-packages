@@ -40,6 +40,9 @@ class HotkeyApiPlugin : public flutter::Plugin,
   OnCancel(const flutter::EncodableValue *arguments) override;
 
   static LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
+  
+  // Static instance pointer for the callback
+  static HotkeyApiPlugin* instance_;
 };
 
 }  // namespace hotkey_api

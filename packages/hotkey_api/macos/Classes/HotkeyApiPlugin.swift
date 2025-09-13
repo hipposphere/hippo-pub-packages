@@ -60,50 +60,64 @@ public class HotkeyApiPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
   }
 
   private func handle(event: NSEvent) {
-    if let sink = self.eventSink {
-        let eventType: String
-        var keyCode: Int
-        
-        switch event.type {
-        case .keyDown:
+    guard let sink = self.eventSink else { return }
+    
+    let eventType: String?
+    let keyCode: Int?
+    
+    switch event.type {
+    case .keyDown:
+        if event.isARepeat {
+            eventType = "repeat"
+        } else {
             eventType = "down"
-            keyCode = Int(event.keyCode)
-        case .keyUp:
-            eventType = "up"
-            keyCode = Int(event.keyCode)
-        case .flagsChanged:
-            // Handle modifier key changes
-            let modifierFlags = event.modifierFlags
-            
-            // Predefined modifier mappings
-            let modifierMappings: [(NSEvent.ModifierFlags, Int)] = [
-                (.command, 55),   // Command key
-                (.shift, 56),     // Shift key
-                (.capsLock, 57),  // Caps Lock key
-                (.option, 58),    // Option key
-                (.control, 59),   // Control key
-            ]
-            
-            // Find which modifier key changed
-            var foundModifier = false
-            for (flag, code) in modifierMappings {
-                if modifierFlags.contains(flag) {
-                    eventType = "down"
-                    keyCode = code
-                    foundModifier = true
-                    break
-                }
-            }
-            
-            if !foundModifier {
-                // No modifier flags set, so this is a release event
-                eventType = "up"
-                keyCode = Int(event.keyCode)
-            }
-        default:
-            return // Skip other event types
         }
-
+        keyCode = Int(event.keyCode)
+    case .keyUp:
+        eventType = "up"
+        keyCode = Int(event.keyCode)
+    case .flagsChanged:
+        // Handle modifier key changes
+        let modifierFlags = event.modifierFlags
+        
+        // Predefined modifier mappings
+        let modifierMappings: [(NSEvent.ModifierFlags, Int)] = [
+            (.command, 55),   // Command key
+            (.shift, 56),     // Shift key
+            (.capsLock, 57),  // Caps Lock key
+            (.option, 58),    // Option key
+            (.control, 59),   // Control key
+        ]
+        
+        // Find which modifier key changed
+        var foundModifier = false
+        var tempEventType: String?
+        var tempKeyCode: Int?
+        
+        for (flag, code) in modifierMappings {
+            if modifierFlags.contains(flag) {
+                tempEventType = "down"
+                tempKeyCode = code
+                foundModifier = true
+                break
+            }
+        }
+        
+        if !foundModifier {
+            // No modifier flags set, so this is a release event
+            tempEventType = "up"
+            tempKeyCode = Int(event.keyCode)
+        }
+        
+        eventType = tempEventType
+        keyCode = tempKeyCode
+    default:
+        eventType = nil
+        keyCode = nil
+    }
+    
+    // Only send event if both values are valid
+    if let eventType = eventType, let keyCode = keyCode {
         sink([
             "key": keyCode,
             "type": eventType,

@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import '../utils/physical_keyboard_helper.dart';
 
 class HotkeyEvent {
   final PhysicalKeyboardKey? key;
@@ -8,10 +9,11 @@ class HotkeyEvent {
 
   factory HotkeyEvent.fromMap(Map<dynamic, dynamic> map) {
     return HotkeyEvent(
-      key: PhysicalKeyboardKey.findKeyByCode(map['key'] as int),
-      type: switch (map['type'] as String) {
+      key: PhysicalKeyboardHelper.fromPlatformKeyCode(map['key']),
+      type: switch (map['type']) {
         'down' => HotkeyEventType.down,
         'up' => HotkeyEventType.up,
+        'repeat' => HotkeyEventType.repeat,
         _ => throw UnimplementedError(
           'Unknown HotkeyEventType: ${map['type']}',
         ),
@@ -20,4 +22,4 @@ class HotkeyEvent {
   }
 }
 
-enum HotkeyEventType { down, up }
+enum HotkeyEventType { down, up, repeat }

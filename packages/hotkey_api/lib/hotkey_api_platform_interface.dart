@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:hotkey_api/src/models/hot_key_event.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
@@ -25,7 +24,5 @@ abstract class HotkeyApiPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  Stream<HotkeyEvent> streamHotkeyEvents({
-    required List<PhysicalKeyboardKey> keys,
-  });
+  Stream<HotkeyEvent> streamHotkeyEvents();
 }

@@ -31,7 +31,11 @@ public class HotkeyApiPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         .keyUp,
         .flagsChanged,
     ]
-    // We are only interested in key down events.
+    // events when the app is in focus
+    self.eventMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { (event) in
+        self.handle(event: event)
+    }
+    // events when the app is out of focus
     self.eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { (event) in
         self.handle(event: event)
     }

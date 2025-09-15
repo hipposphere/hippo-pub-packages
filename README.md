@@ -1,5 +1,8 @@
 # Hippo Packages Monorepo
 
+[![Open in Coder](https://coder.hippolabs.org/open-in-coder.svg)](https://coder.hippolabs.org/templates/YOUR_TEMPLATE/workspace)
+
+
 This repository contains commonly used Dart & Flutter packages maintained by **Hipposphere**. It is a managed monorepo using **Melos** for dependency version alignment, script orchestration, and workspace management.
 
 📖 **New here?** Start with the [Getting Started Guide](GETTING_STARTED.md) for setup instructions.

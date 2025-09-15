@@ -1,11 +1,9 @@
 {
     "name": "Flutter + Melos Workspace",
-    "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
-    // Features: install common tools (curl, git, etc.)
-    "features": {
-        "ghcr.io/devcontainers/features/common-utils:2": {}
+    "build": {
+        "dockerfile": "Dockerfile"
     },
-    "postCreateCommand": "bash .devcontainer/setup.sh",
+    "postCreateCommand": "melos bootstrap",
     "customizations": {
         "vscode": {
             "extensions": [
@@ -15,5 +13,5 @@
             ]
         }
     },
-    "remoteUser": "vscode"
+    "remoteUser": "root"
 }

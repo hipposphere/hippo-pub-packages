@@ -1,4 +1,4 @@
-# Hippo Packages Monorepo
+# Hippo Pub Packages Monorepo
 
 [![Open in Cloud-Coder](https://img.shields.io/badge/Dev%20Containers-Open%20in%20Coder-red?logo=visualstudiocode)](https://coder.hippolabs.org/templates/YOUR_TEMPLATE/workspace)
 

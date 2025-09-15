@@ -1,5 +1,8 @@
 FROM ubuntu:22.04
 
+# Avoid any interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+
 # Install system deps
 RUN apt-get update && apt-get install -y \
     git curl unzip xz-utils zip libglu1-mesa \
@@ -11,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 RUN install -d -m 0755 /etc/apt/keyrings \
     && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/keyrings/google-linux.gpg \
     && chmod a+r /etc/apt/keyrings/google-linux.gpg \
-    && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-linux.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && echo "deb [arch=amd64,arm64 signed-by=/etc/apt/keyrings/google-linux.gpg] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
     && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*

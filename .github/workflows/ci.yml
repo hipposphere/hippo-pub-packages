@@ -87,6 +87,13 @@ jobs:
             const testStatus = '${{ steps.test.outputs.status }}';
             const testDetails = '${{ steps.test.outputs.details }}';
 
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = context.payload.pull_request.head.ref;
+
+            const devContainersUrl = `vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/${owner}/${repo}&ref=${branch}`;
+            const encodedDevContainersUrl = encodeURIComponent(devContainersUrl);
+
             const body = `## 🤖 CI Report
 
             | Check | Status | Details |
@@ -94,6 +101,12 @@ jobs:
             | **Format** | ${formatStatus} | ${formatDetails} |
             | **Analyzer** | ${analyzeStatus} | ${analyzeDetails} |
             | **Tests** | ${testStatus} | ${testDetails} |
+
+            ## 🔗 Development Links
+
+            - [Open in VS Code Dev Containers](https://vscode.net/redirect?url=${encodedDevContainersUrl})
+            - [Open in Coder](https://coder.com/open?repo=https://github.com/${owner}/${repo}&ref=${branch})
+            - Clone locally: \`git clone https://github.com/${owner}/${repo}.git && git checkout ${branch}\`
 
             ---
             *Last updated: ${new Date().toISOString()}*

@@ -1,0 +1,19 @@
+{
+    "name": "Flutter + Melos Workspace",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+    // Features: install common tools (curl, git, etc.)
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {}
+    },
+    "postCreateCommand": "bash .devcontainer/setup.sh",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "Dart-Code.flutter",
+                "Dart-Code.dart-code",
+                "localizely.flutter-intl"
+            ]
+        }
+    },
+    "remoteUser": "vscode"
+}

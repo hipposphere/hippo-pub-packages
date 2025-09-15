@@ -19,6 +19,7 @@
                 "hippo_components",
                 "hippo_ui",
                 "hippo_utils",
+                "hotkey_api",
                 "postgres_base_models",
                 "postgres_models_builder"
             ]

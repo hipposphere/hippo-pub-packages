@@ -1,0 +1,17 @@
+{
+    "name": "Flutter + Melos Workspace",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "postCreateCommand": "melos bootstrap",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "Dart-Code.flutter",
+                "Dart-Code.dart-code",
+                "localizely.flutter-intl"
+            ]
+        }
+    },
+    "remoteUser": "root"
+}

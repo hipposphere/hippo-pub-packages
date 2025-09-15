@@ -1,6 +1,6 @@
 # Hippo Pub Packages Monorepo
 
-[![Open in Cloud-Coder](https://img.shields.io/badge/Dev%20Containers-Open%20in%20Coder-red?logo=visualstudiocode)](https://coder.hippolabs.org/templates/YOUR_TEMPLATE/workspace)
+[![Open in Hippo-Cloud-Coder](https://img.shields.io/badge/Dev%20Containers-Open%20in%20Coder-red?logo=visualstudiocode)](https://coder.hippolabs.org/templates/YOUR_TEMPLATE/workspace)
 
 [![Open in Dev Containers](https://img.shields.io/badge/Dev%20Containers-Open%20in%20VS%20Code-blue?logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/hipposphere/hippo-pub-packages)
 

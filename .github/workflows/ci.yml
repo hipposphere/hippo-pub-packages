@@ -104,8 +104,8 @@ jobs:
 
             ## 🔗 Development Links
 
-            - [Open in VS Code Dev Containers](https://vscode.net/redirect?url=${encodedDevContainersUrl})
-            - [Open in Coder](https://coder.com/open?repo=https://github.com/${owner}/${repo}&ref=${branch})
+            - [Open in VS Code Dev-Container](https://vscode.net/redirect?url=${encodedDevContainersUrl})
+            - [Open in Hippo-Cloud-Coder](https://coder.hippolabs.org/open?repo=https://github.com/${owner}/${repo}&ref=${branch})
             - Clone locally: \`git clone https://github.com/${owner}/${repo}.git && git checkout ${branch}\`
 
             ---

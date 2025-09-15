@@ -1,27 +1,25 @@
 FROM ubuntu:22.04
 
-# Avoid any interactive prompts during build
+# Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system deps
+# Base deps
 RUN apt-get update && apt-get install -y \
     git curl unzip xz-utils zip libglu1-mesa \
-    ca-certificates gnupg \
+    ca-certificates gnupg software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome (for Flutter Web)
-# Use keyrings per Debian/Ubuntu best practices
-RUN install -d -m 0755 /etc/apt/keyrings \
-    && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/keyrings/google-linux.gpg \
-    && chmod a+r /etc/apt/keyrings/google-linux.gpg \
-    && echo "deb [arch=amd64,arm64 signed-by=/etc/apt/keyrings/google-linux.gpg] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+# ---- Chromium (DEB, not Snap) on Ubuntu 22.04 ----
+# Savoury1 PPAs provide chromium debs for jammy (amd64 & arm64)
+RUN add-apt-repository -y ppa:savoury1/ffmpeg4 \
+    && add-apt-repository -y ppa:savoury1/chromium \
     && apt-get update \
-    && apt-get install -y google-chrome-stable \
+    && apt-get install -y chromium-browser \
     && rm -rf /var/lib/apt/lists/*
 
-# Wrapper to allow Chrome to run inside containers (root) without sandbox issues
-RUN echo '#!/usr/bin/env bash' > /usr/local/bin/chrome \
-    && echo 'exec /usr/bin/google-chrome --no-sandbox --disable-dev-shm-usage "$@"' >> /usr/local/bin/chrome \
+# Wrapper so Chromium works in containers (root) + for Flutter
+RUN printf '#!/usr/bin/env bash\nexec /usr/bin/chromium-browser --no-sandbox --disable-dev-shm-usage "$@"\n' \
+    > /usr/local/bin/chrome \
     && chmod +x /usr/local/bin/chrome
 ENV CHROME_EXECUTABLE="/usr/local/bin/chrome"
 

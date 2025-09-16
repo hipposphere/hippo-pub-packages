@@ -3,10 +3,14 @@ FROM ubuntu:22.04
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Base deps
-RUN apt-get update && apt-get install -y \
-    git curl unzip xz-utils zip libglu1-mesa \
-    ca-certificates gnupg software-properties-common \
+# Native build tools for Flutter plugins / Linux desktop builds
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cmake \
+    ninja-build \
+    build-essential \
+    pkg-config \
+    clang \
+    libgtk-3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Chromium (DEB, not Snap) on Ubuntu 22.04 ----
@@ -29,6 +33,12 @@ ENV PATH="/usr/local/flutter/bin:/root/.pub-cache/bin:${PATH}"
 
 # Pre-download Flutter artifacts
 RUN flutter doctor
+
+# Download Web SDK
+RUN flutter config --enable-web
+RUN flutter precache
+
+RUN dart --disable-analytics
 
 # Install Melos globally
 RUN dart pub global activate melos

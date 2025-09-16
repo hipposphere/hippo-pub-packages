@@ -3,42 +3,28 @@ FROM ubuntu:22.04
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Native build tools for Flutter plugins / Linux desktop builds
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake \
-    ninja-build \
-    build-essential \
-    pkg-config \
-    clang \
-    libgtk-3-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Base tools (combined to keep layers small)
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+    curl git unzip xz-utils zip libglu1-mesa \
+    clang cmake ninja-build pkg-config \
+    libgtk-3-dev liblzma-dev libstdc++-12-dev \
+    chromium-browser ca-certificates
 
-# ---- Chromium (DEB, not Snap) on Ubuntu 22.04 ----
-# Savoury1 PPAs provide chromium debs for jammy (amd64 & arm64)
-RUN add-apt-repository -y ppa:savoury1/ffmpeg4 \
-    && add-apt-repository -y ppa:savoury1/chromium \
-    && apt-get update \
-    && apt-get install -y chromium-browser \
-    && rm -rf /var/lib/apt/lists/*
+ENV CHROME_EXECUTABLE="/usr/bin/chromium"
 
-# Wrapper so Chromium works in containers (root) + for Flutter
-RUN printf '#!/usr/bin/env bash\nexec /usr/bin/chromium-browser --no-sandbox --disable-dev-shm-usage "$@"\n' \
-    > /usr/local/bin/chrome \
-    && chmod +x /usr/local/bin/chrome
-ENV CHROME_EXECUTABLE="/usr/local/bin/chrome"
-
-# Install Flutter
+# ---- Flutter ----
 RUN git clone https://github.com/flutter/flutter.git /usr/local/flutter -b stable
 ENV PATH="/usr/local/flutter/bin:/root/.pub-cache/bin:${PATH}"
 
 # Pre-download Flutter artifacts
+RUN dart --disable-analytics
 RUN flutter doctor
 
 # Download Web SDK
 RUN flutter config --enable-web
 RUN flutter precache
 
-RUN dart --disable-analytics
 
 # Install Melos globally
 RUN dart pub global activate melos

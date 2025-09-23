@@ -13,6 +13,9 @@ dependencies:
   flutter_web_auth_2: ^5.0.0-alpha.4
   flutter:
     sdk: flutter
+  hippo_utils: ^0.1.0
+  hippo_auth_server_api:
+    path: api
 
 dev_dependencies:
   flutter_test:

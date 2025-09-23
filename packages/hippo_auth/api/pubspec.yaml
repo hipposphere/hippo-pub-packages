@@ -1,0 +1,18 @@
+#
+# AUTO-GENERATED FILE, DO NOT MODIFY!
+#
+
+name: 'hippo_auth_server_api'
+version: '1.0.0'
+description: 'OpenAPI API client'
+homepage: 'homepage'
+publish_to: none
+environment:
+  sdk: '>=2.12.0 <4.0.0'
+dependencies:
+  collection: '>=1.17.0 <2.0.0'
+  http: '>=0.13.0 <2.0.0'
+  intl: any
+  meta: '>=1.1.8 <2.0.0'
+dev_dependencies:
+  test: '>=1.21.6 <1.22.0'

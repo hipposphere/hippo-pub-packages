@@ -7,9 +7,10 @@ resolution: workspace
 
 environment:
   sdk: ^3.9.2
-  flutter: ">=1.17.0"
+  flutter: ">=3.35.0"
 
 dependencies:
+  flutter_web_auth_2: ^5.0.0-alpha.4
   flutter:
     sdk: flutter
 

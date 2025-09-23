@@ -14,8 +14,7 @@ dependencies:
   flutter:
     sdk: flutter
   hippo_utils: ^0.1.0
-  hippo_auth_server_api:
-    path: api
+  hippo_auth_api: 0.0.2
 
 dev_dependencies:
   flutter_test:

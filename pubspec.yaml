@@ -15,6 +15,7 @@ workspace:
   - packages/hid_api
   - packages/hid_api/example
   - packages/hippo_auth
+  - packages/hippo_auth_api
   - packages/hippo_components
   - packages/hippo_ui
   - packages/hippo_utils

@@ -16,6 +16,9 @@ dependencies:
   hippo_utils: ^0.1.0
   chopper: ^8.4.0
   json_annotation: ^4.9.0
+  hippo_components:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.0
 
 dev_dependencies:
   flutter_test:

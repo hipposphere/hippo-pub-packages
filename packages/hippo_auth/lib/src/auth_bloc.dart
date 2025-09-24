@@ -1,12 +1,16 @@
 import 'package:flutter/widgets.dart';
 import 'package:hippo_auth/hippo_auth.dart';
+import 'package:hippo_auth/src/auth_login_controller.dart';
 import 'package:hippo_utils/hippo_utils.dart';
-import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
 class HippoAuthBloc extends BlocBase {
   final HippoAuthApiController apiController;
+  final HippoAuthLoginController loginController;
 
-  HippoAuthBloc({required this.apiController});
+  final List<HippoAuthSSOProvider> ssoProviders;
+
+  HippoAuthBloc({required this.apiController, this.ssoProviders = const []})
+    : loginController = HippoAuthLoginController(apiController: apiController);
 
   factory HippoAuthBloc.create({
     required Uri baseUrl,
@@ -25,115 +29,7 @@ class HippoAuthBloc extends BlocBase {
   @override
   void dispose() {}
 
-  Future<LoginResult> signUpWithEmail({
-    required String name,
-    required String email,
-    required String password,
-  }) async {
-    final response = await apiController.api.v1SignUpEmailPost(
-      body: V1SignUpEmailPost$RequestBody(
-        name: name,
-        email: email,
-        password: password,
-      ),
-    );
-    if (response.isSuccessful) {
-      final body = response.body!;
-      final authToken = AuthSession(
-        id: body.sessionId,
-        token: body.token,
-        expiresAt: body.expiresAt,
-      );
-
-      await _handleSignIn(authToken);
-      return SuccessfulLoginResult();
-    } else {
-      return FailedLoginResult(_parseLoginError(response.error));
-    }
-  }
-
-  Future<LoginResult> signInWithEmail({
-    required String email,
-    required String password,
-  }) async {
-    final response = await apiController.api.v1SignInEmailPost(
-      body: V1SignInEmailPost$RequestBody(email: email, password: password),
-    );
-    if (response.isSuccessful) {
-      final body = response.body!;
-      final authToken = AuthSession(
-        id: body.sessionId,
-        token: body.token,
-        expiresAt: body.expiresAt,
-      );
-
-      await _handleSignIn(authToken);
-      return SuccessfulLoginResult();
-    } else {
-      return FailedLoginResult(_parseLoginError(response.error));
-    }
-  }
-
-  Future<LoginResult> signInWithSSO({
-    required String provider,
-    required String callbackUrlScheme,
-  }) async {
-    try {
-      final response = await apiController.api.v1SignInSsoPost(
-        body: V1SignInSsoPost$RequestBody(
-          providerId: provider,
-          successUrl: callbackUrlScheme,
-        ),
-      );
-
-      final result = await FlutterWebAuth2.authenticate(
-        url: response.body!.data.redirectUrl,
-        callbackUrlScheme: callbackUrlScheme,
-        options: const FlutterWebAuth2Options(useWebview: false),
-      );
-
-      final responseParams = Uri.parse(result).queryParameters;
-
-      final authToken = AuthSession(
-        id: responseParams['session_id']!,
-        token: responseParams['token']!,
-        expiresAt: DateTime.parse(responseParams['expires_at']!),
-      );
-
-      await _handleSignIn(authToken);
-      return SuccessfulLoginResult();
-    } catch (e) {
-      return FailedLoginResult(
-        UnknownLoginError(error: 'SSO_ERROR', message: e.toString()),
-      );
-    }
-  }
-
-  Future<void> _handleSignIn(AuthSession session) async {
-    apiController.sessionSubject.add(null);
-    try {
-      await apiController.setSession(session);
-    } catch (e) {
-      apiController.sessionSubject.add(SelectedValue(null));
-    }
-  }
-
   static HippoAuthBloc of(BuildContext context) {
     return BlocProvider.of<HippoAuthBloc>(context);
-  }
-}
-
-LoginError _parseLoginError(dynamic error) {
-  final apiError = AuthApiError.parse(error);
-  switch (apiError.errorCode) {
-    case 'INVALID_EMAIL_OR_PASSWORD':
-      return InvalidCredentialsLoginError();
-    case 'PASSWORD_TOO_SHORT':
-      return PasswordTooShortLoginError();
-    default:
-      return UnknownLoginError(
-        error: apiError.errorCode,
-        message: apiError.message,
-      );
   }
 }

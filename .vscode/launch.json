@@ -8,6 +8,12 @@
             "type": "dart",
         },
         {
+            "name": "hippo_auth (example)",
+            "cwd": "${workspaceFolder}/packages/hippo_auth/example",
+            "request": "launch",
+            "type": "dart",
+        },
+        {
             "name": "hotkey_api (example)",
             "cwd": "${workspaceFolder}/packages/hotkey_api/example",
             "request": "launch",

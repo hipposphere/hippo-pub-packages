@@ -21,6 +21,12 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return HippoAuthLoginApp();
+    return HippoAuthWrapper(
+      loadingBuilder: (context) =>
+          Center(child: CircularProgressIndicator.adaptive()),
+      loginBuilder: (context) => HippoAuthLoginApp(),
+      childBuilder: (context) =>
+          Scaffold(body: Center(child: Text('Logged in!'))),
+    );
   }
 }

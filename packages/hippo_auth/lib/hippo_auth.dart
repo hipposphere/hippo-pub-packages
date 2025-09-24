@@ -15,3 +15,4 @@ export 'src/components/login_app/login_app.dart';
 export 'src/components/login_app/blocs/sign_in_email_bloc.dart';
 export 'src/components/login_app/blocs/sign_up_email_bloc.dart';
 export 'src/components/widgets/auth_builder.dart';
+export 'src/components/widgets/hippo_auth_wrapper.dart';

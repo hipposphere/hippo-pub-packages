@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import 'package:hippo_auth/hippo_auth.dart';
-import 'package:hippo_auth/src/auth_bloc.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 class HippoAuthBuilder extends StatelessWidget {
@@ -14,7 +13,7 @@ class HippoAuthBuilder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authBloc = HippoAuthBloc.of(context);
-    return DataSubjectBuilder(
+    return StatefulDataSubjectBuilder(
       subject: authBloc.apiController.sessionSubject,
       builder: builder,
     );

@@ -118,6 +118,14 @@ Map<String, dynamic> _$V1UserGetUserGet$ResponseToJson(
   V1UserGetUserGet$Response instance,
 ) => <String, dynamic>{'user': instance.user.toJson()};
 
+V1UserLogoutGet$Response _$V1UserLogoutGet$ResponseFromJson(
+  Map<String, dynamic> json,
+) => V1UserLogoutGet$Response(user: json['user']);
+
+Map<String, dynamic> _$V1UserLogoutGet$ResponseToJson(
+  V1UserLogoutGet$Response instance,
+) => <String, dynamic>{'user': ?instance.user};
+
 V1UserRefreshSessionPost$Response _$V1UserRefreshSessionPost$ResponseFromJson(
   Map<String, dynamic> json,
 ) => V1UserRefreshSessionPost$Response(

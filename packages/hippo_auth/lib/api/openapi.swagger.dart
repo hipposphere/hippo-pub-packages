@@ -76,6 +76,20 @@ abstract class Openapi extends ChopperService {
   Future<chopper.Response<V1UserGetUserGet$Response>> _v1UserGetUserGet();
 
   ///
+  Future<chopper.Response<V1UserLogoutGet$Response>> v1UserLogoutGet() {
+    generatedMapping.putIfAbsent(
+      V1UserLogoutGet$Response,
+      () => V1UserLogoutGet$Response.fromJsonFactory,
+    );
+
+    return _v1UserLogoutGet();
+  }
+
+  ///
+  @GET(path: '/v1/user/logout')
+  Future<chopper.Response<V1UserLogoutGet$Response>> _v1UserLogoutGet();
+
+  ///
   ///@param *
   Future<chopper.Response> v1Useroauth2Get({
     required String? undefinedParameter,

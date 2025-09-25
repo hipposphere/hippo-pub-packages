@@ -605,6 +605,48 @@ extension $V1UserGetUserGet$ResponseExtension on V1UserGetUserGet$Response {
 }
 
 @JsonSerializable(explicitToJson: true)
+class V1UserLogoutGet$Response {
+  const V1UserLogoutGet$Response({required this.user});
+
+  factory V1UserLogoutGet$Response.fromJson(Map<String, dynamic> json) =>
+      _$V1UserLogoutGet$ResponseFromJson(json);
+
+  static const toJsonFactory = _$V1UserLogoutGet$ResponseToJson;
+  Map<String, dynamic> toJson() => _$V1UserLogoutGet$ResponseToJson(this);
+
+  @JsonKey(name: 'user', includeIfNull: false)
+  final dynamic user;
+  static const fromJsonFactory = _$V1UserLogoutGet$ResponseFromJson;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other is V1UserLogoutGet$Response &&
+            (identical(other.user, user) ||
+                const DeepCollectionEquality().equals(other.user, user)));
+  }
+
+  @override
+  String toString() => jsonEncode(this);
+
+  @override
+  int get hashCode =>
+      const DeepCollectionEquality().hash(user) ^ runtimeType.hashCode;
+}
+
+extension $V1UserLogoutGet$ResponseExtension on V1UserLogoutGet$Response {
+  V1UserLogoutGet$Response copyWith({dynamic user}) {
+    return V1UserLogoutGet$Response(user: user ?? this.user);
+  }
+
+  V1UserLogoutGet$Response copyWithWrapped({Wrapped<dynamic>? user}) {
+    return V1UserLogoutGet$Response(
+      user: (user != null ? user.value : this.user),
+    );
+  }
+}
+
+@JsonSerializable(explicitToJson: true)
 class V1UserRefreshSessionPost$Response {
   const V1UserRefreshSessionPost$Response({this.expiresAt});
 

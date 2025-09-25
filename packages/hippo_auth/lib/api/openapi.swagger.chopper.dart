@@ -38,6 +38,15 @@ final class _$Openapi extends Openapi {
   }
 
   @override
+  Future<Response<V1UserLogoutGet$Response>> _v1UserLogoutGet() {
+    final Uri $url = Uri.parse('/v1/user/logout');
+    final Request $request = Request('GET', $url, client.baseUrl);
+    return client.send<V1UserLogoutGet$Response, V1UserLogoutGet$Response>(
+      $request,
+    );
+  }
+
+  @override
   Future<Response<dynamic>> _v1Useroauth2Get({
     required String? undefinedParameter,
   }) {

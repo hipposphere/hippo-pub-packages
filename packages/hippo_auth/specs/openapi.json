@@ -167,6 +167,39 @@
         }
       }
     },
+    "/v1/user/logout": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "LogoutResponse",
+                  "type": "object",
+                  "properties": {
+                    "user": {}
+                  },
+                  "required": [
+                    "user"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/def-0"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/useroauth2/{*}": {
       "get": {
         "parameters": [

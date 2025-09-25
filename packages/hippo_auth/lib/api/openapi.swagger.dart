@@ -49,208 +49,141 @@ abstract class Openapi extends ChopperService {
   }
 
   ///
-  Future<chopper.Response<bool>> v1ConfirmMailPost({
-    required V1ConfirmMailPost$RequestBody? body,
+  Future<chopper.Response<bool>> v1UserConfirmMailPost({
+    required V1UserConfirmMailPost$RequestBody? body,
   }) {
-    return _v1ConfirmMailPost(body: body);
+    return _v1UserConfirmMailPost(body: body);
   }
 
   ///
-  @POST(path: '/v1/confirm_mail', optionalBody: true)
-  Future<chopper.Response<bool>> _v1ConfirmMailPost({
-    @Body() required V1ConfirmMailPost$RequestBody? body,
+  @POST(path: '/v1/user/confirm_mail', optionalBody: true)
+  Future<chopper.Response<bool>> _v1UserConfirmMailPost({
+    @Body() required V1UserConfirmMailPost$RequestBody? body,
   });
 
   ///
-  Future<chopper.Response<V1GetUserGet$Response>> v1GetUserGet() {
+  Future<chopper.Response<V1UserGetUserGet$Response>> v1UserGetUserGet() {
     generatedMapping.putIfAbsent(
-      V1GetUserGet$Response,
-      () => V1GetUserGet$Response.fromJsonFactory,
+      V1UserGetUserGet$Response,
+      () => V1UserGetUserGet$Response.fromJsonFactory,
     );
 
-    return _v1GetUserGet();
+    return _v1UserGetUserGet();
   }
 
   ///
-  @GET(path: '/v1/get_user')
-  Future<chopper.Response<V1GetUserGet$Response>> _v1GetUserGet();
+  @GET(path: '/v1/user/get_user')
+  Future<chopper.Response<V1UserGetUserGet$Response>> _v1UserGetUserGet();
 
   ///
   ///@param *
-  Future<chopper.Response> v1oauth2Get({required String? undefinedParameter}) {
-    return _v1oauth2Get(undefinedParameter: undefinedParameter);
-  }
-
-  ///
-  ///@param *
-  @GET(path: '/v1oauth2/{*}')
-  Future<chopper.Response> _v1oauth2Get({
-    @Path('*') required String? undefinedParameter,
-  });
-
-  ///
-  ///@param *
-  Future<chopper.Response> v1oauth2Head({required String? undefinedParameter}) {
-    return _v1oauth2Head(undefinedParameter: undefinedParameter);
-  }
-
-  ///
-  ///@param *
-  @HEAD(path: '/v1oauth2/{*}')
-  Future<chopper.Response> _v1oauth2Head({
-    @Path('*') required String? undefinedParameter,
-  });
-
-  ///
-  ///@param *
-  Future<chopper.Response> v1oauth2Delete({
+  Future<chopper.Response> v1Useroauth2Get({
     required String? undefinedParameter,
   }) {
-    return _v1oauth2Delete(undefinedParameter: undefinedParameter);
+    return _v1Useroauth2Get(undefinedParameter: undefinedParameter);
   }
 
   ///
   ///@param *
-  @DELETE(path: '/v1oauth2/{*}')
-  Future<chopper.Response> _v1oauth2Delete({
+  @GET(path: '/v1/useroauth2/{*}')
+  Future<chopper.Response> _v1Useroauth2Get({
     @Path('*') required String? undefinedParameter,
   });
 
   ///
-  ///@param *
-  Future<chopper.Response> v1oauth2Patch({
-    required String? undefinedParameter,
-  }) {
-    return _v1oauth2Patch(undefinedParameter: undefinedParameter);
-  }
-
-  ///
-  ///@param *
-  @PATCH(path: '/v1oauth2/{*}', optionalBody: true)
-  Future<chopper.Response> _v1oauth2Patch({
-    @Path('*') required String? undefinedParameter,
-  });
-
-  ///
-  ///@param *
-  Future<chopper.Response> v1oauth2Put({required String? undefinedParameter}) {
-    return _v1oauth2Put(undefinedParameter: undefinedParameter);
-  }
-
-  ///
-  ///@param *
-  @PUT(path: '/v1oauth2/{*}', optionalBody: true)
-  Future<chopper.Response> _v1oauth2Put({
-    @Path('*') required String? undefinedParameter,
-  });
-
-  ///
-  ///@param *
-  Future<chopper.Response> v1oauth2Post({required String? undefinedParameter}) {
-    return _v1oauth2Post(undefinedParameter: undefinedParameter);
-  }
-
-  ///
-  ///@param *
-  @POST(path: '/v1oauth2/{*}', optionalBody: true)
-  Future<chopper.Response> _v1oauth2Post({
-    @Path('*') required String? undefinedParameter,
-  });
-
-  ///
-  Future<chopper.Response<V1RefreshSessionPost$Response>>
-  v1RefreshSessionPost() {
+  Future<chopper.Response<V1UserRefreshSessionPost$Response>>
+  v1UserRefreshSessionPost() {
     generatedMapping.putIfAbsent(
-      V1RefreshSessionPost$Response,
-      () => V1RefreshSessionPost$Response.fromJsonFactory,
+      V1UserRefreshSessionPost$Response,
+      () => V1UserRefreshSessionPost$Response.fromJsonFactory,
     );
 
-    return _v1RefreshSessionPost();
+    return _v1UserRefreshSessionPost();
   }
 
   ///
-  @POST(path: '/v1/refresh-session', optionalBody: true)
-  Future<chopper.Response<V1RefreshSessionPost$Response>>
-  _v1RefreshSessionPost();
+  @POST(path: '/v1/user/refresh-session', optionalBody: true)
+  Future<chopper.Response<V1UserRefreshSessionPost$Response>>
+  _v1UserRefreshSessionPost();
 
   ///
-  Future<chopper.Response<bool>> v1RequestPasswordResetPost({
-    required V1RequestPasswordResetPost$RequestBody? body,
+  Future<chopper.Response<bool>> v1UserRequestPasswordResetPost({
+    required V1UserRequestPasswordResetPost$RequestBody? body,
   }) {
-    return _v1RequestPasswordResetPost(body: body);
+    return _v1UserRequestPasswordResetPost(body: body);
   }
 
   ///
-  @POST(path: '/v1/request-password-reset', optionalBody: true)
-  Future<chopper.Response<bool>> _v1RequestPasswordResetPost({
-    @Body() required V1RequestPasswordResetPost$RequestBody? body,
+  @POST(path: '/v1/user/request-password-reset', optionalBody: true)
+  Future<chopper.Response<bool>> _v1UserRequestPasswordResetPost({
+    @Body() required V1UserRequestPasswordResetPost$RequestBody? body,
   });
 
   ///
-  Future<chopper.Response<bool>> v1ResetPasswordPost({
-    required V1ResetPasswordPost$RequestBody? body,
+  Future<chopper.Response<bool>> v1UserResetPasswordPost({
+    required V1UserResetPasswordPost$RequestBody? body,
   }) {
-    return _v1ResetPasswordPost(body: body);
+    return _v1UserResetPasswordPost(body: body);
   }
 
   ///
-  @POST(path: '/v1/reset-password', optionalBody: true)
-  Future<chopper.Response<bool>> _v1ResetPasswordPost({
-    @Body() required V1ResetPasswordPost$RequestBody? body,
+  @POST(path: '/v1/user/reset-password', optionalBody: true)
+  Future<chopper.Response<bool>> _v1UserResetPasswordPost({
+    @Body() required V1UserResetPasswordPost$RequestBody? body,
   });
 
   ///
-  Future<chopper.Response<V1SignInEmailPost$Response>> v1SignInEmailPost({
-    required V1SignInEmailPost$RequestBody? body,
-  }) {
+  Future<chopper.Response<V1UserSignInEmailPost$Response>>
+  v1UserSignInEmailPost({required V1UserSignInEmailPost$RequestBody? body}) {
     generatedMapping.putIfAbsent(
-      V1SignInEmailPost$Response,
-      () => V1SignInEmailPost$Response.fromJsonFactory,
+      V1UserSignInEmailPost$Response,
+      () => V1UserSignInEmailPost$Response.fromJsonFactory,
     );
 
-    return _v1SignInEmailPost(body: body);
+    return _v1UserSignInEmailPost(body: body);
   }
 
   ///
-  @POST(path: '/v1/sign-in-email', optionalBody: true)
-  Future<chopper.Response<V1SignInEmailPost$Response>> _v1SignInEmailPost({
-    @Body() required V1SignInEmailPost$RequestBody? body,
+  @POST(path: '/v1/user/sign-in-email', optionalBody: true)
+  Future<chopper.Response<V1UserSignInEmailPost$Response>>
+  _v1UserSignInEmailPost({
+    @Body() required V1UserSignInEmailPost$RequestBody? body,
   });
 
   ///
-  Future<chopper.Response<V1SignInSsoPost$Response>> v1SignInSsoPost({
-    required V1SignInSsoPost$RequestBody? body,
+  Future<chopper.Response<V1UserSignInSsoPost$Response>> v1UserSignInSsoPost({
+    required V1UserSignInSsoPost$RequestBody? body,
   }) {
     generatedMapping.putIfAbsent(
-      V1SignInSsoPost$Response,
-      () => V1SignInSsoPost$Response.fromJsonFactory,
+      V1UserSignInSsoPost$Response,
+      () => V1UserSignInSsoPost$Response.fromJsonFactory,
     );
 
-    return _v1SignInSsoPost(body: body);
+    return _v1UserSignInSsoPost(body: body);
   }
 
   ///
-  @POST(path: '/v1/sign-in-sso', optionalBody: true)
-  Future<chopper.Response<V1SignInSsoPost$Response>> _v1SignInSsoPost({
-    @Body() required V1SignInSsoPost$RequestBody? body,
+  @POST(path: '/v1/user/sign-in-sso', optionalBody: true)
+  Future<chopper.Response<V1UserSignInSsoPost$Response>> _v1UserSignInSsoPost({
+    @Body() required V1UserSignInSsoPost$RequestBody? body,
   });
 
   ///
-  Future<chopper.Response<V1SignUpEmailPost$Response>> v1SignUpEmailPost({
-    required V1SignUpEmailPost$RequestBody? body,
-  }) {
+  Future<chopper.Response<V1UserSignUpEmailPost$Response>>
+  v1UserSignUpEmailPost({required V1UserSignUpEmailPost$RequestBody? body}) {
     generatedMapping.putIfAbsent(
-      V1SignUpEmailPost$Response,
-      () => V1SignUpEmailPost$Response.fromJsonFactory,
+      V1UserSignUpEmailPost$Response,
+      () => V1UserSignUpEmailPost$Response.fromJsonFactory,
     );
 
-    return _v1SignUpEmailPost(body: body);
+    return _v1UserSignUpEmailPost(body: body);
   }
 
   ///
-  @POST(path: '/v1/sign-up-email', optionalBody: true)
-  Future<chopper.Response<V1SignUpEmailPost$Response>> _v1SignUpEmailPost({
-    @Body() required V1SignUpEmailPost$RequestBody? body,
+  @POST(path: '/v1/user/sign-up-email', optionalBody: true)
+  Future<chopper.Response<V1UserSignUpEmailPost$Response>>
+  _v1UserSignUpEmailPost({
+    @Body() required V1UserSignUpEmailPost$RequestBody? body,
   });
 }
 

@@ -36,110 +36,111 @@ Map<String, dynamic> _$Def0ToJson(Def0 instance) => <String, dynamic>{
   'message': instance.message,
 };
 
-V1ConfirmMailPost$RequestBody _$V1ConfirmMailPost$RequestBodyFromJson(
+V1UserConfirmMailPost$RequestBody _$V1UserConfirmMailPost$RequestBodyFromJson(
   Map<String, dynamic> json,
-) => V1ConfirmMailPost$RequestBody(token: json['token'] as String);
+) => V1UserConfirmMailPost$RequestBody(token: json['token'] as String);
 
-Map<String, dynamic> _$V1ConfirmMailPost$RequestBodyToJson(
-  V1ConfirmMailPost$RequestBody instance,
+Map<String, dynamic> _$V1UserConfirmMailPost$RequestBodyToJson(
+  V1UserConfirmMailPost$RequestBody instance,
 ) => <String, dynamic>{'token': instance.token};
 
-V1RequestPasswordResetPost$RequestBody
-_$V1RequestPasswordResetPost$RequestBodyFromJson(Map<String, dynamic> json) =>
-    V1RequestPasswordResetPost$RequestBody(email: json['email'] as String);
+V1UserRequestPasswordResetPost$RequestBody
+_$V1UserRequestPasswordResetPost$RequestBodyFromJson(
+  Map<String, dynamic> json,
+) => V1UserRequestPasswordResetPost$RequestBody(email: json['email'] as String);
 
-Map<String, dynamic> _$V1RequestPasswordResetPost$RequestBodyToJson(
-  V1RequestPasswordResetPost$RequestBody instance,
+Map<String, dynamic> _$V1UserRequestPasswordResetPost$RequestBodyToJson(
+  V1UserRequestPasswordResetPost$RequestBody instance,
 ) => <String, dynamic>{'email': instance.email};
 
-V1ResetPasswordPost$RequestBody _$V1ResetPasswordPost$RequestBodyFromJson(
-  Map<String, dynamic> json,
-) => V1ResetPasswordPost$RequestBody(
-  token: json['token'] as String,
-  newPassword: json['new_password'] as String,
-);
+V1UserResetPasswordPost$RequestBody
+_$V1UserResetPasswordPost$RequestBodyFromJson(Map<String, dynamic> json) =>
+    V1UserResetPasswordPost$RequestBody(
+      token: json['token'] as String,
+      newPassword: json['new_password'] as String,
+    );
 
-Map<String, dynamic> _$V1ResetPasswordPost$RequestBodyToJson(
-  V1ResetPasswordPost$RequestBody instance,
+Map<String, dynamic> _$V1UserResetPasswordPost$RequestBodyToJson(
+  V1UserResetPasswordPost$RequestBody instance,
 ) => <String, dynamic>{
   'token': instance.token,
   'new_password': instance.newPassword,
 };
 
-V1SignInEmailPost$RequestBody _$V1SignInEmailPost$RequestBodyFromJson(
+V1UserSignInEmailPost$RequestBody _$V1UserSignInEmailPost$RequestBodyFromJson(
   Map<String, dynamic> json,
-) => V1SignInEmailPost$RequestBody(
+) => V1UserSignInEmailPost$RequestBody(
   email: json['email'] as String,
   password: json['password'] as String,
 );
 
-Map<String, dynamic> _$V1SignInEmailPost$RequestBodyToJson(
-  V1SignInEmailPost$RequestBody instance,
+Map<String, dynamic> _$V1UserSignInEmailPost$RequestBodyToJson(
+  V1UserSignInEmailPost$RequestBody instance,
 ) => <String, dynamic>{'email': instance.email, 'password': instance.password};
 
-V1SignInSsoPost$RequestBody _$V1SignInSsoPost$RequestBodyFromJson(
+V1UserSignInSsoPost$RequestBody _$V1UserSignInSsoPost$RequestBodyFromJson(
   Map<String, dynamic> json,
-) => V1SignInSsoPost$RequestBody(
+) => V1UserSignInSsoPost$RequestBody(
   providerId: json['provider_id'] as String,
   successUrl: json['success_url'] as String,
 );
 
-Map<String, dynamic> _$V1SignInSsoPost$RequestBodyToJson(
-  V1SignInSsoPost$RequestBody instance,
+Map<String, dynamic> _$V1UserSignInSsoPost$RequestBodyToJson(
+  V1UserSignInSsoPost$RequestBody instance,
 ) => <String, dynamic>{
   'provider_id': instance.providerId,
   'success_url': instance.successUrl,
 };
 
-V1SignUpEmailPost$RequestBody _$V1SignUpEmailPost$RequestBodyFromJson(
+V1UserSignUpEmailPost$RequestBody _$V1UserSignUpEmailPost$RequestBodyFromJson(
   Map<String, dynamic> json,
-) => V1SignUpEmailPost$RequestBody(
+) => V1UserSignUpEmailPost$RequestBody(
   name: json['name'] as String,
   email: json['email'] as String,
   password: json['password'] as String,
 );
 
-Map<String, dynamic> _$V1SignUpEmailPost$RequestBodyToJson(
-  V1SignUpEmailPost$RequestBody instance,
+Map<String, dynamic> _$V1UserSignUpEmailPost$RequestBodyToJson(
+  V1UserSignUpEmailPost$RequestBody instance,
 ) => <String, dynamic>{
   'name': instance.name,
   'email': instance.email,
   'password': instance.password,
 };
 
-V1GetUserGet$Response _$V1GetUserGet$ResponseFromJson(
+V1UserGetUserGet$Response _$V1UserGetUserGet$ResponseFromJson(
   Map<String, dynamic> json,
-) => V1GetUserGet$Response(
+) => V1UserGetUserGet$Response(
   user: AuthUser.fromJson(json['user'] as Map<String, dynamic>),
 );
 
-Map<String, dynamic> _$V1GetUserGet$ResponseToJson(
-  V1GetUserGet$Response instance,
+Map<String, dynamic> _$V1UserGetUserGet$ResponseToJson(
+  V1UserGetUserGet$Response instance,
 ) => <String, dynamic>{'user': instance.user.toJson()};
 
-V1RefreshSessionPost$Response _$V1RefreshSessionPost$ResponseFromJson(
+V1UserRefreshSessionPost$Response _$V1UserRefreshSessionPost$ResponseFromJson(
   Map<String, dynamic> json,
-) => V1RefreshSessionPost$Response(
+) => V1UserRefreshSessionPost$Response(
   expiresAt: json['expires_at'] == null
       ? null
       : DateTime.parse(json['expires_at'] as String),
 );
 
-Map<String, dynamic> _$V1RefreshSessionPost$ResponseToJson(
-  V1RefreshSessionPost$Response instance,
+Map<String, dynamic> _$V1UserRefreshSessionPost$ResponseToJson(
+  V1UserRefreshSessionPost$Response instance,
 ) => <String, dynamic>{'expires_at': ?instance.expiresAt?.toIso8601String()};
 
-V1SignInEmailPost$Response _$V1SignInEmailPost$ResponseFromJson(
+V1UserSignInEmailPost$Response _$V1UserSignInEmailPost$ResponseFromJson(
   Map<String, dynamic> json,
-) => V1SignInEmailPost$Response(
+) => V1UserSignInEmailPost$Response(
   sessionId: json['session_id'] as String,
   token: json['token'] as String,
   expiresAt: DateTime.parse(json['expires_at'] as String),
   user: AuthUser.fromJson(json['user'] as Map<String, dynamic>),
 );
 
-Map<String, dynamic> _$V1SignInEmailPost$ResponseToJson(
-  V1SignInEmailPost$Response instance,
+Map<String, dynamic> _$V1UserSignInEmailPost$ResponseToJson(
+  V1UserSignInEmailPost$Response instance,
 ) => <String, dynamic>{
   'session_id': instance.sessionId,
   'token': instance.token,
@@ -147,33 +148,33 @@ Map<String, dynamic> _$V1SignInEmailPost$ResponseToJson(
   'user': instance.user.toJson(),
 };
 
-V1SignInSsoPost$Response _$V1SignInSsoPost$ResponseFromJson(
+V1UserSignInSsoPost$Response _$V1UserSignInSsoPost$ResponseFromJson(
   Map<String, dynamic> json,
-) => V1SignInSsoPost$Response(
+) => V1UserSignInSsoPost$Response(
   success: json['success'] as bool,
-  data: V1SignInSsoPost$Response$Data.fromJson(
+  data: V1UserSignInSsoPost$Response$Data.fromJson(
     json['data'] as Map<String, dynamic>,
   ),
 );
 
-Map<String, dynamic> _$V1SignInSsoPost$ResponseToJson(
-  V1SignInSsoPost$Response instance,
+Map<String, dynamic> _$V1UserSignInSsoPost$ResponseToJson(
+  V1UserSignInSsoPost$Response instance,
 ) => <String, dynamic>{
   'success': instance.success,
   'data': instance.data.toJson(),
 };
 
-V1SignUpEmailPost$Response _$V1SignUpEmailPost$ResponseFromJson(
+V1UserSignUpEmailPost$Response _$V1UserSignUpEmailPost$ResponseFromJson(
   Map<String, dynamic> json,
-) => V1SignUpEmailPost$Response(
+) => V1UserSignUpEmailPost$Response(
   sessionId: json['session_id'] as String,
   token: json['token'] as String,
   expiresAt: DateTime.parse(json['expires_at'] as String),
   user: AuthUser.fromJson(json['user'] as Map<String, dynamic>),
 );
 
-Map<String, dynamic> _$V1SignUpEmailPost$ResponseToJson(
-  V1SignUpEmailPost$Response instance,
+Map<String, dynamic> _$V1UserSignUpEmailPost$ResponseToJson(
+  V1UserSignUpEmailPost$Response instance,
 ) => <String, dynamic>{
   'session_id': instance.sessionId,
   'token': instance.token,
@@ -181,15 +182,15 @@ Map<String, dynamic> _$V1SignUpEmailPost$ResponseToJson(
   'user': instance.user.toJson(),
 };
 
-V1SignInSsoPost$Response$Data _$V1SignInSsoPost$Response$DataFromJson(
+V1UserSignInSsoPost$Response$Data _$V1UserSignInSsoPost$Response$DataFromJson(
   Map<String, dynamic> json,
-) => V1SignInSsoPost$Response$Data(
+) => V1UserSignInSsoPost$Response$Data(
   redirectUrl: json['redirectUrl'] as String,
   providerId: json['providerId'] as String,
 );
 
-Map<String, dynamic> _$V1SignInSsoPost$Response$DataToJson(
-  V1SignInSsoPost$Response$Data instance,
+Map<String, dynamic> _$V1UserSignInSsoPost$Response$DataToJson(
+  V1UserSignInSsoPost$Response$Data instance,
 ) => <String, dynamic>{
   'redirectUrl': instance.redirectUrl,
   'providerId': instance.providerId,

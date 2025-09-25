@@ -12,8 +12,8 @@ class HippoAuthLoginController {
     required String email,
     required String password,
   }) async {
-    final response = await apiController.api.v1SignUpEmailPost(
-      body: V1SignUpEmailPost$RequestBody(
+    final response = await apiController.api.v1UserSignUpEmailPost(
+      body: V1UserSignUpEmailPost$RequestBody(
         name: name,
         email: email,
         password: password,
@@ -38,8 +38,8 @@ class HippoAuthLoginController {
     required String email,
     required String password,
   }) async {
-    final response = await apiController.api.v1SignInEmailPost(
-      body: V1SignInEmailPost$RequestBody(email: email, password: password),
+    final response = await apiController.api.v1UserSignInEmailPost(
+      body: V1UserSignInEmailPost$RequestBody(email: email, password: password),
     );
     if (response.isSuccessful) {
       final body = response.body!;
@@ -61,8 +61,8 @@ class HippoAuthLoginController {
     required String callbackUrlScheme,
   }) async {
     try {
-      final response = await apiController.api.v1SignInSsoPost(
-        body: V1SignInSsoPost$RequestBody(
+      final response = await apiController.api.v1UserSignInSsoPost(
+        body: V1UserSignInSsoPost$RequestBody(
           providerId: provider,
           successUrl: callbackUrlScheme,
         ),
@@ -92,8 +92,8 @@ class HippoAuthLoginController {
   }
 
   Future<bool?> requestPasswordReset(String email) async {
-    final result = await apiController.api.v1RequestPasswordResetPost(
-      body: V1RequestPasswordResetPost$RequestBody(email: email),
+    final result = await apiController.api.v1UserRequestPasswordResetPost(
+      body: V1UserRequestPasswordResetPost$RequestBody(email: email),
     );
     return result.body;
   }

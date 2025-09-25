@@ -76,7 +76,7 @@
     }
   },
   "paths": {
-    "/v1/confirm_mail": {
+    "/v1/user/confirm_mail": {
       "post": {
         "requestBody": {
           "content": {
@@ -132,7 +132,7 @@
         }
       }
     },
-    "/v1/get_user": {
+    "/v1/user/get_user": {
       "get": {
         "responses": {
           "200": {
@@ -167,127 +167,8 @@
         }
       }
     },
-    "/v1oauth2/{*}": {
+    "/v1/useroauth2/{*}": {
       "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "*",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      },
-      "head": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "*",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      },
-      "trace": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "*",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      },
-      "delete": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "*",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      },
-      "options": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "*",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      },
-      "patch": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "*",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      },
-      "put": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "*",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      },
-      "post": {
         "parameters": [
           {
             "schema": {
@@ -305,7 +186,7 @@
         }
       }
     },
-    "/v1/refresh-session": {
+    "/v1/user/refresh-session": {
       "post": {
         "responses": {
           "200": {
@@ -342,7 +223,7 @@
         }
       }
     },
-    "/v1/request-password-reset": {
+    "/v1/user/request-password-reset": {
       "post": {
         "requestBody": {
           "content": {
@@ -398,7 +279,7 @@
         }
       }
     },
-    "/v1/reset-password": {
+    "/v1/user/reset-password": {
       "post": {
         "requestBody": {
           "content": {
@@ -458,7 +339,7 @@
         }
       }
     },
-    "/v1/sign-in-email": {
+    "/v1/user/sign-in-email": {
       "post": {
         "requestBody": {
           "content": {
@@ -539,7 +420,7 @@
         }
       }
     },
-    "/v1/sign-in-sso": {
+    "/v1/user/sign-in-sso": {
       "post": {
         "requestBody": {
           "content": {
@@ -613,7 +494,7 @@
         }
       }
     },
-    "/v1/sign-up-email": {
+    "/v1/user/sign-up-email": {
       "post": {
         "requestBody": {
           "content": {

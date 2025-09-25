@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:hippo_auth/hippo_auth.dart';
-import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 void main() {
@@ -11,7 +10,7 @@ void main() {
   runApp(
     MultiBlocProvider(
       blocDefiners: [BlocDefiner<HippoAuthBloc>(bloc: hippoAuthBloc)],
-      child: App(brightness: Brightness.light, home: HomePage()),
+      child: HomePage(),
     ),
   );
 }
@@ -25,7 +24,7 @@ class HomePage extends StatelessWidget {
       loadingBuilder: (context) =>
           Center(child: CircularProgressIndicator.adaptive()),
       loginBuilder: (context) => HippoAuthLoginApp(),
-      childBuilder: (context) =>
+      childBuilder: (context, session) =>
           Scaffold(body: Center(child: Text('Logged in!'))),
     );
   }

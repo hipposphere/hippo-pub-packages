@@ -4,7 +4,7 @@ import 'package:hippo_auth/hippo_auth.dart';
 class HippoAuthWrapper extends StatelessWidget {
   final WidgetBuilder loadingBuilder;
   final WidgetBuilder loginBuilder;
-  final WidgetBuilder childBuilder;
+  final Widget Function(BuildContext context, AuthSession session) childBuilder;
   const HippoAuthWrapper({
     super.key,
     required this.loadingBuilder,
@@ -23,7 +23,7 @@ class HippoAuthWrapper extends StatelessWidget {
         if (session == null) {
           return loginBuilder(context);
         } else {
-          return childBuilder(context);
+          return childBuilder(context, session);
         }
       },
     );

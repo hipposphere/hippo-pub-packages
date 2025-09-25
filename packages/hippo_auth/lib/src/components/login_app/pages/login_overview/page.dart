@@ -35,16 +35,14 @@ class LoginOverviewPageBody extends StatelessWidget {
         SliverColumn(
           children: [
             for (final provider in authBloc.ssoProviders) ...[
-              Button(
+              HippoAuthSSOLoginButton(
+                provider: provider,
                 onTap: () {
                   authBloc.loginController.signInWithSSO(
                     provider: provider.id,
                     callbackUrlScheme: 'com.hipposphere.hippoauth',
                   );
                 },
-                prefix: const Icon(Icons.person_outline),
-                label: 'Mit UKA-SSO anmelden',
-                type: ButtonType.outline,
               ),
               Gap(8),
             ],

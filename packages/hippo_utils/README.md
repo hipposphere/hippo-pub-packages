@@ -26,7 +26,7 @@ Curated collection of utility wrappers, re‑exports, lightweight abstractions, 
 Add dependency (after publishing) or use local path during monorepo development:
 ```yaml
 dependencies:
-	hippo_utils: ^0.1.1
+	hippo_utils: ^0.1.0
 	# OR (local path outside repo root consumer)
 	# hippo_utils:
 	#   path: ../hippo-packages/packages/hippo_utils

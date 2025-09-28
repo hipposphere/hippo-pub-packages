@@ -96,6 +96,78 @@ class ToastRunner {
     );
   }
 
+  static Future<bool> runFutureBoolWithToast<T>({
+    required Future<bool> future,
+    required String successMessage,
+    required String errorMessage,
+    BuildContext? context,
+    String? loadingMessage,
+    String? successSubtitle,
+    Duration? toastLoadingDuration,
+    Duration toastDuration = const Duration(seconds: 3),
+    void Function(Object error, StackTrace stack)? onError,
+  }) async {
+    ToastReference? toast;
+
+    if (loadingMessage != null) {
+      (toastLoadingDuration != null)
+          ? toast = ToastBuilder.showAutoCloseToast(
+              context: context,
+              title: loadingMessage,
+              type: ToastType.info,
+              showProgressBar: true,
+              autoCloseDuration: toastLoadingDuration,
+            )
+          : toast = ToastBuilder.showSimpleToast(
+              context: context,
+              title: loadingMessage,
+              type: ToastType.info,
+              showProgressBar: true,
+              autoClose: false,
+            );
+    }
+
+    try {
+      final result = await future;
+      toast?.dismiss();
+      if (result) {
+        ToastBuilder.showAutoCloseToast(
+          title: successMessage,
+          subtitle: successSubtitle,
+          type: ToastType.success,
+          showProgressBar: false,
+          autoCloseDuration: toastDuration,
+        );
+      } else {
+        ToastBuilder.showAutoCloseToast(
+          // ignore: use_build_context_synchronously
+          context: context,
+          title: errorMessage,
+          type: ToastType.error,
+          showProgressBar: false,
+          autoCloseDuration: toastDuration,
+        );
+      }
+
+      return result;
+    } catch (e, st) {
+      toast?.dismiss();
+
+      ToastBuilder.showAutoCloseToast(
+        // ignore: use_build_context_synchronously
+        context: context,
+        title: errorMessage,
+        subtitle: e.toString(),
+        type: ToastType.error,
+        showProgressBar: false,
+        autoCloseDuration: toastDuration,
+      );
+
+      onError?.call(e, st);
+      return false;
+    }
+  }
+
   static Future<void> runVoidCallbackWithToast({
     required VoidCallback? callback,
     required String successMessage,

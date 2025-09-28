@@ -1,0 +1,30 @@
+name: hippo_auth_example
+description: "A new Flutter project."
+publish_to: "none"
+version: 1.0.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  hippo_auth:
+    path: ../
+  hippo_components:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.0
+  hippo_utils:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.0
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

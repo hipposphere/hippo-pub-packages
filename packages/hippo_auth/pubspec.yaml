@@ -7,13 +7,27 @@ resolution: workspace
 
 environment:
   sdk: ^3.9.2
-  flutter: ">=1.17.0"
+  flutter: ">=3.35.0"
 
 dependencies:
+  flutter_web_auth_2: ^5.0.0-alpha.4
   flutter:
     sdk: flutter
+  hippo_utils: ^0.1.0
+  chopper: ^8.4.0
+  json_annotation: ^4.9.0
+  hippo_components:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  swagger_dart_code_generator: ^4.0.0
+  build_runner: any
+  chopper_generator: ^8.4.0
+  json_serializable: ^6.11.1
+
+dependency_overrides:
+  analyzer: ^8.2.0

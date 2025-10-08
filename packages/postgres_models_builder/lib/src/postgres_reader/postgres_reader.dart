@@ -14,7 +14,7 @@ part 'parts/get_rpcs.dart';
 part 'parts/get_foreign_key_relations.dart';
 
 class PostgresReader {
-  late final PostgreSQLConnection _connection;
+  late final Connection _connection;
 
   late final String host;
   late final String databaseName;
@@ -121,16 +121,16 @@ class PostgresReader {
   }
 
   Future<void> connect() async {
-    _connection = PostgreSQLConnection(
-      host,
-      port,
-      databaseName,
-      username: username,
-      password: password,
-      timeoutInSeconds: timeout.inSeconds,
-      queryTimeoutInSeconds: queryTimeout.inSeconds,
+    _connection = await Connection.open(
+      Endpoint(
+        host: host,
+        database: databaseName,
+        port: port,
+        username: username,
+        password: password,
+      ),
+      settings: ConnectionSettings(connectTimeout: timeout, queryTimeout: queryTimeout),
     );
-    await _connection.open();
   }
 
   /// Retrieve the postgres type for all columns
@@ -139,8 +139,20 @@ class PostgresReader {
   /// Provide [tableNames] to retrieve data for specific tables only,
   /// an empty list (default) indicates all tables.
 
-  Future<List<Map<String, Map<String, dynamic>>>> query(String rawQuery) async {
-    return await _connection.mappedResultsQuery(rawQuery);
+  /// Returns one flat map per row: {columnName: value}
+  Future<List<Map<String, dynamic>>> query(String rawQuery) async {
+    final result = await _connection.execute(rawQuery);
+    final cols = result.schema.columns; // ResultSchemaColumn list
+
+    return result.map((row) {
+      final m = <String, dynamic>{};
+      for (var i = 0; i < cols.length; i++) {
+        // columnName may be null for expressions; use an auto name if so
+        final name = cols[i].columnName ?? 'column_$i';
+        m[name] = row[i];
+      }
+      return m;
+    }).toList();
   }
 
   Future<void> disconnect() async {

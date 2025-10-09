@@ -6,8 +6,7 @@ Future<List<ForeignKeyRelation>> _getForeignKeyRelations({
 }) async {
   final foreignKeyRes = await query(buildForeignKeyTableQuery(schemaName: schemaName));
   final foreignKeyRelationsList = List.of(foreignKeyRes).map((value) {
-    final result = value[''];
-    return ForeignKeyRelation.fromMap(result);
+    return ForeignKeyRelation.fromMap(value);
   }).toList();
   return foreignKeyRelationsList;
 }

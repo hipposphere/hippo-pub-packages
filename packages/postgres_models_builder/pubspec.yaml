@@ -1,6 +1,6 @@
 name: postgres_models_builder
 description: Generate dart type definitions from PostgreSQL database schema.
-version: 0.3.0
+version: 0.3.1
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace

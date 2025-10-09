@@ -76,7 +76,8 @@ class DatabaseColumn {
   }
 
   bool get isKeyId {
-    return columnKey == 'id' && (udtType == 'uuid' || udtType == 'text' || udtType == 'int8');
+    return columnKey == 'id' &&
+        (udtType == 'uuid' || udtType == 'text' || udtType == 'int8' || udtType == 'int4');
   }
 
   KeyIdType get keyIdType {
@@ -86,6 +87,8 @@ class DatabaseColumn {
       } else if (udtType == 'text') {
         return KeyIdType.string;
       } else if (udtType == 'int8') {
+        return KeyIdType.int;
+      } else if (udtType == 'int4') {
         return KeyIdType.int;
       }
     }

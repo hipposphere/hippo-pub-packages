@@ -36,7 +36,7 @@ Future<List<DatabaseRpc>> _getRpcs({
         .toString()
         .replaceAll(' ', '_');
 
-    final result = rawResult[''];
+    final result = rawResult;
 
     Log.trace('reading rpc: $functionName');
     if (omitRpcNames?.contains(functionName) ?? false) {

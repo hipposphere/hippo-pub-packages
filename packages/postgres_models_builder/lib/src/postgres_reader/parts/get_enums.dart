@@ -10,7 +10,7 @@ Future<List<DatabaseEnum>> _getEnums({
 
   for (final enumData in result) {
     try {
-      final String values = enumData['']['enum_values'];
+      final String values = enumData['enum_values'];
 
       enums.add(
         DatabaseEnum(

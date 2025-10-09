@@ -16,7 +16,9 @@ Future<List<DatabaseTable>> _getTables({
 
   final res = await query(rawQuery);
 
-  final resList = List.of(res).map((e) => e['']).toList();
+  Log.trace('read ${res.length} columns from the database');
+
+  final resList = List.of(res);
 
   // for some reason the table key is empty.
   // result coming like this: `{: {table_name: some_name, column_name: some_name, udt_name: text, is_nullable: NO}}`

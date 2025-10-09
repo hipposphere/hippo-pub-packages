@@ -25,6 +25,8 @@ class PostgresModelsBuilderRunner extends CommandRunner<void> {
       help: 'The output directory for the generated dart files',
     );
 
+    argParser.addOption('ssl', defaultsTo: 'false', help: 'Enable SSL connection (true/false)');
+
     argParser.addOption('schema', abbr: 's', defaultsTo: 'public', help: 'specify the schema');
 
     argParser.addMultiOption(
@@ -101,6 +103,7 @@ Examples:
 
     final listOfTables = topLevelResults['tables'];
     final omitTables = topLevelResults['omit-tables'];
+    final sslEnabled = (topLevelResults['ssl'] as String).toLowerCase() == 'true';
 
     final converter = SchemaConverter(
       connectionString: connectionString,
@@ -108,6 +111,7 @@ Examples:
       schemaList: schema.contains(',') ? schema.split(',') : [schema],
       tableNames: listOfTables,
       omitTableNames: omitTables,
+      sslEnabled: sslEnabled,
     );
 
     await converter.convert();

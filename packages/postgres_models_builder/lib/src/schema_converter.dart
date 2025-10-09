@@ -22,6 +22,8 @@ class SchemaConverter {
   final List<String>? omitTableNames;
   final List<String>? omitRpcNames;
 
+  final bool sslEnabled;
+
   late List<DatabaseTable> tables;
   late List<DatabaseRpc> rpcs;
   late List<DatabaseEnum> enums;
@@ -32,6 +34,7 @@ class SchemaConverter {
     required this.connectionString,
     required this.outputDirectory,
     required this.schemaList,
+    required this.sslEnabled,
     this.tableNames,
     this.omitTableNames,
     this.omitRpcNames,
@@ -61,7 +64,7 @@ class SchemaConverter {
   }
 
   Future<void> _readTables() async {
-    final reader = PostgresReader.fromConnectionString(connectionString);
+    final reader = PostgresReader.fromConnectionString(connectionString, sslEnabled: sslEnabled);
     Log.trace('connecting to database');
     await reader.connect();
 

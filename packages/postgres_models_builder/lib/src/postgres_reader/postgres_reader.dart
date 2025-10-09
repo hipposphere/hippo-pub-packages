@@ -16,6 +16,7 @@ part 'parts/get_foreign_key_relations.dart';
 class PostgresReader {
   late final Connection _connection;
 
+  late final bool ssl;
   late final String host;
   late final String databaseName;
   late final int port;
@@ -32,10 +33,12 @@ class PostgresReader {
     this.password,
     this.timeout = const Duration(seconds: 30),
     this.queryTimeout = const Duration(seconds: 30),
+    this.ssl = false,
   });
 
   PostgresReader.fromConnectionString(
     String connectionString, {
+    bool sslEnabled = false,
     this.timeout = const Duration(seconds: 30),
     this.queryTimeout = const Duration(seconds: 30),
   }) {
@@ -87,6 +90,7 @@ class PostgresReader {
     host = parts[2];
     port = int.parse(parts[3]);
     databaseName = parts[4];
+    ssl = sslEnabled;
   }
 
   Future<List<ForeignKeyRelation>> getForeignKeyRelations({String schemaName = 'public'}) {
@@ -129,7 +133,11 @@ class PostgresReader {
         username: username,
         password: password,
       ),
-      settings: ConnectionSettings(connectTimeout: timeout, queryTimeout: queryTimeout),
+      settings: ConnectionSettings(
+        connectTimeout: timeout,
+        queryTimeout: queryTimeout,
+        sslMode: ssl ? SslMode.require : SslMode.disable,
+      ),
     );
   }
 

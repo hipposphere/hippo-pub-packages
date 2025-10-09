@@ -13,7 +13,6 @@ export 'src/complex.dart';
 export 'src/constants.dart';
 export 'src/container.dart';
 export 'localizations/components_localizations.g.dart';
-export 'src/charts.dart';
 
 export 'src/tools/list_view_controller.dart';
 

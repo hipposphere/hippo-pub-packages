@@ -21,6 +21,7 @@ export 'src/utils/selected_value.dart';
 export 'src/utils/date.dart';
 export 'src/utils/analytics.dart';
 export 'src/utils/link_receiver_bloc.dart';
+export 'src/utils/file_receiver_bloc.dart';
 // tools
 export 'src/tools/safe_mimetype.dart';
 export 'src/tools/safe_parsing.dart';

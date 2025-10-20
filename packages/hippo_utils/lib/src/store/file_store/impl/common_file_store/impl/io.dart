@@ -76,6 +76,17 @@ class IOFileStore implements FileStore {
   }
 
   @override
+  String getAbsolutePath(String path) {
+    return _buildPath(path);
+  }
+
+  @override
+  Future<void> createFolderRecursively(String path) {
+    final directory = _buildDirectory(path);
+    return directory.create(recursive: true);
+  }
+
+  @override
   Future<bool> existsFolder(String path) {
     return _buildDirectory(path).exists();
   }

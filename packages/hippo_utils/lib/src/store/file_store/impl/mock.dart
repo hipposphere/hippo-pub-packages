@@ -66,4 +66,12 @@ class MockFileStore implements FileStore {
     // In a mock implementation, we can assume a folder exists if any file starts with the path
     return Future.value(dataMap.keys.any((key) => key.startsWith(path)));
   }
+
+  @override
+  String getAbsolutePath(String path) {
+    return '$basePath/$path';
+  }
+
+  @override
+  Future<void> createFolderRecursively(String path) async {}
 }

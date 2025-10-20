@@ -199,6 +199,16 @@ class WebFileStore implements FileStore {
         .toDart;
   }
 
+  @override
+  String getAbsolutePath(String path) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> createFolderRecursively(String path) {
+    throw UnimplementedError();
+  }
+
   /// Builds a path by prefixing the [storePath] if desired.
   String _buildPath(String path) {
     return '$basePath/$path';

@@ -8,6 +8,7 @@
 // ---------------------------------------------------------------------------
 */
 import 'dart:typed_data';
+import 'package:path/path.dart';
 
 abstract class FileStore {
   String get basePath;
@@ -26,4 +27,10 @@ abstract class FileStore {
   Future<void> deleteFile(String path);
 
   Future<void> deleteFolder(String path);
+
+  Future<void> createFolderRecursively(String path);
+
+  String getAbsolutePath(String path) {
+    return join(basePath, path);
+  }
 }

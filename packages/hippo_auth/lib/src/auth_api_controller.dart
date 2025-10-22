@@ -53,4 +53,28 @@ class HippoAuthApiController {
     sessionSubject.add(SelectedValue<AuthSession?>(null));
     await sessionStore.deleteSession();
   }
+
+  Interceptor createAuthorizationInterceptor() {
+    return HippoAuthorizationTokenRequestInterceptor(
+      getSession: () => currentSession,
+      refreshSession: () async {
+        final refreshToken = currentSession?.refreshToken;
+        if (refreshToken == null) {
+          return null;
+        }
+        final response = await api.authApi.refreshAuthToken(
+          RefreshAuthTokenRequest(refreshToken: refreshToken),
+        );
+        if (response.isSuccessful && response.body != null) {
+          final newSession = AuthSession.fromRefreshResponse(
+            response.body!,
+          );
+          await setSession(newSession);
+          return newSession;
+        } else {
+          return null;
+        }
+      },
+    );
+  }
 }

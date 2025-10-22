@@ -10,7 +10,7 @@ environment:
   flutter: ">=3.35.0"
 
 dependencies:
-  flutter_web_auth_2: ^5.0.0-alpha.6
+  flutter_web_auth_2: ^5.0.0-alpha.7
   flutter:
     sdk: flutter
   hippo_utils:
@@ -31,5 +31,3 @@ dev_dependencies:
   chopper_generator: ^8.4.0
   json_serializable: ^6.11.1
 
-dependency_overrides:
-  analyzer: ^8.2.0

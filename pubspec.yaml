@@ -5,9 +5,9 @@ homepage: https://hippolabs.org
 version: 0.1.0
 
 environment:
-  sdk: ">=3.9.2 <4.0.0"
+  sdk: ">=3.9.0 <4.0.0"
 dev_dependencies:
-  melos: ^7.1.1
+  melos: ^7.2.0
 
 workspace:
   - packages/dictation_support
@@ -23,6 +23,8 @@ workspace:
   - packages/hotkey_api/example
   - packages/postgres_base_models
   - packages/postgres_models_builder
+  - packages/desktop_autopaste
+  - packages/desktop_autopaste/example
 
 melos:
   ide:

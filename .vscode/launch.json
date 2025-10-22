@@ -20,6 +20,12 @@
             "type": "dart",
         },
         {
+            "name": "desktop_autopaste (example)",
+            "cwd": "${workspaceFolder}/packages/desktop_autopaste/example",
+            "request": "launch",
+            "type": "dart",
+        },
+        {
             "name": "dictation_support (example)",
             "cwd": "${workspaceFolder}/packages/dictation_support/example",
             "request": "launch",

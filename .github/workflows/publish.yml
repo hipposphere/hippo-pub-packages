@@ -9,7 +9,7 @@ on:
         default: ""
 
 env:
-  FLUTTER_VERSION: 3.35.3
+  FLUTTER_VERSION: 3.38.0-0.1.pre
 
 jobs:
   publish:

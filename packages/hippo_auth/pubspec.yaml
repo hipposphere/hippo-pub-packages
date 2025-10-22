@@ -19,6 +19,7 @@ dependencies:
   chopper: ^8.4.0
   json_annotation: ^4.9.0
   collection: ^1.19.1
+  http: ^1.5.0
   hippo_components:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.3

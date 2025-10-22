@@ -7,11 +7,14 @@ import 'package:hotkey_api/hotkey_api.dart';
 enum HotkeyStatusType { pressed, released }
 
 class HotkeyStatusController {
-  HotkeyStatusController() {
+  HotkeyStatusController({Set<PhysicalKeyboardKey>? filterKeys}) {
+    if (filterKeys != null) {
+      setFilterKeys(filterKeys);
+    }
     _initController();
   }
 
-  StreamSubscription? hotkeySubscription;
+  StreamSubscription? _hotkeySubscription;
 
   // The KeyboardKeys that should be listened on for the status
   final filterKeysSubject = DataSubject<Set<PhysicalKeyboardKey>>.seeded({});
@@ -19,9 +22,9 @@ class HotkeyStatusController {
   final pressedKeysSubject = DataSubject<Set<PhysicalKeyboardKey>>.seeded({});
 
   void _initController() {
-    hotkeySubscription = HotkeyApi.streamHotkeyEvents().listen((event) {
+    _hotkeySubscription = HotkeyApi.streamHotkeyEvents().listen((event) {
       final pressedKeys = pressedKeysSubject.value;
-      if (filterKeysSubject.value.contains(event.key)) return;
+      if (filterKeysSubject.value.contains(event.key) == false) return;
       if (event.type == HotkeyEventType.down) {
         pressedKeysSubject.add({
           ...pressedKeys,
@@ -52,7 +55,7 @@ class HotkeyStatusController {
   }
 
   void close() {
-    hotkeySubscription?.cancel();
+    _hotkeySubscription?.cancel();
     filterKeysSubject.close();
     pressedKeysSubject.close();
   }

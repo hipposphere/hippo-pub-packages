@@ -20,6 +20,21 @@ class HotkeyEvent {
       },
     );
   }
+
+  @override
+  int get hashCode => Object.hash(key, type);
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! HotkeyEvent) return false;
+    return other.key == key && other.type == type;
+  }
+
+  @override
+  String toString() {
+    return 'HotkeyEvent(key: $key, type: $type)';
+  }
 }
 
 enum HotkeyEventType { down, up, repeat }

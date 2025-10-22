@@ -107,6 +107,10 @@ class HippoAuthLoginController {
     }
   }
 
+  Future<void> signOut() async {
+    await apiController.removeSession();
+  }
+
   LoginError _parseLoginError(dynamic error) {
     final apiError = AuthApiError.parse(error);
     switch (apiError.errorCode) {

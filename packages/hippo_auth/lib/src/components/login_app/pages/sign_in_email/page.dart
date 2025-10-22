@@ -3,8 +3,6 @@ import 'package:hippo_auth/hippo_auth.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
-import 'routes/forgot_password_modal.dart';
-
 class SignInEmailPage extends StatelessWidget {
   const SignInEmailPage({super.key});
 

@@ -1,3 +1,4 @@
+import 'package:chopper/chopper.dart';
 import 'package:hippo_auth/hippo_auth.dart';
 import 'package:hippo_auth/src/utils/auth_session_store.dart';
 import 'package:hippo_utils/hippo_utils.dart';
@@ -58,16 +59,18 @@ class HippoAuthApiController {
     return HippoAuthorizationTokenRequestInterceptor(
       getSession: () => currentSession,
       refreshSession: () async {
-        final refreshToken = currentSession?.refreshToken;
-        if (refreshToken == null) {
+        final oldSession = currentSession;
+        final refreshToken = oldSession?.token;
+        if (oldSession == null || refreshToken == null) {
           return null;
         }
-        final response = await api.authApi.refreshAuthToken(
-          RefreshAuthTokenRequest(refreshToken: refreshToken),
-        );
-        if (response.isSuccessful && response.body != null) {
-          final newSession = AuthSession.fromRefreshResponse(
-            response.body!,
+        final response = await api.v1UserRefreshSessionPost();
+        final body = response.body;
+        if (response.isSuccessful && body != null) {
+          final newSession = AuthSession(
+            id: oldSession.id,
+            token: oldSession.token,
+            expiresAt: body.expiresAt!,
           );
           await setSession(newSession);
           return newSession;

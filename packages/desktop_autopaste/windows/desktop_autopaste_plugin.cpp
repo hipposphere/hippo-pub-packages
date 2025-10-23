@@ -3,6 +3,7 @@
 // This must be included before many other Windows headers.
 #include <windows.h>
 
+#include "autopaste_text.h"
 
 #include <flutter/method_channel.h>
 #include <flutter/plugin_registrar_windows.h>

@@ -1,5 +1,5 @@
-#ifndef FLUTTER_PLUGIN_DESKTOP_AUTOPASTE_PLUGIN_H_
-#define FLUTTER_PLUGIN_DESKTOP_AUTOPASTE_PLUGIN_H_
+#ifndef FLUTTER_PLUGIN_AUTOPASTE_TEXT_H_
+#define FLUTTER_PLUGIN_AUTOPASTE_TEXT_H_
 
 #include <string>
 
@@ -13,4 +13,4 @@ bool SendShiftEnter();
 
 }  // namespace desktop_autopaste
 
-#endif  // FLUTTER_PLUGIN_DESKTOP_AUTOPASTE_PLUGIN_H_
+#endif  // FLUTTER_PLUGIN_AUTOPASTE_TEXT_H_

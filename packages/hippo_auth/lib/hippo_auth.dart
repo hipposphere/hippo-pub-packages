@@ -10,6 +10,7 @@ export 'src/models/auth_api_error.dart';
 export 'src/models/sso_provider.dart';
 
 export 'src/utils/authorization_interceptor.dart';
+export 'src/utils/oauth2_redirect_server.dart';
 
 export 'src/components/login_app/login_app.dart';
 export 'src/components/login_app/blocs/sign_in_email_bloc.dart';

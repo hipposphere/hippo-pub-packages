@@ -68,7 +68,6 @@ void DesktopAutopastePlugin::HandleMethodCall(
     std::wstring wtext = Utf8ToWide(text);
     
     bool ok = AutoPasteText(wtext);
-    ok = AutoPasteTextViaClipboard(wtext);
     result->Success(flutter::EncodableValue(ok));
   } else if (method_call.method_name().compare("pasteIntoCursorViaClipboard") == 0) {
    const auto *args =

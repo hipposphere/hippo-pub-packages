@@ -1,7 +1,7 @@
 #include "autopaste_text.h"
 #include <windows.h>
 
-namespace autopaste_text {
+namespace desktop_autopaste {
 
 bool AutoPasteText(const std::wstring& text) {
   for (wchar_t ch : text) {
@@ -172,4 +172,4 @@ bool AutoPasteTextViaClipboard(const std::wstring& text) {
   return true;
 }
 
-} // namespace autopaste_text
+} // namespace desktop_autopaste

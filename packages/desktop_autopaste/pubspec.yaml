@@ -1,6 +1,6 @@
 name: desktop_autopaste
 description: "A new Flutter plugin project."
-version: 0.0.3
+version: 0.0.4
 resolution: workspace
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"

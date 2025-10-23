@@ -96,21 +96,15 @@ class HippoAuthLoginController {
   // Returns the response from the SSO provider to allow custom handling
   Future<V1UserSignInSsoPost$Response$Data?> signInWithSSOCustom({
     required String provider,
-    required String callbackUrlScheme,
-    FlutterWebAuth2Options? webAuthOptions,
+    required String successUrl,
   }) async {
-    try {
-      final response = await apiController.api.v1UserSignInSsoPost(
-        body: V1UserSignInSsoPost$RequestBody(
-          providerId: provider,
-          successUrl: callbackUrlScheme,
-        ),
-      );
-
-      return response.body?.data;
-    } catch (e) {
-      return null;
-    }
+    final response = await apiController.api.v1UserSignInSsoPost(
+      body: V1UserSignInSsoPost$RequestBody(
+        providerId: provider,
+        successUrl: successUrl,
+      ),
+    );
+    return response.body?.data;
   }
 
   Future<bool?> requestPasswordReset(String email) async {

@@ -8,8 +8,8 @@ class AuthApiError {
 
   factory AuthApiError.parse(dynamic data) {
     try {
-      final json = jsonDecode(data);
-      return AuthApiError(errorCode: json['error'], message: json['message']);
+      final json = jsonDecode(data)['error'];
+      return AuthApiError(errorCode: json['code'], message: json['message']);
     } catch (e) {
       return AuthApiError(errorCode: 'UNKNOWN_ERROR', message: data.toString());
     }

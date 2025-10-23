@@ -27,7 +27,7 @@ class HippoAuthLoginController {
         expiresAt: body.expiresAt,
       );
 
-      await _handleSignIn(authToken);
+      await internalHandleSignIn(authToken);
       return SuccessfulLoginResult();
     } else {
       return FailedLoginResult(_parseLoginError(response.error));
@@ -49,7 +49,7 @@ class HippoAuthLoginController {
         expiresAt: body.expiresAt,
       );
 
-      await _handleSignIn(authToken);
+      await internalHandleSignIn(authToken);
       return SuccessfulLoginResult();
     } else {
       return FailedLoginResult(_parseLoginError(response.error));
@@ -59,6 +59,7 @@ class HippoAuthLoginController {
   Future<LoginResult> signInWithSSO({
     required String provider,
     required String callbackUrlScheme,
+    FlutterWebAuth2Options? webAuthOptions,
   }) async {
     try {
       final response = await apiController.api.v1UserSignInSsoPost(
@@ -71,7 +72,8 @@ class HippoAuthLoginController {
       final result = await FlutterWebAuth2.authenticate(
         url: response.body!.data.redirectUrl,
         callbackUrlScheme: callbackUrlScheme,
-        options: const FlutterWebAuth2Options(useWebview: false),
+        options:
+            webAuthOptions ?? const FlutterWebAuth2Options(useWebview: false),
       );
 
       final responseParams = Uri.parse(result).queryParameters;
@@ -82,12 +84,32 @@ class HippoAuthLoginController {
         expiresAt: DateTime.parse(responseParams['expires_at']!),
       );
 
-      await _handleSignIn(authToken);
+      await internalHandleSignIn(authToken);
       return SuccessfulLoginResult();
     } catch (e) {
       return FailedLoginResult(
         UnknownLoginError(error: 'SSO_ERROR', message: e.toString()),
       );
+    }
+  }
+
+  // Returns the response from the SSO provider to allow custom handling
+  Future<V1UserSignInSsoPost$Response$Data?> signInWithSSOCustom({
+    required String provider,
+    required String callbackUrlScheme,
+    FlutterWebAuth2Options? webAuthOptions,
+  }) async {
+    try {
+      final response = await apiController.api.v1UserSignInSsoPost(
+        body: V1UserSignInSsoPost$RequestBody(
+          providerId: provider,
+          successUrl: callbackUrlScheme,
+        ),
+      );
+
+      return response.body?.data;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -98,7 +120,7 @@ class HippoAuthLoginController {
     return result.body;
   }
 
-  Future<void> _handleSignIn(AuthSession session) async {
+  Future<void> internalHandleSignIn(AuthSession session) async {
     apiController.sessionSubject.add(null);
     try {
       await apiController.setSession(session);

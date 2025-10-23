@@ -20,6 +20,8 @@ set(PLUGIN_NAME "desktop_autopaste_plugin")
 list(APPEND PLUGIN_SOURCES
   "desktop_autopaste_plugin.cpp"
   "desktop_autopaste_plugin.h"
+  "autopaste_text.cpp"
+  "autopaste_text.h"
 )
 
 # Define the plugin library target. Its name must not be changed (see comment

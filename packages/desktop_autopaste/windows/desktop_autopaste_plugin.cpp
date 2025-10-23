@@ -3,8 +3,6 @@
 // This must be included before many other Windows headers.
 #include <windows.h>
 
-// For getPlatformVersion; remove unless needed for your plugin implementation.
-#include <VersionHelpers.h>
 
 #include <flutter/method_channel.h>
 #include <flutter/plugin_registrar_windows.h>
@@ -12,6 +10,20 @@
 
 #include <memory>
 #include <sstream>
+
+// Helper to convert UTF-8 std::string to UTF-16 std::wstring.
+static std::wstring Utf8ToWide(const std::string &utf8) {
+  if (utf8.empty())
+    return std::wstring();
+  int size_needed =
+      MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, nullptr, 0);
+  if (size_needed <= 0)
+    return std::wstring();
+  std::wstring wstr(size_needed, 0);
+  MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, wstr.data(), size_needed);
+  wstr.resize(size_needed - 1); // remove NUL terminator
+  return wstr;
+}
 
 namespace desktop_autopaste {
 

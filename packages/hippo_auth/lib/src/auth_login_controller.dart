@@ -63,7 +63,7 @@ class HippoAuthLoginController {
   }) {
     final baseUrl = apiController.api.client.baseUrl;
 
-    return '$baseUrl/v1/oauth2/sign-in/${Uri.encodeComponent(provider)}?callback_url=${Uri.encodeComponent(callbackUrl)}';
+    return '$baseUrl/v1/oauth2/sign-in/${Uri.encodeComponent(provider)}?callbackURL=${Uri.encodeComponent(callbackUrl)}';
   }
 
   Future<LoginResult> oauth2SignIn({

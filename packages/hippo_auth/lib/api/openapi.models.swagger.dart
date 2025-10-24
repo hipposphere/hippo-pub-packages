@@ -1,3 +1,4 @@
+// coverage:ignore-file
 // ignore_for_file: type=lint
 
 import 'package:json_annotation/json_annotation.dart';
@@ -139,28 +140,25 @@ extension $AuthUserExtension on AuthUser {
 }
 
 @JsonSerializable(explicitToJson: true)
-class Def0 {
-  const Def0({required this.error, required this.message});
+class HippoAuthErrorResponse {
+  const HippoAuthErrorResponse({required this.error});
 
-  factory Def0.fromJson(Map<String, dynamic> json) => _$Def0FromJson(json);
+  factory HippoAuthErrorResponse.fromJson(Map<String, dynamic> json) =>
+      _$HippoAuthErrorResponseFromJson(json);
 
-  static const toJsonFactory = _$Def0ToJson;
-  Map<String, dynamic> toJson() => _$Def0ToJson(this);
+  static const toJsonFactory = _$HippoAuthErrorResponseToJson;
+  Map<String, dynamic> toJson() => _$HippoAuthErrorResponseToJson(this);
 
   @JsonKey(name: 'error', includeIfNull: false)
-  final String error;
-  @JsonKey(name: 'message', includeIfNull: false)
-  final String message;
-  static const fromJsonFactory = _$Def0FromJson;
+  final HippoAuthErrorResponse$Error error;
+  static const fromJsonFactory = _$HippoAuthErrorResponseFromJson;
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        (other is Def0 &&
+        (other is HippoAuthErrorResponse &&
             (identical(other.error, error) ||
-                const DeepCollectionEquality().equals(other.error, error)) &&
-            (identical(other.message, message) ||
-                const DeepCollectionEquality().equals(other.message, message)));
+                const DeepCollectionEquality().equals(other.error, error)));
   }
 
   @override
@@ -168,20 +166,19 @@ class Def0 {
 
   @override
   int get hashCode =>
-      const DeepCollectionEquality().hash(error) ^
-      const DeepCollectionEquality().hash(message) ^
-      runtimeType.hashCode;
+      const DeepCollectionEquality().hash(error) ^ runtimeType.hashCode;
 }
 
-extension $Def0Extension on Def0 {
-  Def0 copyWith({String? error, String? message}) {
-    return Def0(error: error ?? this.error, message: message ?? this.message);
+extension $HippoAuthErrorResponseExtension on HippoAuthErrorResponse {
+  HippoAuthErrorResponse copyWith({HippoAuthErrorResponse$Error? error}) {
+    return HippoAuthErrorResponse(error: error ?? this.error);
   }
 
-  Def0 copyWithWrapped({Wrapped<String>? error, Wrapped<String>? message}) {
-    return Def0(
+  HippoAuthErrorResponse copyWithWrapped({
+    Wrapped<HippoAuthErrorResponse$Error>? error,
+  }) {
+    return HippoAuthErrorResponse(
       error: (error != null ? error.value : this.error),
-      message: (message != null ? message.value : this.message),
     );
   }
 }
@@ -935,6 +932,65 @@ extension $V1UserSignUpEmailPost$ResponseExtension
       token: (token != null ? token.value : this.token),
       expiresAt: (expiresAt != null ? expiresAt.value : this.expiresAt),
       user: (user != null ? user.value : this.user),
+    );
+  }
+}
+
+@JsonSerializable(explicitToJson: true)
+class HippoAuthErrorResponse$Error {
+  const HippoAuthErrorResponse$Error({
+    required this.code,
+    required this.message,
+  });
+
+  factory HippoAuthErrorResponse$Error.fromJson(Map<String, dynamic> json) =>
+      _$HippoAuthErrorResponse$ErrorFromJson(json);
+
+  static const toJsonFactory = _$HippoAuthErrorResponse$ErrorToJson;
+  Map<String, dynamic> toJson() => _$HippoAuthErrorResponse$ErrorToJson(this);
+
+  @JsonKey(name: 'code', includeIfNull: false)
+  final String code;
+  @JsonKey(name: 'message', includeIfNull: false)
+  final String message;
+  static const fromJsonFactory = _$HippoAuthErrorResponse$ErrorFromJson;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other is HippoAuthErrorResponse$Error &&
+            (identical(other.code, code) ||
+                const DeepCollectionEquality().equals(other.code, code)) &&
+            (identical(other.message, message) ||
+                const DeepCollectionEquality().equals(other.message, message)));
+  }
+
+  @override
+  String toString() => jsonEncode(this);
+
+  @override
+  int get hashCode =>
+      const DeepCollectionEquality().hash(code) ^
+      const DeepCollectionEquality().hash(message) ^
+      runtimeType.hashCode;
+}
+
+extension $HippoAuthErrorResponse$ErrorExtension
+    on HippoAuthErrorResponse$Error {
+  HippoAuthErrorResponse$Error copyWith({String? code, String? message}) {
+    return HippoAuthErrorResponse$Error(
+      code: code ?? this.code,
+      message: message ?? this.message,
+    );
+  }
+
+  HippoAuthErrorResponse$Error copyWithWrapped({
+    Wrapped<String>? code,
+    Wrapped<String>? message,
+  }) {
+    return HippoAuthErrorResponse$Error(
+      code: (code != null ? code.value : this.code),
+      message: (message != null ? message.value : this.message),
     );
   }
 }

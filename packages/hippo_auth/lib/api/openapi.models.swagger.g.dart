@@ -28,13 +28,17 @@ Map<String, dynamic> _$AuthUserToJson(AuthUser instance) => <String, dynamic>{
   'updatedAt': instance.updatedAt.toIso8601String(),
 };
 
-Def0 _$Def0FromJson(Map<String, dynamic> json) =>
-    Def0(error: json['error'] as String, message: json['message'] as String);
+HippoAuthErrorResponse _$HippoAuthErrorResponseFromJson(
+  Map<String, dynamic> json,
+) => HippoAuthErrorResponse(
+  error: HippoAuthErrorResponse$Error.fromJson(
+    json['error'] as Map<String, dynamic>,
+  ),
+);
 
-Map<String, dynamic> _$Def0ToJson(Def0 instance) => <String, dynamic>{
-  'error': instance.error,
-  'message': instance.message,
-};
+Map<String, dynamic> _$HippoAuthErrorResponseToJson(
+  HippoAuthErrorResponse instance,
+) => <String, dynamic>{'error': instance.error.toJson()};
 
 V1UserConfirmMailPost$RequestBody _$V1UserConfirmMailPost$RequestBodyFromJson(
   Map<String, dynamic> json,
@@ -189,6 +193,17 @@ Map<String, dynamic> _$V1UserSignUpEmailPost$ResponseToJson(
   'expires_at': instance.expiresAt.toIso8601String(),
   'user': instance.user.toJson(),
 };
+
+HippoAuthErrorResponse$Error _$HippoAuthErrorResponse$ErrorFromJson(
+  Map<String, dynamic> json,
+) => HippoAuthErrorResponse$Error(
+  code: json['code'] as String,
+  message: json['message'] as String,
+);
+
+Map<String, dynamic> _$HippoAuthErrorResponse$ErrorToJson(
+  HippoAuthErrorResponse$Error instance,
+) => <String, dynamic>{'code': instance.code, 'message': instance.message};
 
 V1UserSignInSsoPost$Response$Data _$V1UserSignInSsoPost$Response$DataFromJson(
   Map<String, dynamic> json,

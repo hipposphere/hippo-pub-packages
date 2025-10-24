@@ -56,21 +56,29 @@ class HippoAuthLoginController {
     }
   }
 
-  Future<LoginResult> signInWithSSO({
+  /// Creates the OAuth2 sign-in URL for the given provider and callback URL.
+  String createOauth2SignInUrl({
+    required String provider,
+    required String callbackUrl,
+  }) {
+    final baseUrl = apiController.api.client.baseUrl;
+
+    return '$baseUrl/v1/oauth2/${Uri.encodeComponent(provider)}?callback_url=${Uri.encodeComponent(callbackUrl)}';
+  }
+
+  Future<LoginResult> oauth2SignIn({
     required String provider,
     required String callbackUrlScheme,
     FlutterWebAuth2Options? webAuthOptions,
   }) async {
     try {
-      final response = await apiController.api.v1UserSignInSsoPost(
-        body: V1UserSignInSsoPost$RequestBody(
-          providerId: provider,
-          successUrl: callbackUrlScheme,
-        ),
+      final signInUrl = createOauth2SignInUrl(
+        provider: provider,
+        callbackUrl: callbackUrlScheme,
       );
 
       final result = await FlutterWebAuth2.authenticate(
-        url: response.body!.data.redirectUrl,
+        url: signInUrl,
         callbackUrlScheme: callbackUrlScheme,
         options:
             webAuthOptions ?? const FlutterWebAuth2Options(useWebview: false),
@@ -91,20 +99,6 @@ class HippoAuthLoginController {
         UnknownLoginError(error: 'SSO_ERROR', message: e.toString()),
       );
     }
-  }
-
-  // Returns the response from the SSO provider to allow custom handling
-  Future<V1UserSignInSsoPost$Response$Data?> signInWithSSOCustom({
-    required String provider,
-    required String successUrl,
-  }) async {
-    final response = await apiController.api.v1UserSignInSsoPost(
-      body: V1UserSignInSsoPost$RequestBody(
-        providerId: provider,
-        successUrl: successUrl,
-      ),
-    );
-    return response.body?.data;
   }
 
   Future<bool?> requestPasswordReset(String email) async {

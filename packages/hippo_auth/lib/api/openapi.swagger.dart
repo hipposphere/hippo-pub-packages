@@ -1,4 +1,6 @@
+// coverage:ignore-file
 // ignore_for_file: type=lint
+// ignore_for_file: unused_element_parameter
 
 import 'package:json_annotation/json_annotation.dart';
 import 'package:json_annotation/json_annotation.dart' as json;
@@ -13,6 +15,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart' show MultipartFile;
 import 'package:chopper/chopper.dart' as chopper;
+import 'openapi.metadata.swagger.dart';
 export 'openapi.models.swagger.dart';
 
 part 'openapi.swagger.chopper.dart';
@@ -59,6 +62,17 @@ abstract class Openapi extends ChopperService {
   @POST(path: '/v1/user/confirm_mail', optionalBody: true)
   Future<chopper.Response<bool>> _v1UserConfirmMailPost({
     @Body() required V1UserConfirmMailPost$RequestBody? body,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
   });
 
   ///
@@ -73,7 +87,19 @@ abstract class Openapi extends ChopperService {
 
   ///
   @GET(path: '/v1/user/get_user')
-  Future<chopper.Response<V1UserGetUserGet$Response>> _v1UserGetUserGet();
+  Future<chopper.Response<V1UserGetUserGet$Response>> _v1UserGetUserGet({
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
 
   ///
   Future<chopper.Response<V1UserLogoutGet$Response>> v1UserLogoutGet() {
@@ -87,21 +113,18 @@ abstract class Openapi extends ChopperService {
 
   ///
   @GET(path: '/v1/user/logout')
-  Future<chopper.Response<V1UserLogoutGet$Response>> _v1UserLogoutGet();
-
-  ///
-  ///@param *
-  Future<chopper.Response> v1Useroauth2Get({
-    required String? undefinedParameter,
-  }) {
-    return _v1Useroauth2Get(undefinedParameter: undefinedParameter);
-  }
-
-  ///
-  ///@param *
-  @GET(path: '/v1/useroauth2/{*}')
-  Future<chopper.Response> _v1Useroauth2Get({
-    @Path('*') required String? undefinedParameter,
+  Future<chopper.Response<V1UserLogoutGet$Response>> _v1UserLogoutGet({
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
   });
 
   ///
@@ -118,7 +141,19 @@ abstract class Openapi extends ChopperService {
   ///
   @POST(path: '/v1/user/refresh-session', optionalBody: true)
   Future<chopper.Response<V1UserRefreshSessionPost$Response>>
-  _v1UserRefreshSessionPost();
+  _v1UserRefreshSessionPost({
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
 
   ///
   Future<chopper.Response<bool>> v1UserRequestPasswordResetPost({
@@ -131,6 +166,17 @@ abstract class Openapi extends ChopperService {
   @POST(path: '/v1/user/request-password-reset', optionalBody: true)
   Future<chopper.Response<bool>> _v1UserRequestPasswordResetPost({
     @Body() required V1UserRequestPasswordResetPost$RequestBody? body,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
   });
 
   ///
@@ -144,6 +190,17 @@ abstract class Openapi extends ChopperService {
   @POST(path: '/v1/user/reset-password', optionalBody: true)
   Future<chopper.Response<bool>> _v1UserResetPasswordPost({
     @Body() required V1UserResetPasswordPost$RequestBody? body,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
   });
 
   ///
@@ -162,6 +219,17 @@ abstract class Openapi extends ChopperService {
   Future<chopper.Response<V1UserSignInEmailPost$Response>>
   _v1UserSignInEmailPost({
     @Body() required V1UserSignInEmailPost$RequestBody? body,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
   });
 
   ///
@@ -180,6 +248,17 @@ abstract class Openapi extends ChopperService {
   @POST(path: '/v1/user/sign-in-sso', optionalBody: true)
   Future<chopper.Response<V1UserSignInSsoPost$Response>> _v1UserSignInSsoPost({
     @Body() required V1UserSignInSsoPost$RequestBody? body,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
   });
 
   ///
@@ -198,6 +277,111 @@ abstract class Openapi extends ChopperService {
   Future<chopper.Response<V1UserSignUpEmailPost$Response>>
   _v1UserSignUpEmailPost({
     @Body() required V1UserSignUpEmailPost$RequestBody? body,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
+  ///@param providerId
+  Future<chopper.Response> v1Oauth2CallbackProviderIdGet({
+    required String? providerId,
+  }) {
+    return _v1Oauth2CallbackProviderIdGet(providerId: providerId);
+  }
+
+  ///
+  ///@param providerId
+  @GET(path: '/v1/oauth2/callback/{providerId}')
+  Future<chopper.Response> _v1Oauth2CallbackProviderIdGet({
+    @Path('providerId') required String? providerId,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
+  ///@param providerId
+  Future<chopper.Response> v1Oauth2SignInProviderIdGet({
+    required String? providerId,
+  }) {
+    return _v1Oauth2SignInProviderIdGet(providerId: providerId);
+  }
+
+  ///
+  ///@param providerId
+  @GET(path: '/v1/oauth2/sign-in/{providerId}')
+  Future<chopper.Response> _v1Oauth2SignInProviderIdGet({
+    @Path('providerId') required String? providerId,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
+  Future<chopper.Response> viewsResetPasswordGet() {
+    return _viewsResetPasswordGet();
+  }
+
+  ///
+  @GET(path: '/views/reset-password')
+  Future<chopper.Response> _viewsResetPasswordGet({
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
+  Future<chopper.Response> viewsConfirmMailGet() {
+    return _viewsConfirmMailGet();
+  }
+
+  ///
+  @GET(path: '/views/confirm-mail')
+  Future<chopper.Response> _viewsConfirmMailGet({
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: '',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
   });
 }
 

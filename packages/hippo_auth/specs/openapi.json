@@ -3,7 +3,7 @@
   "info": {
     "title": "hippo-auth-server-api",
     "description": "This is a the api for the hippo-auth-server.",
-    "version": "0.0.2"
+    "version": "0.1.8"
   },
   "components": {
     "schemas": {
@@ -49,20 +49,28 @@
           "updatedAt"
         ]
       },
-      "def-0": {
-        "title": "ErrorResponse",
+      "HippoAuthErrorResponse": {
+        "title": "HippoAuthErrorResponse",
         "type": "object",
         "properties": {
           "error": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
           }
         },
         "required": [
-          "error",
-          "message"
+          "error"
         ]
       }
     },
@@ -114,7 +122,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
@@ -124,7 +132,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
@@ -159,7 +167,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
@@ -192,29 +200,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/v1/useroauth2/{*}": {
-      "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "*",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
           }
         }
       }
@@ -248,7 +237,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
@@ -294,7 +283,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
@@ -304,7 +293,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
@@ -354,7 +343,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
@@ -364,7 +353,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
@@ -435,7 +424,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
@@ -445,7 +434,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
@@ -519,7 +508,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
@@ -594,7 +583,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
@@ -604,10 +593,66 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/def-0"
+                  "$ref": "#/components/schemas/HippoAuthErrorResponse"
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/oauth2/callback/{providerId}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "providerId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/oauth2/sign-in/{providerId}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "providerId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/views/reset-password": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/views/confirm-mail": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }

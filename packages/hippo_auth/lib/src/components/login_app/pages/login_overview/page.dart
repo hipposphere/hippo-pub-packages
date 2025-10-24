@@ -36,7 +36,7 @@ class LoginOverviewPageBody extends StatelessWidget {
               HippoAuthSSOLoginButton(
                 provider: provider,
                 onTap: () {
-                  authBloc.loginController.signInWithSSO(
+                  authBloc.loginController.oauth2SignIn(
                     provider: provider.id,
                     callbackUrlScheme: 'com.hipposphere.hippoauth',
                   );

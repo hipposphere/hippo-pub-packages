@@ -1224,10 +1224,10 @@ packages:
     dependency: transitive
     description:
       name: posthog_flutter
-      sha256: c6fd0bd1a5562e999367f4770df67a9fde61b05ce80ebfb2410d71885e9f2aa8
+      sha256: bf86e42a74815bf504ea6d94f2c45ee935a84165d7088d7c1d129fb8c39fb3ec
       url: "https://pub.dev"
     source: hosted
-    version: "5.6.0"
+    version: "5.7.0"
   process:
     dependency: transitive
     description:

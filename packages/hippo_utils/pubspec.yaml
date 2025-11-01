@@ -32,7 +32,7 @@ dependencies:
   audioplayers_web: ^5.1.1
   file_selector: ^1.0.4
   share_plus: ^12.0.1
-  posthog_flutter: ^5.6.0
+  posthog_flutter: ^5.7.0
   content_resolver: ^0.3.6
   package_info_plus: ^9.0.0
   app_links: 6.4.1

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:hippo_utils/share_plus.dart';
 import 'package:http/http.dart' as http;
@@ -10,7 +12,8 @@ class EnvManager {
     if (response.statusCode != 200) {
       throw Exception('Failed to load environment variables from URL: $url');
     }
-    _envVars.addAll(EnvParser().parse(response.body.split('\n')));
+    final body = utf8.decode(response.bodyBytes);
+    _envVars.addAll(EnvParser().parse(body.split('\n')));
   }
 
   static Future<void> loadEnvFromFile(String filePath) async {

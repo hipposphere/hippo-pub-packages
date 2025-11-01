@@ -8,29 +8,24 @@
 // ---------------------------------------------------------------------------
 */
 double safeDouble(dynamic value) {
-  if (value is double) {
-    return value;
-  } else if (value is int) {
-    return value.toDouble();
-  } else if (value is String) {
-    final parsed = double.tryParse(value);
-    if (parsed != null) {
-      return parsed;
-    }
+  switch (value) {
+    case num n:
+      return n.toDouble();
+    case String s:
+      final n = num.tryParse(s);
+      if (n != null) return n.toDouble();
   }
   throw ArgumentError.value(value, 'value', 'Could not parse double');
 }
 
 int safeInt(dynamic value) {
-  if (value is int) {
-    return value;
-  } else if (value is double) {
-    return value.toInt();
-  } else if (value is String) {
-    final parsed = int.tryParse(value);
-    if (parsed != null) {
-      return parsed;
-    }
+  switch (value) {
+    case num n:
+      // Achtung: toInt() schneidet Richtung 0 ab (z.B. 3.9 -> 3, -3.9 -> -3).
+      return n.toInt();
+    case String s:
+      final n = num.tryParse(s);
+      if (n != null) return n.toInt();
   }
   throw ArgumentError.value(value, 'value', 'Could not parse int');
 }

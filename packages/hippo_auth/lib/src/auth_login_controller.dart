@@ -68,13 +68,14 @@ class HippoAuthLoginController {
 
   Future<LoginResult> oauth2SignIn({
     required String provider,
+    required String callbackUrl,
     required String callbackUrlScheme,
     FlutterWebAuth2Options? webAuthOptions,
   }) async {
     try {
       final signInUrl = createOauth2SignInUrl(
         provider: provider,
-        callbackUrl: callbackUrlScheme,
+        callbackUrl: callbackUrl,
       );
 
       final result = await FlutterWebAuth2.authenticate(

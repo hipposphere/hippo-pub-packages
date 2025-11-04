@@ -38,7 +38,8 @@ class LoginOverviewPageBody extends StatelessWidget {
                 onTap: () {
                   authBloc.loginController.oauth2SignIn(
                     provider: provider.id,
-                    callbackUrlScheme: 'com.hipposphere.hippoauth',
+                    callbackUrl: provider.callbackUrl.toString(),
+                    callbackUrlScheme: 'https',
                   );
                 },
               ),

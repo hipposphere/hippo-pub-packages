@@ -13,9 +13,8 @@ String? getCurrentWindowLocation() {
   return null;
 }
 
-String buildBaseUrl() {
-  final uri = Uri.parse(getCurrentWindowLocation()!);
-  return uri.origin;
+Uri getBaseUri() {
+  return Uri.base;
 }
 
 void forceRefreshPage() {}

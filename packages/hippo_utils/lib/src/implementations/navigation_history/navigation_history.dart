@@ -13,8 +13,8 @@ void addWebNavigationHistory(String title, String tag) {
   impl.addWebHistoryElementImplementation(title, tag);
 }
 
-String buildBaseUrl() {
-  return impl.buildBaseUrl();
+Uri getBaseUri() {
+  return impl.getBaseUri();
 }
 
 String? getCurrentWindowLocation() {

@@ -13,7 +13,7 @@ import 'package:web/web.dart' as web;
 void addWebHistoryElementImplementation(String title, String tag) {
   Future.delayed(
     Duration.zero,
-    () => web.window.history.replaceState(null, title, '${buildBaseUrl()}$tag'),
+    () => web.window.history.replaceState(null, title, getBaseUri().resolve(tag).toString()),
   );
 }
 
@@ -21,9 +21,15 @@ String? getCurrentWindowLocation() {
   return web.window.location.href;
 }
 
-String buildBaseUrl() {
-  final uri = Uri.parse(getCurrentWindowLocation()!);
-  return uri.origin;
+Uri getBaseUri() {
+  final baseElement = web.document.querySelector('base');
+  if (baseElement != null) {
+    final href = baseElement.getAttribute('href');
+    if (href != null && href.isNotEmpty) {
+      return Uri.base.resolve(href);
+    }
+  }
+  return Uri.base;
 }
 
 void forceRefreshPage() {

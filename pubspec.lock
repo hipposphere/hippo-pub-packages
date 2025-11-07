@@ -165,10 +165,10 @@ packages:
     dependency: transitive
     description:
       name: build
-      sha256: "825fed4d63050252a0b6e74f2d75844c4a85b664814be6993bd3493fb5239779"
+      sha256: dfb67ccc9a78c642193e0c2d94cb9e48c2c818b3178a86097d644acdcde6a8d9
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.1"
+    version: "4.0.2"
   build_config:
     dependency: transitive
     description:
@@ -477,10 +477,10 @@ packages:
     dependency: transitive
     description:
       name: ffigen
-      sha256: "2bd9a420ca42cb5ce8cff5d80f88547b547a042ae26807704b1698714e4464a2"
+      sha256: c880c7cda18808b10304ecbd3e3867b29a8da0d58fd2d03080829e3b65bc567c
       url: "https://pub.dev"
     source: hosted
-    version: "19.1.0"
+    version: "20.0.0"
   file:
     dependency: transitive
     description:
@@ -692,10 +692,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_svg
-      sha256: b9c2ad5872518a27507ab432d1fb97e8813b05f0fc693f9d40fad06d073e0678
+      sha256: "055de8921be7b8e8b98a233c7a5ef84b3a6fcc32f46f1ebf5b9bb3576d108355"
       url: "https://pub.dev"
     source: hosted
-    version: "2.2.1"
+    version: "2.2.2"
   flutter_test:
     dependency: transitive
     description: flutter
@@ -1224,10 +1224,10 @@ packages:
     dependency: transitive
     description:
       name: posthog_flutter
-      sha256: b8b3ff7badd47c38bd30980b53a276e889a0495f35a90eb6b508af7e1776d68d
+      sha256: "98ee15a00b1d963462e65f13531d03f67033795181b25a53c56a0e83cd9d2cdd"
       url: "https://pub.dev"
     source: hosted
-    version: "5.8.0"
+    version: "5.9.0"
   process:
     dependency: transitive
     description:
@@ -1597,10 +1597,10 @@ packages:
     dependency: transitive
     description:
       name: swagger_dart_code_generator
-      sha256: d1bc9745a23f4d7da8aafe867d6f1497387383dddb56405857f06628da7e6c2f
+      sha256: "1de749ceda285b9390669b271b16ee2619f5595f11f69f3b6f8bf762e906935a"
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.2"
+    version: "4.1.0"
   sync_http:
     dependency: transitive
     description:

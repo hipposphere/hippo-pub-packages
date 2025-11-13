@@ -165,7 +165,7 @@ bool AutoPasteTextViaClipboard(const std::wstring& text) {
 
   // Add a small delay to give the target application time to process the paste
   // command.
-  ::Sleep(50);
+  ::Sleep(100);
 
   // Restore the original clipboard content
   if (hasOldData && hOldData != nullptr) {
@@ -179,7 +179,7 @@ bool AutoPasteTextViaClipboard(const std::wstring& text) {
         hOldData = nullptr; // Ownership transferred to clipboard
         break;
       }
-      ::Sleep(10);
+      ::Sleep(25);
     }
     if (hOldData != nullptr) {
       // If we still have the handle, it means we failed to restore the

@@ -155,8 +155,13 @@ bool AutoPasteTextViaClipboard(const std::wstring& text) {
     return false;
   }
 
-  // Wait a moment for the paste to complete
-  ::Sleep(50);
+  // Process pending messages to ensure the paste operation is delivered
+  // to the target window before restoring the clipboard
+  MSG msg;
+  while (::PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+    ::TranslateMessage(&msg);
+    ::DispatchMessage(&msg);
+  }
 
   // Restore the original clipboard content
   if (hasOldData && hOldData != nullptr) {

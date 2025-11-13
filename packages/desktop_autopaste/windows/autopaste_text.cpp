@@ -163,13 +163,27 @@ bool AutoPasteTextViaClipboard(const std::wstring& text) {
     ::DispatchMessage(&msg);
   }
 
+  // Add a small delay to give the target application time to process the paste
+  // command.
+  ::Sleep(50);
+
   // Restore the original clipboard content
   if (hasOldData && hOldData != nullptr) {
-    if (::OpenClipboard(nullptr)) {
-      ::EmptyClipboard();
-      ::SetClipboardData(CF_UNICODETEXT, hOldData);
-      ::CloseClipboard();
-    } else {
+    // Retry opening the clipboard for a short period, as the target application
+    // might still be holding it.
+    for (int i = 0; i < 10; ++i) {
+      if (::OpenClipboard(nullptr)) {
+        ::EmptyClipboard();
+        ::SetClipboardData(CF_UNICODETEXT, hOldData);
+        ::CloseClipboard();
+        hOldData = nullptr; // Ownership transferred to clipboard
+        break;
+      }
+      ::Sleep(10);
+    }
+    if (hOldData != nullptr) {
+      // If we still have the handle, it means we failed to restore the
+      // clipboard, so we should free the memory.
       ::GlobalFree(hOldData);
     }
   }

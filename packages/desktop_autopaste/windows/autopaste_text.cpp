@@ -124,6 +124,10 @@ bool AutoPasteTextViaClipboard(const std::wstring& text) {
   // Close the clipboard
   ::CloseClipboard();
 
+  // Add a small delay to give the target application time to process the copy
+  // command.
+  ::Sleep(50);
+
   // Simulate Ctrl+V (VK_CONTROL + 'V')
   INPUT inputs[4] = {};
   
@@ -165,7 +169,7 @@ bool AutoPasteTextViaClipboard(const std::wstring& text) {
 
   // Add a small delay to give the target application time to process the paste
   // command.
-  ::Sleep(100);
+  ::Sleep(250);
 
   // Restore the original clipboard content
   if (hasOldData && hOldData != nullptr) {

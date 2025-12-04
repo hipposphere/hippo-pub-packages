@@ -20,7 +20,7 @@ dependencies:
   web: 1.1.1
   shared_preferences: ^2.5.3
   flutter_secure_storage: ^10.0.0-beta.5
-  cross_file: ^0.3.5
+  cross_file: ^0.3.5+1
   archive: ^4.0.7
   file_picker: ^10.3.7
   filesize: ^2.0.1

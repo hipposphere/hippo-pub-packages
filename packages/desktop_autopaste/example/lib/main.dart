@@ -7,10 +7,10 @@ import 'package:hotkey_api/hotkey_api.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final bloc = Bloc();
+  final bloc = AutopasteBloc();
   runApp(
     MultiBlocProvider(
-      blocDefiners: [BlocDefiner<Bloc>(bloc: bloc)],
+      blocDefiners: [BlocDefiner<AutopasteBloc>(bloc: bloc)],
       child: App(
         brightness: Brightness.light,
         title: 'Desktop Autopaste Example',
@@ -22,18 +22,19 @@ Future<void> main() async {
 
 enum PasteMode { pasteIntoCursor, pasteIntoCursorViaClipboard }
 
-class Bloc extends BlocBase {
+class AutopasteBloc extends BlocBase {
   final hotkeyController = HotkeyStatusController(
-    initialHotkey: Hotkey.single(PhysicalKeyboardKey.altRight),
+    initialHotkey: Hotkey.single(PhysicalKeyboardKey.metaRight),
   );
 
   final modeSubject = DataSubject<PasteMode>.seeded(
     PasteMode.pasteIntoCursorViaClipboard,
   );
 
-  Bloc() {
+  AutopasteBloc() {
     hotkeyController.streamHotkeyStatusType().listen((event) {
       if (event == HotkeyStatusType.pressed) {
+        print('AutopasteBloc: Hotkey pressed, performing autopaste');
         final text = 'Autopaste at ${DateTime.now()}';
         switch (modeSubject.value) {
           case PasteMode.pasteIntoCursor:
@@ -48,8 +49,8 @@ class Bloc extends BlocBase {
   @override
   void dispose() {}
 
-  static Bloc of(BuildContext context) {
-    return BlocProvider.of<Bloc>(context);
+  static AutopasteBloc of(BuildContext context) {
+    return BlocProvider.of<AutopasteBloc>(context);
   }
 }
 
@@ -61,7 +62,13 @@ class _HomePage extends StatelessWidget {
     return PageContainer(
       title: 'Desktop Autopaste Example',
       backAction: null,
-      body: Placeholder(),
+      body: CustomScrollView(
+        slivers: [
+          SliverGap(16),
+          SliverColumn(children: [TextField()]),
+          SliverGap(16),
+        ],
+      ),
     );
   }
 }

@@ -24,7 +24,7 @@ enum PasteMode { pasteIntoCursor, pasteIntoCursorViaClipboard }
 
 class Bloc extends BlocBase {
   final hotkeyController = HotkeyStatusController(
-    filterKeys: {PhysicalKeyboardKey.altRight},
+    initialHotkey: Hotkey.single(PhysicalKeyboardKey.altRight),
   );
 
   final modeSubject = DataSubject<PasteMode>.seeded(

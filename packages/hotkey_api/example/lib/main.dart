@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hotkey_api_example/pages/hotkey_status.dart';
 import 'package:hotkey_api_example/pages/raw_hotkey_api.dart';
+import 'package:hotkey_api_example/pages/raw_select_hotkeys.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(MaterialApp(home: _HomePage(), debugShowCheckedModeBanner: false));
+  runApp(App(brightness: Brightness.light, home: _HomePage()));
 }
 
 class _HomePage extends StatelessWidget {
@@ -34,6 +35,13 @@ class _HomePage extends StatelessWidget {
                   openHotkeyStatusExample(context);
                 },
                 label: 'Hotkey Status',
+              ),
+              Gap(16),
+              Button(
+                onTap: () {
+                  openRawSelectHotkeysExample(context);
+                },
+                label: 'Select Hotkey Modal',
               ),
             ],
           ),

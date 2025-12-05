@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'package:hotkey_api/hotkey_api.dart';
@@ -27,29 +26,41 @@ class RawHotkeyApiExample extends StatelessWidget {
         slivers: [
           CombinedDataSubjectBuilder(
             subject1: bloc.isListeningSubject,
-            subject2: bloc.filterKeysSubject,
-            builder: (context, isListening, selectedKeys) {
+            subject2: bloc.selectedHotkeySubject,
+            builder: (context, isListening, selectedHotkey) {
               return SliverColumn(
                 children: [
-                  PaddedSectionHeader(text: 'Filtered Keys'),
-                  if (selectedKeys == null)
-                    const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text(
-                        'No keys selected, all keys are listened to.',
+                  SectionHeaderWithActions(
+                    label: 'Current Selection',
+                    actions: [
+                      TonalTappableChip(
+                        leading: Icon(Icons.keyboard_outlined),
+                        onTap: () async {
+                          final hotkey = await SelectHotkeyModal(
+                            initialHotkey: selectedHotkey,
+                          ).open(context);
+                          if (hotkey != null) {
+                            bloc.setHotkey(hotkey);
+                          }
+                        },
+                        label: Text('Select'),
                       ),
-                    )
+                      TonalTappableChip(
+                        leading: Icon(Icons.clear_outlined),
+                        onTap: () {
+                          bloc.selectedHotkeySubject.add(null);
+                        },
+                        label: Text('Clear'),
+                      ),
+                    ],
+                  ),
+                  Gap(8),
+                  if (selectedHotkey != null)
+                    HotkeyChip(hotkey: selectedHotkey)
                   else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: selectedKeys
-                            .map((e) => Chip(label: Text(e.debugName ?? '')))
-                            .toList(),
-                      ),
-                    ),
+                    Text('No hotkey selected, all keys are listened to.'),
+                  Gap(8),
+
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: ElevatedButton(
@@ -91,16 +102,8 @@ class RawHotkeyApiExample extends StatelessWidget {
   }
 }
 
-const _defaultFilterKeys = [
-  PhysicalKeyboardKey.keyA,
-  PhysicalKeyboardKey.keyB,
-  PhysicalKeyboardKey.arrowUp,
-];
-
 class RawHotkeyBloc extends BlocBase {
-  final filterKeysSubject = DataSubject<List<PhysicalKeyboardKey>?>.seeded(
-    _defaultFilterKeys,
-  );
+  final selectedHotkeySubject = DataSubject<Hotkey?>.seeded(null);
 
   final includeRepeatingSubject = DataSubject<bool>.seeded(false);
 
@@ -115,10 +118,10 @@ class RawHotkeyBloc extends BlocBase {
 
   void startListening() {
     _subscription?.cancel();
-    final keys = filterKeysSubject.value;
+    final hotkey = selectedHotkeySubject.value;
     _subscription = HotkeyApi.streamHotkeyEvents().listen((event) {
       if (event.key == null) return;
-      if (keys != null && !keys.contains(event.key!)) return;
+      if (hotkey != null && !hotkey.containsPhysicalKey(event.key!)) return;
       final currentEvents = eventsSubject.value;
       eventsSubject.add([
         ...currentEvents,
@@ -148,8 +151,8 @@ class RawHotkeyBloc extends BlocBase {
     eventsSubject.add([]);
   }
 
-  void setSelectedKeys(List<PhysicalKeyboardKey> keys) {
-    filterKeysSubject.add(keys);
+  void setHotkey(Hotkey hotkey) {
+    selectedHotkeySubject.add(hotkey);
     startListening();
   }
 

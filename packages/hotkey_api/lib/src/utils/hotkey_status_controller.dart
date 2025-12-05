@@ -7,24 +7,30 @@ import 'package:hotkey_api/hotkey_api.dart';
 enum HotkeyStatusType { pressed, released }
 
 class HotkeyStatusController {
-  HotkeyStatusController({Set<PhysicalKeyboardKey>? filterKeys}) {
-    if (filterKeys != null) {
-      setFilterKeys(filterKeys);
+  HotkeyStatusController({Hotkey? initialHotkey}) {
+    if (initialHotkey != null) {
+      setHotkey(initialHotkey);
     }
     _initController();
   }
 
   StreamSubscription? _hotkeySubscription;
 
-  // The KeyboardKeys that should be listened on for the status
-  final filterKeysSubject = DataSubject<Set<PhysicalKeyboardKey>>.seeded({});
+  // The Hotkey that should be listened on for the status
+  final hotkeySubject = DataSubject<Hotkey?>.seeded(null);
 
   final pressedKeysSubject = DataSubject<Set<PhysicalKeyboardKey>>.seeded({});
 
+  final statusSubject = DataSubject<HotkeyStatusType>.seeded(
+    HotkeyStatusType.released,
+  );
+
   void _initController() {
     _hotkeySubscription = HotkeyApi.streamHotkeyEvents().listen((event) {
+      final eventKey = event.key;
+      if (eventKey == null) return;
       final pressedKeys = pressedKeysSubject.value;
-      if (filterKeysSubject.value.contains(event.key) == false) return;
+      if (hotkeySubject.value?.containsPhysicalKey(eventKey) == false) return;
       if (event.type == HotkeyEventType.down) {
         pressedKeysSubject.add({
           ...pressedKeys,
@@ -35,28 +41,37 @@ class HotkeyStatusController {
           ...pressedKeys.where((key) => key != event.key),
         });
       }
+      _updateStatus();
     });
   }
 
-  Stream<HotkeyStatusType> streamHotkeyStatusType() {
-    return pressedKeysSubject.stream.map((keys) {
-      final filterKeys = filterKeysSubject.value;
-      if (keys.containsAll(filterKeys) && filterKeys.isNotEmpty) {
-        return HotkeyStatusType.pressed;
-      } else {
-        return HotkeyStatusType.released;
-      }
-    }).distinct();
+  void _updateStatus() {
+    final keys = pressedKeysSubject.value;
+    final hotkey = hotkeySubject.value;
+
+    final newStatus = hotkey?.isActive(keys) == true
+        ? HotkeyStatusType.pressed
+        : HotkeyStatusType.released;
+
+    if (statusSubject.value != newStatus) {
+      statusSubject.add(newStatus);
+    }
   }
 
-  void setFilterKeys(Set<PhysicalKeyboardKey> keys) {
-    filterKeysSubject.add(keys);
+  Stream<HotkeyStatusType> streamHotkeyStatusType() {
+    return statusSubject.stream;
+  }
+
+  void setHotkey(Hotkey hotkey) {
+    hotkeySubject.add(hotkey);
     pressedKeysSubject.add({});
+    statusSubject.add(HotkeyStatusType.released);
   }
 
   void close() {
     _hotkeySubscription?.cancel();
-    filterKeysSubject.close();
+    hotkeySubject.close();
     pressedKeysSubject.close();
+    statusSubject.close();
   }
 }

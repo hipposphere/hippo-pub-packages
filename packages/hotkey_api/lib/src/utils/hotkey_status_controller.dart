@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'package:hotkey_api/hotkey_api.dart';
 
@@ -29,20 +30,26 @@ class HotkeyStatusController {
     _hotkeySubscription = HotkeyApi.streamHotkeyEvents().listen((event) {
       final eventKey = event.key;
       if (eventKey == null) return;
-      final pressedKeys = pressedKeysSubject.value;
+
       if (hotkeySubject.value?.containsPhysicalKey(eventKey) == false) return;
       if (event.type == HotkeyEventType.down) {
-        pressedKeysSubject.add({
-          ...pressedKeys,
-          if (event.key != null) event.key!,
-        });
+        _addToPressedKeys(eventKey);
       } else if (event.type == HotkeyEventType.up) {
-        pressedKeysSubject.add({
-          ...pressedKeys.where((key) => key != event.key),
-        });
+        _removeFromPressedKeys(eventKey);
       }
-      _updateStatus();
     });
+  }
+
+  void _addToPressedKeys(PhysicalKeyboardKey key) {
+    final newSet = {...pressedKeysSubject.value, key};
+    pressedKeysSubject.add(newSet);
+    _updateStatus();
+  }
+
+  void _removeFromPressedKeys(PhysicalKeyboardKey key) {
+    final newSet = {...pressedKeysSubject.value.where((k) => k != key)};
+    pressedKeysSubject.add(newSet);
+    _updateStatus();
   }
 
   void _updateStatus() {
@@ -56,6 +63,22 @@ class HotkeyStatusController {
     if (statusSubject.value != newStatus) {
       statusSubject.add(newStatus);
     }
+  }
+
+  /// Might be used for Flutter apps to handle key events directly when they are
+  /// not processed by HotkeyApi (e.g., web platform) or not propagated to the native
+  /// side.
+  KeyEventResult handleFlutterKeyEvent(KeyEvent event) {
+    final key = event.physicalKey;
+    if (hotkeySubject.value?.containsPhysicalKey(key) == false) {
+      return KeyEventResult.ignored;
+    }
+    if (event is KeyDownEvent) {
+      _addToPressedKeys(key);
+    } else if (event is KeyUpEvent) {
+      _removeFromPressedKeys(key);
+    }
+    return KeyEventResult.handled;
   }
 
   Stream<HotkeyStatusType> streamHotkeyStatusType() {

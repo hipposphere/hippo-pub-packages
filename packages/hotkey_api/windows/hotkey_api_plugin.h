@@ -9,8 +9,7 @@
 
 namespace hotkey_api {
 
-class HotkeyApiPlugin : public flutter::Plugin,
-                      public flutter::StreamHandler<flutter::EncodableValue> {
+class HotkeyApiPlugin : public flutter::Plugin {
  public:
   static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
 
@@ -33,11 +32,10 @@ class HotkeyApiPlugin : public flutter::Plugin,
 
   std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>>
   OnListen(const flutter::EncodableValue *arguments,
-           std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> &&events)
-      override;
+           std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> &&events);
 
   std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>>
-  OnCancel(const flutter::EncodableValue *arguments) override;
+  OnCancel(const flutter::EncodableValue *arguments);
 
   static LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
   

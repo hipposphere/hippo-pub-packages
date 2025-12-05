@@ -4,7 +4,7 @@
 #include <windows.h>
 
 #include <flutter/event_channel.h>
-#include <flutter/event_stream_handler.h>
+#include <flutter/event_stream_handler_functions.h>
 #include <flutter/method_channel.h>
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
@@ -102,6 +102,7 @@ LRESULT CALLBACK HotkeyApiPlugin::KeyboardProc(int nCode, WPARAM wParam,
     KBDLLHOOKSTRUCT* pkbhs = (KBDLLHOOKSTRUCT*)lParam;
     if (pkbhs) {
       flutter::EncodableMap event;
+
       event[flutter::EncodableValue("key")] =
           flutter::EncodableValue((int)pkbhs->vkCode);
 

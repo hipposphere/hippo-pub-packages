@@ -77,6 +77,7 @@ HotkeyApiPlugin::OnListen(
     const flutter::EncodableValue* arguments,
     std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) {
   event_sink_ = std::move(events);
+  pressed_keys_.clear();
 
   keyboard_hook_ = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc,
                                     GetModuleHandle(nullptr), 0);
@@ -112,17 +113,17 @@ LRESULT CALLBACK HotkeyApiPlugin::KeyboardProc(int nCode, WPARAM wParam,
           // Skip injected events to avoid duplicates
           return CallNextHookEx(nullptr, nCode, wParam, lParam);
         }
-        
-        // On Windows, repeat events are detected by checking the previous key state
-        // If the key was already down, this is a repeat
-        if (GetAsyncKeyState(pkbhs->vkCode) & 0x8000) {
+
+        if (instance_->pressed_keys_.count(pkbhs->vkCode)) {
           event[flutter::EncodableValue("type")] =
               flutter::EncodableValue("repeat");
         } else {
+          instance_->pressed_keys_.insert(pkbhs->vkCode);
           event[flutter::EncodableValue("type")] =
               flutter::EncodableValue("down");
         }
       } else if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP) {
+        instance_->pressed_keys_.erase(pkbhs->vkCode);
         event[flutter::EncodableValue("type")] =
             flutter::EncodableValue("up");
       }

@@ -34,7 +34,6 @@ class AutopasteBloc extends BlocBase {
   AutopasteBloc() {
     hotkeyController.streamHotkeyStatusType().listen((event) {
       if (event == HotkeyStatusType.pressed) {
-        print('AutopasteBloc: Hotkey pressed, performing autopaste');
         final text = 'Autopaste at ${DateTime.now()}';
         switch (modeSubject.value) {
           case PasteMode.pasteIntoCursor:

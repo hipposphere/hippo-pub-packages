@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
         "Hipposphere"
-    ]
+    ],
+    "cmake.ignoreCMakeListsMissing": true
 }

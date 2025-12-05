@@ -6,6 +6,7 @@
 #include <flutter/plugin_registrar_windows.h>
 
 #include <memory>
+#include <set>
 
 namespace hotkey_api {
 
@@ -41,6 +42,8 @@ class HotkeyApiPlugin : public flutter::Plugin {
   
   // Static instance pointer for the callback
   static HotkeyApiPlugin* instance_;
+
+  std::set<int> pressed_keys_;
 };
 
 }  // namespace hotkey_api

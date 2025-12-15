@@ -12,6 +12,10 @@ class _HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PageContainer(title: 'Speech Recorder Example', body: Placeholder());
+    return PageContainer(
+      backAction: null,
+      title: 'Speech Recorder Example',
+      body: Placeholder(),
+    );
   }
 }

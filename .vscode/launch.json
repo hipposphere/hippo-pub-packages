@@ -32,6 +32,12 @@
             "type": "dart",
         },
         {
+            "name": "speech_recorder (example)",
+            "cwd": "${workspaceFolder}/packages/speech_recorder/example",
+            "request": "launch",
+            "type": "dart",
+        },
+        {
             "name": "hippo_ui (widgets preview)",
             "cwd": "${workspaceFolder}/packages/hippo_ui",
             "type": "node",

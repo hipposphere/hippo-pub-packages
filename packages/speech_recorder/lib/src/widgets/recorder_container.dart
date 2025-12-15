@@ -1,12 +1,43 @@
 import 'package:flutter/material.dart';
-import 'package:speech_recorder/speech_recorder.dart';
+import 'package:hippo_components/hippo_components.dart';
 
 class SpeechRecorderContainer extends StatelessWidget {
-  final SpeechRecorderSession session;
-  const SpeechRecorderContainer({super.key, required this.session});
+  final Widget action, amplitudeHistory, details, duration;
+  const SpeechRecorderContainer({
+    super.key,
+    required this.action,
+    required this.amplitudeHistory,
+    required this.details,
+    required this.duration,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Padding(
+      padding: .all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                amplitudeHistory,
+                Gap(8),
+                Row(
+                  children: [
+                    Expanded(child: details),
+                    duration,
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Gap(16),
+          action,
+        ],
+      ),
+    );
   }
 }

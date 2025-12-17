@@ -16,7 +16,7 @@ class _HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return PageContainer(
       backAction: null,
-      title: 'Hotkey API Example',
+      title: 'Speech Recorder Example',
       body: CustomScrollView(
         slivers: [
           SliverGap(32),

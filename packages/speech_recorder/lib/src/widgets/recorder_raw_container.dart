@@ -26,6 +26,7 @@ class SpeechRecorderRawContainer extends StatelessWidget {
                 amplitudeHistory,
                 Gap(8),
                 Row(
+                  crossAxisAlignment: .center,
                   children: [
                     Expanded(child: details),
                     duration,

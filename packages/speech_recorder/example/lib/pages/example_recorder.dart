@@ -51,19 +51,3 @@ class _Page extends StatelessWidget {
     );
   }
 }
-
-class IdleContainer extends StatelessWidget {
-  const IdleContainer({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: SpeechRecorderRawContainer(
-        action: SpeechRecorderActionButton(state: .idle, onTap: () {}),
-        amplitudeHistory: SizedBox(),
-        details: SizedBox(),
-        duration: SpeedRecorderStopwatchChip(stopwatch: Stopwatch()..start()),
-      ),
-    );
-  }
-}

@@ -55,7 +55,10 @@ class SpeechRecorderContainer extends StatelessWidget {
               );
             },
           ),
-          amplitudeHistory: SizedBox(),
+          amplitudeHistory: SpeechRecorderAmplitudeHistoryContainer(
+            height: 20,
+            session: session,
+          ),
           details: SizedBox(),
           duration: SpeedRecorderStopwatchChip(stopwatch: session.stopwatch),
         );

@@ -5,6 +5,9 @@
 #include <flutter/plugin_registrar_windows.h>
 
 #include <memory>
+#include <map>
+#include <string>
+#include <windows.h>
 
 namespace hid_api {
 
@@ -24,6 +27,9 @@ class HidApiPlugin : public flutter::Plugin {
   void HandleMethodCall(
       const flutter::MethodCall<flutter::EncodableValue> &method_call,
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
+
+ private:
+  std::map<std::string, HANDLE> open_devices_;
 };
 
 }  // namespace hid_api

@@ -1,7 +1,9 @@
 name: hid_api
 description: "A new Flutter plugin project."
 version: 0.0.1
-homepage:
+homepage: https://hippolabs.org
+publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
+resolution: workspace
 
 environment:
   sdk: ^3.10.4

@@ -1,43 +1,65 @@
 import 'package:flutter/material.dart';
-import 'package:hippo_components/hippo_components.dart';
+import 'package:hippo_utils/hippo_utils.dart';
+import 'package:speech_recorder/speech_recorder.dart';
 
 class SpeechRecorderContainer extends StatelessWidget {
-  final Widget action, amplitudeHistory, details, duration;
-  const SpeechRecorderContainer({
-    super.key,
-    required this.action,
-    required this.amplitudeHistory,
-    required this.details,
-    required this.duration,
-  });
+  final SpeechRecorderController controller;
+  const SpeechRecorderContainer({super.key, required this.controller});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: .all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                amplitudeHistory,
-                Gap(8),
-                Row(
-                  children: [
-                    Expanded(child: details),
-                    duration,
-                  ],
-                ),
-              ],
+    return DataSubjectBuilder(
+      subject: controller.sessionSubject,
+      builder: (context, session) {
+        if (session == null) {
+          return SpeechRecorderRawContainer(
+            action: SpeechRecorderActionButton(
+              state: SpeechRecorderSessionState.idle,
+              onTap: () {
+                controller.start();
+              },
             ),
+            amplitudeHistory: SizedBox(height: 20),
+            details: SizedBox(),
+            duration: SpeechRecorderRawDurationChip(
+              isRecording: false,
+              duration: Duration.zero,
+            ),
+          );
+        }
+        return SpeechRecorderRawContainer(
+          action: DataSubjectBuilder(
+            subject: session.stateSubject,
+            builder: (context, state) {
+              return SpeechRecorderActionButton(
+                state: state,
+                onTap: () {
+                  switch (state) {
+                    case SpeechRecorderSessionState.idle:
+                      // Should not happen
+                      break;
+                    case SpeechRecorderSessionState.recording:
+                      controller.pause(session);
+                      break;
+                    case SpeechRecorderSessionState.paused:
+                      controller.resume(session);
+                      break;
+                    case SpeechRecorderSessionState.stopped:
+                      // Should not happen
+                      break;
+                    case SpeechRecorderSessionState.canceled:
+                      // Should not happen
+                      break;
+                  }
+                },
+              );
+            },
           ),
-          Gap(16),
-          action,
-        ],
-      ),
+          amplitudeHistory: SizedBox(),
+          details: SizedBox(),
+          duration: SpeedRecorderStopwatchChip(stopwatch: session.stopwatch),
+        );
+      },
     );
   }
 }

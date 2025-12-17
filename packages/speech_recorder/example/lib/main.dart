@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
+import 'package:speech_recorder_example/pages/example_recorder.dart';
 import 'package:speech_recorder_example/pages/ui_elements.dart';
 
 void main() {
@@ -26,6 +27,13 @@ class _HomePage extends StatelessWidget {
                   openUIElementsExamplePage(context);
                 },
                 label: 'UI Elements',
+              ),
+              Gap(16),
+              Button(
+                onTap: () {
+                  openExampleRecorderPage(context);
+                },
+                label: 'Example Recorder',
               ),
               Gap(16),
             ],

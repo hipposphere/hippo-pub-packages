@@ -1,15 +1,27 @@
 import 'dart:async';
-
+import 'package:hippo_utils/cross_file.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'package:speech_recorder/speech_recorder.dart';
 import 'package:record/record.dart' as record;
+import 'package:speech_recorder/src/models/recorder_data.dart';
+import 'package:speech_recorder/src/utils/media_data_reader.dart';
 
 class SpeechRecorderController {
+  final Future<SpeechRecorderOptions> Function() optionsBuilder;
+  final Function(SpeechRecorderSession session)? onSessionStarted;
+  final Function(SpeechRecorderSession session)? onSessionFinished;
+
+  SpeechRecorderController({
+    required this.optionsBuilder,
+    this.onSessionStarted,
+    this.onSessionFinished,
+  });
   final record.AudioRecorder _recorder = record.AudioRecorder();
 
   final sessionSubject = DataSubject<SpeechRecorderSession?>.seeded(null);
 
-  Future<SpeechRecorderSession> start(SpeechRecorderOptions options) async {
+  Future<SpeechRecorderSession> start() async {
+    final options = await optionsBuilder();
     await _recorder.start(options.recordConfig, path: options.path);
     final session = SpeechRecorderSession.create(
       options: options,
@@ -18,6 +30,8 @@ class SpeechRecorderController {
     session._setState(SpeechRecorderSessionState.recording);
     _startAmplitudeListening(session, options.amplitudeInterval);
     session.stopwatch.start();
+    sessionSubject.add(session);
+    onSessionStarted?.call(session);
     return session;
   }
 
@@ -38,10 +52,12 @@ class SpeechRecorderController {
 
   Future<void> stop(SpeechRecorderSession session) async {
     final path = await _recorder.stop();
-    session._setPath(path);
+    session._setPathAfterStopping(path);
     _stopAmplitudeListening(session);
     session._setState(SpeechRecorderSessionState.stopped);
     session.stopwatch.stop();
+    onSessionFinished?.call(session);
+    sessionSubject.add(null);
   }
 
   Future<void> cancel(SpeechRecorderSession session) async {
@@ -49,6 +65,7 @@ class SpeechRecorderController {
     _stopAmplitudeListening(session);
     session._setState(SpeechRecorderSessionState.canceled);
     session.stopwatch.stop();
+    sessionSubject.add(null);
   }
 
   Future<List<InputDevice>> listInputDevices() async {
@@ -106,7 +123,30 @@ class SpeechRecorderSession {
     stateSubject.add(state);
   }
 
-  void _setPath(String? path) {
-    // Not implemented in this simplified example.
+  void _setPathAfterStopping(String? path) {
+    _pathAfterStopping = path;
+  }
+
+  String? _pathAfterStopping;
+
+  XFile getRecordingFile() {
+    final path = _pathAfterStopping ?? options.path;
+    return XFile(path);
+  }
+
+  Future<SpeechRecorderData> getRecordingData() async {
+    final file = getRecordingFile();
+    // Stopwatch is not the accurate duration, we need to get the actual duration
+    // from the file metadata or similar.
+    final duration = await MediaDataReader.getMediaDurationFromXFile(file);
+    final fileExtension = file.name.split('.').last;
+    final mimeType = file.mimeType!;
+    return SpeechRecorderData(
+      file: file,
+
+      duration: duration,
+      fileExtension: fileExtension,
+      mimeType: mimeType,
+    );
   }
 }

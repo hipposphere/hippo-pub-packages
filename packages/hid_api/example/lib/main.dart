@@ -1,16 +1,8 @@
-/*
-// ---------------------------------------------------------------------------
-// Copyright (c) 2025 HippoSphere UG (haftungsbeschränkt). All rights reserved.
-// Use, copying, modification, or distribution of this software is prohibited 
-// without express written permission from Hipposphere UG.
-//
-// SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
-// ---------------------------------------------------------------------------
-*/
 import 'package:flutter/material.dart';
 import 'dart:async';
 
-import 'package:hid_api/hid_api.dart' as hid_api;
+import 'package:flutter/services.dart';
+import 'package:hid_api/hid_api.dart';
 
 void main() {
   runApp(const MyApp());
@@ -24,57 +16,46 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  late int sumResult;
-  late Future<int> sumAsyncResult;
+  String _platformVersion = 'Unknown';
+  final _hidApiPlugin = HidApi();
 
   @override
   void initState() {
     super.initState();
-    sumResult = hid_api.sum(1, 2);
-    sumAsyncResult = hid_api.sumAsync(3, 4);
+    initPlatformState();
+  }
+
+  // Platform messages are asynchronous, so we initialize in an async method.
+  Future<void> initPlatformState() async {
+    String platformVersion;
+    // Platform messages may fail, so we use a try/catch PlatformException.
+    // We also handle the message potentially returning null.
+    try {
+      platformVersion =
+          await _hidApiPlugin.getPlatformVersion() ?? 'Unknown platform version';
+    } on PlatformException {
+      platformVersion = 'Failed to get platform version.';
+    }
+
+    // If the widget was removed from the tree while the asynchronous platform
+    // message was in flight, we want to discard the reply rather than calling
+    // setState to update our non-existent appearance.
+    if (!mounted) return;
+
+    setState(() {
+      _platformVersion = platformVersion;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    const textStyle = TextStyle(fontSize: 25);
-    const spacerSmall = SizedBox(height: 10);
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(title: const Text('Native Packages')),
-        body: SingleChildScrollView(
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              children: [
-                const Text(
-                  'This calls a native function through FFI that is shipped as source in the package. '
-                  'The native code is built as part of the Flutter Runner build.',
-                  style: textStyle,
-                  textAlign: TextAlign.center,
-                ),
-                spacerSmall,
-                Text(
-                  'sum(1, 2) = $sumResult',
-                  style: textStyle,
-                  textAlign: TextAlign.center,
-                ),
-                spacerSmall,
-                FutureBuilder<int>(
-                  future: sumAsyncResult,
-                  builder: (BuildContext context, AsyncSnapshot<int> value) {
-                    final displayValue = (value.hasData)
-                        ? value.data
-                        : 'loading';
-                    return Text(
-                      'await sumAsync(3, 4) = $displayValue',
-                      style: textStyle,
-                      textAlign: TextAlign.center,
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
+        appBar: AppBar(
+          title: const Text('Plugin example app'),
+        ),
+        body: Center(
+          child: Text('Running on: $_platformVersion\n'),
         ),
       ),
     );

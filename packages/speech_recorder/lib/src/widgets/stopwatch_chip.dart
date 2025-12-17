@@ -15,12 +15,13 @@ class _SpeedRecorderStopwatchChipState extends State<SpeedRecorderStopwatchChip>
     with SingleTickerProviderStateMixin {
   late final Ticker ticker;
 
-  late bool isRecording;
-  late Duration duration;
+  bool isRecording = false;
+  Duration duration = Duration.zero;
 
   @override
   void initState() {
     super.initState();
+    isRecording = widget.stopwatch.isRunning;
     ticker = createTicker(_tick);
     ticker.start();
   }
@@ -28,13 +29,10 @@ class _SpeedRecorderStopwatchChipState extends State<SpeedRecorderStopwatchChip>
   void _tick(Duration _) {
     final stopwatch = widget.stopwatch;
 
-    final seconds = stopwatch.elapsed.inSeconds;
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
     if (!context.mounted) return;
     setState(() {
       duration = stopwatch.elapsed;
-      '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+      isRecording = stopwatch.isRunning;
     });
   }
 
@@ -47,7 +45,7 @@ class _SpeedRecorderStopwatchChipState extends State<SpeedRecorderStopwatchChip>
   @override
   Widget build(BuildContext context) {
     return SpeechRecorderRawDurationChip(
-      isRecording: widget.stopwatch.isRunning,
+      isRecording: isRecording,
       duration: duration,
     );
   }

@@ -13,8 +13,6 @@ PODS:
     - PostHog (< 4.0.0, >= 3.32.0)
   - super_native_extensions (0.0.1):
     - FlutterMacOS
-  - zstandard_macos (0.0.1):
-    - FlutterMacOS
 
 DEPENDENCIES:
   - file_saver (from `Flutter/ephemeral/.symlinks/plugins/file_saver/macos`)
@@ -23,7 +21,6 @@ DEPENDENCIES:
   - irondash_engine_context (from `Flutter/ephemeral/.symlinks/plugins/irondash_engine_context/macos`)
   - posthog_flutter (from `Flutter/ephemeral/.symlinks/plugins/posthog_flutter/macos`)
   - super_native_extensions (from `Flutter/ephemeral/.symlinks/plugins/super_native_extensions/macos`)
-  - zstandard_macos (from `Flutter/ephemeral/.symlinks/plugins/zstandard_macos/macos`)
 
 SPEC REPOS:
   trunk:
@@ -42,8 +39,6 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/posthog_flutter/macos
   super_native_extensions:
     :path: Flutter/ephemeral/.symlinks/plugins/super_native_extensions/macos
-  zstandard_macos:
-    :path: Flutter/ephemeral/.symlinks/plugins/zstandard_macos/macos
 
 SPEC CHECKSUMS:
   file_saver: e35bd97de451dde55ff8c38862ed7ad0f3418d0f
@@ -53,7 +48,6 @@ SPEC CHECKSUMS:
   PostHog: bbb7eaecb2f5a286d9da3c833cbb18ae08799655
   posthog_flutter: 9535ac2d4ab65ccb9ace3886dcc0b3105198bad5
   super_native_extensions: c2795d6d9aedf4a79fae25cb6160b71b50549189
-  zstandard_macos: 667a6d0e5a62a5f2a166b1899c8c1fb0ad85c017
 
 PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009
 

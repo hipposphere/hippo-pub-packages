@@ -1,12 +1,10 @@
 name: hid_api_example
 description: "Demonstrates how to use the hid_api plugin."
-publish_to: "none"
+publish_to: 'none' 
 resolution: workspace
 
-version: 1.0.0+1
-
 environment:
-  sdk: ^3.9.2
+  sdk: ^3.10.4
 
 dependencies:
   flutter:
@@ -14,8 +12,17 @@ dependencies:
 
   hid_api:
     path: ../
+  hippo_utils:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.0
+  hippo_components:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.0
+
 
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   flutter_test:
     sdk: flutter
 

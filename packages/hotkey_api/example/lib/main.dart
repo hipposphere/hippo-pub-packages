@@ -15,10 +15,10 @@ class _HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: DashboardContent(
-        title: 'Hotkey API Example',
-
+    return PageContainer(
+      backAction: null,
+      title: 'Hotkey API Example',
+      body: CustomScrollView(
         slivers: [
           SliverGap(32),
           SliverColumn(

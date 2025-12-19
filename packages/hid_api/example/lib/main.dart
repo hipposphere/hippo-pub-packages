@@ -1,81 +1,31 @@
-/*
-// ---------------------------------------------------------------------------
-// Copyright (c) 2025 HippoSphere UG (haftungsbeschränkt). All rights reserved.
-// Use, copying, modification, or distribution of this software is prohibited 
-// without express written permission from Hipposphere UG.
-//
-// SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
-// ---------------------------------------------------------------------------
-*/
 import 'package:flutter/material.dart';
-import 'dart:async';
-
-import 'package:hid_api/hid_api.dart' as hid_api;
+import 'package:hippo_components/hippo_components.dart';
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+
+  runApp(App(brightness: Brightness.light, home: _HomePage()));
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  late int sumResult;
-  late Future<int> sumAsyncResult;
-
-  @override
-  void initState() {
-    super.initState();
-    sumResult = hid_api.sum(1, 2);
-    sumAsyncResult = hid_api.sumAsync(3, 4);
-  }
+class _HomePage extends StatelessWidget {
+  const _HomePage();
 
   @override
   Widget build(BuildContext context) {
-    const textStyle = TextStyle(fontSize: 25);
-    const spacerSmall = SizedBox(height: 10);
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('Native Packages')),
-        body: SingleChildScrollView(
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              children: [
-                const Text(
-                  'This calls a native function through FFI that is shipped as source in the package. '
-                  'The native code is built as part of the Flutter Runner build.',
-                  style: textStyle,
-                  textAlign: TextAlign.center,
-                ),
-                spacerSmall,
-                Text(
-                  'sum(1, 2) = $sumResult',
-                  style: textStyle,
-                  textAlign: TextAlign.center,
-                ),
-                spacerSmall,
-                FutureBuilder<int>(
-                  future: sumAsyncResult,
-                  builder: (BuildContext context, AsyncSnapshot<int> value) {
-                    final displayValue = (value.hasData)
-                        ? value.data
-                        : 'loading';
-                    return Text(
-                      'await sumAsync(3, 4) = $displayValue',
-                      style: textStyle,
-                      textAlign: TextAlign.center,
-                    );
-                  },
-                ),
-              ],
-            ),
+    return PageContainer(
+      backAction: null,
+      title: 'HID API Example',
+      body: CustomScrollView(
+        slivers: [
+          SliverGap(32),
+          SliverColumn(
+            children: [
+              Button(onTap: () {}, label: 'HID Testing Interface'),
+              Gap(16),
+            ],
           ),
-        ),
+          SliverGap(32),
+        ],
       ),
     );
   }

@@ -16,6 +16,7 @@ class _Bloc extends BlocBase {
       return SpeechRecorderOptions(
         path: 'example_recording.wav',
         recordConfig: RecordConfig(),
+        amplitudeInterval: Duration(milliseconds: 50),
       );
     },
   );

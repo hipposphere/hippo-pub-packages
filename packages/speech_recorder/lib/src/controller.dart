@@ -83,6 +83,7 @@ class SpeechRecorderController {
     session._amplitudeSubscription = _recorder
         .onAmplitudeChanged(interval)
         .listen((amplitude) {
+          print('Amplitude: ${amplitude.current}');
           final amplitudeList = session.amplitudeSubject.value;
           amplitudeList.add(amplitude);
           session.amplitudeSubject.add(amplitudeList);

@@ -39,7 +39,7 @@ class SpeechRecorderContainer extends StatelessWidget {
                       // Should not happen
                       break;
                     case SpeechRecorderSessionState.recording:
-                      controller.pause(session);
+                      controller.stop(session);
                       break;
                     case SpeechRecorderSessionState.paused:
                       controller.resume(session);

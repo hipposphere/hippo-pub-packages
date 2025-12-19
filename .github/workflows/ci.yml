@@ -4,7 +4,7 @@ on:
   pull_request:
 
 env:
-  FLUTTER_VERSION: 3.38.1
+  FLUTTER_VERSION: 3.38.5
 
 jobs:
   check:

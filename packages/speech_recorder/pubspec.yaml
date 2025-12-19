@@ -14,7 +14,7 @@ dependencies:
     sdk: flutter
   record: "^6.1.2"
   cross_file: "^0.3.5+1"
-  audioplayers: any
+  audioplayers: 6.5.1
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.0

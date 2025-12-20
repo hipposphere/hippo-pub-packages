@@ -16,6 +16,7 @@ export 'container/dashboard_container/dashboard_container.dart';
 export 'container/dashboard_container/widgets/side_navigation/side_navigation_item.dart';
 // page_container
 export 'container/page_container/page_container.dart';
+export 'container/page_container/platform_page_container.dart';
 export 'container/page_container/detail_page_container.dart';
 export 'container/page_container/widgets/page_header.dart';
 export 'container/page_container/widgets/page_pinned_bar_sliver.dart';

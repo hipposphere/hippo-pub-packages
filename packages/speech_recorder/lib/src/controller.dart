@@ -72,6 +72,14 @@ class SpeechRecorderController {
     return _recorder.listInputDevices();
   }
 
+  Future<bool> hasPermission() async {
+    return _recorder.hasPermission();
+  }
+
+  Future<void> requestPermission() async {
+    throw UnimplementedError();
+  }
+
   Future<void> dispose() async {
     await _recorder.dispose();
   }

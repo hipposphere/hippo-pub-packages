@@ -146,10 +146,12 @@ class _Body extends StatelessWidget {
           children: [
             if (top != null) Padding(padding: const EdgeInsets.only(bottom: 16.0), child: top!),
             FTextField(
-              controller: controller,
+              control: .managed(
+                controller: controller,
+                onChange: (value) => onChange(context, value.text),
+              ),
               label: Text(inputLabel),
               autofocus: true,
-              onChange: (value) => onChange(context, value),
               onSubmit: (text) => onSubmit(context, text),
               maxLines: maxLines,
               minLines: minLines,

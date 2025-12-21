@@ -48,7 +48,10 @@ class StyledTextfield extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FTextField(
-      controller: controller,
+      control: .managed(
+        controller: controller,
+        onChange: onChange == null ? null : (value) => onChange!(value.text),
+      ),
       focusNode: focusNode,
       autofocus: autofocus,
       label: label,
@@ -67,7 +70,7 @@ class StyledTextfield extends StatelessWidget {
       minLines: minLines,
       maxLines: maxLines,
       maxLength: maxLength,
-      onChange: onChange,
+
       onSubmit: onSubmit,
       prefixBuilder: prefix != null ? (_, _, _) => prefix! : null,
       suffixBuilder: suffix != null ? (_, _, _) => suffix! : null,

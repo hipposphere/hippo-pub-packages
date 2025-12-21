@@ -17,3 +17,7 @@ export 'key_value_store/key_value_store.dart';
 export 'key_value_store/impl/shared_pref.dart';
 export 'key_value_store/impl/secure.dart';
 export 'key_value_store/impl/mock.dart';
+
+// credential_store
+export 'credential_store/credential_key.dart';
+export 'credential_store/credentials_bloc.dart';

@@ -82,7 +82,7 @@ class _DesktopTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: backgroundColor ?? CupertinoTheme.of(context).scaffoldBackgroundColor,
+      color: backgroundColor ?? CupertinoTheme.of(context).barBackgroundColor,
       height: 30,
       width: double.infinity,
       child: child,

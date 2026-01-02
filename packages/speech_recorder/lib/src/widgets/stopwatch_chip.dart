@@ -3,8 +3,15 @@ import 'package:flutter/scheduler.dart';
 import 'package:hippo_components/hippo_components.dart';
 
 class SpeedRecorderStopwatchChip extends StatefulWidget {
+  final Color? backgroundColor;
+  final Color? foregroundColor;
   final Stopwatch stopwatch;
-  const SpeedRecorderStopwatchChip({super.key, required this.stopwatch});
+  const SpeedRecorderStopwatchChip({
+    super.key,
+    this.backgroundColor,
+    this.foregroundColor,
+    required this.stopwatch,
+  });
 
   @override
   State<SpeedRecorderStopwatchChip> createState() =>
@@ -45,6 +52,8 @@ class _SpeedRecorderStopwatchChipState extends State<SpeedRecorderStopwatchChip>
   @override
   Widget build(BuildContext context) {
     return SpeechRecorderRawDurationChip(
+      backgroundColor: widget.backgroundColor,
+      foregroundColor: widget.foregroundColor,
       isRecording: isRecording,
       duration: duration,
     );
@@ -52,10 +61,14 @@ class _SpeedRecorderStopwatchChipState extends State<SpeedRecorderStopwatchChip>
 }
 
 class SpeechRecorderRawDurationChip extends StatelessWidget {
+  final Color? backgroundColor;
+  final Color? foregroundColor;
   final bool isRecording;
   final Duration duration;
   const SpeechRecorderRawDurationChip({
     super.key,
+    this.backgroundColor,
+    this.foregroundColor,
     required this.isRecording,
     required this.duration,
   });
@@ -67,10 +80,12 @@ class SpeechRecorderRawDurationChip extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: context.onBrightness(
-          light: Colors.grey[400],
-          dark: Colors.grey[700],
-        ),
+        color:
+            backgroundColor ??
+            context.onBrightness(
+              light: Colors.grey[400],
+              dark: Colors.grey[700],
+            ),
       ),
       child: Padding(
         padding: .all(4.0),
@@ -88,7 +103,11 @@ class SpeechRecorderRawDurationChip extends StatelessWidget {
               width: text.length * 8,
               child: Text(
                 text,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  color: foregroundColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],

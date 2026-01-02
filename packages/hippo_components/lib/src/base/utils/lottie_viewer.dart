@@ -15,8 +15,18 @@ class LottieViewer extends StatelessWidget {
   final HippoAsset asset;
   final double? width;
   final double? height;
+  final bool? reverse;
   final bool? repeat;
-  const LottieViewer({super.key, this.width, this.height, this.repeat, required this.asset});
+  final Animation<double>? controller;
+  const LottieViewer({
+    super.key,
+    this.width,
+    this.height,
+    this.reverse,
+    this.repeat,
+    this.controller,
+    required this.asset,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +34,8 @@ class LottieViewer extends StatelessWidget {
       width: width,
       height: height,
       repeat: repeat,
+      reverse: reverse,
+      controller: controller,
       lottie: AssetLottie(asset.path),
     );
   }

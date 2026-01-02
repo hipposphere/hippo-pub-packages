@@ -31,8 +31,8 @@ class SpeechRecorderActionButton extends StatelessWidget {
         child: Center(
           child: Icon(
             state == SpeechRecorderSessionState.recording
-                ? Icons.mic_outlined
-                : Icons.play_arrow_outlined,
+                ? Icons.stop_outlined
+                : Icons.mic_outlined,
             color: Colors.white,
           ),
         ),

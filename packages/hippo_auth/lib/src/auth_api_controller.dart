@@ -4,14 +4,18 @@ import 'package:hippo_auth/src/utils/auth_session_store.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 class HippoAuthApiController {
-  final Openapi api;
+  late Openapi api;
 
   HippoAuthApiController._({
-    required this.api,
+    required Uri baseUrl,
     required this.sessionStore,
     required this.sessionSubject,
   }) {
     _initController();
+    api = Openapi.create(
+      baseUrl: baseUrl,
+      interceptors: [createAuthorizationInterceptor()],
+    );
   }
 
   factory HippoAuthApiController({
@@ -19,13 +23,12 @@ class HippoAuthApiController {
     required KeyValueStore sessionStore,
     String? sessionKey,
   }) {
-    final api = Openapi.create(baseUrl: baseUrl);
     final store = AuthSessionStore(
       keyValueStore: sessionStore,
       sessionKey: sessionKey,
     );
     return HippoAuthApiController._(
-      api: api,
+      baseUrl: baseUrl,
       sessionStore: store,
       sessionSubject: DataSubject.seeded(null),
     );

@@ -55,9 +55,12 @@ class HippoAuthApiController {
     await sessionStore.deleteSession();
   }
 
-  Interceptor createAuthorizationInterceptor() {
+  Interceptor createAuthorizationInterceptor({
+    List<String> excludedPaths = const [],
+  }) {
     return HippoAuthorizationTokenRequestInterceptor(
       getSession: () => currentSession,
+      excludedPaths: excludedPaths,
       refreshSession: () async {
         final oldSession = currentSession;
         final refreshToken = oldSession?.token;

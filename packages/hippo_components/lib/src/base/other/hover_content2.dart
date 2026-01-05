@@ -68,7 +68,7 @@ class _HoverPopupState extends State<HoverPopup2> {
     );
     _overlayEntry2 = OverlayEntry(
       builder: (ctx) => Positioned(
-        right: target.dx,
+        right: 8,
         top: target.dy + size.height - 16,
         width: widget.popupWidth,
         child: MouseRegion(

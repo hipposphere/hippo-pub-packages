@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hid_api_example/src/hid_testing_interface.dart';
+import 'package:hid_api_example/src/hid_testing_interface/page.dart';
 import 'package:hippo_components/hippo_components.dart';
 
 void main() {

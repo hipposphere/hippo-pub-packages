@@ -88,7 +88,7 @@ void HidApiPlugin::HandleMethodCall(
           deviceInterfaceDetailData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
           
           if (SetupDiGetDeviceInterfaceDetail(deviceInfoList, &deviceInterfaceData, deviceInterfaceDetailData, requiredSize, NULL, NULL)) {
-              std::string path = deviceInterfaceDetailData->DevicePath;
+              std::string path = WStringToString(deviceInterfaceDetailData->DevicePath);
               
               HANDLE handle = CreateFileA(path.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
               if (handle != INVALID_HANDLE_VALUE) {

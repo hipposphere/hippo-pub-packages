@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hid_api_example/src/hid_testing_interface.dart';
 import 'package:hippo_components/hippo_components.dart';
 
 void main() {
@@ -20,7 +21,12 @@ class _HomePage extends StatelessWidget {
           SliverGap(32),
           SliverColumn(
             children: [
-              Button(onTap: () {}, label: 'HID Testing Interface'),
+              Button(
+                onTap: () {
+                  openHidTestingInterface(context);
+                },
+                label: 'HID Testing Interface',
+              ),
               Gap(16),
             ],
           ),

@@ -81,10 +81,9 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         let productId = args?["productId"] as? Int
         
         if vendorId != nil || productId != nil {
-            var match = [String: Any]()
-            if let v = vendorId { match[kIOHIDVendorIDKey] = v }
-            if let p = productId { match[kIOHIDProductIDKey] = p }
-            IOHIDManagerSetDeviceMatching(manager!, match as CFDictionary)
+            // Do not change manager matching to avoid breaking the stream
+            // Just filter manually
+            IOHIDManagerSetDeviceMatching(manager!, nil)
         } else {
             IOHIDManagerSetDeviceMatching(manager!, nil)
         }
@@ -101,6 +100,10 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
             let path = getDevicePath(device)
             let vid = IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0
             let pid = IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int ?? 0
+            
+            if let v = vendorId, vid != v { continue }
+            if let p = productId, pid != p { continue }
+            
             let release = IOHIDDeviceGetProperty(device, kIOHIDVersionNumberKey as CFString) as? Int ?? 0
             let usagePage = IOHIDDeviceGetProperty(device, kIOHIDPrimaryUsagePageKey as CFString) as? Int ?? 0
             let usage = IOHIDDeviceGetProperty(device, kIOHIDPrimaryUsageKey as CFString) as? Int ?? 0
@@ -447,6 +450,9 @@ class DeviceUpdateStreamHandler: NSObject, FlutterStreamHandler {
             let handler = Unmanaged<DeviceUpdateStreamHandler>.fromOpaque(context!).takeUnretainedValue()
             handler.notify()
         }, context)
+        
+        // Send initial list
+        notify()
         
         return nil
     }

@@ -20,6 +20,7 @@
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
+#include <algorithm>
 
 namespace hid_api {
 
@@ -50,14 +51,14 @@ class DisconnectionStreamHandler : public flutter::StreamHandler<flutter::Encoda
   DisconnectionStreamHandler() : events_(nullptr) {}
   virtual ~DisconnectionStreamHandler() {}
 
-  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListen(
+  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(
       const flutter::EncodableValue* arguments,
-      std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> events) override {
+      std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override {
     events_ = std::move(events);
     return nullptr;
   }
 
-  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancel(
+  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(
       const flutter::EncodableValue* arguments) override {
     events_ = nullptr;
     return nullptr;
@@ -78,9 +79,9 @@ class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValu
   ReportStreamHandler(HANDLE device) : device_(device), running_(false) {}
   virtual ~ReportStreamHandler() { Stop(); }
 
-  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListen(
+  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(
       const flutter::EncodableValue* arguments,
-      std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> events) override {
+      std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override {
     events_ = std::move(events);
     running_ = true;
     thread_ = std::thread(&ReportStreamHandler::ReadLoop, this);
@@ -91,7 +92,7 @@ class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValu
     disconnection_handler_ = handler;
   }
 
-  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancel(
+  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(
       const flutter::EncodableValue* arguments) override {
     Stop();
     return nullptr;
@@ -158,16 +159,16 @@ class DeviceUpdateStreamHandler : public flutter::StreamHandler<flutter::Encodab
   DeviceUpdateStreamHandler(HidApiPlugin* plugin) : plugin_(plugin), running_(false) {}
   virtual ~DeviceUpdateStreamHandler() { Stop(); }
 
-  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListen(
+  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(
       const flutter::EncodableValue* arguments,
-      std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> events) override {
+      std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override {
     events_ = std::move(events);
     running_ = true;
     thread_ = std::thread(&DeviceUpdateStreamHandler::WatchLoop, this);
     return nullptr;
   }
 
-  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancel(
+  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(
       const flutter::EncodableValue* arguments) override {
     Stop();
     return nullptr;
@@ -180,8 +181,45 @@ class DeviceUpdateStreamHandler : public flutter::StreamHandler<flutter::Encodab
   }
 
   void WatchLoop() {
+    std::vector<std::string> last_paths;
+    bool first_run = true;
     while (running_) {
-        // Polling as a simple implementation for notifications
+        flutter::EncodableList devices = plugin_->GetDeviceList();
+        std::vector<std::string> current_paths;
+        
+        for (const auto& dev : devices) {
+            if (auto map = std::get_if<flutter::EncodableMap>(&dev)) {
+                auto it = map->find(flutter::EncodableValue("path"));
+                if (it != map->end()) {
+                    if (auto path_val = std::get_if<std::string>(&it->second)) {
+                        current_paths.push_back(*path_val);
+                    }
+                }
+            }
+        }
+        
+        std::sort(current_paths.begin(), current_paths.end());
+
+        bool changed = false;
+        if (current_paths.size() != last_paths.size()) {
+            changed = true;
+        } else {
+            for (size_t i = 0; i < current_paths.size(); i++) {
+                if (current_paths[i] != last_paths[i]) {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        
+        if (changed || first_run) {
+             if (events_) {
+                 events_->Success(flutter::EncodableValue(devices));
+             }
+             last_paths = current_paths;
+             first_run = false;
+        }
+
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
   }
@@ -209,32 +247,13 @@ std::string WStringToString(const std::wstring& wstr) {
     return strTo;
 }
 
-void HidApiPlugin::HandleMethodCall(
-    const flutter::MethodCall<flutter::EncodableValue> &method_call,
-    std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
-    
-  if (method_call.method_name().compare("initialize") == 0) {
-      if (!device_update_channel_) {
-          device_update_channel_ = std::make_unique<flutter::EventChannel<flutter::EncodableValue>>(
-              messenger_, "hid_api/device_updates", &flutter::StandardMethodCodec::GetInstance());
-          auto handler = std::make_unique<DeviceUpdateStreamHandler>(this);
-          device_update_channel_->SetStreamHandler(std::move(handler));
-      }
-      result->Success();
-  } else if (method_call.method_name().compare("shutdown") == 0) {
-      for (auto const& [path, handle] : open_devices_) {
-          CloseHandle(handle);
-      }
-      open_devices_.clear();
-      result->Success();
-  } else if (method_call.method_name().compare("enumerate") == 0) {
+flutter::EncodableList HidApiPlugin::GetDeviceList() {
       GUID hidGuid;
       HidD_GetHidGuid(&hidGuid);
       
       HDEVINFO deviceInfoList = SetupDiGetClassDevs(&hidGuid, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
       if (deviceInfoList == INVALID_HANDLE_VALUE) {
-          result->Error("ENUMERATE_FAILED", "Failed to get device list");
-          return;
+          return flutter::EncodableList();
       }
       
       SP_DEVICE_INTERFACE_DATA deviceInterfaceData;
@@ -300,6 +319,29 @@ void HidApiPlugin::HandleMethodCall(
           }
       }
       SetupDiDestroyDeviceInfoList(deviceInfoList);
+      return devices;
+}
+
+void HidApiPlugin::HandleMethodCall(
+    const flutter::MethodCall<flutter::EncodableValue> &method_call,
+    std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+    
+  if (method_call.method_name().compare("initialize") == 0) {
+      if (!device_update_channel_) {
+          device_update_channel_ = std::make_unique<flutter::EventChannel<flutter::EncodableValue>>(
+              messenger_, "hid_api/device_updates", &flutter::StandardMethodCodec::GetInstance());
+          auto handler = std::make_unique<DeviceUpdateStreamHandler>(this);
+          device_update_channel_->SetStreamHandler(std::move(handler));
+      }
+      result->Success();
+  } else if (method_call.method_name().compare("shutdown") == 0) {
+      for (auto const& [path, handle] : open_devices_) {
+          CloseHandle(handle);
+      }
+      open_devices_.clear();
+      result->Success();
+  } else if (method_call.method_name().compare("enumerate") == 0) {
+      flutter::EncodableList devices = GetDeviceList();
       result->Success(flutter::EncodableValue(devices));
       
   } else if (method_call.method_name().compare("open") == 0) {

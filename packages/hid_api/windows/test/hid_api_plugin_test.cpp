@@ -23,7 +23,7 @@ using flutter::MethodResultFunctions;
 }  // namespace
 
 TEST(HidApiPlugin, GetPlatformVersion) {
-  HidApiPlugin plugin;
+  HidApiPlugin plugin(nullptr);
   // Save the reply value from the success callback.
   std::string result_string;
   plugin.HandleMethodCall(

@@ -382,7 +382,7 @@ class HidTestingInterfacePage extends StatelessWidget {
 
   Widget _buildEventLog(HidTestingInterfaceBloc bloc, BuildContext context) {
     return Container(
-      color: Colors.black.withOpacity(0.05),
+      color: Colors.black.withValues(alpha: 0.05),
       padding: const EdgeInsets.all(8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

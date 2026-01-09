@@ -64,6 +64,24 @@ class MethodChannelHidDevice extends HidDevice {
   }
 
   @override
+  Stream<HidInputReport> get reports {
+    final eventChannel = EventChannel('hid_api/reports/$path');
+    return eventChannel.receiveBroadcastStream().map((event) {
+      final map = event as Map<dynamic, dynamic>;
+      return HidInputReport(
+        map['reportId'] as int? ?? 0,
+        map['data'] as Uint8List,
+      );
+    });
+  }
+
+  @override
+  Stream<void> get onDisconnected {
+    final eventChannel = EventChannel('hid_api/disconnection/$path');
+    return eventChannel.receiveBroadcastStream();
+  }
+
+  @override
   Future<int> write(HidOutputReport report) async {
     final result = await _channel.invokeMethod<int>('write', {
       'path': path,

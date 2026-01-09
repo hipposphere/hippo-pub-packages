@@ -49,4 +49,8 @@ abstract class HidApiPlatform extends PlatformInterface {
   Future<HidDevice> open(String devicePath) {
     throw UnimplementedError('open() has not been implemented.');
   }
+
+  Stream<List<HidDeviceInfo>> get deviceListStream {
+    throw UnimplementedError('deviceListStream has not been implemented.');
+  }
 }

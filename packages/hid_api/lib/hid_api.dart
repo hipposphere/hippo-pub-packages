@@ -60,4 +60,9 @@ abstract class HidApi {
 
     return open(devices.first.path);
   }
+
+  /// Global stream of connected HID devices
+  static Stream<List<HidDeviceInfo>> get deviceListStream {
+    return HidApiPlatform.instance.deviceListStream;
+  }
 }

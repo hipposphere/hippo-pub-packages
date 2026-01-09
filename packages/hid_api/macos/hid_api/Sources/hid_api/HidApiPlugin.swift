@@ -3,12 +3,17 @@ import FlutterMacOS
 import IOKit.hid
 
 public class HidApiPlugin: NSObject, FlutterPlugin {
-    private var manager: IOHIDManager?
+    var manager: IOHIDManager?
     private var openDevices: [String: IOHIDDevice] = [:]
-    
+    private var eventHandlers: [String: ReportStreamHandler] = [:]
+    private var disconnectionHandlers: [String: DisconnectionStreamHandler] = [:]
+    private var deviceUpdateHandler: DeviceUpdateStreamHandler?
+    private static var messenger: FlutterBinaryMessenger?
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "hid_api", binaryMessenger: registrar.messenger)
         let instance = HidApiPlugin()
+        self.messenger = registrar.messenger
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
 
@@ -44,6 +49,13 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         IOHIDManagerSetDeviceMatching(manager!, nil) // Match all
         IOHIDManagerScheduleWithRunLoop(manager!, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
         IOHIDManagerOpen(manager!, IOOptionBits(kIOHIDOptionsTypeNone))
+        
+        if let messenger = HidApiPlugin.messenger {
+            let channel = FlutterEventChannel(name: "hid_api/device_updates", binaryMessenger: messenger)
+            deviceUpdateHandler = DeviceUpdateStreamHandler(plugin: self)
+            channel.setStreamHandler(deviceUpdateHandler)
+        }
+        
         result(nil)
     }
 
@@ -139,6 +151,19 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
             if ret == kIOReturnSuccess {
                 openDevices[path] = device
                 
+                // Set up event channel
+                if let messenger = HidApiPlugin.messenger {
+                    let eventChannel = FlutterEventChannel(name: "hid_api/reports/\(path)", binaryMessenger: messenger)
+                    let handler = ReportStreamHandler(device: device)
+                    eventChannel.setStreamHandler(handler)
+                    eventHandlers[path] = handler
+
+                    let discChannel = FlutterEventChannel(name: "hid_api/disconnection/\(path)", binaryMessenger: messenger)
+                    let discHandler = DisconnectionStreamHandler(device: device)
+                    discChannel.setStreamHandler(discHandler)
+                    disconnectionHandlers[path] = discHandler
+                }
+                
                 let vid = IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0
                 let pid = IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int ?? 0
                 let release = IOHIDDeviceGetProperty(device, kIOHIDVersionNumberKey as CFString) as? Int ?? 0
@@ -178,12 +203,33 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         
         IOHIDDeviceClose(device, IOOptionBits(kIOHIDOptionsTypeNone))
         openDevices.removeValue(forKey: path)
+        eventHandlers.removeValue(forKey: path)
+        disconnectionHandlers.removeValue(forKey: path)
         result(nil)
     }
 
     private func read(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        // Not implemented in this basic version
-        result(FlutterError(code: "UNIMPLEMENTED", message: "Async read not implemented", details: nil))
+        guard let args = call.arguments as? [String: Any],
+              let path = args["path"] as? String,
+              let device = openDevices[path] else {
+            result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid arguments", details: nil))
+            return
+        }
+
+        let timeout = (args["timeout"] as? Int) ?? 1000
+        var buffer = [UInt8](repeating: 0, count: 64) // Default size
+        var length = CFIndex(64)
+        
+        // This is a synchronous read for the 'read' method call
+        let ret = IOHIDDeviceGetReport(device, kIOHIDReportTypeInput, 0, &buffer, &length)
+        if ret == kIOReturnSuccess {
+            result([
+                "reportId": buffer[0],
+                "data": FlutterStandardTypedData(bytes: Data(buffer.prefix(length)))
+            ])
+        } else {
+            result(FlutterError(code: "READ_FAILED", message: "Read failed: \(ret)", details: nil))
+        }
     }
 
     private func write(call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -275,5 +321,146 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         var entryID: UInt64 = 0
         IORegistryEntryGetRegistryEntryID(service, &entryID)
         return "\(entryID)"
+    }
+    
+    internal func getDeviceInfoList() -> [[String: Any]] {
+        IOHIDManagerSetDeviceMatching(manager!, nil)
+        let deviceSet = IOHIDManagerCopyDevices(manager!)
+        guard let devices = deviceSet as? Set<IOHIDDevice> else {
+            return []
+        }
+
+        var deviceList = [[String: Any]]()
+        for device in devices {
+            let path = getDevicePath(device)
+            let vid = IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0
+            let pid = IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int ?? 0
+            let release = IOHIDDeviceGetProperty(device, kIOHIDVersionNumberKey as CFString) as? Int ?? 0
+            let usagePage = IOHIDDeviceGetProperty(device, kIOHIDPrimaryUsagePageKey as CFString) as? Int ?? 0
+            let usage = IOHIDDeviceGetProperty(device, kIOHIDPrimaryUsageKey as CFString) as? Int ?? 0
+            let manufacturer = IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey as CFString) as? String
+            let product = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String
+            let serial = IOHIDDeviceGetProperty(device, kIOHIDSerialNumberKey as CFString) as? String
+
+            deviceList.append([
+                "path": path,
+                "vendorId": vid,
+                "productId": pid,
+                "releaseNumber": release,
+                "usagePage": usagePage,
+                "usage": usage,
+                "manufacturer": manufacturer ?? "",
+                "product": product ?? "",
+                "serialNumber": serial ?? "",
+                "interfaceNumber": 0
+            ])
+        }
+        return deviceList
+    }
+}
+
+class ReportStreamHandler: NSObject, FlutterStreamHandler {
+    private let device: IOHIDDevice
+    private var eventSink: FlutterEventSink?
+    private var buffer = [UInt8](repeating: 0, count: 256)
+
+    init(device: IOHIDDevice) {
+        self.device = device
+        super.init()
+    }
+
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        self.eventSink = events
+        
+        let context = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+        IOHIDDeviceRegisterInputReportCallback(device, &buffer, buffer.count, { (context, result, sender, type, reportId, report, reportLength) in
+            let handler = Unmanaged<ReportStreamHandler>.fromOpaque(context!).takeUnretainedValue()
+            guard let eventSink = handler.eventSink else { return }
+            
+            let data = Data(bytes: report, count: reportLength)
+            eventSink([
+                "reportId": Int(reportId),
+                "data": FlutterStandardTypedData(bytes: data)
+            ])
+        }, context)
+        
+        return nil
+    }
+
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        IOHIDDeviceRegisterInputReportCallback(device, &buffer, buffer.count, nil, nil)
+        self.eventSink = nil
+        return nil
+    }
+}
+
+class DisconnectionStreamHandler: NSObject, FlutterStreamHandler {
+    private let device: IOHIDDevice
+    private var eventSink: FlutterEventSink?
+
+    init(device: IOHIDDevice) {
+        self.device = device
+        super.init()
+    }
+
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        self.eventSink = events
+        
+        let context = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+        IOHIDDeviceRegisterRemovalCallback(device, { (context, result, sender) in
+            let handler = Unmanaged<DisconnectionStreamHandler>.fromOpaque(context!).takeUnretainedValue()
+            handler.eventSink?(nil) // Signal disconnection
+        }, context)
+        
+        return nil
+    }
+
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        IOHIDDeviceRegisterRemovalCallback(device, nil, nil)
+        self.eventSink = nil
+        return nil
+    }
+}
+
+class DeviceUpdateStreamHandler: NSObject, FlutterStreamHandler {
+    private weak var plugin: HidApiPlugin?
+    private var eventSink: FlutterEventSink?
+
+    init(plugin: HidApiPlugin) {
+        self.plugin = plugin
+        super.init()
+    }
+
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        self.eventSink = events
+        
+        guard let manager = plugin?.manager else { return nil }
+        
+        let context = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+        
+        IOHIDManagerRegisterDeviceMatchingCallback(manager, { (context, result, sender, device) in
+            let handler = Unmanaged<DeviceUpdateStreamHandler>.fromOpaque(context!).takeUnretainedValue()
+            handler.notify()
+        }, context)
+        
+        IOHIDManagerRegisterDeviceRemovalCallback(manager, { (context, result, sender, device) in
+            let handler = Unmanaged<DeviceUpdateStreamHandler>.fromOpaque(context!).takeUnretainedValue()
+            handler.notify()
+        }, context)
+        
+        return nil
+    }
+
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        guard let manager = plugin?.manager else { return nil }
+        IOHIDManagerRegisterDeviceMatchingCallback(manager, nil, nil)
+        IOHIDManagerRegisterDeviceRemovalCallback(manager, nil, nil)
+        self.eventSink = nil
+        return nil
+    }
+    
+    private func notify() {
+        guard let plugin = plugin else { return }
+        eventSink?(plugin.getDeviceInfoList())
     }
 }

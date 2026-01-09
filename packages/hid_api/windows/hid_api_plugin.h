@@ -15,7 +15,7 @@ class HidApiPlugin : public flutter::Plugin {
  public:
   static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
 
-  HidApiPlugin();
+  HidApiPlugin(flutter::BinaryMessenger* messenger);
 
   virtual ~HidApiPlugin();
 
@@ -29,7 +29,11 @@ class HidApiPlugin : public flutter::Plugin {
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
 
  private:
+  flutter::BinaryMessenger* messenger_;
   std::map<std::string, HANDLE> open_devices_;
+  std::map<std::string, std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>>> event_channels_;
+  std::map<std::string, std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>>> disconnection_channels_;
+  std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> device_update_channel_;
 };
 
 }  // namespace hid_api

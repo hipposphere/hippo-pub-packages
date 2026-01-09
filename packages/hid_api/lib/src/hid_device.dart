@@ -13,8 +13,14 @@ abstract class HidDevice {
   /// Set blocking/non-blocking mode
   Future<void> setBlocking(bool blocking);
 
-  /// Read raw input report
+  /// Write raw input report
   Future<HidInputReport> read({Duration? timeout});
+
+  /// Continuous stream of input reports
+  Stream<HidInputReport> get reports;
+
+  /// Stream that emits when the device is disconnected
+  Stream<void> get onDisconnected;
 
   /// Write output report
   Future<int> write(HidOutputReport report);

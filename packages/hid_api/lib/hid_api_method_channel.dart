@@ -71,6 +71,17 @@ class MethodChannelHidApi extends HidApiPlatform {
     }
   }
 
+  @override
+  Stream<List<HidDeviceInfo>> get deviceListStream {
+    const eventChannel = EventChannel('hid_api/device_updates');
+    return eventChannel.receiveBroadcastStream().map((event) {
+      final list = event as List<dynamic>;
+      return list
+          .map((e) => _mapToDeviceInfo(e as Map<dynamic, dynamic>))
+          .toList();
+    });
+  }
+
   HidDeviceInfo _mapToDeviceInfo(Map<dynamic, dynamic> map) {
     return HidDeviceInfo(
       path: map['path'] as String,

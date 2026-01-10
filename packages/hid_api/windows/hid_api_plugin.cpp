@@ -568,63 +568,58 @@ void HidApiPlugin::HandleMethodCall(
       
       HANDLE handle = open_devices_[path];
       
-      // Determine the required buffer size based on report type
-      // Most Windows HID drivers require the buffer to match the exact length specified in caps
-      size_t expected_size = 0;
+      // 1. Prepare the buffer: ALWAYS Byte 0 = Report ID, then payload
+      std::vector<uint8_t> buffer;
+      buffer.push_back((uint8_t)report_id);
+      buffer.insert(buffer.end(), data.begin(), data.end());
+      
+      // 2. Ensure buffer matches the device's expected length (Caps)
+      // Most Windows HID drivers are very strict about this
       if (device_caps_.count(path)) {
-          expected_size = is_output 
+          size_t expected_size = is_output 
               ? device_caps_[path].OutputReportByteLength
               : device_caps_[path].FeatureReportByteLength;
-      }
-
-      // If we don't have caps, we fallback to data size + 1
-      size_t buffer_size = (expected_size > 0) ? expected_size : (data.size() + 1);
-      
-      // Create buffer initialized to zero
-      std::vector<uint8_t> buffer(buffer_size, 0);
-      
-      // Byte 0 is ALWAYS the Report ID
-      buffer[0] = (uint8_t)report_id;
-      
-      // Copy data into the buffer starting at byte 1
-      // We copy as much as fits into the remaining buffer space
-      if (!data.empty()) {
-          size_t max_payload = buffer_size - 1;
-          size_t copy_len = (std::min)(data.size(), max_payload);
-          std::copy(data.begin(), data.begin() + copy_len, buffer.begin() + 1);
+          
+          if (expected_size > 0) {
+              if (buffer.size() < expected_size) {
+                  buffer.resize(expected_size, 0); // Pad with zeros
+              } else if (buffer.size() > expected_size) {
+                  buffer.resize(expected_size);    // Truncate to match exact cap
+              }
+          }
       }
       
       bool success = false;
       DWORD error_code = 0;
       
       if (is_output) {
-          // Send Output Report using WriteFile
-          OVERLAPPED ol = {0};
-          ol.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-          
-          DWORD bytesWritten = 0;
-          if (WriteFile(handle, buffer.data(), (DWORD)buffer.size(), &bytesWritten, &ol)) {
-              // Synchronous completion
+          // Send Output Report 
+          // We try HidD_SetOutputReport (Control Pipe) first as it matches macOS behavior
+          if (HidD_SetOutputReport(handle, buffer.data(), (ULONG)buffer.size())) {
               success = true;
-          } else if (GetLastError() == ERROR_IO_PENDING) {
-              // Wait for async operation to complete
-              if (WaitForSingleObject(ol.hEvent, 1000) == WAIT_OBJECT_0) {
-                  if (GetOverlappedResult(handle, &ol, &bytesWritten, FALSE)) {
-                      success = (bytesWritten > 0);
-                  } else {
-                      error_code = GetLastError();
-                  }
-              } else {
-                  // Timeout
-                  CancelIo(handle);
-                  error_code = GetLastError();
-              }
           } else {
-              error_code = GetLastError();
+              // Fallback to WriteFile (Interrupt Pipe) if Control Pipe isn't supported
+              OVERLAPPED ol = {0};
+              ol.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+              DWORD bytesWritten = 0;
+              
+              if (WriteFile(handle, buffer.data(), (DWORD)buffer.size(), &bytesWritten, &ol)) {
+                  success = true;
+              } else if (GetLastError() == ERROR_IO_PENDING) {
+                  if (WaitForSingleObject(ol.hEvent, 1000) == WAIT_OBJECT_0) {
+                      if (GetOverlappedResult(handle, &ol, &bytesWritten, FALSE)) {
+                          success = true;
+                      }
+                  } else {
+                      CancelIo(handle);
+                  }
+              }
+              
+              if (!success) error_code = GetLastError();
+              CloseHandle(ol.hEvent);
           }
-          CloseHandle(ol.hEvent);
       } else {
-          // Send Feature Report using HidD_SetFeature
+          // Send Feature Report using HidD_SetFeature (Control Pipe)
           success = HidD_SetFeature(handle, buffer.data(), (ULONG)buffer.size());
           if (!success) {
               error_code = GetLastError();

@@ -47,7 +47,7 @@ class SpeechMikeHidDevice extends DictationDevice {
 
   SpeechMikeGamepadDevice? _proxyDevice;
 
-  static const int _commandTimeoutMs = 500;
+  static const int _commandTimeoutMs = 100;
 
   static const Map<int, int> _buttonMappingsSpeechMike = {
     ButtonEvent.rewind: 1 << 12,
@@ -255,6 +255,8 @@ class SpeechMikeHidDevice extends DictationDevice {
 
     // Philips SMP4000 (0x0c1d) and SpeechOne (0x0c1e) are always premium.
     // LFH3500/SMP3700 (0x0c1c) can be older III models or newer Premium models.
+    // The isSpeechMikePremium (0x83) command is the official way to distinguish
+    // between them for devices sharing the 0x0c1c PID.
     final pid = hidDevice.info.productId;
     final isKnownPremium = pid == 0x0c1d || pid == 0x0c1e;
 
@@ -393,9 +395,9 @@ class SpeechMikeHidDevice extends DictationDevice {
     if (input != null) {
       data.setRange(1, data.length, input);
     }
-    // Philips SpeechMike Premium/III often requires Feature Reports for commands.
-    // Using Report ID 1 as it is the most common for these control reports.
-    await hidDevice.sendReport(HidReport(1, data), HidReportType.feature);
+    // Philips SpeechMike Premium/III commands are sent as Output Reports.
+    // Using Report ID 1 for control commands.
+    await hidDevice.sendReport(HidReport(1, data), HidReportType.output);
   }
 
   Future<ByteData> _sendCommandAndWaitForResponse(

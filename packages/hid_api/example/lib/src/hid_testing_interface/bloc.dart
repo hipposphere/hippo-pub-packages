@@ -47,7 +47,7 @@ class HidTestingInterfaceBloc extends BlocBase {
 
   // Deduplication setting
   final deduplicationOptionSubject = DataSubject<DeduplicationOption>.seeded(
-    DeduplicationOption.ms5,
+    DeduplicationOption.ms50,
   );
 
   // Track open device paths to show in UI

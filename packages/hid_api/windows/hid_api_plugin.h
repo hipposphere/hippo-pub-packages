@@ -38,6 +38,7 @@ class HidApiPlugin : public flutter::Plugin {
   flutter::BinaryMessenger* messenger_;
   std::map<std::string, HANDLE> open_devices_;
   std::map<std::string, PHIDP_PREPARSED_DATA> preparsed_data_;
+  bool verbose_logging_ = false;
   std::map<std::string, HIDP_CAPS> device_caps_;
   std::map<std::string, std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>>> event_channels_;
   std::map<std::string, std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>>> disconnection_channels_;

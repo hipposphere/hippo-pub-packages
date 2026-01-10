@@ -16,6 +16,7 @@
 #include <sstream>
 #include <vector>
 #include <iostream>
+#include <iomanip>
 #include <codecvt>
 #include <thread>
 #include <atomic>
@@ -551,6 +552,11 @@ void HidApiPlugin::HandleMethodCall(
           return;
       }
       
+      std::string path = std::get<std::string>(path_it->second);
+      std::string type = std::get<std::string>(type_it->second);
+      bool is_output = (type == "output");
+      std::string report_type_name = is_output ? "Output Report" : "Feature Report";
+      
       HANDLE handle = open_devices_[path];
       
       // 1. Safe Type Extraction
@@ -566,16 +572,27 @@ void HidApiPlugin::HandleMethodCall(
           data = *v;
       } else if (auto l = std::get_if<flutter::EncodableList>(&data_it->second)) {
           for (const auto& item : *l) {
-            if (auto b = std::get_if<int32_t>(&item)) data.push_back(static_cast<uint8_t>(*b));
-            else if (auto b = std::get_if<int64_t>(&item)) data.push_back(static_cast<uint8_t>(*b));
+            if (auto b32 = std::get_if<int32_t>(&item)) data.push_back(static_cast<uint8_t>(*b32));
+            else if (auto b64 = std::get_if<int64_t>(&item)) data.push_back(static_cast<uint8_t>(*b64));
           }
       }
       
-      // 2. Prepare the buffer: BYTE 0 = Report ID, then payload
+      // 2. Prepare the buffer: Always prepend Report ID to payload (Windows HID API requirement)
       std::vector<uint8_t> buffer;
       buffer.reserve(data.size() + 1);
       buffer.push_back(report_id);
       buffer.insert(buffer.end(), data.begin(), data.end());
+      
+      if (verbose_logging_) {
+          std::stringstream ss;
+          ss << "[HID_API] Sending " << report_type_name << " - Report ID: " << (int)report_id 
+             << ", Data size: " << data.size() << ", Buffer (with ID): ";
+          for (size_t i = 0; i < buffer.size(); i++) {
+              ss << std::hex << std::setfill('0') << std::setw(2) << (int)buffer[i];
+              if (i < buffer.size() - 1) ss << " ";
+          }
+          std::cout << ss.str() << std::endl;
+      }
       
       // 3. Ensure buffer matches the device's exact expected length (Caps)
       if (device_caps_.count(path)) {
@@ -583,13 +600,37 @@ void HidApiPlugin::HandleMethodCall(
               ? device_caps_[path].OutputReportByteLength
               : device_caps_[path].FeatureReportByteLength;
           
-          if (expected_size > 0) {
+          if (verbose_logging_) {
+              std::cout << "[HID_API] Device expects " << expected_size 
+                       << " bytes total (including report ID), current buffer: " 
+                       << buffer.size() << " bytes" << std::endl;
+          }
+          
+          if (expected_size > 0 && buffer.size() != expected_size) {
+              if (verbose_logging_) {
+                  std::cout << "[HID_API] Size mismatch detected. Adjusting buffer from " 
+                           << buffer.size() << " to " << expected_size << " bytes" << std::endl;
+              }
               if (buffer.size() < expected_size) {
-                  buffer.resize(expected_size, 0); // Pad with zeros
+                  // Prepend zeros at the beginning before the report ID
+                  size_t padding_needed = expected_size - buffer.size();
+                  std::vector<uint8_t> padded_buffer(expected_size, 0);
+                  std::copy(buffer.begin(), buffer.end(), padded_buffer.begin() + padding_needed);
+                  buffer = padded_buffer;
               } else if (buffer.size() > expected_size) {
                   buffer.resize(expected_size);    // Truncate to match exact cap
               }
           }
+      }
+      
+      if (verbose_logging_) {
+          std::stringstream ss;
+          ss << "[HID_API] FINAL buffer to WriteFile: ";
+          for (size_t i = 0; i < buffer.size(); i++) {
+              ss << std::hex << std::setfill('0') << std::setw(2) << (int)buffer[i];
+              if (i < buffer.size() - 1) ss << " ";
+          }
+          std::cout << ss.str() << std::endl;
       }
       
       bool success = false;

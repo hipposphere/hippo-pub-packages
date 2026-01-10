@@ -2,6 +2,9 @@ import Cocoa
 import FlutterMacOS
 import IOKit.hid
 
+// USB interface number key for proper USB device interface detection
+private let kUSBInterfaceNumber = "bInterfaceNumber" as CFString
+
 public class HidApiPlugin: NSObject, FlutterPlugin {
     var manager: IOHIDManager?
     private var openDevices: [String: IOHIDDevice] = [:]
@@ -105,7 +108,7 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
             let manufacturer = IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey as CFString) as? String
             let product = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String
             let serial = IOHIDDeviceGetProperty(device, kIOHIDSerialNumberKey as CFString) as? String
-            let interfaceNumber = IOHIDDeviceGetProperty(device, "InterfaceNumber" as CFString) as? Int ?? 0
+            let interfaceNumber = getInterfaceNumber(device)
 
             deviceList.append([
                 "path": path,
@@ -183,7 +186,7 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
                     "manufacturer": manufacturer ?? "",
                     "product": product ?? "",
                     "serialNumber": serial ?? "",
-                    "interfaceNumber": IOHIDDeviceGetProperty(device, "InterfaceNumber" as CFString) as? Int ?? 0
+                    "interfaceNumber": getInterfaceNumber(device)
                 ])
             } else {
                 var message = "Failed to open device (Error: \(ret))"
@@ -357,6 +360,20 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         return "\(entryID)"
     }
     
+    private func getInterfaceNumber(_ device: IOHIDDevice) -> Int {
+        // Try to retrieve the USB interface number using the proper key
+        if let ref = IOHIDDeviceGetProperty(device, kUSBInterfaceNumber) {
+            if CFGetTypeID(ref) == CFNumberGetTypeID() {
+                var interfaceNumber: Int = 0
+                if CFNumberGetValue(ref as! CFNumber, .intType, &interfaceNumber) {
+                    return interfaceNumber
+                }
+            }
+        }
+        // Fallback: device might not be a USB device or doesn't have interface number
+        return 0
+    }
+    
     internal func getDeviceInfoList() -> [[String: Any]] {
         guard let manager = manager else { return [] }
         // Note: Do NOT call IOHIDManagerSetDeviceMatching here - it would trigger
@@ -388,7 +405,7 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
                 "manufacturer": manufacturer ?? "",
                 "product": product ?? "",
                 "serialNumber": serial ?? "",
-                "interfaceNumber": 0
+                "interfaceNumber": getInterfaceNumber(device)
             ])
         }
         return deviceList

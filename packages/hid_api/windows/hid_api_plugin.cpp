@@ -278,11 +278,19 @@ std::string GetLastErrorAsString() {
     LPSTR messageBuffer = nullptr;
     size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                                  NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
-    std::string message(messageBuffer, size);
-    LocalFree(messageBuffer);
-    // Remove trailing newlines
-    message.erase(std::remove(message.begin(), message.end(), '\r'), message.end());
-    message.erase(std::remove(message.begin(), message.end(), '\n'), message.end());
+    std::string message;
+    if (size > 0 && messageBuffer != nullptr) {
+        message = std::string(messageBuffer, size);
+        LocalFree(messageBuffer);
+        // Remove trailing newlines and any non-ASCII characters
+        message.erase(std::remove(message.begin(), message.end(), '\r'), message.end());
+        message.erase(std::remove(message.begin(), message.end(), '\n'), message.end());
+        // Remove any non-printable ASCII characters that might cause encoding issues
+        message.erase(std::remove_if(message.begin(), message.end(), 
+            [](char c) { return c < 32 || c > 126; }), message.end());
+    } else {
+        message = "Error code: " + std::to_string(errorMessageID);
+    }
     return message;
 }
 
@@ -612,7 +620,7 @@ void HidApiPlugin::HandleMethodCall(
                            << buffer.size() << " to " << expected_size << " bytes" << std::endl;
               }
               if (buffer.size() < expected_size) {
-                  // Prepend zeros at the beginning before the report ID
+                  // Prepend zeros at the beginning for both output and feature reports
                   size_t padding_needed = expected_size - buffer.size();
                   std::vector<uint8_t> padded_buffer(expected_size, 0);
                   std::copy(buffer.begin(), buffer.end(), padded_buffer.begin() + padding_needed);

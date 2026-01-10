@@ -38,12 +38,10 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
             close(call: call, result: result)
         case "read":
             read(call: call, result: result)
-        case "write":
-            write(call: call, result: result)
+        case "sendReport":
+            handleSendReport(call: call, result: result)
         case "setBlocking":
             result(nil)
-        case "sendFeatureReport":
-            sendFeatureReport(call: call, result: result)
         case "getFeatureReport":
             getFeatureReport(call: call, result: result)
         default:
@@ -348,8 +346,28 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         }
     }
 
-    private func write(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        sendReport(call: call, result: result, reportType: kIOHIDReportTypeOutput, reportTypeName: "Output Report")
+    private func handleSendReport(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let typeStr = args["type"] as? String else {
+            result(FlutterError(code: "INVALID_ARGUMENT", message: "Missing type argument", details: nil))
+            return
+        }
+        
+        let reportType: IOHIDReportType
+        let reportTypeName: String
+        
+        if typeStr == "output" {
+            reportType = kIOHIDReportTypeOutput
+            reportTypeName = "Output Report"
+        } else if typeStr == "feature" {
+            reportType = kIOHIDReportTypeFeature
+            reportTypeName = "Feature Report"
+        } else {
+            result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid report type: \(typeStr)", details: nil))
+            return
+        }
+        
+        sendReport(call: call, result: result, reportType: reportType, reportTypeName: reportTypeName)
     }
     
     private func getIOReturnString(_ ret: IOReturn) -> String {
@@ -462,10 +480,7 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
             return "Unknown IOReturn"
         }
     }
-    
-    private func sendFeatureReport(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        sendReport(call: call, result: result, reportType: kIOHIDReportTypeFeature, reportTypeName: "Feature Report")
-    }
+
     
     private func getFeatureReport(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let args = call.arguments as? [String: Any],

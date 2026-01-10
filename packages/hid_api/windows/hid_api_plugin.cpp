@@ -538,85 +538,95 @@ void HidApiPlugin::HandleMethodCall(
           result->Error("DEVICE_CLOSED", "Device not open");
       }
       
-  } else if (method_call.method_name().compare("write") == 0) {
+  } else if (method_call.method_name().compare("sendReport") == 0) {
       const auto* args = std::get_if<flutter::EncodableMap>(method_call.arguments());
-      std::string path = std::get<std::string>(args->find(flutter::EncodableValue("path"))->second);
-      std::vector<uint8_t> data = std::get<std::vector<uint8_t>>(args->find(flutter::EncodableValue("data"))->second);
+      if (!args) { result->Error("INVALID_ARGUMENT", "Arguments missing"); return; }
+      
+      auto path_it = args->find(flutter::EncodableValue("path"));
+      auto data_it = args->find(flutter::EncodableValue("data"));
+      auto type_it = args->find(flutter::EncodableValue("type"));
+      
+      if (path_it == args->end() || data_it == args->end() || type_it == args->end()) {
+          result->Error("INVALID_ARGUMENT", "Missing required arguments");
+          return;
+      }
+      
+      std::string path = std::get<std::string>(path_it->second);
+      std::vector<uint8_t> data = std::get<std::vector<uint8_t>>(data_it->second);
+      std::string type_str = std::get<std::string>(type_it->second);
       
       auto report_id_it = args->find(flutter::EncodableValue("reportId"));
       int report_id = (report_id_it != args->end()) ? std::get<int>(report_id_it->second) : 0;
+      
+      bool is_output = (type_str == "output");
+      std::string report_type_name = is_output ? "Output Report" : "Feature Report";
 
-      if (open_devices_.count(path)) {
-          HANDLE handle = open_devices_[path];
-          
-          // Determine the required buffer size for output report
-          size_t required_size = data.size() + 1;
-          if (device_caps_.count(path)) {
-              required_size = device_caps_[path].OutputReportByteLength;
-          }
-          
-          // Create buffer with the correct size and initialize to zero
-          std::vector<uint8_t> buffer(required_size, 0);
-          buffer[0] = (uint8_t)report_id;
-          
-          // Copy data into buffer after the report id
-          size_t copy_len = (std::min)(data.size(), buffer.size() - 1);
-          std::copy(data.begin(), data.begin() + copy_len, buffer.begin() + 1);
-
+      if (!open_devices_.count(path)) {
+          result->Error("DEVICE_CLOSED", "Device not open");
+          return;
+      }
+      
+      HANDLE handle = open_devices_[path];
+      
+      // Determine the required buffer size based on report type
+      size_t required_size = data.size() + 1;
+      if (device_caps_.count(path)) {
+          required_size = is_output 
+              ? device_caps_[path].OutputReportByteLength
+              : device_caps_[path].FeatureReportByteLength;
+      }
+      
+      // Create buffer with the correct size and initialize to zero
+      std::vector<uint8_t> buffer(required_size, 0);
+      buffer[0] = (uint8_t)report_id;
+      
+      // Copy data into buffer after the report id
+      size_t copy_len = (std::min)(data.size(), buffer.size() - 1);
+      std::copy(data.begin(), data.begin() + copy_len, buffer.begin() + 1);
+      
+      bool success = false;
+      DWORD error_code = 0;
+      
+      if (is_output) {
+          // Send Output Report using WriteFile
           OVERLAPPED ol = {0};
           ol.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
           
           DWORD bytesWritten = 0;
           if (WriteFile(handle, buffer.data(), (DWORD)buffer.size(), &bytesWritten, &ol)) {
-              // Successfully started
-          }
-          
-          if (WaitForSingleObject(ol.hEvent, 1000) == WAIT_OBJECT_0) {
-              GetOverlappedResult(handle, &ol, &bytesWritten, FALSE);
+              // Synchronous completion
+              success = true;
+          } else if (GetLastError() == ERROR_IO_PENDING) {
+              // Wait for async operation to complete
+              if (WaitForSingleObject(ol.hEvent, 1000) == WAIT_OBJECT_0) {
+                  if (GetOverlappedResult(handle, &ol, &bytesWritten, FALSE)) {
+                      success = (bytesWritten > 0);
+                  } else {
+                      error_code = GetLastError();
+                  }
+              } else {
+                  // Timeout
+                  CancelIo(handle);
+                  error_code = GetLastError();
+              }
           } else {
-             CancelIo(handle);
+              error_code = GetLastError();
           }
           CloseHandle(ol.hEvent);
-          
-          if (bytesWritten > 0) {
-              // Return the actual data length sent (not including report ID or padding)
-              result->Success(flutter::EncodableValue((int)data.size()));
-          } else {
-              result->Error("WRITE_FAILED", "Write failed: " + GetLastErrorAsString(), flutter::EncodableValue((int)GetLastError()));
-          }
       } else {
-          result->Error("DEVICE_CLOSED", "Device not open");
+          // Send Feature Report using HidD_SetFeature
+          success = HidD_SetFeature(handle, buffer.data(), (ULONG)buffer.size());
+          if (!success) {
+              error_code = GetLastError();
+          }
       }
-  } else if (method_call.method_name().compare("sendFeatureReport") == 0) {
-      const auto* args = std::get_if<flutter::EncodableMap>(method_call.arguments());
-      std::string path = std::get<std::string>(args->find(flutter::EncodableValue("path"))->second);
-      std::vector<uint8_t> data = std::get<std::vector<uint8_t>>(args->find(flutter::EncodableValue("data"))->second);
       
-      auto report_id_it = args->find(flutter::EncodableValue("reportId"));
-      int report_id = (report_id_it != args->end()) ? std::get<int>(report_id_it->second) : 0;
-
-      if (open_devices_.count(path)) {
-          HANDLE handle = open_devices_[path];
-          
-          size_t required_size = data.size() + 1;
-          if (device_caps_.count(path)) {
-              required_size = device_caps_[path].FeatureReportByteLength;
-          }
-
-          std::vector<uint8_t> buffer(required_size, 0);
-          buffer[0] = (uint8_t)report_id;
-          
-          // Copy data into buffer after the report id
-          size_t copy_len = (std::min)(data.size(), buffer.size() - 1);
-          std::copy(data.begin(), data.begin() + copy_len, buffer.begin() + 1);
-
-          if (HidD_SetFeature(handle, buffer.data(), (ULONG)buffer.size())) {
-              result->Success(flutter::EncodableValue((int)data.size()));
-          } else {
-              result->Error("WRITE_FAILED", "Send Feature Report failed: " + GetLastErrorAsString(), flutter::EncodableValue((int)GetLastError()));
-          }
+      if (success) {
+          // Return the actual data length sent (not including report ID or padding)
+          result->Success(flutter::EncodableValue((int)data.size()));
       } else {
-          result->Error("DEVICE_CLOSED", "Device not open");
+          std::string error_msg = "Send " + report_type_name + " failed: " + GetLastErrorAsString();
+          result->Error("WRITE_FAILED", error_msg, flutter::EncodableValue((int)error_code));
       }
   } else if (method_call.method_name().compare("getFeatureReport") == 0) {
       const auto* args = std::get_if<flutter::EncodableMap>(method_call.arguments());

@@ -87,12 +87,10 @@ class MethodChannelHidDevice extends HidDevice {
 
   @override
   Future<int> sendReport(HidReport report, HidReportType type) async {
-    final methodName = type == HidReportType.output
-        ? 'write'
-        : 'sendFeatureReport';
     final reportTypeName = type == HidReportType.output
         ? 'Output Report'
         : 'Feature Report';
+    final typeString = type == HidReportType.output ? 'output' : 'feature';
 
     try {
       if (verboseLogging) {
@@ -102,10 +100,11 @@ class MethodChannelHidDevice extends HidDevice {
         );
       }
 
-      final result = await _channel.invokeMethod<int>(methodName, {
+      final result = await _channel.invokeMethod<int>('sendReport', {
         'path': path,
         'reportId': report.reportId,
         'data': report.data,
+        'type': typeString,
       });
 
       if (verboseLogging) {

@@ -252,7 +252,15 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         }
         
         let reportId = (args["reportId"] as? Int) ?? 0
-        let bytes = [UInt8](data.data)
+        var bytes = [UInt8](data.data)
+        
+        // On macOS, IOHIDDeviceSetReport takes the Report ID as a separate argument.
+        // If the Report ID is already at the start of the data buffer, we strip it
+        // to avoid double-sending the ID, ensuring consistency with how Windows 
+        // expects the buffer (prepended) vs macOS (separate).
+        if reportId != 0 && !bytes.isEmpty && bytes[0] == UInt8(reportId) {
+            bytes.removeFirst()
+        }
         
         let ret = IOHIDDeviceSetReport(
             device,
@@ -279,7 +287,12 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         }
         
         let reportId = (args["reportId"] as? Int) ?? 0
-        let bytes = [UInt8](data.data)
+        var bytes = [UInt8](data.data)
+        
+        // Similar to write, if the ID is at the start of the buffer, strip it for IOHIDDeviceSetReport.
+        if reportId != 0 && !bytes.isEmpty && bytes[0] == UInt8(reportId) {
+            bytes.removeFirst()
+        }
         
         let ret = IOHIDDeviceSetReport(
             device,
@@ -318,8 +331,16 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         )
         
         if ret == kIOReturnSuccess {
+            var resultData = Data(buffer.prefix(Int(reportLength)))
+            
+            // Ensure consistency: if the Report ID is not already at index 0, prepend it.
+            // This matches the behavior of Input Reports on both macOS and Windows.
+            if reportId != 0 && (resultData.isEmpty || resultData[0] != UInt8(reportId)) {
+                resultData.insert(UInt8(reportId), at: 0)
+            }
+            
             result([
-                "data": FlutterStandardTypedData(bytes: Data(buffer.prefix(Int(reportLength))))
+                "data": FlutterStandardTypedData(bytes: resultData)
             ])
         } else {
             result(FlutterError(code: "READ_FAILED", message: "Get Feature Report failed: \(ret)", details: nil))

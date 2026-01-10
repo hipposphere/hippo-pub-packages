@@ -25,6 +25,9 @@ class StyledTextfield extends StatelessWidget {
   final TextInputType? keyboardType;
   final Widget? prefix;
   final Widget? suffix;
+  final Widget? error;
+  final Widget? description;
+
   const StyledTextfield({
     super.key,
     required this.controller,
@@ -43,6 +46,8 @@ class StyledTextfield extends StatelessWidget {
     this.keyboardType,
     this.prefix,
     this.suffix,
+    this.error,
+    this.description,
   });
 
   @override
@@ -70,7 +75,8 @@ class StyledTextfield extends StatelessWidget {
       minLines: minLines,
       maxLines: maxLines,
       maxLength: maxLength,
-
+      error: error,
+      description: description,
       onSubmit: onSubmit,
       prefixBuilder: prefix != null ? (_, _, _) => prefix! : null,
       suffixBuilder: suffix != null ? (_, _, _) => suffix! : null,

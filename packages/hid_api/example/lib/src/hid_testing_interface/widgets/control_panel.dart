@@ -147,45 +147,111 @@ class ControlPanel extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.end,
       children: [
         SizedBox(
-          width: 80,
-          child: StyledTextfield(
-            controller: reportIdController,
-            label: const Text('ID'),
+          width: 140,
+          child: DataSubjectBuilder<HidReportType>(
+            subject: bloc.reportTypeSubject,
+            builder: (context, currentType) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Report Type',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 4),
+                  DropdownButton<HidReportType>(
+                    value: currentType,
+                    isDense: true,
+                    isExpanded: true,
+                    items: HidReportType.values.map((type) {
+                      return DropdownMenuItem(
+                        value: type,
+                        child: Text(
+                          type.label,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (type) {
+                      if (type != null) bloc.setReportType(type);
+                    },
+                  ),
+                ],
+              );
+            },
           ),
         ),
         SizedBox(
-          width: maxWidth > 400 ? 200 : maxWidth - 32,
-          child: StyledTextfield(
-            controller: dataController,
-            label: const Text('Data (hex)'),
-            hint: 'e.g. 01 02 FF',
+          width: 120,
+          child: DataSubjectBuilder<String?>(
+            subject: bloc.reportIdErrorSubject,
+            builder: (context, error) {
+              final isValid =
+                  error == null && reportIdController.text.isNotEmpty;
+              return StyledTextfield(
+                controller: reportIdController,
+                label: const Text('ID'),
+                error: error != null ? Text(error) : null,
+                onChange: (val) => bloc.validateReportId(val),
+                suffix: isValid
+                    ? const Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                        size: 16,
+                      )
+                    : null,
+              );
+            },
           ),
         ),
-        Button(
-          onTap: () {
-            final id = int.tryParse(reportIdController.text) ?? 1;
-            final data = dataController.text
-                .split(' ')
-                .where((s) => s.isNotEmpty)
-                .map((s) => int.tryParse(s, radix: 16))
-                .whereType<int>()
-                .toList();
-            bloc.sendReport(id, data);
-          },
-          label: 'Send',
+        SizedBox(
+          width: maxWidth > 500 ? 250 : maxWidth - 32,
+          child: DataSubjectBuilder<String?>(
+            subject: bloc.dataErrorSubject,
+            builder: (context, error) {
+              final isValid = error == null && dataController.text.isNotEmpty;
+              return StyledTextfield(
+                controller: dataController,
+                label: const Text('Data (hex)'),
+                hint: 'e.g. 01 02 FF',
+                error: error != null ? Text(error) : null,
+                onChange: (val) => bloc.validateData(val),
+                suffix: isValid
+                    ? const Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                        size: 16,
+                      )
+                    : null,
+              );
+            },
+          ),
         ),
-        Button(
-          onTap: () {
-            final id = int.tryParse(reportIdController.text) ?? 1;
-            final data = dataController.text
-                .split(' ')
-                .where((s) => s.isNotEmpty)
-                .map((s) => int.tryParse(s, radix: 16))
-                .whereType<int>()
-                .toList();
-            bloc.sendFeatureReport(id, data);
+        CombinedDataSubjectBuilder<String?, String?>(
+          subject1: bloc.reportIdErrorSubject,
+          subject2: bloc.dataErrorSubject,
+          builder: (context, idError, dataError) {
+            final isEnabled =
+                idError == null &&
+                dataError == null &&
+                reportIdController.text.isNotEmpty;
+            return Button(
+              enabled: isEnabled,
+              onTap: () {
+                final id = int.tryParse(reportIdController.text) ?? 1;
+                final data = dataController.text
+                    .split(' ')
+                    .where((s) => s.isNotEmpty)
+                    .map((s) => int.tryParse(s, radix: 16))
+                    .whereType<int>()
+                    .toList();
+                bloc.sendReport(id, data);
+              },
+              label: 'Send',
+              prefix: const Icon(Icons.send, size: 16),
+            );
           },
-          label: 'Send Feature',
         ),
       ],
     );

@@ -13,6 +13,15 @@ enum DeduplicationOption {
   const DeduplicationOption(this.duration, this.label);
 }
 
+/// Available report types for sending
+enum HidReportType {
+  output('Output Report'),
+  feature('Feature Report');
+
+  final String label;
+  const HidReportType(this.label);
+}
+
 class HidTestingInterfaceBloc extends BlocBase {
   HidTestingInterfaceBloc() {
     _initBloc();
@@ -28,6 +37,13 @@ class HidTestingInterfaceBloc extends BlocBase {
   final connectedDeviceSubject = DataSubject<HidDevice?>.seeded(null);
   final hidEventsSubject = DataSubject<List<String>>.seeded([]);
   final autoRefreshEnabledSubject = DataSubject<bool>.seeded(true);
+
+  // Report sending settings
+  final reportTypeSubject = DataSubject<HidReportType>.seeded(
+    HidReportType.output,
+  );
+  final reportIdErrorSubject = DataSubject<String?>.seeded(null);
+  final dataErrorSubject = DataSubject<String?>.seeded(null);
 
   // Deduplication setting
   final deduplicationOptionSubject = DataSubject<DeduplicationOption>.seeded(
@@ -173,33 +189,60 @@ class HidTestingInterfaceBloc extends BlocBase {
     });
   }
 
+  void setReportType(HidReportType type) {
+    reportTypeSubject.add(type);
+  }
+
+  void validateReportId(String value) {
+    if (value.isEmpty) {
+      reportIdErrorSubject.add(null);
+      return;
+    }
+    final id = int.tryParse(value);
+    if (id == null || id < 0 || id > 255) {
+      reportIdErrorSubject.add('Invalid ID (0-255)');
+    } else {
+      reportIdErrorSubject.add(null);
+    }
+  }
+
+  void validateData(String value) {
+    if (value.isEmpty) {
+      dataErrorSubject.add(null);
+      return;
+    }
+    final segments = value.split(' ').where((s) => s.isNotEmpty);
+    for (final segment in segments) {
+      final val = int.tryParse(segment, radix: 16);
+      if (val == null || val < 0 || val > 255) {
+        dataErrorSubject.add('Invalid hex data');
+        return;
+      }
+    }
+    dataErrorSubject.add(null);
+  }
+
   Future<void> sendReport(int reportId, List<int> data) async {
     final device = connectedDeviceSubject.value;
     if (device == null) return;
 
-    try {
-      final report = HidOutputReport(reportId, Uint8List.fromList(data));
-      await device.write(report);
-      _log(
-        'Sent report: $reportId, data: ${_bytesToHex(report.normalizedData)}',
-      );
-    } catch (e) {
-      _log('Write error: $e');
-    }
-  }
-
-  Future<void> sendFeatureReport(int reportId, List<int> data) async {
-    final device = connectedDeviceSubject.value;
-    if (device == null) return;
+    final type = reportTypeSubject.value;
 
     try {
-      final report = HidFeatureReport(reportId, Uint8List.fromList(data));
-      await device.sendFeatureReport(report);
+      final HidReport report;
+      if (type == HidReportType.feature) {
+        report = HidFeatureReport(reportId, Uint8List.fromList(data));
+        await device.sendFeatureReport(report as HidFeatureReport);
+      } else {
+        report = HidOutputReport(reportId, Uint8List.fromList(data));
+        await device.write(report as HidOutputReport);
+      }
+
       _log(
-        'Sent feature report: $reportId, data: ${_bytesToHex(report.normalizedData)}',
+        'Sent ${type.label}: $reportId, data: ${_bytesToHex(report.normalizedData)}',
       );
     } catch (e) {
-      _log('Feature write error: $e');
+      _log('${type.label} write error: $e');
     }
   }
 

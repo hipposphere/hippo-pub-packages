@@ -482,14 +482,27 @@ void HidApiPlugin::HandleMethodCall(
       std::string path = std::get<std::string>(args->find(flutter::EncodableValue("path"))->second);
       std::vector<uint8_t> data = std::get<std::vector<uint8_t>>(args->find(flutter::EncodableValue("data"))->second);
       
+      auto report_id_it = args->find(flutter::EncodableValue("reportId"));
+      int report_id = (report_id_it != args->end()) ? std::get<int>(report_id_it->second) : 0;
+
       if (open_devices_.count(path)) {
           HANDLE handle = open_devices_[path];
           
+          // On Windows, the first byte of the buffer MUST be the Report ID.
+          // If the Report ID is not already at the start of the data, we must prepend it.
+          std::vector<uint8_t> buffer;
+          if (data.empty() || data[0] != (uint8_t)report_id) {
+              buffer.push_back((uint8_t)report_id);
+              buffer.insert(buffer.end(), data.begin(), data.end());
+          } else {
+              buffer = data;
+          }
+
           OVERLAPPED ol = {0};
           ol.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
           
           DWORD bytesWritten = 0;
-          if (!WriteFile(handle, data.data(), (DWORD)data.size(), &bytesWritten, &ol)) {
+          if (!WriteFile(handle, buffer.data(), (DWORD)buffer.size(), &bytesWritten, &ol)) {
               if (GetLastError() == ERROR_IO_PENDING) {
                   WaitForSingleObject(ol.hEvent, 1000);
                   GetOverlappedResult(handle, &ol, &bytesWritten, FALSE);
@@ -497,7 +510,65 @@ void HidApiPlugin::HandleMethodCall(
           }
           CloseHandle(ol.hEvent);
           
+          // Return the number of data bytes written (excluding prepended ID if we added it)
           result->Success(flutter::EncodableValue((int)bytesWritten));
+      } else {
+          result->Error("DEVICE_CLOSED", "Device not open");
+      }
+  } else if (method_call.method_name().compare("sendFeatureReport") == 0) {
+      const auto* args = std::get_if<flutter::EncodableMap>(method_call.arguments());
+      std::string path = std::get<std::string>(args->find(flutter::EncodableValue("path"))->second);
+      std::vector<uint8_t> data = std::get<std::vector<uint8_t>>(args->find(flutter::EncodableValue("data"))->second);
+      
+      auto report_id_it = args->find(flutter::EncodableValue("reportId"));
+      int report_id = (report_id_it != args->end()) ? std::get<int>(report_id_it->second) : 0;
+
+      if (open_devices_.count(path)) {
+          HANDLE handle = open_devices_[path];
+          
+          // For HidD_SetFeature, the buffer MUST start with the Report ID.
+          std::vector<uint8_t> buffer;
+          if (data.empty() || data[0] != (uint8_t)report_id) {
+              buffer.push_back((uint8_t)report_id);
+              buffer.insert(buffer.end(), data.begin(), data.end());
+          } else {
+              buffer = data;
+          }
+
+          if (HidD_SetFeature(handle, buffer.data(), (ULONG)buffer.size())) {
+              result->Success(flutter::EncodableValue((int)data.size()));
+          } else {
+              result->Error("WRITE_FAILED", "Send Feature Report failed", flutter::EncodableValue((int)GetLastError()));
+          }
+      } else {
+          result->Error("DEVICE_CLOSED", "Device not open");
+      }
+  } else if (method_call.method_name().compare("getFeatureReport") == 0) {
+      const auto* args = std::get_if<flutter::EncodableMap>(method_call.arguments());
+      std::string path = std::get<std::string>(args->find(flutter::EncodableValue("path"))->second);
+      int length = std::get<int>(args->find(flutter::EncodableValue("length"))->second);
+      
+      auto report_id_it = args->find(flutter::EncodableValue("reportId"));
+      int report_id = (report_id_it != args->end()) ? std::get<int>(report_id_it->second) : 0;
+
+      if (open_devices_.count(path)) {
+          HANDLE handle = open_devices_[path];
+          
+          // Buffer must be large enough for Report ID + data.
+          // Windows HidD_GetFeature ALWAYS receives the Report ID as the first byte of the buffer.
+          std::vector<uint8_t> buffer(length + 1);
+          buffer[0] = (uint8_t)report_id;
+
+          if (HidD_GetFeature(handle, buffer.data(), (ULONG)buffer.size())) {
+              // Note: We return the WHOLE buffer (including the ID at index 0)
+              // to be consistent with how Input Reports are returned via ReadFile.
+              // Dart's normalizedData will handle stripping any 0x00 padding if necessary.
+              flutter::EncodableMap result_map;
+              result_map[flutter::EncodableValue("data")] = flutter::EncodableValue(buffer);
+              result->Success(flutter::EncodableValue(result_map));
+          } else {
+              result->Error("READ_FAILED", "Get Feature Report failed", flutter::EncodableValue((int)GetLastError()));
+          }
       } else {
           result->Error("DEVICE_CLOSED", "Device not open");
       }

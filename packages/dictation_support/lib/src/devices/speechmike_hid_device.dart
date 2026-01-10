@@ -232,11 +232,28 @@ class SpeechMikeHidDevice extends DictationDevice {
   }
 
   Future<void> _fetchDeviceCode() async {
-    var response = await _sendCommandAndWaitForResponse(
-      _Command.isSpeechMikePremium,
-    );
+    ByteData? response;
+    bool isPremium = false;
 
-    if ((response.getUint8(8) & 0x80) != 0) {
+    // Try to determine if this is a SpeechMike Premium
+    // Older SpeechMike III models may not respond to this command
+    try {
+      response = await _sendCommandAndWaitForResponse(
+        _Command.isSpeechMikePremium,
+      );
+      isPremium = (response.getUint8(8) & 0x80) != 0;
+    } on TimeoutException {
+      // Timeout means this is likely an older SpeechMike III that doesn't
+      // support the isSpeechMikePremium command - treat as non-premium
+      // ignore: avoid_print
+      print(
+        'SpeechMike: isSpeechMikePremium command timed out, '
+        'assuming SpeechMike III',
+      );
+      isPremium = false;
+    }
+
+    if (isPremium) {
       response = await _sendCommandAndWaitForResponse(
         _Command.getDeviceCodeSmp,
       );
@@ -272,10 +289,21 @@ class SpeechMikeHidDevice extends DictationDevice {
         }
       }
     } else {
-      response = await _sendCommandAndWaitForResponse(
-        _Command.getDeviceCodeSm3,
-      );
-      _deviceCode = response.getUint16(7);
+      // Non-premium SpeechMike (SM3) or timeout occurred
+      try {
+        response = await _sendCommandAndWaitForResponse(
+          _Command.getDeviceCodeSm3,
+        );
+        _deviceCode = response.getUint16(7);
+      } on TimeoutException {
+        // If even getDeviceCodeSm3 times out, set a default device code
+        // ignore: avoid_print
+        print(
+          'SpeechMike: getDeviceCodeSm3 command timed out, '
+          'using default device code',
+        );
+        _deviceCode = 0;
+      }
     }
   }
 

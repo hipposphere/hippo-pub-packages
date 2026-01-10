@@ -1,5 +1,6 @@
 #include "hid_api_plugin.h"
 
+#define NOMINMAX
 #include <windows.h>
 #include <hidsdi.h>
 #include <setupapi.h>
@@ -435,7 +436,7 @@ void HidApiPlugin::HandleMethodCall(
       HidD_GetAttributes(handle, &attributes);
       
       PHIDP_PREPARSED_DATA preparsedData;
-      HIDP_CAPS caps;
+      HIDP_CAPS caps = {};
       if (HidD_GetPreparsedData(handle, &preparsedData)) {
           HidP_GetCaps(preparsedData, &caps);
           preparsed_data_[path] = preparsedData;
@@ -548,15 +549,19 @@ void HidApiPlugin::HandleMethodCall(
       if (open_devices_.count(path)) {
           HANDLE handle = open_devices_[path];
           
-          // On Windows, the first byte of the buffer MUST be the Report ID.
-          // If the Report ID is not already at the start of the data, we must prepend it.
-          std::vector<uint8_t> buffer;
-          if (data.empty() || data[0] != (uint8_t)report_id) {
-              buffer.push_back((uint8_t)report_id);
-              buffer.insert(buffer.end(), data.begin(), data.end());
-          } else {
-              buffer = data;
+          // Determine the required buffer size for output report
+          size_t required_size = data.size() + 1;
+          if (device_caps_.count(path)) {
+              required_size = device_caps_[path].OutputReportByteLength;
           }
+          
+          // Create buffer with the correct size and initialize to zero
+          std::vector<uint8_t> buffer(required_size, 0);
+          buffer[0] = (uint8_t)report_id;
+          
+          // Copy data into buffer after the report id
+          size_t copy_len = (std::min)(data.size(), buffer.size() - 1);
+          std::copy(data.begin(), data.begin() + copy_len, buffer.begin() + 1);
 
           OVERLAPPED ol = {0};
           ol.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -574,7 +579,8 @@ void HidApiPlugin::HandleMethodCall(
           CloseHandle(ol.hEvent);
           
           if (bytesWritten > 0) {
-              result->Success(flutter::EncodableValue((int)(bytesWritten - 1))); // Subtract Report ID byte
+              // Return the actual data length sent (not including report ID or padding)
+              result->Success(flutter::EncodableValue((int)data.size()));
           } else {
               result->Error("WRITE_FAILED", "Write failed: " + GetLastErrorAsString(), flutter::EncodableValue((int)GetLastError()));
           }
@@ -601,7 +607,7 @@ void HidApiPlugin::HandleMethodCall(
           buffer[0] = (uint8_t)report_id;
           
           // Copy data into buffer after the report id
-          size_t copy_len = std::min(data.size(), buffer.size() - 1);
+          size_t copy_len = (std::min)(data.size(), buffer.size() - 1);
           std::copy(data.begin(), data.begin() + copy_len, buffer.begin() + 1);
 
           if (HidD_SetFeature(handle, buffer.data(), (ULONG)buffer.size())) {

@@ -15,7 +15,7 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
     
     /// Set to true to enable verbose HID logging. Change this to false to disable logging.
     /// You can toggle this at runtime for debugging.
-    static var verboseLogging = true
+    static var verboseLogging = false
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "hid_api", binaryMessenger: registrar.messenger)

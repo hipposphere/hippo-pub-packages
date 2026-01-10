@@ -22,8 +22,9 @@ class EventLog extends StatelessWidget {
               ),
               Button(
                 onTap: () => bloc.hidEventsSubject.add([]),
+                prefix: Icon(Icons.clear_outlined),
                 label: 'Clear',
-                type: ButtonType.secondary,
+                type: ButtonType.outline,
               ),
             ],
           ),

@@ -188,11 +188,14 @@ class HidTestingInterfaceBloc extends BlocBase {
   }
 
   void _log(String message) {
+    final now = DateTime.now();
+    final timestamp =
+        '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')}:'
+        '${now.second.toString().padLeft(2, '0')}.'
+        '${now.millisecond.toString().padLeft(3, '0')}';
     final current = hidEventsSubject.value;
-    hidEventsSubject.add([
-      '[${DateTime.now().toIso8601String().split('T').last.split('.').first}] $message',
-      ...current.take(99),
-    ]);
+    hidEventsSubject.add(['[$timestamp] $message', ...current.take(99)]);
   }
 
   @override

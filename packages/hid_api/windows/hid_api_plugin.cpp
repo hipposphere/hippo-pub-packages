@@ -551,30 +551,33 @@ void HidApiPlugin::HandleMethodCall(
           return;
       }
       
-      std::string path = std::get<std::string>(path_it->second);
-      std::vector<uint8_t> data = std::get<std::vector<uint8_t>>(data_it->second);
-      std::string type_str = std::get<std::string>(type_it->second);
-      
-      auto report_id_it = args->find(flutter::EncodableValue("reportId"));
-      int report_id = (report_id_it != args->end()) ? std::get<int>(report_id_it->second) : 0;
-      
-      bool is_output = (type_str == "output");
-      std::string report_type_name = is_output ? "Output Report" : "Feature Report";
-
-      if (!open_devices_.count(path)) {
-          result->Error("DEVICE_CLOSED", "Device not open");
-          return;
-      }
-      
       HANDLE handle = open_devices_[path];
       
-      // 1. Prepare the buffer: ALWAYS Byte 0 = Report ID, then payload
+      // 1. Safe Type Extraction
+      uint8_t report_id = 0;
+      auto report_id_it = args->find(flutter::EncodableValue("reportId"));
+      if (report_id_it != args->end()) {
+          if (auto i32 = std::get_if<int32_t>(&report_id_it->second)) report_id = static_cast<uint8_t>(*i32);
+          else if (auto i64 = std::get_if<int64_t>(&report_id_it->second)) report_id = static_cast<uint8_t>(*i64);
+      }
+
+      std::vector<uint8_t> data;
+      if (auto v = std::get_if<std::vector<uint8_t>>(&data_it->second)) {
+          data = *v;
+      } else if (auto l = std::get_if<flutter::EncodableList>(&data_it->second)) {
+          for (const auto& item : *l) {
+            if (auto b = std::get_if<int32_t>(&item)) data.push_back(static_cast<uint8_t>(*b));
+            else if (auto b = std::get_if<int64_t>(&item)) data.push_back(static_cast<uint8_t>(*b));
+          }
+      }
+      
+      // 2. Prepare the buffer: BYTE 0 = Report ID, then payload
       std::vector<uint8_t> buffer;
-      buffer.push_back((uint8_t)report_id);
+      buffer.reserve(data.size() + 1);
+      buffer.push_back(report_id);
       buffer.insert(buffer.end(), data.begin(), data.end());
       
-      // 2. Ensure buffer matches the device's expected length (Caps)
-      // Most Windows HID drivers are very strict about this
+      // 3. Ensure buffer matches the device's exact expected length (Caps)
       if (device_caps_.count(path)) {
           size_t expected_size = is_output 
               ? device_caps_[path].OutputReportByteLength
@@ -593,31 +596,32 @@ void HidApiPlugin::HandleMethodCall(
       DWORD error_code = 0;
       
       if (is_output) {
-          // Send Output Report 
-          // We try HidD_SetOutputReport (Control Pipe) first as it matches macOS behavior
-          if (HidD_SetOutputReport(handle, buffer.data(), (ULONG)buffer.size())) {
+          // Send Output Report via WriteFile (Interrupt endpoint)
+          // This is the most reliable method for most HID devices on Windows
+          OVERLAPPED ol = {0};
+          ol.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+          DWORD bytesWritten = 0;
+          
+          if (WriteFile(handle, buffer.data(), (DWORD)buffer.size(), &bytesWritten, &ol)) {
               success = true;
-          } else {
-              // Fallback to WriteFile (Interrupt Pipe) if Control Pipe isn't supported
-              OVERLAPPED ol = {0};
-              ol.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-              DWORD bytesWritten = 0;
-              
-              if (WriteFile(handle, buffer.data(), (DWORD)buffer.size(), &bytesWritten, &ol)) {
-                  success = true;
-              } else if (GetLastError() == ERROR_IO_PENDING) {
-                  if (WaitForSingleObject(ol.hEvent, 1000) == WAIT_OBJECT_0) {
-                      if (GetOverlappedResult(handle, &ol, &bytesWritten, FALSE)) {
-                          success = true;
-                      }
-                  } else {
-                      CancelIo(handle);
+          } else if (GetLastError() == ERROR_IO_PENDING) {
+              if (WaitForSingleObject(ol.hEvent, 1000) == WAIT_OBJECT_0) {
+                  if (GetOverlappedResult(handle, &ol, &bytesWritten, FALSE)) {
+                      success = (bytesWritten > 0);
                   }
+              } else {
+                  CancelIo(handle);
               }
-              
-              if (!success) error_code = GetLastError();
-              CloseHandle(ol.hEvent);
           }
+          
+          if (!success) {
+            error_code = GetLastError();
+            // Fallback to HidD_SetOutputReport as a last resort
+            if (HidD_SetOutputReport(handle, buffer.data(), (ULONG)buffer.size())) {
+              success = true;
+            }
+          }
+          CloseHandle(ol.hEvent);
       } else {
           // Send Feature Report using HidD_SetFeature (Control Pipe)
           success = HidD_SetFeature(handle, buffer.data(), (ULONG)buffer.size());

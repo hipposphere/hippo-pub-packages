@@ -568,23 +568,31 @@ void HidApiPlugin::HandleMethodCall(
       
       HANDLE handle = open_devices_[path];
       
-      // Always prepend report ID to data
-      std::vector<uint8_t> dataWithReportId;
-      dataWithReportId.push_back((uint8_t)report_id);
-      dataWithReportId.insert(dataWithReportId.end(), data.begin(), data.end());
-      
       // Determine the required buffer size based on report type
-      size_t required_size = dataWithReportId.size();
+      // Most Windows HID drivers require the buffer to match the exact length specified in caps
+      size_t expected_size = 0;
       if (device_caps_.count(path)) {
-          required_size = is_output 
+          expected_size = is_output 
               ? device_caps_[path].OutputReportByteLength
               : device_caps_[path].FeatureReportByteLength;
       }
+
+      // If we don't have caps, we fallback to data size + 1
+      size_t buffer_size = (expected_size > 0) ? expected_size : (data.size() + 1);
       
-      // Create buffer with the correct size and initialize to zero, then copy data
-      std::vector<uint8_t> buffer(required_size, 0);
-      size_t copy_len = (std::min)(dataWithReportId.size(), buffer.size());
-      std::copy(dataWithReportId.begin(), dataWithReportId.begin() + copy_len, buffer.begin());
+      // Create buffer initialized to zero
+      std::vector<uint8_t> buffer(buffer_size, 0);
+      
+      // Byte 0 is ALWAYS the Report ID
+      buffer[0] = (uint8_t)report_id;
+      
+      // Copy data into the buffer starting at byte 1
+      // We copy as much as fits into the remaining buffer space
+      if (!data.empty()) {
+          size_t max_payload = buffer_size - 1;
+          size_t copy_len = (std::min)(data.size(), max_payload);
+          std::copy(data.begin(), data.begin() + copy_len, buffer.begin() + 1);
+      }
       
       bool success = false;
       DWORD error_code = 0;

@@ -232,10 +232,9 @@ class HidTestingInterfaceBloc extends BlocBase {
     final type = reportTypeSubject.value;
 
     try {
-      final HidReport report = HidReport(reportId, Uint8List.fromList(data));
-      final HidReportType reportType = type;
+      final report = HidReport(reportId, Uint8List.fromList(data));
 
-      await device.sendReport(report, reportType);
+      await device.sendReport(report, type);
 
       _log(
         'Sent ${type.label}: $reportId, data: ${_bytesToHex(report.normalizedData)}',

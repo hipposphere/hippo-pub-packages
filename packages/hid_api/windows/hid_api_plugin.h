@@ -10,6 +10,8 @@
 #include <map>
 #include <string>
 #include <windows.h>
+#include <hidsdi.h>
+#include <hidpi.h>
 
 namespace hid_api {
 
@@ -35,6 +37,8 @@ class HidApiPlugin : public flutter::Plugin {
  private:
   flutter::BinaryMessenger* messenger_;
   std::map<std::string, HANDLE> open_devices_;
+  std::map<std::string, PHIDP_PREPARSED_DATA> preparsed_data_;
+  std::map<std::string, HIDP_CAPS> device_caps_;
   std::map<std::string, std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>>> event_channels_;
   std::map<std::string, std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>>> disconnection_channels_;
   std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> device_update_channel_;

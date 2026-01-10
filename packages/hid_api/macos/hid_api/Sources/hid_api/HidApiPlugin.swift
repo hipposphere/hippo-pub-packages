@@ -186,12 +186,15 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
                     "interfaceNumber": IOHIDDeviceGetProperty(device, "InterfaceNumber" as CFString) as? Int ?? 0
                 ])
             } else {
-                var message = "Failed to open device: \(ret)"
+                var message = "Failed to open device (Error: \(ret))"
                 var errorCode = "OPEN_FAILED"
                 
                 if ret == -536870174 { // kIOReturnNotPrivileged
                     errorCode = "PERMISSION_DENIED"
                     message = "Access denied (kIOReturnNotPrivileged). macOS prevents opening system devices like keyboards or mice for security."
+                } else if ret == -536870203 { // kIOReturnExclusiveAccess
+                    errorCode = "EXCLUSIVE_ACCESS"
+                    message = "Exclusive access (kIOReturnExclusiveAccess). The device is already open by another process with exclusive access."
                 }
                 
                 result(FlutterError(code: errorCode, message: message, details: "IOReturn: \(ret)"))

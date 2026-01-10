@@ -254,7 +254,12 @@ HidApiPlugin::~HidApiPlugin() {
     for (auto const& [path, handle] : open_devices_) {
         CloseHandle(handle);
     }
+    for (auto const& [path, prepped] : preparsed_data_) {
+        HidD_FreePreparsedData(prepped);
+    }
     open_devices_.clear();
+    preparsed_data_.clear();
+    device_caps_.clear();
 }
 
 std::string WStringToString(const std::wstring& wstr) {
@@ -263,6 +268,20 @@ std::string WStringToString(const std::wstring& wstr) {
     std::string strTo(size_needed, 0);
     WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
     return strTo;
+}
+
+std::string GetLastErrorAsString() {
+    DWORD errorMessageID = GetLastError();
+    if (errorMessageID == 0) return "No error";
+    LPSTR messageBuffer = nullptr;
+    size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                 NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+    std::string message(messageBuffer, size);
+    LocalFree(messageBuffer);
+    // Remove trailing newlines
+    message.erase(std::remove(message.begin(), message.end(), '\r'), message.end());
+    message.erase(std::remove(message.begin(), message.end(), '\n'), message.end());
+    return message;
 }
 
 int ParseInterfaceNumber(const std::string& path) {
@@ -389,11 +408,42 @@ void HidApiPlugin::HandleMethodCall(
       HANDLE handle = CreateFileA(path.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
       
       if (handle == INVALID_HANDLE_VALUE) {
-          result->Error("OPEN_FAILED", "Failed to open device");
+          DWORD errorCode = GetLastError();
+          std::string message = "Failed to open device (Error: " + std::to_string(errorCode) + ")";
+          std::string code = "OPEN_FAILED";
+
+          if (errorCode == ERROR_ACCESS_DENIED) {
+              code = "PERMISSION_DENIED";
+              message = "Access denied. The device might be a system device (keyboard/mouse) or already opened without shared access.";
+          } else if (errorCode == ERROR_SHARING_VIOLATION) {
+              code = "SHARING_VIOLATION";
+              message = "Sharing violation. The device is already open by another process with exclusive access.";
+          } else if (errorCode == ERROR_FILE_NOT_FOUND) {
+              code = "NOT_FOUND";
+              message = "Device path not found.";
+          }
+
+          result->Error(code, message, flutter::EncodableValue((int)errorCode));
           return;
       }
       
       open_devices_[path] = handle;
+      
+      // Return device info again
+      HIDD_ATTRIBUTES attributes;
+      attributes.Size = sizeof(HIDD_ATTRIBUTES);
+      HidD_GetAttributes(handle, &attributes);
+      
+      PHIDP_PREPARSED_DATA preparsedData;
+      HIDP_CAPS caps;
+      if (HidD_GetPreparsedData(handle, &preparsedData)) {
+          HidP_GetCaps(preparsedData, &caps);
+          preparsed_data_[path] = preparsedData;
+          device_caps_[path] = caps;
+      } else {
+          // If we can't get caps, we still have the device but features might fail
+          // ignore the error for now as enumeration found it
+      }
       
       // Setup event channel
       std::string channel_name = "hid_api/reports/" + path;
@@ -414,17 +464,6 @@ void HidApiPlugin::HandleMethodCall(
       event_channel->SetStreamHandler(std::move(handler));
       event_channels_[path] = std::move(event_channel);
 
-      // Return device info again
-      HIDD_ATTRIBUTES attributes;
-      attributes.Size = sizeof(HIDD_ATTRIBUTES);
-      HidD_GetAttributes(handle, &attributes);
-      
-      PHIDP_PREPARSED_DATA preparsedData;
-      HIDP_CAPS caps;
-      HidD_GetPreparsedData(handle, &preparsedData);
-      HidP_GetCaps(preparsedData, &caps);
-      HidD_FreePreparsedData(preparsedData);
-      
       wchar_t buffer[126];
       std::string manufacturer = "";
       std::string product = "";
@@ -454,6 +493,11 @@ void HidApiPlugin::HandleMethodCall(
       
       if (open_devices_.count(path)) {
           CloseHandle(open_devices_[path]);
+          if (preparsed_data_.count(path)) {
+              HidD_FreePreparsedData(preparsed_data_[path]);
+              preparsed_data_.erase(path);
+          }
+          device_caps_.erase(path);
           open_devices_.erase(path);
           event_channels_.erase(path);
           disconnection_channels_.erase(path);
@@ -487,7 +531,7 @@ void HidApiPlugin::HandleMethodCall(
               result_map[flutter::EncodableValue("reportId")] = flutter::EncodableValue((int)buffer[0]); 
               result->Success(flutter::EncodableValue(result_map));
           } else {
-              result->Error("READ_FAILED", "No data read");
+              result->Error("READ_FAILED", "No data read or read failed: " + GetLastErrorAsString(), flutter::EncodableValue((int)GetLastError()));
           }
       } else {
           result->Error("DEVICE_CLOSED", "Device not open");
@@ -518,16 +562,22 @@ void HidApiPlugin::HandleMethodCall(
           ol.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
           
           DWORD bytesWritten = 0;
-          if (!WriteFile(handle, buffer.data(), (DWORD)buffer.size(), &bytesWritten, &ol)) {
-              if (GetLastError() == ERROR_IO_PENDING) {
-                  WaitForSingleObject(ol.hEvent, 1000);
-                  GetOverlappedResult(handle, &ol, &bytesWritten, FALSE);
-              }
+          if (WriteFile(handle, buffer.data(), (DWORD)buffer.size(), &bytesWritten, &ol)) {
+              // Successfully started
+          }
+          
+          if (WaitForSingleObject(ol.hEvent, 1000) == WAIT_OBJECT_0) {
+              GetOverlappedResult(handle, &ol, &bytesWritten, FALSE);
+          } else {
+             CancelIo(handle);
           }
           CloseHandle(ol.hEvent);
           
-          // Return the number of data bytes written (excluding prepended ID if we added it)
-          result->Success(flutter::EncodableValue((int)bytesWritten));
+          if (bytesWritten > 0) {
+              result->Success(flutter::EncodableValue((int)(bytesWritten - 1))); // Subtract Report ID byte
+          } else {
+              result->Error("WRITE_FAILED", "Write failed: " + GetLastErrorAsString(), flutter::EncodableValue((int)GetLastError()));
+          }
       } else {
           result->Error("DEVICE_CLOSED", "Device not open");
       }
@@ -542,19 +592,22 @@ void HidApiPlugin::HandleMethodCall(
       if (open_devices_.count(path)) {
           HANDLE handle = open_devices_[path];
           
-          // For HidD_SetFeature, the buffer MUST start with the Report ID.
-          std::vector<uint8_t> buffer;
-          if (data.empty() || data[0] != (uint8_t)report_id) {
-              buffer.push_back((uint8_t)report_id);
-              buffer.insert(buffer.end(), data.begin(), data.end());
-          } else {
-              buffer = data;
+          size_t required_size = data.size() + 1;
+          if (device_caps_.count(path)) {
+              required_size = device_caps_[path].FeatureReportByteLength;
           }
+
+          std::vector<uint8_t> buffer(required_size, 0);
+          buffer[0] = (uint8_t)report_id;
+          
+          // Copy data into buffer after the report id
+          size_t copy_len = std::min(data.size(), buffer.size() - 1);
+          std::copy(data.begin(), data.begin() + copy_len, buffer.begin() + 1);
 
           if (HidD_SetFeature(handle, buffer.data(), (ULONG)buffer.size())) {
               result->Success(flutter::EncodableValue((int)data.size()));
           } else {
-              result->Error("WRITE_FAILED", "Send Feature Report failed", flutter::EncodableValue((int)GetLastError()));
+              result->Error("WRITE_FAILED", "Send Feature Report failed: " + GetLastErrorAsString(), flutter::EncodableValue((int)GetLastError()));
           }
       } else {
           result->Error("DEVICE_CLOSED", "Device not open");
@@ -570,20 +623,21 @@ void HidApiPlugin::HandleMethodCall(
       if (open_devices_.count(path)) {
           HANDLE handle = open_devices_[path];
           
-          // Buffer must be large enough for Report ID + data.
-          // Windows HidD_GetFeature ALWAYS receives the Report ID as the first byte of the buffer.
-          std::vector<uint8_t> buffer(length + 1);
+          size_t required_size = length + 1;
+          if (device_caps_.count(path)) {
+              required_size = device_caps_[path].FeatureReportByteLength;
+          }
+
+          std::vector<uint8_t> buffer(required_size, 0);
           buffer[0] = (uint8_t)report_id;
 
           if (HidD_GetFeature(handle, buffer.data(), (ULONG)buffer.size())) {
-              // Note: We return the WHOLE buffer (including the ID at index 0)
-              // to be consistent with how Input Reports are returned via ReadFile.
-              // Dart's normalizedData will handle stripping any 0x00 padding if necessary.
               flutter::EncodableMap result_map;
               result_map[flutter::EncodableValue("data")] = flutter::EncodableValue(buffer);
+              // Note: Dart side expects 'data' containing the full buffer including the ID.
               result->Success(flutter::EncodableValue(result_map));
           } else {
-              result->Error("READ_FAILED", "Get Feature Report failed", flutter::EncodableValue((int)GetLastError()));
+              result->Error("READ_FAILED", "Get Feature Report failed: " + GetLastErrorAsString(), flutter::EncodableValue((int)GetLastError()));
           }
       } else {
           result->Error("DEVICE_CLOSED", "Device not open");

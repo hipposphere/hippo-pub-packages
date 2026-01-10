@@ -47,7 +47,7 @@ class SpeechMikeHidDevice extends DictationDevice {
 
   SpeechMikeGamepadDevice? _proxyDevice;
 
-  static const int _commandTimeoutMs = 5000;
+  static const int _commandTimeoutMs = 500;
 
   static const Map<int, int> _buttonMappingsSpeechMike = {
     ButtonEvent.rewind: 1 << 12,
@@ -246,22 +246,25 @@ class SpeechMikeHidDevice extends DictationDevice {
     ByteData? response;
     bool isPremium = false;
 
-    // Try to determine if this is a SpeechMike Premium
-    // Older SpeechMike III models may not respond to this command
-    try {
-      response = await _sendCommandAndWaitForResponse(
-        _Command.isSpeechMikePremium,
-      );
-      isPremium = (response.getUint8(8) & 0x80) != 0;
-    } on TimeoutException {
-      // Timeout means this is likely an older SpeechMike III that doesn't
-      // support the isSpeechMikePremium command - treat as non-premium
-      // ignore: avoid_print
-      print(
-        'SpeechMike: isSpeechMikePremium command timed out, '
-        'assuming SpeechMike III',
-      );
-      isPremium = false;
+    // Philips SMP4000 (0x0c1d) and SpeechOne (0x0c1e) are always premium.
+    // LFH3500/SMP3700 (0x0c1c) can be older III models or newer Premium models.
+    final pid = hidDevice.info.productId;
+    final isKnownPremium = pid == 0x0c1d || pid == 0x0c1e;
+
+    if (isKnownPremium) {
+      isPremium = true;
+    } else {
+      // Try to determine if this is a SpeechMike Premium via command
+      try {
+        response = await _sendCommandAndWaitForResponse(
+          _Command.isSpeechMikePremium,
+        );
+        isPremium = (response.getUint8(8) & 0x80) != 0;
+      } on TimeoutException {
+        // Timeout means this is likely an older SpeechMike III that doesn't
+        // support the isSpeechMikePremium command - treat as non-premium
+        isPremium = false;
+      }
     }
 
     if (isPremium) {

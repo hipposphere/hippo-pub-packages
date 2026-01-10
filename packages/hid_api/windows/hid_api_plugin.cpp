@@ -114,23 +114,41 @@ class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValu
     while (running_) {
         DWORD bytesRead = 0;
         ResetEvent(ol.hEvent);
-        if (!ReadFile(device_, buffer.data(), (DWORD)buffer.size(), NULL, &ol)) {
-            if (GetLastError() == ERROR_IO_PENDING) {
-                if (WaitForSingleObject(ol.hEvent, 100) == WAIT_TIMEOUT) {
+        
+        BOOL readResult = ReadFile(device_, buffer.data(), (DWORD)buffer.size(), NULL, &ol);
+        DWORD lastError = GetLastError();
+        
+        if (!readResult) {
+            if (lastError == ERROR_IO_PENDING) {
+                // Wait for the async operation to complete
+                DWORD waitResult = WaitForSingleObject(ol.hEvent, 100);
+                if (waitResult == WAIT_TIMEOUT) {
+                    // Cancel the pending I/O operation before continuing
+                    CancelIo(device_);
                     continue;
                 }
+                // Get the result of the completed async operation
                 if (!GetOverlappedResult(device_, &ol, &bytesRead, FALSE)) {
-                    if (GetLastError() == ERROR_DEVICE_NOT_CONNECTED || GetLastError() == ERROR_GEN_FAILURE) {
+                    lastError = GetLastError();
+                    if (lastError == ERROR_DEVICE_NOT_CONNECTED || lastError == ERROR_GEN_FAILURE) {
                         if (disconnection_handler_) disconnection_handler_->Notify();
                         running_ = false;
                     }
+                    continue;  // Don't process if GetOverlappedResult failed
                 }
-            } else if (GetLastError() == ERROR_DEVICE_NOT_CONNECTED || GetLastError() == ERROR_GEN_FAILURE) {
+            } else if (lastError == ERROR_DEVICE_NOT_CONNECTED || lastError == ERROR_GEN_FAILURE) {
                 if (disconnection_handler_) disconnection_handler_->Notify();
                 running_ = false;
+                continue;
+            } else {
+                // Other error, skip this iteration
+                continue;
             }
         } else {
-            GetOverlappedResult(device_, &ol, &bytesRead, FALSE);
+            // Synchronous completion - get the bytes read
+            if (!GetOverlappedResult(device_, &ol, &bytesRead, FALSE)) {
+                continue;  // Failed to get result, skip
+            }
         }
 
         if (bytesRead > 0) {

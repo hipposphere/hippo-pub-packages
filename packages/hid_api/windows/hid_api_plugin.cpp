@@ -568,21 +568,23 @@ void HidApiPlugin::HandleMethodCall(
       
       HANDLE handle = open_devices_[path];
       
+      // Always prepend report ID to data
+      std::vector<uint8_t> dataWithReportId;
+      dataWithReportId.push_back((uint8_t)report_id);
+      dataWithReportId.insert(dataWithReportId.end(), data.begin(), data.end());
+      
       // Determine the required buffer size based on report type
-      size_t required_size = data.size() + 1;
+      size_t required_size = dataWithReportId.size();
       if (device_caps_.count(path)) {
           required_size = is_output 
               ? device_caps_[path].OutputReportByteLength
               : device_caps_[path].FeatureReportByteLength;
       }
       
-      // Create buffer with the correct size and initialize to zero
+      // Create buffer with the correct size and initialize to zero, then copy data
       std::vector<uint8_t> buffer(required_size, 0);
-      buffer[0] = (uint8_t)report_id;
-      
-      // Copy data into buffer after the report id
-      size_t copy_len = (std::min)(data.size(), buffer.size() - 1);
-      std::copy(data.begin(), data.begin() + copy_len, buffer.begin() + 1);
+      size_t copy_len = (std::min)(dataWithReportId.size(), buffer.size());
+      std::copy(dataWithReportId.begin(), dataWithReportId.begin() + copy_len, buffer.begin());
       
       bool success = false;
       DWORD error_code = 0;

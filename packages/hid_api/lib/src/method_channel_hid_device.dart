@@ -13,7 +13,7 @@ class MethodChannelHidDevice extends HidDevice {
   bool _isOpen = true;
 
   /// Set to true to enable verbose HID logging
-  static bool verboseLogging = true;
+  static bool verboseLogging = false;
 
   MethodChannelHidDevice({
     required this.path,

@@ -294,12 +294,9 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
                   vid, pid, interfaceNumber, usagePage, usage)
         }
         
-        // On macOS, devices expect the Report ID as the first byte of the data buffer.
-        // Automatically prepend it so users don't have to include it manually.
+        // Always prepend the report ID as the first byte of the data buffer
         var dataWithReportId = [UInt8]()
-        if reportId != 0 {
-            dataWithReportId.append(UInt8(reportId))
-        }
+        dataWithReportId.append(UInt8(reportId))
         dataWithReportId.append(contentsOf: bytes)
         
         // Construct the complete buffer that the device will receive

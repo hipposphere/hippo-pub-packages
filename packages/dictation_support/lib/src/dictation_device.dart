@@ -78,7 +78,7 @@ abstract class DictationDevice {
 
     _reportSubscription = reportStream.listen(
       (report) async {
-        if (report.data.isNotEmpty) {
+        if (report.normalizedData.isNotEmpty) {
           await _onInputReport(report);
         }
       },

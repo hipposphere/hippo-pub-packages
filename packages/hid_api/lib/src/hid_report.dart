@@ -3,16 +3,6 @@ import 'dart:typed_data';
 abstract class HidReport {
   int get reportId;
   Uint8List get data;
-}
-
-class HidInputReport implements HidReport {
-  @override
-  final int reportId;
-
-  @override
-  final Uint8List data;
-
-  HidInputReport(this.reportId, this.data);
 
   /// Returns the report data normalized for cross-platform consistency.
   ///
@@ -48,7 +38,17 @@ class HidInputReport implements HidReport {
   }
 }
 
-class HidOutputReport implements HidReport {
+class HidInputReport extends HidReport {
+  @override
+  final int reportId;
+
+  @override
+  final Uint8List data;
+
+  HidInputReport(this.reportId, this.data);
+}
+
+class HidOutputReport extends HidReport {
   @override
   final int reportId;
 
@@ -58,7 +58,7 @@ class HidOutputReport implements HidReport {
   HidOutputReport(this.reportId, this.data);
 }
 
-class HidFeatureReport implements HidReport {
+class HidFeatureReport extends HidReport {
   @override
   final int reportId;
 

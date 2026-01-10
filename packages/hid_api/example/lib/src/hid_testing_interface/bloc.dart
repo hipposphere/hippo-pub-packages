@@ -157,7 +157,7 @@ class HidTestingInterfaceBloc extends BlocBase {
     _reportSubscription = reportStream.listen(
       (report) {
         _log(
-          'Received report: ${report.reportId}, data: ${report.data.map((e) => e.toRadixString(16).padLeft(2, '0')).join(' ')}',
+          'Received report: ${report.reportId}, data: ${_bytesToHex(report.normalizedData)}',
         );
       },
       onError: (e) {
@@ -178,13 +178,33 @@ class HidTestingInterfaceBloc extends BlocBase {
     if (device == null) return;
 
     try {
-      await device.write(HidOutputReport(reportId, Uint8List.fromList(data)));
+      final report = HidOutputReport(reportId, Uint8List.fromList(data));
+      await device.write(report);
       _log(
-        'Sent report: $reportId, data: ${data.map((e) => e.toRadixString(16).padLeft(2, '0')).join(' ')}',
+        'Sent report: $reportId, data: ${_bytesToHex(report.normalizedData)}',
       );
     } catch (e) {
       _log('Write error: $e');
     }
+  }
+
+  Future<void> sendFeatureReport(int reportId, List<int> data) async {
+    final device = connectedDeviceSubject.value;
+    if (device == null) return;
+
+    try {
+      final report = HidFeatureReport(reportId, Uint8List.fromList(data));
+      await device.sendFeatureReport(report);
+      _log(
+        'Sent feature report: $reportId, data: ${_bytesToHex(report.normalizedData)}',
+      );
+    } catch (e) {
+      _log('Feature write error: $e');
+    }
+  }
+
+  String _bytesToHex(Uint8List data) {
+    return data.map((e) => e.toRadixString(16).padLeft(2, '0')).join(' ');
   }
 
   void _log(String message) {

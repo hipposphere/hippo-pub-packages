@@ -174,6 +174,19 @@ class ControlPanel extends StatelessWidget {
           },
           label: 'Send',
         ),
+        Button(
+          onTap: () {
+            final id = int.tryParse(reportIdController.text) ?? 1;
+            final data = dataController.text
+                .split(' ')
+                .where((s) => s.isNotEmpty)
+                .map((s) => int.tryParse(s, radix: 16))
+                .whereType<int>()
+                .toList();
+            bloc.sendFeatureReport(id, data);
+          },
+          label: 'Send Feature',
+        ),
       ],
     );
   }

@@ -105,7 +105,7 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
             let manufacturer = IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey as CFString) as? String
             let product = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String
             let serial = IOHIDDeviceGetProperty(device, kIOHIDSerialNumberKey as CFString) as? String
-            let interfaceNumber = 0 
+            let interfaceNumber = IOHIDDeviceGetProperty(device, "InterfaceNumber" as CFString) as? Int ?? 0
 
             deviceList.append([
                 "path": path,
@@ -183,7 +183,7 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
                     "manufacturer": manufacturer ?? "",
                     "product": product ?? "",
                     "serialNumber": serial ?? "",
-                    "interfaceNumber": 0
+                    "interfaceNumber": IOHIDDeviceGetProperty(device, "InterfaceNumber" as CFString) as? Int ?? 0
                 ])
             } else {
                 var message = "Failed to open device: \(ret)"

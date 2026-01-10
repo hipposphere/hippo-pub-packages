@@ -265,6 +265,22 @@ std::string WStringToString(const std::wstring& wstr) {
     return strTo;
 }
 
+int ParseInterfaceNumber(const std::string& path) {
+    // Windows paths look like: \\?\hid#vid_0911&pid_0c1c&mi_04#...
+    // We look for &mi_ and grab the next two characters as a hex number
+    size_t mi_pos = path.find("&mi_");
+    if (mi_pos == std::string::npos) {
+        return 0;
+    }
+    
+    try {
+        std::string mi_str = path.substr(mi_pos + 4, 2);
+        return std::stoi(mi_str, nullptr, 16);
+    } catch (...) {
+        return 0;
+    }
+}
+
 flutter::EncodableList HidApiPlugin::GetDeviceList() {
       GUID hidGuid;
       HidD_GetHidGuid(&hidGuid);
@@ -327,7 +343,7 @@ flutter::EncodableList HidApiPlugin::GetDeviceList() {
                           deviceMap[flutter::EncodableValue("manufacturer")] = flutter::EncodableValue(manufacturer);
                           deviceMap[flutter::EncodableValue("product")] = flutter::EncodableValue(product);
                           deviceMap[flutter::EncodableValue("serialNumber")] = flutter::EncodableValue(serial);
-                          deviceMap[flutter::EncodableValue("interfaceNumber")] = flutter::EncodableValue(0);
+                          deviceMap[flutter::EncodableValue("interfaceNumber")] = flutter::EncodableValue(ParseInterfaceNumber(path));
                           
                           devices.push_back(flutter::EncodableValue(deviceMap));
                       }
@@ -428,7 +444,7 @@ void HidApiPlugin::HandleMethodCall(
       deviceMap[flutter::EncodableValue("manufacturer")] = flutter::EncodableValue(manufacturer);
       deviceMap[flutter::EncodableValue("product")] = flutter::EncodableValue(product);
       deviceMap[flutter::EncodableValue("serialNumber")] = flutter::EncodableValue(serial);
-      deviceMap[flutter::EncodableValue("interfaceNumber")] = flutter::EncodableValue(0);
+      deviceMap[flutter::EncodableValue("interfaceNumber")] = flutter::EncodableValue(ParseInterfaceNumber(path));
       
       result->Success(flutter::EncodableValue(deviceMap));
 

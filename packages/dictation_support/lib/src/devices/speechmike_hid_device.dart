@@ -383,7 +383,9 @@ class SpeechMikeHidDevice extends DictationDevice {
     if (input != null) {
       data.setRange(1, data.length, input);
     }
-    await hidDevice.write(HidOutputReport(0, data));
+    // Philips SpeechMike Premium/III often requires Feature Reports for commands.
+    // Using Report ID 1 as it is the most common for these control reports.
+    await hidDevice.sendFeatureReport(HidFeatureReport(1, data));
   }
 
   Future<ByteData> _sendCommandAndWaitForResponse(

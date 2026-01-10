@@ -27,7 +27,8 @@ class PowerMic3Device extends DictationDevice {
 
   Future<void> setLed(int state) async {
     final data = Uint8List.fromList([state]);
-    await hidDevice.write(HidOutputReport(0, data));
+    // Nuance PowerMic III often uses Report ID 1 for output reports (LEDs).
+    await hidDevice.write(HidOutputReport(1, data));
   }
 
   @override

@@ -186,22 +186,29 @@ class SpeechMikeHidDevice extends DictationDevice {
   }
 
   Future<void> _sendLedState() async {
-    final input = Uint8List(8);
+    // SpeechMike requires 8-byte data buffer for Output Report ID 2
+    // Based on testing: 0x20 at byte 5 (bits 4-5) controls an LED
+    // Each LED uses 2 bits: 00=off, 01=on, 10=blink slow, 11=blink fast
+    final data = Uint8List(8);
 
-    input[4] |= _ledState[LedIndex.recordLedGreen]!.value << 0;
-    input[4] |= _ledState[LedIndex.recordLedRed]!.value << 2;
-    input[4] |= _ledState[LedIndex.instructionLedGreen]!.value << 4;
-    input[4] |= _ledState[LedIndex.instructionLedRed]!.value << 6;
+    // Byte 5 LED mappings (verified through testing)
+    data[5] |= _ledState[LedIndex.recordLedGreen]!.value << 0;
+    data[5] |= _ledState[LedIndex.recordLedRed]!.value << 2;
+    data[5] |= _ledState[LedIndex.instructionLedGreen]!.value << 4;
+    data[5] |= _ledState[LedIndex.instructionLedRed]!.value << 6;
 
-    input[5] |= _ledState[LedIndex.insOwrButtonLedGreen]!.value << 4;
-    input[5] |= _ledState[LedIndex.insOwrButtonLedRed]!.value << 6;
+    // Byte 6 LED mappings (button LEDs)
+    data[6] |= _ledState[LedIndex.insOwrButtonLedGreen]!.value << 0;
+    data[6] |= _ledState[LedIndex.insOwrButtonLedRed]!.value << 2;
+    data[6] |= _ledState[LedIndex.f1ButtonLed]!.value << 4;
+    data[6] |= _ledState[LedIndex.f2ButtonLed]!.value << 6;
 
-    input[6] |= _ledState[LedIndex.f4ButtonLed]!.value << 0;
-    input[6] |= _ledState[LedIndex.f3ButtonLed]!.value << 2;
-    input[6] |= _ledState[LedIndex.f2ButtonLed]!.value << 4;
-    input[6] |= _ledState[LedIndex.f1ButtonLed]!.value << 6;
+    // Byte 7 LED mappings (F3/F4 buttons)
+    data[7] |= _ledState[LedIndex.f3ButtonLed]!.value << 0;
+    data[7] |= _ledState[LedIndex.f4ButtonLed]!.value << 2;
 
-    await _sendCommand(_Command.setLed, input);
+    // Use Output Report ID 2 (not Feature Report ID 1 with command byte)
+    await hidDevice.sendReport(HidOutputReport(2, data), HidReportType.output);
   }
 
   void assignProxyDevice(SpeechMikeGamepadDevice proxyDevice) {

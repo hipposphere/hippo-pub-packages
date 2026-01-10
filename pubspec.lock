@@ -1216,10 +1216,10 @@ packages:
     dependency: transitive
     description:
       name: posthog_flutter
-      sha256: "97051effd7cb4dcd16d4770f1031d792da8f4477c63937a0d7ddae20c22f95df"
+      sha256: "134457a6fc2b47238750d077449ca40eaede5f9d5008ad4dfc872ffee9e04489"
       url: "https://pub.dev"
     source: hosted
-    version: "5.10.0"
+    version: "5.11.0"
   process:
     dependency: transitive
     description:
@@ -1917,10 +1917,10 @@ packages:
     dependency: transitive
     description:
       name: webview_flutter
-      sha256: c3e4fe614b1c814950ad07186007eff2f2e5dd2935eba7b9a9a1af8e5885f1ba
+      sha256: a3da219916aba44947d3a5478b1927876a09781174b5a2b67fa5be0555154bf9
       url: "https://pub.dev"
     source: hosted
-    version: "4.13.0"
+    version: "4.13.1"
   webview_flutter_android:
     dependency: transitive
     description:

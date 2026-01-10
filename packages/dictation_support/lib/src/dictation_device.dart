@@ -100,7 +100,7 @@ abstract class DictationDevice {
   }
 
   Future<void> _onInputReport(HidInputReport report) async {
-    final data = ByteData.sublistView(report.data);
+    final data = ByteData.sublistView(report.normalizedData);
     await handleInputReport(report.reportId, data);
   }
 

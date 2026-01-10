@@ -337,15 +337,9 @@ class SpeechMikeHidDevice extends DictationDevice {
 
   @override
   Future<void> handleInputReport(int reportId, ByteData data) async {
+    // With normalizedData, the command byte is always at byte 0
     final commandValue = data.getUint8(0);
     final command = _Command.fromValue(commandValue);
-
-    // Debug: Log all incoming reports
-    // ignore: avoid_print
-    print(
-      'SpeechMike input: reportId=$reportId, cmd=0x${commandValue.toRadixString(16)}, '
-      'command=${command?.name ?? "unknown"}, data=${_bytesToHex(data)}',
-    );
 
     if (command == _Command.buttonPressEvent) {
       await handleButtonPress(data);
@@ -355,22 +349,7 @@ class SpeechMikeHidDevice extends DictationDevice {
       // Do nothing
     } else if (_commandResolvers.containsKey(commandValue)) {
       await _handleCommandResponse(commandValue, data);
-    } else {
-      // Log unknown reports for debugging
-      // ignore: avoid_print
-      print(
-        'SpeechMike: Unknown report command 0x${commandValue.toRadixString(16)}',
-      );
     }
-  }
-
-  String _bytesToHex(ByteData data) {
-    final buffer = StringBuffer();
-    for (int i = 0; i < data.lengthInBytes; i++) {
-      buffer.write(data.getUint8(i).toRadixString(16).padLeft(2, '0'));
-      if (i < data.lengthInBytes - 1) buffer.write(' ');
-    }
-    return buffer.toString();
   }
 
   @override

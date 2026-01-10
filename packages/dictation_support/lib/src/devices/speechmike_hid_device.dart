@@ -208,7 +208,7 @@ class SpeechMikeHidDevice extends DictationDevice {
     data[7] |= _ledState[LedIndex.f4ButtonLed]!.value << 2;
 
     // Use Output Report ID 2 (not Feature Report ID 1 with command byte)
-    await hidDevice.sendReport(HidOutputReport(2, data), HidReportType.output);
+    await hidDevice.sendReport(HidReport(2, data), HidReportType.output);
   }
 
   void assignProxyDevice(SpeechMikeGamepadDevice proxyDevice) {
@@ -395,10 +395,7 @@ class SpeechMikeHidDevice extends DictationDevice {
     }
     // Philips SpeechMike Premium/III often requires Feature Reports for commands.
     // Using Report ID 1 as it is the most common for these control reports.
-    await hidDevice.sendReport(
-      HidFeatureReport(1, data),
-      HidReportType.feature,
-    );
+    await hidDevice.sendReport(HidReport(1, data), HidReportType.feature);
   }
 
   Future<ByteData> _sendCommandAndWaitForResponse(

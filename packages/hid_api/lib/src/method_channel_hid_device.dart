@@ -44,7 +44,7 @@ class MethodChannelHidDevice extends HidDevice {
   }
 
   @override
-  Future<HidInputReport> read({Duration? timeout}) async {
+  Future<HidReport> read({Duration? timeout}) async {
     try {
       final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
         'read',
@@ -55,7 +55,7 @@ class MethodChannelHidDevice extends HidDevice {
         throw HidException("Read returned null");
       }
 
-      return HidInputReport(
+      return HidReport(
         result['reportId'] as int? ?? 0,
         result['data'] as Uint8List,
       );
@@ -68,14 +68,11 @@ class MethodChannelHidDevice extends HidDevice {
   }
 
   @override
-  Stream<HidInputReport> get reports {
+  Stream<HidReport> get reports {
     final eventChannel = EventChannel('hid_api/reports/$path');
     return eventChannel.receiveBroadcastStream().map((event) {
       final map = event as Map<dynamic, dynamic>;
-      return HidInputReport(
-        map['reportId'] as int? ?? 0,
-        map['data'] as Uint8List,
-      );
+      return HidReport(map['reportId'] as int? ?? 0, map['data'] as Uint8List);
     });
   }
 
@@ -118,7 +115,7 @@ class MethodChannelHidDevice extends HidDevice {
   }
 
   @override
-  Future<HidFeatureReport> getFeatureReport(int reportId, int length) async {
+  Future<HidReport> getFeatureReport(int reportId, int length) async {
     final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
       'getFeatureReport',
       {'path': path, 'reportId': reportId, 'length': length},
@@ -126,7 +123,7 @@ class MethodChannelHidDevice extends HidDevice {
 
     if (result == null) throw HidException("Failed to get feature report");
 
-    return HidFeatureReport(reportId, result['data'] as Uint8List);
+    return HidReport(reportId, result['data'] as Uint8List);
   }
 
   @override

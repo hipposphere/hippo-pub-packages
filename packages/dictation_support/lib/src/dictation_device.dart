@@ -25,7 +25,7 @@ abstract class DictationDevice {
   int _lastBitMask = 0;
   bool _isShuttingDown = false;
 
-  StreamSubscription<HidInputReport>? _reportSubscription;
+  StreamSubscription<HidReport>? _reportSubscription;
   final StreamController<int> _buttonEventController =
       StreamController<int>.broadcast();
 
@@ -99,7 +99,7 @@ abstract class DictationDevice {
     });
   }
 
-  Future<void> _onInputReport(HidInputReport report) async {
+  Future<void> _onInputReport(HidReport report) async {
     final data = ByteData.sublistView(report.normalizedData);
     await handleInputReport(report.reportId, data);
   }

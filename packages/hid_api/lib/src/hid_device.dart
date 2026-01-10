@@ -17,10 +17,10 @@ abstract class HidDevice {
   Future<void> setBlocking(bool blocking);
 
   /// Write raw input report
-  Future<HidInputReport> read({Duration? timeout});
+  Future<HidReport> read({Duration? timeout});
 
   /// Continuous stream of input reports (raw, may contain duplicates)
-  Stream<HidInputReport> get reports;
+  Stream<HidReport> get reports;
 
   /// Continuous stream of input reports with deduplication.
   ///
@@ -30,7 +30,7 @@ abstract class HidDevice {
   ///
   /// If [deduplicationInterval] is null or Duration.zero, no deduplication
   /// is performed and this behaves the same as [reports].
-  Stream<HidInputReport> deduplicatedReports({
+  Stream<HidReport> deduplicatedReports({
     Duration deduplicationInterval = const Duration(milliseconds: 5),
   }) {
     if (deduplicationInterval == Duration.zero) {
@@ -50,7 +50,7 @@ abstract class HidDevice {
   Future<int> sendReport(HidReport report, HidReportType type);
 
   /// Get feature report
-  Future<HidFeatureReport> getFeatureReport(int reportId, int length);
+  Future<HidReport> getFeatureReport(int reportId, int length);
 
   /// Flush pending reads (if supported)
   Future<void> flush();
@@ -58,11 +58,11 @@ abstract class HidDevice {
 
 /// Internal class that wraps a report stream with deduplication logic.
 class _DeduplicatedReportStream {
-  final Stream<HidInputReport> source;
+  final Stream<HidReport> source;
   final Duration deduplicationInterval;
 
-  late final StreamController<HidInputReport> _controller;
-  StreamSubscription<HidInputReport>? _subscription;
+  late final StreamController<HidReport> _controller;
+  StreamSubscription<HidReport>? _subscription;
 
   Uint8List? _lastReportData;
   int? _lastReportId;
@@ -72,7 +72,7 @@ class _DeduplicatedReportStream {
     required this.source,
     required this.deduplicationInterval,
   }) {
-    _controller = StreamController<HidInputReport>(
+    _controller = StreamController<HidReport>(
       onListen: _onListen,
       onPause: _onPause,
       onResume: _onResume,
@@ -80,7 +80,7 @@ class _DeduplicatedReportStream {
     );
   }
 
-  Stream<HidInputReport> get stream => _controller.stream;
+  Stream<HidReport> get stream => _controller.stream;
 
   void _onListen() {
     _subscription = source.listen(
@@ -103,7 +103,7 @@ class _DeduplicatedReportStream {
     _subscription = null;
   }
 
-  void _onData(HidInputReport report) {
+  void _onData(HidReport report) {
     final now = DateTime.now();
 
     // Check if this is a duplicate

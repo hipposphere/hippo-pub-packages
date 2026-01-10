@@ -57,7 +57,7 @@ class HidTestingInterfaceBloc extends BlocBase {
   final openDevicePathsSubject = DataSubject<Set<String>>.seeded({});
 
   // Current report subscription
-  StreamSubscription<HidInputReport>? _reportSubscription;
+  StreamSubscription<HidReport>? _reportSubscription;
 
   Future<void> _initBloc() async {
     await HidApi.initialize();
@@ -164,7 +164,7 @@ class HidTestingInterfaceBloc extends BlocBase {
     final dedupOption = deduplicationOptionSubject.value;
 
     // Use deduplicatedReports or raw reports based on setting
-    final Stream<HidInputReport> reportStream;
+    final Stream<HidReport> reportStream;
     if (dedupOption == DeduplicationOption.none) {
       reportStream = device.reports;
     } else {
@@ -232,16 +232,8 @@ class HidTestingInterfaceBloc extends BlocBase {
     final type = reportTypeSubject.value;
 
     try {
-      final HidReport report;
-      final HidReportType reportType;
-
-      if (type == HidReportType.feature) {
-        report = HidFeatureReport(reportId, Uint8List.fromList(data));
-        reportType = HidReportType.feature;
-      } else {
-        report = HidOutputReport(reportId, Uint8List.fromList(data));
-        reportType = HidReportType.output;
-      }
+      final HidReport report = HidReport(reportId, Uint8List.fromList(data));
+      final HidReportType reportType = type;
 
       await device.sendReport(report, reportType);
 

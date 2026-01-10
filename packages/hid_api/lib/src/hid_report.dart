@@ -9,9 +9,14 @@ enum HidReportType {
   feature,
 }
 
-abstract class HidReport {
-  int get reportId;
-  Uint8List get data;
+/// Represents a HID report with a report ID and data payload.
+///
+/// Used for all HID report types (input, output, and feature reports).
+class HidReport {
+  final int reportId;
+  final Uint8List data;
+
+  HidReport(this.reportId, this.data);
 
   /// Returns the report data normalized for cross-platform consistency.
   ///
@@ -45,34 +50,4 @@ abstract class HidReport {
     }
     return 0;
   }
-}
-
-class HidInputReport extends HidReport {
-  @override
-  final int reportId;
-
-  @override
-  final Uint8List data;
-
-  HidInputReport(this.reportId, this.data);
-}
-
-class HidOutputReport extends HidReport {
-  @override
-  final int reportId;
-
-  @override
-  final Uint8List data;
-
-  HidOutputReport(this.reportId, this.data);
-}
-
-class HidFeatureReport extends HidReport {
-  @override
-  final int reportId;
-
-  @override
-  final Uint8List data;
-
-  HidFeatureReport(this.reportId, this.data);
 }

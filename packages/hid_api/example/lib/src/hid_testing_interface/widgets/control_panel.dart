@@ -14,86 +14,137 @@ class ControlPanel extends StatelessWidget {
           return const Center(child: Text('Select a device to see details'));
         }
 
-        return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Device Details',
-                style: Theme.of(context).textTheme.headlineSmall,
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 32,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DataSubjectBuilder<HidDevice?>(
+                      subject: bloc.connectedDeviceSubject,
+                      builder: (context, connected) {
+                        final isConnected = connected != null;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Device Connection',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.headlineSmall,
+                                ),
+                                Button(
+                                  onTap: isConnected
+                                      ? bloc.disconnect
+                                      : bloc.connect,
+                                  label: isConnected ? 'Disconnect' : 'Connect',
+                                  prefix: Icon(
+                                    isConnected ? Icons.link_off : Icons.link,
+                                  ),
+                                  type: isConnected
+                                      ? ButtonType.destructive
+                                      : ButtonType.primary,
+                                ),
+                              ],
+                            ),
+                            if (isConnected) ...[
+                              const SizedBox(height: 16),
+                              _buildSendReportAction(
+                                bloc,
+                                constraints.maxWidth,
+                              ),
+                            ],
+                            const Divider(height: 32),
+                          ],
+                        );
+                      },
+                    ),
+                    Text(
+                      'Device Information',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDetailRow('Path', info.path),
+                    _buildDetailRow(
+                      'Manufacturer',
+                      info.manufacturer ?? 'Unknown',
+                    ),
+                    _buildDetailRow('Product', info.product ?? 'Unknown'),
+                    _buildDetailRow(
+                      'Serial Number',
+                      info.serialNumber ?? 'None',
+                    ),
+                    _buildDetailRow('Release', formatValue(info.releaseNumber)),
+                    _buildDetailRow('Usage Page', formatValue(info.usagePage)),
+                    _buildDetailRow('Usage', formatValue(info.usage)),
+                    _buildDetailRow(
+                      'Interface',
+                      info.interfaceNumber.toString(),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              _buildDetailRow('Path', info.path),
-              _buildDetailRow('Manufacturer', info.manufacturer ?? 'Unknown'),
-              _buildDetailRow('Product', info.product ?? 'Unknown'),
-              _buildDetailRow('Serial Number', info.serialNumber ?? 'None'),
-              _buildDetailRow(
-                'Release',
-                '0x${info.releaseNumber.toRadixString(16).padLeft(4, '0')}',
-              ),
-              _buildDetailRow(
-                'Usage Page',
-                '0x${info.usagePage.toRadixString(16).padLeft(4, '0')}',
-              ),
-              _buildDetailRow(
-                'Usage',
-                '0x${info.usage.toRadixString(16).padLeft(4, '0')}',
-              ),
-              _buildDetailRow('Interface', info.interfaceNumber.toString()),
-              const SizedBox(height: 24),
-              DataSubjectBuilder<HidDevice?>(
-                subject: bloc.connectedDeviceSubject,
-                builder: (context, connected) {
-                  final isConnected = connected != null;
-                  return Row(
-                    children: [
-                      Button(
-                        onTap: isConnected ? bloc.disconnect : bloc.connect,
-                        label: isConnected ? 'Disconnect' : 'Connect',
-                        prefix: Icon(isConnected ? Icons.link_off : Icons.link),
-                        type: isConnected
-                            ? ButtonType.destructive
-                            : ButtonType.primary,
-                      ),
-                      if (isConnected) ...[
-                        const SizedBox(width: 16),
-                        Expanded(child: _buildSendReportAction(bloc)),
-                      ],
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
+  String formatValue(int value) {
+    final hex = '0x${value.toRadixString(16).toUpperCase().padLeft(4, '0')}';
+    return '$hex ($value)';
+  }
+
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
+            width: 140,
             child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[700],
+                fontSize: 13,
+              ),
             ),
           ),
-          Expanded(child: Text(value)),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSendReportAction(HidTestingInterfaceBloc bloc) {
+  Widget _buildSendReportAction(HidTestingInterfaceBloc bloc, double maxWidth) {
     final reportIdController = TextEditingController(text: '0');
     final dataController = TextEditingController();
 
-    return Row(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.end,
       children: [
         SizedBox(
           width: 80,
@@ -102,15 +153,14 @@ class ControlPanel extends StatelessWidget {
             label: const Text('ID'),
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
+        SizedBox(
+          width: maxWidth > 400 ? 200 : maxWidth - 32,
           child: StyledTextfield(
             controller: dataController,
             label: const Text('Data (hex)'),
             hint: 'e.g. 01 02 FF',
           ),
         ),
-        const SizedBox(width: 8),
         Button(
           onTap: () {
             final id = int.tryParse(reportIdController.text) ?? 1;

@@ -14,6 +14,7 @@ class HidTestingInterfaceBloc extends BlocBase {
   final selectedDeviceInfoSubject = DataSubject<HidDeviceInfo?>.seeded(null);
   final connectedDeviceSubject = DataSubject<HidDevice?>.seeded(null);
   final hidEventsSubject = DataSubject<List<String>>.seeded([]);
+  final autoRefreshEnabledSubject = DataSubject<bool>.seeded(true);
 
   // Track open device paths to show in UI
   final openDevicePathsSubject = DataSubject<Set<String>>.seeded({});
@@ -25,20 +26,44 @@ class HidTestingInterfaceBloc extends BlocBase {
 
   void _listenToDeviceUpdates() {
     HidApi.deviceListStream.listen((devices) {
-      hidDeviceInfosSubject.add(devices);
+      if (!autoRefreshEnabledSubject.value) return;
+
+      final sorted = _sortDevices(devices);
+      hidDeviceInfosSubject.add(sorted);
 
       // If our selected or connected device is gone, handle it
       final selected = selectedDeviceInfoSubject.value;
       if (selected != null && !devices.any((d) => d.path == selected.path)) {
         selectedDeviceInfoSubject.add(null);
-        disconnect();
+        disconnect(reason: 'Device removed');
       }
     });
   }
 
+  void toggleAutoRefresh() {
+    autoRefreshEnabledSubject.add(!autoRefreshEnabledSubject.value);
+    if (autoRefreshEnabledSubject.value) {
+      reloadHidDevices();
+    }
+  }
+
+  List<HidDeviceInfo> _sortDevices(List<HidDeviceInfo> devices) {
+    final sorted = List<HidDeviceInfo>.from(devices);
+    sorted.sort((a, b) {
+      // Sort by VID, then PID, then path for consistent ordering
+      final vidCompare = a.vendorId.compareTo(b.vendorId);
+      if (vidCompare != 0) return vidCompare;
+      final pidCompare = a.productId.compareTo(b.productId);
+      if (pidCompare != 0) return pidCompare;
+      return a.path.compareTo(b.path);
+    });
+    return sorted;
+  }
+
   Future<void> reloadHidDevices() async {
     final devices = await HidApi.enumerate();
-    hidDeviceInfosSubject.add(devices);
+    final sorted = _sortDevices(devices);
+    hidDeviceInfosSubject.add(sorted);
   }
 
   void selectDevice(HidDeviceInfo info) {
@@ -63,13 +88,13 @@ class HidTestingInterfaceBloc extends BlocBase {
     }
   }
 
-  Future<void> disconnect() async {
+  Future<void> disconnect({String? reason}) async {
     final device = connectedDeviceSubject.value;
     if (device != null) {
       await device.close();
       connectedDeviceSubject.add(null);
       _updateOpenPaths();
-      _log('Disconnected');
+      _log('Disconnected${reason != null ? ': $reason' : ''}');
     }
   }
 
@@ -94,8 +119,7 @@ class HidTestingInterfaceBloc extends BlocBase {
     );
 
     device.onDisconnected.listen((_) {
-      _log('Device disconnected (handle invalid)');
-      disconnect();
+      disconnect(reason: 'Connection lost (handle invalid)');
     });
   }
 

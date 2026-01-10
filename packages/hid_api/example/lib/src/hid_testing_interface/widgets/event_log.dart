@@ -29,23 +29,26 @@ class EventLog extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: DataSubjectBuilder<List<String>>(
-              subject: bloc.hidEventsSubject,
-              builder: (context, logs) {
-                return ListView.builder(
-                  controller: ScrollController(), // To stay at top normally
-                  itemCount: logs.length,
-                  itemBuilder: (context, index) {
-                    return Text(
-                      logs[index],
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 12,
-                      ),
-                    );
-                  },
-                );
-              },
+            child: SelectableRegion(
+              selectionControls: materialTextSelectionControls,
+              child: DataSubjectBuilder<List<String>>(
+                subject: bloc.hidEventsSubject,
+                builder: (context, logs) {
+                  return ListView.builder(
+                    controller: ScrollController(), // To stay at top normally
+                    itemCount: logs.length,
+                    itemBuilder: (context, index) {
+                      return Text(
+                        logs[index],
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
         ],

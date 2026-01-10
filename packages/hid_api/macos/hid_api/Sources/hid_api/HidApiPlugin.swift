@@ -80,13 +80,8 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         let vendorId = args?["vendorId"] as? Int
         let productId = args?["productId"] as? Int
         
-        if vendorId != nil || productId != nil {
-            // Do not change manager matching to avoid breaking the stream
-            // Just filter manually
-            IOHIDManagerSetDeviceMatching(manager!, nil)
-        } else {
-            IOHIDManagerSetDeviceMatching(manager!, nil)
-        }
+        // Note: Do NOT call IOHIDManagerSetDeviceMatching here - it would trigger
+        // the device matching callback. Filter manually via VID/PID below.
 
         let deviceSet = IOHIDManagerCopyDevices(manager!)
         guard let devices = deviceSet as? Set<IOHIDDevice> else {
@@ -142,7 +137,7 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
              IOHIDManagerOpen(self.manager!, IOOptionBits(kIOHIDOptionsTypeNone))
         }
         
-        IOHIDManagerSetDeviceMatching(manager!, nil)
+        // Note: Do NOT call IOHIDManagerSetDeviceMatching here - it triggers callbacks
         let deviceSet = IOHIDManagerCopyDevices(manager!)
         guard let devices = deviceSet as? Set<IOHIDDevice> else {
             result(FlutterError(code: "DEVICE_NOT_FOUND", message: "Device not found", details: nil))
@@ -152,6 +147,8 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         if let device = devices.first(where: { getDevicePath($0) == path }) {
             let ret = IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeNone))
             if ret == kIOReturnSuccess {
+                // Schedule the device on the run loop so callbacks can fire
+                IOHIDDeviceScheduleWithRunLoop(device, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
                 openDevices[path] = device
                 
                 // Set up event channel
@@ -189,7 +186,15 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
                     "interfaceNumber": 0
                 ])
             } else {
-                result(FlutterError(code: "OPEN_FAILED", message: "Failed to open device: \(ret)", details: nil))
+                var message = "Failed to open device: \(ret)"
+                var errorCode = "OPEN_FAILED"
+                
+                if ret == -536870174 { // kIOReturnNotPrivileged
+                    errorCode = "PERMISSION_DENIED"
+                    message = "Access denied (kIOReturnNotPrivileged). macOS prevents opening system devices like keyboards or mice for security."
+                }
+                
+                result(FlutterError(code: errorCode, message: message, details: "IOReturn: \(ret)"))
             }
         } else {
             result(FlutterError(code: "DEVICE_NOT_FOUND", message: "Device not found", details: nil))
@@ -204,6 +209,8 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
             return
         }
         
+        // Unschedule from run loop before closing
+        IOHIDDeviceUnscheduleFromRunLoop(device, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
         IOHIDDeviceClose(device, IOOptionBits(kIOHIDOptionsTypeNone))
         openDevices.removeValue(forKey: path)
         eventHandlers.removeValue(forKey: path)
@@ -327,8 +334,10 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
     }
     
     internal func getDeviceInfoList() -> [[String: Any]] {
-        IOHIDManagerSetDeviceMatching(manager!, nil)
-        let deviceSet = IOHIDManagerCopyDevices(manager!)
+        guard let manager = manager else { return [] }
+        // Note: Do NOT call IOHIDManagerSetDeviceMatching here - it would trigger
+        // the device matching callback and cause an infinite loop
+        let deviceSet = IOHIDManagerCopyDevices(manager)
         guard let devices = deviceSet as? Set<IOHIDDevice> else {
             return []
         }
@@ -365,33 +374,51 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
 class ReportStreamHandler: NSObject, FlutterStreamHandler {
     private let device: IOHIDDevice
     private var eventSink: FlutterEventSink?
-    private var buffer = [UInt8](repeating: 0, count: 256)
+    private let bufferSize = 256
+    private var bufferPtr: UnsafeMutablePointer<UInt8>?
 
     init(device: IOHIDDevice) {
         self.device = device
         super.init()
     }
+    
+    deinit {
+        bufferPtr?.deallocate()
+    }
 
     func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
         self.eventSink = events
         
+        // Allocate a stable buffer for the callback
+        bufferPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        bufferPtr?.initialize(repeating: 0, count: bufferSize)
+        
         let context = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-        IOHIDDeviceRegisterInputReportCallback(device, &buffer, buffer.count, { (context, result, sender, type, reportId, report, reportLength) in
+        IOHIDDeviceRegisterInputReportCallback(device, bufferPtr!, bufferSize, { (context, result, sender, type, reportId, report, reportLength) in
             let handler = Unmanaged<ReportStreamHandler>.fromOpaque(context!).takeUnretainedValue()
-            guard let eventSink = handler.eventSink else { return }
             
+            // Copy the data immediately since the buffer may be reused
             let data = Data(bytes: report, count: reportLength)
-            eventSink([
-                "reportId": Int(reportId),
-                "data": FlutterStandardTypedData(bytes: data)
-            ])
+            let reportIdInt = Int(reportId)
+            
+            DispatchQueue.main.async {
+                guard let eventSink = handler.eventSink else { return }
+                eventSink([
+                    "reportId": reportIdInt,
+                    "data": FlutterStandardTypedData(bytes: data)
+                ])
+            }
         }, context)
         
         return nil
     }
 
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
-        IOHIDDeviceRegisterInputReportCallback(device, &buffer, buffer.count, nil, nil)
+        if let ptr = bufferPtr {
+            IOHIDDeviceRegisterInputReportCallback(device, ptr, bufferSize, nil, nil)
+            ptr.deallocate()
+            bufferPtr = nil
+        }
         self.eventSink = nil
         return nil
     }
@@ -412,7 +439,9 @@ class DisconnectionStreamHandler: NSObject, FlutterStreamHandler {
         let context = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
         IOHIDDeviceRegisterRemovalCallback(device, { (context, result, sender) in
             let handler = Unmanaged<DisconnectionStreamHandler>.fromOpaque(context!).takeUnretainedValue()
-            handler.eventSink?(nil) // Signal disconnection
+            DispatchQueue.main.async {
+                handler.eventSink?(nil) // Signal disconnection
+            }
         }, context)
         
         return nil
@@ -466,7 +495,9 @@ class DeviceUpdateStreamHandler: NSObject, FlutterStreamHandler {
     }
     
     private func notify() {
-        guard let plugin = plugin else { return }
-        eventSink?(plugin.getDeviceInfoList())
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let plugin = self.plugin else { return }
+            self.eventSink?(plugin.getDeviceInfoList())
+        }
     }
 }

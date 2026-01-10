@@ -62,11 +62,39 @@ class DeviceListSidebar extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Button(
-            onTap: bloc.reloadHidDevices,
-            label: 'Refresh Devices',
-            prefix: const Icon(Icons.refresh),
-            type: ButtonType.secondary,
+          Row(
+            children: [
+              Expanded(
+                child: Button(
+                  onTap: bloc.reloadHidDevices,
+                  label: 'Refresh',
+                  prefix: const Icon(Icons.refresh),
+                  type: ButtonType.secondary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              DataSubjectBuilder<bool>(
+                subject: bloc.autoRefreshEnabledSubject,
+                builder: (context, enabled) {
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Auto',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: enabled ? Colors.green : Colors.grey,
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: enabled,
+                        onChanged: (_) => bloc.toggleAutoRefresh(),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),

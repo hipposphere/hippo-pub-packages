@@ -180,16 +180,41 @@ class DictationDeviceManager {
     for (final info in infos) {
       if (_devices.containsKey(info.path)) continue;
 
+      // Debug: Log all devices being checked
+      // ignore: avoid_print
+      print(
+        'Checking device: VID=0x${info.vendorId.toRadixString(16)}, '
+        'PID=0x${info.productId.toRadixString(16)}, '
+        'UsagePage=${info.usagePage}, Usage=${info.usage}, '
+        'Path=${info.path}',
+      );
+
       final implType = getImplType(info);
-      if (implType == null) continue;
+      if (implType == null) {
+        // ignore: avoid_print
+        print('  -> No matching implementation type found');
+        continue;
+      }
+
+      // ignore: avoid_print
+      print('  -> Matched implementation type: $implType');
 
       try {
         final hidDevice = await HidApi.open(info.path);
+        // ignore: avoid_print
+        print('  -> Device opened successfully');
+
         final device = _createDevice(hidDevice, implType);
 
-        if (device == null) continue;
+        if (device == null) {
+          // ignore: avoid_print
+          print('  -> Failed to create device instance');
+          continue;
+        }
 
         await device.init();
+        // ignore: avoid_print
+        print('  -> Device initialized successfully');
 
         if (device is SpeechMikeGamepadDevice) {
           _pendingProxyDevices[info.path] = device;
@@ -199,9 +224,11 @@ class DictationDeviceManager {
         _addListeners(device);
         _devices[info.path] = device;
         result.add(device);
-      } catch (e) {
+      } catch (e, stackTrace) {
         // ignore: avoid_print
         print('Failed to initialize device at ${info.path}: $e');
+        // ignore: avoid_print
+        print('Stack trace: $stackTrace');
       }
     }
 

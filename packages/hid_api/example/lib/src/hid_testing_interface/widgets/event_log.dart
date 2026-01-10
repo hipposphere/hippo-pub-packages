@@ -20,11 +20,44 @@ class EventLog extends StatelessWidget {
                 'Event Log',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
-              Button(
-                onTap: () => bloc.hidEventsSubject.add([]),
-                prefix: Icon(Icons.clear_outlined),
-                label: 'Clear',
-                type: ButtonType.outline,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Deduplication dropdown
+                  Text('Dedup:', style: Theme.of(context).textTheme.bodySmall),
+                  const SizedBox(width: 8),
+                  DataSubjectBuilder<DeduplicationOption>(
+                    subject: bloc.deduplicationOptionSubject,
+                    builder: (context, currentOption) {
+                      return DropdownButton<DeduplicationOption>(
+                        value: currentOption,
+                        isDense: true,
+                        underline: const SizedBox.shrink(),
+                        items: DeduplicationOption.values.map((option) {
+                          return DropdownMenuItem(
+                            value: option,
+                            child: Text(
+                              option.label,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (option) {
+                          if (option != null) {
+                            bloc.setDeduplicationOption(option);
+                          }
+                        },
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 16),
+                  Button(
+                    onTap: () => bloc.hidEventsSubject.add([]),
+                    prefix: Icon(Icons.clear_outlined),
+                    label: 'Clear',
+                    type: ButtonType.outline,
+                  ),
+                ],
               ),
             ],
           ),

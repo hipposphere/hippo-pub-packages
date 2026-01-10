@@ -1,5 +1,18 @@
 part of 'page.dart';
 
+/// Available deduplication interval options
+enum DeduplicationOption {
+  none(Duration.zero, 'None'),
+  ms5(Duration(milliseconds: 5), '5ms'),
+  ms10(Duration(milliseconds: 10), '10ms'),
+  ms50(Duration(milliseconds: 50), '50ms');
+
+  final Duration duration;
+  final String label;
+
+  const DeduplicationOption(this.duration, this.label);
+}
+
 class HidTestingInterfaceBloc extends BlocBase {
   HidTestingInterfaceBloc() {
     _initBloc();
@@ -16,8 +29,16 @@ class HidTestingInterfaceBloc extends BlocBase {
   final hidEventsSubject = DataSubject<List<String>>.seeded([]);
   final autoRefreshEnabledSubject = DataSubject<bool>.seeded(true);
 
+  // Deduplication setting
+  final deduplicationOptionSubject = DataSubject<DeduplicationOption>.seeded(
+    DeduplicationOption.ms5,
+  );
+
   // Track open device paths to show in UI
   final openDevicePathsSubject = DataSubject<Set<String>>.seeded({});
+
+  // Current report subscription
+  StreamSubscription<HidInputReport>? _reportSubscription;
 
   Future<void> _initBloc() async {
     await HidApi.initialize();
@@ -44,6 +65,20 @@ class HidTestingInterfaceBloc extends BlocBase {
     autoRefreshEnabledSubject.add(!autoRefreshEnabledSubject.value);
     if (autoRefreshEnabledSubject.value) {
       reloadHidDevices();
+    }
+  }
+
+  void setDeduplicationOption(DeduplicationOption option) {
+    if (deduplicationOptionSubject.value == option) return;
+
+    deduplicationOptionSubject.add(option);
+    _log('Deduplication set to: ${option.label}');
+
+    // Restart reading with new deduplication setting if connected
+    final device = connectedDeviceSubject.value;
+    if (device != null && device.isOpen) {
+      _reportSubscription?.cancel();
+      _startReading(device);
     }
   }
 
@@ -89,6 +124,9 @@ class HidTestingInterfaceBloc extends BlocBase {
   }
 
   Future<void> disconnect({String? reason}) async {
+    _reportSubscription?.cancel();
+    _reportSubscription = null;
+
     final device = connectedDeviceSubject.value;
     if (device != null) {
       await device.close();
@@ -103,8 +141,20 @@ class HidTestingInterfaceBloc extends BlocBase {
     openDevicePathsSubject.add(device != null ? {device.info.path} : {});
   }
 
-  void _startReading(HidDevice device) async {
-    device.reports.listen(
+  void _startReading(HidDevice device) {
+    final dedupOption = deduplicationOptionSubject.value;
+
+    // Use deduplicatedReports or raw reports based on setting
+    final Stream<HidInputReport> reportStream;
+    if (dedupOption == DeduplicationOption.none) {
+      reportStream = device.reports;
+    } else {
+      reportStream = device.deduplicatedReports(
+        deduplicationInterval: dedupOption.duration,
+      );
+    }
+
+    _reportSubscription = reportStream.listen(
       (report) {
         _log(
           'Received report: ${report.reportId}, data: ${report.data.map((e) => e.toRadixString(16).padLeft(2, '0')).join(' ')}',

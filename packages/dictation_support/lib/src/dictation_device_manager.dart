@@ -20,9 +20,23 @@ class DictationDeviceManager {
   final Map<String, SpeechMikeGamepadDevice> _pendingProxyDevices = {};
 
   bool _isInitialized = false;
-  Timer? _pollTimer;
+  StreamSubscription<List<HidDeviceInfo>>? _deviceListSubscription;
+
+  // Stream controllers for device events
+  final StreamController<DictationDevice> _deviceConnectedController =
+      StreamController<DictationDevice>.broadcast();
+  final StreamController<DictationDevice> _deviceDisconnectedController =
+      StreamController<DictationDevice>.broadcast();
 
   DictationDeviceManager();
+
+  /// Stream of newly connected dictation devices
+  Stream<DictationDevice> get deviceConnectedStream =>
+      _deviceConnectedController.stream;
+
+  /// Stream of disconnected dictation devices
+  Stream<DictationDevice> get deviceDisconnectedStream =>
+      _deviceDisconnectedController.stream;
 
   List<DictationDevice> getDevices() {
     _failIfNotInitialized();
@@ -41,22 +55,25 @@ class DictationDeviceManager {
 
     _isInitialized = true;
 
-    // Start polling for connection changes
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 2),
-      (_) => _pollDevices(),
+    // Subscribe to device list stream for connect/disconnect detection
+    _deviceListSubscription = HidApi.deviceListStream.listen(
+      _onDeviceListUpdate,
     );
   }
 
   Future<void> shutdown() async {
     _failIfNotInitialized();
-    _pollTimer?.cancel();
+    await _deviceListSubscription?.cancel();
+    _deviceListSubscription = null;
 
     for (final device in _devices.values) {
       await device.shutdown(closeDevice: true);
     }
     _devices.clear();
     _pendingProxyDevices.clear();
+
+    await _deviceConnectedController.close();
+    await _deviceDisconnectedController.close();
 
     await HidApi.shutdown();
     _isInitialized = false;
@@ -96,6 +113,62 @@ class DictationDeviceManager {
   void _failIfNotInitialized() {
     if (!_isInitialized) {
       throw Exception('DictationDeviceManager not yet initialized');
+    }
+  }
+
+  Future<void> _onDeviceListUpdate(List<HidDeviceInfo> currentInfos) async {
+    final currentPaths = currentInfos.map((e) => e.path).toSet();
+
+    // Check for disconnected devices
+    final disconnectedPaths = _devices.keys
+        .where((path) => !currentPaths.contains(path))
+        .toList();
+    for (final path in disconnectedPaths) {
+      final device = _devices.remove(path)!;
+      await device.shutdown(closeDevice: false);
+      _notifyDeviceDisconnected(device);
+    }
+
+    // Also remove disconnected pending proxy devices
+    final disconnectedProxyPaths = _pendingProxyDevices.keys
+        .where((path) => !currentPaths.contains(path))
+        .toList();
+    for (final path in disconnectedProxyPaths) {
+      final device = _pendingProxyDevices.remove(path)!;
+      await device.shutdown(closeDevice: false);
+    }
+
+    // Check for new devices
+    final newInfos = currentInfos
+        .where(
+          (info) =>
+              !_devices.containsKey(info.path) &&
+              !_pendingProxyDevices.containsKey(info.path),
+        )
+        .toList();
+    if (newInfos.isNotEmpty) {
+      final newDevices = await _createAndAddInitializedDevices(newInfos);
+      for (final device in newDevices) {
+        _notifyDeviceConnected(device);
+      }
+    }
+  }
+
+  void _notifyDeviceConnected(DictationDevice device) {
+    for (final listener in _deviceConnectEventListeners) {
+      listener(device);
+    }
+    if (!_deviceConnectedController.isClosed) {
+      _deviceConnectedController.add(device);
+    }
+  }
+
+  void _notifyDeviceDisconnected(DictationDevice device) {
+    for (final listener in _deviceDisconnectEventListeners) {
+      listener(device);
+    }
+    if (!_deviceDisconnectedController.isClosed) {
+      _deviceDisconnectedController.add(device);
     }
   }
 
@@ -187,40 +260,6 @@ class DictationDeviceManager {
     if (device is SpeechMikeHidDevice) {
       for (final listener in _motionEventListeners) {
         device.addMotionEventListener(listener);
-      }
-    }
-  }
-
-  Future<void> _pollDevices() async {
-    final currentInfos = await HidApi.enumerate();
-    final currentPaths = currentInfos.map((e) => e.path).toSet();
-
-    // Check for disconnected devices
-    final disconnectedPaths = _devices.keys
-        .where((path) => !currentPaths.contains(path))
-        .toList();
-    for (final path in disconnectedPaths) {
-      final device = _devices.remove(path)!;
-      await device.shutdown(closeDevice: false);
-      for (final listener in _deviceDisconnectEventListeners) {
-        listener(device);
-      }
-    }
-
-    // Check for new devices
-    final newInfos = currentInfos
-        .where(
-          (info) =>
-              !_devices.containsKey(info.path) &&
-              !_pendingProxyDevices.containsKey(info.path),
-        )
-        .toList();
-    if (newInfos.isNotEmpty) {
-      final newDevices = await _createAndAddInitializedDevices(newInfos);
-      for (final device in newDevices) {
-        for (final listener in _deviceConnectEventListeners) {
-          listener(device);
-        }
       }
     }
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:dictation_support/dictation_support.dart';
+import 'package:dictation_support_example/src/dictation_testing_interface/page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -124,6 +125,12 @@ class _HomePageState extends State<_HomePage> {
                             : null,
                       ),
                     ),
+                  const Gap(16),
+                  Button(
+                    onTap: () => openDictationTestingInterface(context),
+                    label: 'Open Testing Interface',
+                    prefix: const Icon(Icons.developer_mode),
+                  ),
                   const Gap(32),
                   Text(
                     'Recent Events',

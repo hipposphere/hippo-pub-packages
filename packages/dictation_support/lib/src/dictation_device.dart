@@ -14,13 +14,28 @@ abstract class DictationDevice {
   final int id = _nextId++;
   final HidDevice hidDevice;
 
+  /// Deduplication interval for input reports (default: 50ms)
+  static const Duration defaultDeduplicationInterval = Duration(
+    milliseconds: 50,
+  );
+
   ImplementationType get implType;
 
   final Set<ButtonEventListener> _buttonEventListeners = {};
   int _lastBitMask = 0;
   bool _isShuttingDown = false;
 
+  StreamSubscription<HidInputReport>? _reportSubscription;
+  final StreamController<int> _buttonEventController =
+      StreamController<int>.broadcast();
+
   DictationDevice(this.hidDevice);
+
+  /// Stream of button event bitmasks
+  ///
+  /// Emits whenever the button state changes. The bitmask contains
+  /// flags from [ButtonEvent] indicating which buttons are pressed.
+  Stream<int> get buttonEvents => _buttonEventController.stream;
 
   Future<void> init() async {
     _startReading();
@@ -28,10 +43,13 @@ abstract class DictationDevice {
 
   Future<void> shutdown({bool closeDevice = true}) async {
     _isShuttingDown = true;
+    await _reportSubscription?.cancel();
+    _reportSubscription = null;
     if (closeDevice) {
       await hidDevice.close();
     }
     _buttonEventListeners.clear();
+    await _buttonEventController.close();
   }
 
   void addButtonEventListener(ButtonEventListener listener) {
@@ -46,27 +64,39 @@ abstract class DictationDevice {
     for (final listener in _buttonEventListeners) {
       listener(this, outputBitMask);
     }
+    // Also emit on the stream
+    if (!_buttonEventController.isClosed) {
+      _buttonEventController.add(outputBitMask);
+    }
   }
 
-  void _startReading() async {
-    while (!_isShuttingDown && hidDevice.isOpen) {
-      try {
-        final report = await hidDevice.read(
-          timeout: const Duration(milliseconds: 100),
-        );
+  void _startReading() {
+    // Use deduplicated reports stream with 50ms interval
+    final reportStream = hidDevice.deduplicatedReports(
+      deduplicationInterval: defaultDeduplicationInterval,
+    );
+
+    _reportSubscription = reportStream.listen(
+      (report) async {
         if (report.data.isNotEmpty) {
           await _onInputReport(report);
         }
-      } on HidTimeoutException {
-        // Continue reading
-      } catch (e) {
+      },
+      onError: (e) {
         if (!_isShuttingDown) {
           // ignore: avoid_print
           print('Error reading from device: $e');
         }
-        break;
+      },
+      cancelOnError: false,
+    );
+
+    // Handle device disconnection
+    hidDevice.onDisconnected.listen((_) {
+      if (!_isShuttingDown) {
+        shutdown(closeDevice: false);
       }
-    }
+    });
   }
 
   Future<void> _onInputReport(HidInputReport report) async {
@@ -100,6 +130,9 @@ abstract class DictationDevice {
   int filterOutputBitMask(int outputBitMask) {
     return outputBitMask;
   }
+
+  /// Get the current button state bitmask
+  int get currentButtonState => _lastBitMask;
 
   DeviceType getDeviceType();
   Map<int, int> getButtonMappings();

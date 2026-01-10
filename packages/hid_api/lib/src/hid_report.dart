@@ -1,5 +1,14 @@
 import 'dart:typed_data';
 
+/// Type of HID report
+enum HidReportType {
+  /// Output report (device receives data from host)
+  output,
+
+  /// Feature report (bidirectional configuration/control data)
+  feature,
+}
+
 abstract class HidReport {
   int get reportId;
   Uint8List get data;

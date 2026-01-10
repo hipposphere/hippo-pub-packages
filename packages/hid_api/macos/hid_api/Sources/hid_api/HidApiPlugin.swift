@@ -12,6 +12,10 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
     private var disconnectionHandlers: [String: DisconnectionStreamHandler] = [:]
     private var deviceUpdateHandler: DeviceUpdateStreamHandler?
     private static var messenger: FlutterBinaryMessenger?
+    
+    /// Set to true to enable verbose HID logging. Change this to false to disable logging.
+    /// You can toggle this at runtime for debugging.
+    static var verboseLogging = true
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "hid_api", binaryMessenger: registrar.messenger)
@@ -154,6 +158,20 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
                 IOHIDDeviceScheduleWithRunLoop(device, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
                 openDevices[path] = device
                 
+                // Get device properties once
+                let vid = IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0
+                let pid = IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int ?? 0
+                let release = IOHIDDeviceGetProperty(device, kIOHIDVersionNumberKey as CFString) as? Int ?? 0
+                let usagePage = IOHIDDeviceGetProperty(device, kIOHIDPrimaryUsagePageKey as CFString) as? Int ?? 0
+                let usage = IOHIDDeviceGetProperty(device, kIOHIDPrimaryUsageKey as CFString) as? Int ?? 0
+                let manufacturer = IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey as CFString) as? String
+                let product = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String
+                let serial = IOHIDDeviceGetProperty(device, kIOHIDSerialNumberKey as CFString) as? String
+                let interfaceNumber = getInterfaceNumber(device)
+                
+                NSLog("[HID] ✅ Opened device %04X:%04X - Interface: %d, UsagePage: %d, Usage: %d", 
+                      vid, pid, interfaceNumber, usagePage, usage)
+                
                 // Set up event channel
                 if let messenger = HidApiPlugin.messenger {
                     let eventChannel = FlutterEventChannel(name: "hid_api/reports/\(path)", binaryMessenger: messenger)
@@ -167,15 +185,6 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
                     disconnectionHandlers[path] = discHandler
                 }
                 
-                let vid = IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0
-                let pid = IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int ?? 0
-                let release = IOHIDDeviceGetProperty(device, kIOHIDVersionNumberKey as CFString) as? Int ?? 0
-                let usagePage = IOHIDDeviceGetProperty(device, kIOHIDPrimaryUsagePageKey as CFString) as? Int ?? 0
-                let usage = IOHIDDeviceGetProperty(device, kIOHIDPrimaryUsageKey as CFString) as? Int ?? 0
-                let manufacturer = IOHIDDeviceGetProperty(device, kIOHIDManufacturerKey as CFString) as? String
-                let product = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String
-                let serial = IOHIDDeviceGetProperty(device, kIOHIDSerialNumberKey as CFString) as? String
-                
                 result([
                     "path": path,
                     "vendorId": vid,
@@ -186,7 +195,7 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
                     "manufacturer": manufacturer ?? "",
                     "product": product ?? "",
                     "serialNumber": serial ?? "",
-                    "interfaceNumber": getInterfaceNumber(device)
+                    "interfaceNumber": interfaceNumber
                 ])
             } else {
                 var message = "Failed to open device (Error: \(ret))"
@@ -248,11 +257,21 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         }
     }
 
-    private func write(call: FlutterMethodCall, result: @escaping FlutterResult) {
+
+    // Unified method to send HID reports (Output or Feature)
+    private func sendReport(
+        call: FlutterMethodCall,
+        result: @escaping FlutterResult,
+        reportType: IOHIDReportType,
+        reportTypeName: String
+    ) {
         guard let args = call.arguments as? [String: Any],
               let path = args["path"] as? String,
               let data = args["data"] as? FlutterStandardTypedData,
               let device = openDevices[path] else {
+            if HidApiPlugin.verboseLogging {
+                NSLog("[HID] Send \(reportTypeName) FAILED: Invalid arguments")
+            }
             result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid arguments", details: nil))
             return
         }
@@ -260,59 +279,192 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         let reportId = (args["reportId"] as? Int) ?? 0
         var bytes = [UInt8](data.data)
         
-        // On macOS, IOHIDDeviceSetReport takes the Report ID as a separate argument.
-        // If the Report ID is already at the start of the data buffer, we strip it
-        // to avoid double-sending the ID, ensuring consistency with how Windows 
-        // expects the buffer (prepended) vs macOS (separate).
-        if reportId != 0 && !bytes.isEmpty && bytes[0] == UInt8(reportId) {
-            bytes.removeFirst()
+        // Log which device interface is receiving this
+        let vid = IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0
+        let pid = IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int ?? 0
+        let usagePage = IOHIDDeviceGetProperty(device, kIOHIDPrimaryUsagePageKey as CFString) as? Int ?? 0
+        let usage = IOHIDDeviceGetProperty(device, kIOHIDPrimaryUsageKey as CFString) as? Int ?? 0
+        let interfaceNumber = getInterfaceNumber(device)
+        
+        if HidApiPlugin.verboseLogging {
+            NSLog("[HID] Send \(reportTypeName) called - Report ID: %d, Original data length: %d", reportId, bytes.count)
+            NSLog("[HID] Target device: %04X:%04X, Interface: %d, UsagePage: %d, Usage: %d",
+                  vid, pid, interfaceNumber, usagePage, usage)
+            NSLog("[HID] Original data from Dart: %@", bytes.map { String(format: "%02X", $0) }.joined(separator: " "))
+        } else {
+            NSLog("[HID] \(reportTypeName) to %04X:%04X Interface %d (UsagePage:%d, Usage:%d)",
+                  vid, pid, interfaceNumber, usagePage, usage)
+        }
+        
+        // On macOS, devices expect the Report ID as the first byte of the data buffer.
+        // Automatically prepend it so users don't have to include it manually.
+        var dataWithReportId = [UInt8]()
+        if reportId != 0 {
+            dataWithReportId.append(UInt8(reportId))
+        }
+        dataWithReportId.append(contentsOf: bytes)
+        
+        // Construct the complete buffer that the device will receive
+        let completeBuffer = dataWithReportId
+        
+        if HidApiPlugin.verboseLogging {
+            NSLog("[HID] ═══════════════════════════════════════════════════════")
+            NSLog("[HID] Calling IOHIDDeviceSetReport with:")
+            NSLog("[HID]   - Type: \(reportTypeName)")
+            NSLog("[HID]   - Report ID (parameter): %d (0x%02X)", reportId, reportId)
+            NSLog("[HID]   - Data buffer length: %d", dataWithReportId.count)
+            NSLog("[HID]   - Data buffer: %@", dataWithReportId.map { String(format: "%02X", $0) }.joined(separator: " "))
+            NSLog("[HID] ")
+            NSLog("[HID] COMPLETE BUFFER SENT TO DEVICE:")
+            NSLog("[HID]   Length: %d bytes", completeBuffer.count)
+            NSLog("[HID]   Data: %@", completeBuffer.map { String(format: "%02X", $0) }.joined(separator: " "))
+            NSLog("[HID] ═══════════════════════════════════════════════════════")
+        } else {
+            // Minimal logging when verbose is off
+            NSLog("[HID] Sending \(reportTypeName) ID 0x%02X (%d bytes): %@",
+                  reportId, completeBuffer.count,
+                  completeBuffer.map { String(format: "%02X", $0) }.joined(separator: " "))
         }
         
         let ret = IOHIDDeviceSetReport(
             device,
-            kIOHIDReportTypeOutput,
+            reportType,
             CFIndex(reportId),
-            bytes,
-            CFIndex(bytes.count)
+            dataWithReportId,
+            CFIndex(dataWithReportId.count)
         )
         
         if ret == kIOReturnSuccess {
+            if HidApiPlugin.verboseLogging {
+                let ioReturnString = getIOReturnString(ret)
+                NSLog("[HID] IOHIDDeviceSetReport returned: %@ (0x%X)", ioReturnString, ret)
+                NSLog("[HID] Send \(reportTypeName) SUCCESS - Device received %d bytes total", completeBuffer.count)
+            }
             result(bytes.count)
         } else {
-            result(FlutterError(code: "WRITE_FAILED", message: "Write failed: \(ret)", details: nil))
+            let errorMessage = "Send \(reportTypeName) failed: \(getIOReturnString(ret)) (0x\(String(format: "%X", ret)))"
+            NSLog("[HID] Send \(reportTypeName) FAILED: %@", errorMessage)
+            result(FlutterError(code: "WRITE_FAILED", message: errorMessage, details: "IOReturn: \(ret)"))
+        }
+    }
+
+    private func write(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        sendReport(call: call, result: result, reportType: kIOHIDReportTypeOutput, reportTypeName: "Output Report")
+    }
+    
+    private func getIOReturnString(_ ret: IOReturn) -> String {
+        switch ret {
+        case kIOReturnSuccess:
+            return "kIOReturnSuccess"
+        case kIOReturnError:
+            return "kIOReturnError (general error)"
+        case kIOReturnNoMemory:
+            return "kIOReturnNoMemory"
+        case kIOReturnNoResources:
+            return "kIOReturnNoResources"
+        case kIOReturnIPCError:
+            return "kIOReturnIPCError"
+        case kIOReturnNoDevice:
+            return "kIOReturnNoDevice"
+        case kIOReturnNotPrivileged:
+            return "kIOReturnNotPrivileged"
+        case kIOReturnBadArgument:
+            return "kIOReturnBadArgument"
+        case kIOReturnLockedRead:
+            return "kIOReturnLockedRead"
+        case kIOReturnLockedWrite:
+            return "kIOReturnLockedWrite"
+        case kIOReturnExclusiveAccess:
+            return "kIOReturnExclusiveAccess"
+        case kIOReturnBadMessageID:
+            return "kIOReturnBadMessageID"
+        case kIOReturnUnsupported:
+            return "kIOReturnUnsupported (device doesn't support this operation)"
+        case kIOReturnVMError:
+            return "kIOReturnVMError"
+        case kIOReturnInternalError:
+            return "kIOReturnInternalError"
+        case kIOReturnIOError:
+            return "kIOReturnIOError"
+        case kIOReturnCannotLock:
+            return "kIOReturnCannotLock"
+        case kIOReturnNotOpen:
+            return "kIOReturnNotOpen"
+        case kIOReturnNotReadable:
+            return "kIOReturnNotReadable"
+        case kIOReturnNotWritable:
+            return "kIOReturnNotWritable"
+        case kIOReturnNotAligned:
+            return "kIOReturnNotAligned"
+        case kIOReturnBadMedia:
+            return "kIOReturnBadMedia"
+        case kIOReturnStillOpen:
+            return "kIOReturnStillOpen"
+        case kIOReturnRLDError:
+            return "kIOReturnRLDError"
+        case kIOReturnDMAError:
+            return "kIOReturnDMAError"
+        case kIOReturnBusy:
+            return "kIOReturnBusy"
+        case kIOReturnTimeout:
+            return "kIOReturnTimeout"
+        case kIOReturnOffline:
+            return "kIOReturnOffline"
+        case kIOReturnNotReady:
+            return "kIOReturnNotReady"
+        case kIOReturnNotAttached:
+            return "kIOReturnNotAttached"
+        case kIOReturnNoChannels:
+            return "kIOReturnNoChannels"
+        case kIOReturnNoSpace:
+            return "kIOReturnNoSpace"
+        case kIOReturnPortExists:
+            return "kIOReturnPortExists"
+        case kIOReturnCannotWire:
+            return "kIOReturnCannotWire"
+        case kIOReturnNoInterrupt:
+            return "kIOReturnNoInterrupt"
+        case kIOReturnNoFrames:
+            return "kIOReturnNoFrames"
+        case kIOReturnMessageTooLarge:
+            return "kIOReturnMessageTooLarge"
+        case kIOReturnNotPermitted:
+            return "kIOReturnNotPermitted"
+        case kIOReturnNoPower:
+            return "kIOReturnNoPower"
+        case kIOReturnNoMedia:
+            return "kIOReturnNoMedia"
+        case kIOReturnUnformattedMedia:
+            return "kIOReturnUnformattedMedia"
+        case kIOReturnUnsupportedMode:
+            return "kIOReturnUnsupportedMode"
+        case kIOReturnUnderrun:
+            return "kIOReturnUnderrun"
+        case kIOReturnOverrun:
+            return "kIOReturnOverrun"
+        case kIOReturnDeviceError:
+            return "kIOReturnDeviceError"
+        case kIOReturnNoCompletion:
+            return "kIOReturnNoCompletion"
+        case kIOReturnAborted:
+            return "kIOReturnAborted"
+        case kIOReturnNoBandwidth:
+            return "kIOReturnNoBandwidth"
+        case kIOReturnNotResponding:
+            return "kIOReturnNotResponding"
+        case kIOReturnIsoTooOld:
+            return "kIOReturnIsoTooOld"
+        case kIOReturnIsoTooNew:
+            return "kIOReturnIsoTooNew"
+        case kIOReturnInvalid:
+            return "kIOReturnInvalid"
+        default:
+            return "Unknown IOReturn"
         }
     }
     
     private func sendFeatureReport(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        guard let args = call.arguments as? [String: Any],
-              let path = args["path"] as? String,
-              let data = args["data"] as? FlutterStandardTypedData,
-              let device = openDevices[path] else {
-            result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid arguments", details: nil))
-            return
-        }
-        
-        let reportId = (args["reportId"] as? Int) ?? 0
-        var bytes = [UInt8](data.data)
-        
-        // Similar to write, if the ID is at the start of the buffer, strip it for IOHIDDeviceSetReport.
-        if reportId != 0 && !bytes.isEmpty && bytes[0] == UInt8(reportId) {
-            bytes.removeFirst()
-        }
-        
-        let ret = IOHIDDeviceSetReport(
-            device,
-            kIOHIDReportTypeFeature,
-            CFIndex(reportId),
-            bytes,
-            CFIndex(bytes.count)
-        )
-        
-        if ret == kIOReturnSuccess {
-            result(bytes.count)
-        } else {
-            result(FlutterError(code: "WRITE_FAILED", message: "Send Feature Report failed: \(ret)", details: nil))
-        }
+        sendReport(call: call, result: result, reportType: kIOHIDReportTypeFeature, reportTypeName: "Feature Report")
     }
     
     private func getFeatureReport(call: FlutterMethodCall, result: @escaping FlutterResult) {

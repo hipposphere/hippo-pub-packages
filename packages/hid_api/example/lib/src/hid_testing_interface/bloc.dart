@@ -13,13 +13,16 @@ enum DeduplicationOption {
   const DeduplicationOption(this.duration, this.label);
 }
 
-/// Available report types for sending
-enum HidReportType {
-  output('Output Report'),
-  feature('Feature Report');
-
-  final String label;
-  const HidReportType(this.label);
+/// Extension to add labels to HidReportType from hid_api
+extension HidReportTypeLabels on HidReportType {
+  String get label {
+    switch (this) {
+      case HidReportType.output:
+        return 'Output Report';
+      case HidReportType.feature:
+        return 'Feature Report';
+    }
+  }
 }
 
 class HidTestingInterfaceBloc extends BlocBase {
@@ -230,13 +233,17 @@ class HidTestingInterfaceBloc extends BlocBase {
 
     try {
       final HidReport report;
+      final HidReportType reportType;
+
       if (type == HidReportType.feature) {
         report = HidFeatureReport(reportId, Uint8List.fromList(data));
-        await device.sendFeatureReport(report as HidFeatureReport);
+        reportType = HidReportType.feature;
       } else {
         report = HidOutputReport(reportId, Uint8List.fromList(data));
-        await device.write(report as HidOutputReport);
+        reportType = HidReportType.output;
       }
+
+      await device.sendReport(report, reportType);
 
       _log(
         'Sent ${type.label}: $reportId, data: ${_bytesToHex(report.normalizedData)}',

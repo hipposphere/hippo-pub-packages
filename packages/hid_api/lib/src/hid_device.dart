@@ -46,11 +46,8 @@ abstract class HidDevice {
   /// Stream that emits when the device is disconnected
   Stream<void> get onDisconnected;
 
-  /// Write output report
-  Future<int> write(HidOutputReport report);
-
-  /// Send feature report
-  Future<int> sendFeatureReport(HidFeatureReport report);
+  /// Send a HID report (Output or Feature)
+  Future<int> sendReport(HidReport report, HidReportType type);
 
   /// Get feature report
   Future<HidFeatureReport> getFeatureReport(int reportId, int length);

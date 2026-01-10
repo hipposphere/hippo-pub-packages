@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'hid_device.dart';
 import 'hid_device_info.dart';
@@ -10,6 +11,9 @@ class MethodChannelHidDevice extends HidDevice {
   final HidDeviceInfo _info;
 
   bool _isOpen = true;
+
+  /// Set to true to enable verbose HID logging
+  static bool verboseLogging = true;
 
   MethodChannelHidDevice({
     required this.path,
@@ -82,23 +86,36 @@ class MethodChannelHidDevice extends HidDevice {
   }
 
   @override
-  Future<int> write(HidOutputReport report) async {
-    final result = await _channel.invokeMethod<int>('write', {
-      'path': path,
-      'reportId': report.reportId,
-      'data': report.data,
-    });
-    return result ?? 0;
-  }
+  Future<int> sendReport(HidReport report, HidReportType type) async {
+    final methodName = type == HidReportType.output
+        ? 'write'
+        : 'sendFeatureReport';
+    final reportTypeName = type == HidReportType.output
+        ? 'Output Report'
+        : 'Feature Report';
 
-  @override
-  Future<int> sendFeatureReport(HidFeatureReport report) async {
-    final result = await _channel.invokeMethod<int>('sendFeatureReport', {
-      'path': path,
-      'reportId': report.reportId,
-      'data': report.data,
-    });
-    return result ?? 0;
+    try {
+      if (verboseLogging) {
+        debugPrint(
+          '[HID] Sending $reportTypeName: ${report.reportId}, '
+          'data: ${report.data.map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase()).join(' ')}',
+        );
+      }
+
+      final result = await _channel.invokeMethod<int>(methodName, {
+        'path': path,
+        'reportId': report.reportId,
+        'data': report.data,
+      });
+
+      if (verboseLogging) {
+        debugPrint('[HID] Send $reportTypeName returned: $result bytes');
+      }
+      return result ?? 0;
+    } on PlatformException catch (e) {
+      debugPrint('[HID] Send $reportTypeName failed: ${e.code} - ${e.message}');
+      throw HidException('Failed to send $reportTypeName: ${e.message}');
+    }
   }
 
   @override

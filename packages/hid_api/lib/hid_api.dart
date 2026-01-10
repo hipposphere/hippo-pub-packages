@@ -5,6 +5,7 @@ export 'hid_api_platform_interface.dart'
         HidDeviceInfo,
         HidDevice,
         HidReport,
+        HidReportType,
         HidInputReport,
         HidOutputReport,
         HidFeatureReport,

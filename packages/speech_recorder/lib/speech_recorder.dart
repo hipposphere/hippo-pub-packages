@@ -1,5 +1,7 @@
 export 'src/controller.dart';
+
 export 'src/models/options.dart';
+export 'src/models/recorder_data.dart';
 
 export 'src/widgets/recorder_raw_container.dart';
 export 'src/widgets/recorder_container.dart';

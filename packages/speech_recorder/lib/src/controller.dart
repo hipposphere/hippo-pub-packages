@@ -1,21 +1,27 @@
 import 'dart:async';
-import 'package:hippo_utils/cross_file.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'package:speech_recorder/speech_recorder.dart';
 import 'package:record/record.dart' as record;
-import 'package:speech_recorder/src/models/recorder_data.dart';
-import 'package:speech_recorder/src/utils/media_data_reader.dart';
+import 'package:cross_file/cross_file.dart';
+import 'utils/media_data_reader.dart';
+
+part 'session.dart';
+
+typedef SpeechRecorderCallback = void Function(SpeechRecorderSession session);
 
 class SpeechRecorderController {
   final Future<SpeechRecorderOptions> Function() optionsBuilder;
-  final Function(SpeechRecorderSession session)? onSessionStarted;
-  final Function(SpeechRecorderSession session)? onSessionFinished;
+  final SpeechRecorderCallback? _onSessionStarted;
+  final SpeechRecorderCallback? _onSessionFinished;
 
   SpeechRecorderController({
     required this.optionsBuilder,
-    this.onSessionStarted,
-    this.onSessionFinished,
-  });
+    SpeechRecorderCallback? onSessionStarted,
+    SpeechRecorderCallback? onSessionFinished,
+  }) : _onSessionStarted = onSessionStarted,
+       _onSessionFinished = onSessionFinished;
+
   final record.AudioRecorder _recorder = record.AudioRecorder();
 
   final sessionSubject = DataSubject<SpeechRecorderSession?>.seeded(null);
@@ -31,13 +37,12 @@ class SpeechRecorderController {
     _startAmplitudeListening(session, options.amplitudeInterval);
     session.stopwatch.start();
     sessionSubject.add(session);
-    onSessionStarted?.call(session);
+    _onSessionStarted?.call(session);
     return session;
   }
 
   Future<void> pause(SpeechRecorderSession session) async {
     await _recorder.pause();
-
     session._setState(SpeechRecorderSessionState.paused);
     _stopAmplitudeListening(session);
     session.stopwatch.stop();
@@ -56,7 +61,10 @@ class SpeechRecorderController {
     _stopAmplitudeListening(session);
     session._setState(SpeechRecorderSessionState.stopped);
     session.stopwatch.stop();
-    onSessionFinished?.call(session);
+    for (final callback in session._onFinishedCallbacks) {
+      callback();
+    }
+    _onSessionFinished?.call(session);
     sessionSubject.add(null);
   }
 
@@ -100,61 +108,5 @@ class SpeechRecorderController {
   void _stopAmplitudeListening(SpeechRecorderSession session) {
     session._amplitudeSubscription?.cancel();
     session._amplitudeSubscription = null;
-  }
-}
-
-enum SpeechRecorderSessionState { idle, recording, paused, stopped, canceled }
-
-class SpeechRecorderSession {
-  final SpeechRecorderOptions options;
-
-  SpeechRecorderSession({required this.options});
-
-  factory SpeechRecorderSession.create({
-    required record.AudioRecorder recorder,
-    required SpeechRecorderOptions options,
-  }) {
-    return SpeechRecorderSession(options: options);
-  }
-
-  final stateSubject = DataSubject<SpeechRecorderSessionState>.seeded(
-    SpeechRecorderSessionState.idle,
-  );
-
-  final stopwatch = Stopwatch();
-
-  final amplitudeSubject = DataSubject<List<Amplitude>>.seeded([]);
-
-  StreamSubscription? _amplitudeSubscription;
-
-  void _setState(SpeechRecorderSessionState state) {
-    stateSubject.add(state);
-  }
-
-  void _setPathAfterStopping(String? path) {
-    _pathAfterStopping = path;
-  }
-
-  String? _pathAfterStopping;
-
-  XFile getRecordingFile() {
-    final path = _pathAfterStopping ?? options.path;
-    return XFile(path);
-  }
-
-  Future<SpeechRecorderData> getRecordingData() async {
-    final file = getRecordingFile();
-    // Stopwatch is not the accurate duration, we need to get the actual duration
-    // from the file metadata or similar.
-    final duration = await MediaDataReader.getMediaDurationFromXFile(file);
-    final fileExtension = file.name.split('.').last;
-    final mimeType = file.mimeType!;
-    return SpeechRecorderData(
-      file: file,
-
-      duration: duration,
-      fileExtension: fileExtension,
-      mimeType: mimeType,
-    );
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
-import 'package:speech_recorder/src/controller.dart';
+import 'package:speech_recorder/speech_recorder.dart';
 
 class SpeechRecorderActionButton extends StatelessWidget {
   final SpeechRecorderSessionState state;

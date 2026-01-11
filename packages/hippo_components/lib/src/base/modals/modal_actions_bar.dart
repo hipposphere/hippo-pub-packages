@@ -16,7 +16,7 @@ class ModalActionsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: actions);
+    return Column(children: actions);
   }
 }
 
@@ -55,22 +55,20 @@ class CancelConfirmModalActionsBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return ModalActionsBar(
       actions: [
-        Flexible(
-          flex: isConfirmLarge ? 2 : 3,
-          child: Button(
-            onTap: onCancel != null
-                ? () {
-                    onCancel!(context);
-                  }
-                : () {
-                    Navigator.of(context).pop();
-                  },
-            label: context.cl.actions_cancel,
-            type: ButtonType.outline,
-          ),
+        Button(
+          onTap: onCancel != null
+              ? () {
+                  onCancel!(context);
+                }
+              : () {
+                  Navigator.of(context).pop();
+                },
+          label: context.cl.actions_cancel,
+          type: ButtonType.outline,
         ),
+
         Gap(16),
-        Flexible(flex: isConfirmLarge ? 3 : 2, child: confirmBuilder(context)),
+        confirmBuilder(context),
       ],
     );
   }

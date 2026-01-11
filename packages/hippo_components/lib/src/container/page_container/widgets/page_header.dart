@@ -34,7 +34,7 @@ class PageHeader extends CupertinoNavigationBar {
     super.transitionBetweenRoutes,
     required this.title,
     this.titleBuilder,
-    required this.actions,
+    this.actions = const [],
   }) : super(
          leading: backAction != null ? _BackActionButton(backAction: backAction) : null,
          middle: title != null

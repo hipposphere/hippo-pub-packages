@@ -66,8 +66,7 @@ class CancelConfirmModalActionsBar extends StatelessWidget {
           label: context.cl.actions_cancel,
           type: ButtonType.outline,
         ),
-
-        Gap(16),
+        Gap(8),
         confirmBuilder(context),
       ],
     );

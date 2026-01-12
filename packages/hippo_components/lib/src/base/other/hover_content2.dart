@@ -10,7 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class HoverPopup2 extends StatefulWidget {
+class HoverPopup3 extends StatefulWidget {
   /// Builder for popup content, receiving a `closePopup` callback.
   final Widget Function(BuildContext context, VoidCallback closePopup) topLeftBuilder;
 
@@ -25,7 +25,7 @@ class HoverPopup2 extends StatefulWidget {
 
   final Widget Function(BuildContext context, bool isHovered) builder;
 
-  const HoverPopup2({
+  const HoverPopup3({
     super.key,
     required this.topLeftBuilder,
     required this.bottomRightBuilder,
@@ -35,10 +35,10 @@ class HoverPopup2 extends StatefulWidget {
   });
 
   @override
-  State<HoverPopup2> createState() => _HoverPopupState();
+  State<HoverPopup3> createState() => _HoverPopupState();
 }
 
-class _HoverPopupState extends State<HoverPopup2> {
+class _HoverPopupState extends State<HoverPopup3> {
   OverlayEntry? _overlayEntry1;
   OverlayEntry? _overlayEntry2;
   bool _hoveringChild = false;
@@ -68,7 +68,7 @@ class _HoverPopupState extends State<HoverPopup2> {
     );
     _overlayEntry2 = OverlayEntry(
       builder: (ctx) => Positioned(
-        right: 8,
+        right: 8 + MediaQuery.sizeOf(context).width - (target.dx + size.width),
         top: target.dy + size.height - 16,
         width: widget.popupWidth,
         child: MouseRegion(

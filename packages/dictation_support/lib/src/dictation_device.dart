@@ -28,6 +28,10 @@ abstract class DictationDevice {
   StreamSubscription<HidReport>? _reportSubscription;
   final StreamController<int> _buttonEventController =
       StreamController<int>.broadcast();
+  final StreamController<ButtonStates> _buttonStateChangedController =
+      StreamController<ButtonStates>.broadcast();
+  final StreamController<ButtonChange> _buttonChangeController =
+      StreamController<ButtonChange>.broadcast();
 
   DictationDevice(this.hidDevice);
 
@@ -36,6 +40,19 @@ abstract class DictationDevice {
   /// Emits whenever the button state changes. The bitmask contains
   /// flags from [ButtonEvent] indicating which buttons are pressed.
   Stream<int> get buttonEvents => _buttonEventController.stream;
+
+  /// Stream of button state changes
+  ///
+  /// Emits a [ButtonStates] object whenever any button state changes.
+  Stream<ButtonStates> get onButtonStateChanged =>
+      _buttonStateChangedController.stream;
+
+  /// Stream of individual button changes
+  ///
+  /// Emits a [ButtonChange] event for each button that is pressed or released.
+  /// This allows you to see exactly which button changed and whether it was
+  /// pressed or released.
+  Stream<ButtonChange> get onButtonChange => _buttonChangeController.stream;
 
   Future<void> init() async {
     _startReading();
@@ -50,6 +67,8 @@ abstract class DictationDevice {
     }
     _buttonEventListeners.clear();
     await _buttonEventController.close();
+    await _buttonStateChangedController.close();
+    await _buttonChangeController.close();
   }
 
   void addButtonEventListener(ButtonEventListener listener) {
@@ -61,10 +80,37 @@ abstract class DictationDevice {
   }
 
   void notifyButtonListeners(int outputBitMask) {
+    // Detect individual button changes by comparing with previous state
+    final changedBits = _lastBitMask ^ outputBitMask;
+    final newState = ButtonStates(outputBitMask);
+
+    // Emit individual button change events
+    if (changedBits != 0 && !_buttonChangeController.isClosed) {
+      // Check each button bit to see if it changed
+      for (int i = 0; i < 32; i++) {
+        final buttonMask = 1 << i;
+        if ((changedBits & buttonMask) != 0) {
+          final isPressed = (outputBitMask & buttonMask) != 0;
+          _buttonChangeController.add(
+            ButtonChange(
+              buttonMask: buttonMask,
+              isPressed: isPressed,
+              currentState: newState,
+            ),
+          );
+        }
+      }
+    }
+
+    // Emit overall button state change
+    if (!_buttonStateChangedController.isClosed) {
+      _buttonStateChangedController.add(newState);
+    }
+
+    // Legacy listeners and stream (for backward compatibility)
     for (final listener in _buttonEventListeners) {
       listener(this, outputBitMask);
     }
-    // Also emit on the stream
     if (!_buttonEventController.isClosed) {
       _buttonEventController.add(outputBitMask);
     }
@@ -133,6 +179,9 @@ abstract class DictationDevice {
 
   /// Get the current button state bitmask
   int get currentButtonState => _lastBitMask;
+
+  /// Get the current button states as a [ButtonStates] object
+  ButtonStates get currentButtonStates => ButtonStates(_lastBitMask);
 
   DeviceType getDeviceType();
   Map<int, int> getButtonMappings();

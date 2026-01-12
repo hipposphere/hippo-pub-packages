@@ -27,6 +27,19 @@ class DictationDeviceManager {
       StreamController<DictationDevice>.broadcast();
   final StreamController<DictationDevice> _deviceDisconnectedController =
       StreamController<DictationDevice>.broadcast();
+  final StreamController<(DictationDevice, ButtonStates)>
+  _buttonStateChangedController =
+      StreamController<(DictationDevice, ButtonStates)>.broadcast();
+  final StreamController<(DictationDevice, ButtonChange)>
+  _buttonChangeController =
+      StreamController<(DictationDevice, ButtonChange)>.broadcast();
+
+  // Track button states for all devices
+  final Map<int, ButtonStates> _deviceButtonStates = {};
+
+  // Track subscriptions to device streams
+  final Map<int, StreamSubscription<ButtonStates>> _stateSubscriptions = {};
+  final Map<int, StreamSubscription<ButtonChange>> _changeSubscriptions = {};
 
   DictationDeviceManager();
 
@@ -37,6 +50,24 @@ class DictationDeviceManager {
   /// Stream of disconnected dictation devices
   Stream<DictationDevice> get deviceDisconnectedStream =>
       _deviceDisconnectedController.stream;
+
+  /// Stream of button state changes from all devices
+  ///
+  /// Emits a tuple of (device, ButtonStates) whenever any device's button state changes.
+  Stream<(DictationDevice, ButtonStates)> get onButtonStateChanged =>
+      _buttonStateChangedController.stream;
+
+  /// Stream of individual button changes from all devices
+  ///
+  /// Emits a tuple of (device, ButtonChange) for each button press/release on any device.
+  Stream<(DictationDevice, ButtonChange)> get onButtonChange =>
+      _buttonChangeController.stream;
+
+  /// Get the current button states for all devices
+  ///
+  /// Returns a map of device ID to ButtonStates.
+  Map<int, ButtonStates> get allButtonStates =>
+      Map.unmodifiable(_deviceButtonStates);
 
   List<DictationDevice> getDevices() {
     _failIfNotInitialized();
@@ -67,13 +98,17 @@ class DictationDeviceManager {
     _deviceListSubscription = null;
 
     for (final device in _devices.values) {
+      _unsubscribeFromDevice(device);
       await device.shutdown(closeDevice: true);
     }
     _devices.clear();
     _pendingProxyDevices.clear();
+    _deviceButtonStates.clear();
 
     await _deviceConnectedController.close();
     await _deviceDisconnectedController.close();
+    await _buttonStateChangedController.close();
+    await _buttonChangeController.close();
 
     await HidApi.shutdown();
     _isInitialized = false;
@@ -125,6 +160,8 @@ class DictationDeviceManager {
         .toList();
     for (final path in disconnectedPaths) {
       final device = _devices.remove(path)!;
+      _unsubscribeFromDevice(device);
+      _deviceButtonStates.remove(device.id);
       await device.shutdown(closeDevice: false);
       _notifyDeviceDisconnected(device);
     }
@@ -262,5 +299,32 @@ class DictationDeviceManager {
         device.addMotionEventListener(listener);
       }
     }
+
+    // Subscribe to button state changes
+    _stateSubscriptions[device.id] = device.onButtonStateChanged.listen((
+      state,
+    ) {
+      _deviceButtonStates[device.id] = state;
+      if (!_buttonStateChangedController.isClosed) {
+        _buttonStateChangedController.add((device, state));
+      }
+    });
+
+    // Subscribe to individual button changes
+    _changeSubscriptions[device.id] = device.onButtonChange.listen((change) {
+      if (!_buttonChangeController.isClosed) {
+        _buttonChangeController.add((device, change));
+      }
+    });
+
+    // Initialize the device's button state
+    _deviceButtonStates[device.id] = device.currentButtonStates;
+  }
+
+  void _unsubscribeFromDevice(DictationDevice device) {
+    _stateSubscriptions[device.id]?.cancel();
+    _stateSubscriptions.remove(device.id);
+    _changeSubscriptions[device.id]?.cancel();
+    _changeSubscriptions.remove(device.id);
   }
 }

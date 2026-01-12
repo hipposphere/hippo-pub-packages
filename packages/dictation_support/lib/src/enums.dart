@@ -141,3 +141,120 @@ enum MotionEvent {
   final int value;
   const MotionEvent(this.value);
 }
+
+/// Represents the current state of all buttons on a dictation device.
+///
+/// Wraps a bitmask and provides convenient getters for checking
+/// individual button states.
+class ButtonStates {
+  final int bitmask;
+
+  const ButtonStates(this.bitmask);
+
+  bool get isRewindPressed => (bitmask & ButtonEvent.rewind) != 0;
+  bool get isPlayPressed => (bitmask & ButtonEvent.play) != 0;
+  bool get isForwardPressed => (bitmask & ButtonEvent.forward) != 0;
+  bool get isInsOvrPressed => (bitmask & ButtonEvent.insOvr) != 0;
+  bool get isRecordPressed => (bitmask & ButtonEvent.record) != 0;
+  bool get isCommandPressed => (bitmask & ButtonEvent.command) != 0;
+  bool get isStopPressed => (bitmask & ButtonEvent.stop) != 0;
+  bool get isInstrPressed => (bitmask & ButtonEvent.instr) != 0;
+  bool get isF1APressed => (bitmask & ButtonEvent.f1A) != 0;
+  bool get isF2BPressed => (bitmask & ButtonEvent.f2B) != 0;
+  bool get isF3CPressed => (bitmask & ButtonEvent.f3C) != 0;
+  bool get isF4DPressed => (bitmask & ButtonEvent.f4D) != 0;
+  bool get isEolPrioPressed => (bitmask & ButtonEvent.eolPrio) != 0;
+  bool get isTranscribePressed => (bitmask & ButtonEvent.transcribe) != 0;
+  bool get isTabBackwardPressed => (bitmask & ButtonEvent.tabBackward) != 0;
+  bool get isTabForwardPressed => (bitmask & ButtonEvent.tabForward) != 0;
+  bool get isCustomLeftPressed => (bitmask & ButtonEvent.customLeft) != 0;
+  bool get isCustomRightPressed => (bitmask & ButtonEvent.customRight) != 0;
+  bool get isEnterSelectPressed => (bitmask & ButtonEvent.enterSelect) != 0;
+  bool get isScanEndPressed => (bitmask & ButtonEvent.scanEnd) != 0;
+  bool get isScanSuccessPressed => (bitmask & ButtonEvent.scanSuccess) != 0;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ButtonStates &&
+          runtimeType == other.runtimeType &&
+          bitmask == other.bitmask;
+
+  @override
+  int get hashCode => bitmask.hashCode;
+
+  @override
+  String toString() => 'ButtonStates(bitmask: 0x${bitmask.toRadixString(16)})';
+}
+
+/// Represents a single button state change (pressed or released).
+class ButtonChange {
+  /// The specific button that changed (e.g., ButtonEvent.record)
+  final int buttonMask;
+
+  /// True if the button was pressed, false if released
+  final bool isPressed;
+
+  /// The overall button state after this change
+  final ButtonStates currentState;
+
+  const ButtonChange({
+    required this.buttonMask,
+    required this.isPressed,
+    required this.currentState,
+  });
+
+  /// Returns a human-readable name for the button that changed
+  String get buttonName {
+    switch (buttonMask) {
+      case ButtonEvent.rewind:
+        return 'rewind';
+      case ButtonEvent.play:
+        return 'play';
+      case ButtonEvent.forward:
+        return 'forward';
+      case ButtonEvent.insOvr:
+        return 'insOvr';
+      case ButtonEvent.record:
+        return 'record';
+      case ButtonEvent.command:
+        return 'command';
+      case ButtonEvent.stop:
+        return 'stop';
+      case ButtonEvent.instr:
+        return 'instr';
+      case ButtonEvent.f1A:
+        return 'f1A';
+      case ButtonEvent.f2B:
+        return 'f2B';
+      case ButtonEvent.f3C:
+        return 'f3C';
+      case ButtonEvent.f4D:
+        return 'f4D';
+      case ButtonEvent.eolPrio:
+        return 'eolPrio';
+      case ButtonEvent.transcribe:
+        return 'transcribe';
+      case ButtonEvent.tabBackward:
+        return 'tabBackward';
+      case ButtonEvent.tabForward:
+        return 'tabForward';
+      case ButtonEvent.customLeft:
+        return 'customLeft';
+      case ButtonEvent.customRight:
+        return 'customRight';
+      case ButtonEvent.enterSelect:
+        return 'enterSelect';
+      case ButtonEvent.scanEnd:
+        return 'scanEnd';
+      case ButtonEvent.scanSuccess:
+        return 'scanSuccess';
+      default:
+        return 'unknown';
+    }
+  }
+
+  @override
+  String toString() =>
+      'ButtonChange($buttonName ${isPressed ? 'pressed' : 'released'})';
+}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hotkey_api/hotkey_api.dart';
+import '../utils/key_symbols.dart';
 
 class HotkeyChip extends StatelessWidget {
   final Hotkey hotkey;
@@ -33,6 +34,6 @@ class PhysicalKeyChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TappableChip(label: Text(physicalKey.debugName ?? 'Unknown Key'));
+    return TappableChip(label: Text(KeySymbols.getSymbol(physicalKey)));
   }
 }

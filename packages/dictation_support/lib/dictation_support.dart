@@ -1,6 +1,3 @@
-// ignore_for_file: unnecessary_library_name
-library dictation_support;
-
 export 'src/enums.dart';
 export 'src/dictation_device.dart';
 export 'src/dictation_device_manager.dart';

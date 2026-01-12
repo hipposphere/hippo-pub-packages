@@ -33,6 +33,8 @@ class DictationDeviceManager {
   final StreamController<(DictationDevice, ButtonChange)>
   _buttonChangeController =
       StreamController<(DictationDevice, ButtonChange)>.broadcast();
+  final StreamController<List<DictationDevice>> _connectedDevicesController =
+      StreamController<List<DictationDevice>>.broadcast();
 
   // Track button states for all devices
   final Map<int, ButtonStates> _deviceButtonStates = {};
@@ -63,6 +65,27 @@ class DictationDeviceManager {
   Stream<(DictationDevice, ButtonChange)> get onButtonChange =>
       _buttonChangeController.stream;
 
+  /// Stream of the current list of connected devices
+  ///
+  /// Emits the updated list of connected dictation devices whenever a device
+  /// is connected or disconnected. This allows you to always have the current
+  /// state of all connected devices.
+  ///
+  /// Example:
+  /// ```dart
+  /// final manager = DictationDeviceManager();
+  /// await manager.init();
+  ///
+  /// manager.connectedDevicesStream.listen((devices) {
+  ///   print('Currently connected devices: ${devices.length}');
+  ///   for (final device in devices) {
+  ///     print('  - ${device.getDeviceType()}');
+  ///   }
+  /// });
+  /// ```
+  Stream<List<DictationDevice>> get connectedDevicesStream =>
+      _connectedDevicesController.stream;
+
   /// Get the current button states for all devices
   ///
   /// Returns a map of device ID to ButtonStates.
@@ -85,6 +108,11 @@ class DictationDeviceManager {
     await _createAndAddInitializedDevices(infos);
 
     _isInitialized = true;
+
+    // Emit initial device list
+    if (!_connectedDevicesController.isClosed) {
+      _connectedDevicesController.add(_devices.values.toList());
+    }
 
     // Subscribe to device list stream for connect/disconnect detection
     _deviceListSubscription = HidApi.deviceListStream.listen(
@@ -109,6 +137,7 @@ class DictationDeviceManager {
     await _deviceDisconnectedController.close();
     await _buttonStateChangedController.close();
     await _buttonChangeController.close();
+    await _connectedDevicesController.close();
 
     await HidApi.shutdown();
     _isInitialized = false;
@@ -198,6 +227,10 @@ class DictationDeviceManager {
     if (!_deviceConnectedController.isClosed) {
       _deviceConnectedController.add(device);
     }
+    // Emit updated device list
+    if (!_connectedDevicesController.isClosed) {
+      _connectedDevicesController.add(_devices.values.toList());
+    }
   }
 
   void _notifyDeviceDisconnected(DictationDevice device) {
@@ -206,6 +239,10 @@ class DictationDeviceManager {
     }
     if (!_deviceDisconnectedController.isClosed) {
       _deviceDisconnectedController.add(device);
+    }
+    // Emit updated device list
+    if (!_connectedDevicesController.isClosed) {
+      _connectedDevicesController.add(_devices.values.toList());
     }
   }
 

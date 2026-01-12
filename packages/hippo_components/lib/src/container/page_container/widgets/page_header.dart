@@ -142,14 +142,32 @@ class PageHeaderTappableAction extends StatelessWidget {
 }
 
 class PageHeaderTextAction extends StatelessWidget {
+  final Widget? icon;
   final String label;
   final VoidCallback? onTap;
   final bool enabled;
-  const PageHeaderTextAction({super.key, required this.label, this.onTap, this.enabled = true});
+  const PageHeaderTextAction({
+    super.key,
+    required this.label,
+    this.onTap,
+    this.enabled = true,
+    this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return PageHeaderTappableAction(onTap: onTap, enabled: enabled, child: Text(label));
+    return PageHeaderTappableAction(
+      onTap: onTap,
+      enabled: enabled,
+      child: Row(
+        crossAxisAlignment: .center,
+        mainAxisSize: .min,
+        children: [
+          if (icon != null) ...[icon!, Gap(4)],
+          Text(label),
+        ],
+      ),
+    );
   }
 }
 

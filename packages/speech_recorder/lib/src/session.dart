@@ -54,7 +54,7 @@ class SpeechRecorderSession {
     );
   }
 
-  List<VoidCallback> _onFinishedCallbacks = [];
+  final List<VoidCallback> _onFinishedCallbacks = [];
 
   void onSessionFinished(VoidCallback callback) {
     _onFinishedCallbacks.add(callback);

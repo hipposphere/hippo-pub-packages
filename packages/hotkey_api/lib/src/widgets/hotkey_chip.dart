@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hotkey_api/hotkey_api.dart';
-import '../utils/key_symbols.dart';
 
 class HotkeyChip extends StatelessWidget {
   final Hotkey hotkey;

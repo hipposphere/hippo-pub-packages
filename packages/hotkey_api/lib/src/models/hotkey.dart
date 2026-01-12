@@ -29,4 +29,21 @@ class Hotkey {
   bool isActive(Set<PhysicalKeyboardKey> pressedKeys) {
     return physicalKeys.every((key) => pressedKeys.contains(key));
   }
+
+  @override
+  String toString() {
+    return 'Hotkey(${physicalKeys.map((e) => e.debugName).join('+')})';
+  }
+
+  @override
+  int get hashCode => physicalKeys.hashCode;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is Hotkey &&
+        other.physicalKeys.length == physicalKeys.length &&
+        other.physicalKeys.every((key) => physicalKeys.contains(key));
+  }
 }

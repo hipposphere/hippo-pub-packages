@@ -88,7 +88,7 @@ class HotkeyStatusController {
   void setHotkey(Hotkey hotkey) {
     hotkeySubject.add(hotkey);
     pressedKeysSubject.add({});
-    statusSubject.add(HotkeyStatusType.released);
+    _updateStatus();
   }
 
   void close() {

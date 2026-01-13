@@ -32,16 +32,23 @@ class CupertinoBlur extends StatelessWidget {
 
 class CupertinoBlurContainer extends StatelessWidget {
   final double? height, width;
-  final Widget child;
+  final Border? border;
   final Color? color;
   final BorderRadiusGeometry borderRadius;
+  final double sigma;
+  final TileMode tileMode;
+  final Widget child;
+
   const CupertinoBlurContainer({
     super.key,
-    required this.child,
     this.height,
     this.width,
+    this.border,
     this.color,
+    this.sigma = 10,
+    this.tileMode = TileMode.clamp,
     this.borderRadius = BorderRadius.zero,
+    required this.child,
   });
 
   @override
@@ -50,10 +57,16 @@ class CupertinoBlurContainer extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       borderRadius: borderRadius,
       child: CupertinoBlur(
+        sigma: sigma,
+        tileMode: tileMode,
         child: Container(
+          decoration: BoxDecoration(
+            color: color ?? CupertinoTheme.of(context).barBackgroundColor,
+            border: border,
+            borderRadius: borderRadius,
+          ),
           height: height,
           width: width,
-          color: color ?? CupertinoTheme.of(context).barBackgroundColor,
           child: child,
         ),
       ),

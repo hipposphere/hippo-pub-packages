@@ -109,8 +109,15 @@ class PageHeaderLargeTitleSliver extends StatelessWidget {
 class PageHeaderTappableAction extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
+  final Color? activeColor;
   final bool enabled;
-  const PageHeaderTappableAction({super.key, required this.child, this.onTap, this.enabled = true});
+  const PageHeaderTappableAction({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.activeColor,
+    this.enabled = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +128,7 @@ class PageHeaderTappableAction extends StatelessWidget {
         child: IconTheme(
           data: IconThemeData(
             color: (onTap != null && enabled)
-                ? CupertinoColors.activeBlue
+                ? (activeColor ?? CupertinoColors.activeBlue)
                 : CupertinoColors.inactiveGray,
             size: 24,
           ),
@@ -130,7 +137,7 @@ class PageHeaderTappableAction extends StatelessWidget {
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: (onTap != null && enabled)
-                  ? CupertinoColors.activeBlue
+                  ? (activeColor ?? CupertinoColors.activeBlue)
                   : CupertinoColors.inactiveGray,
             ),
             child: child,
@@ -144,11 +151,13 @@ class PageHeaderTappableAction extends StatelessWidget {
 class PageHeaderTextAction extends StatelessWidget {
   final Widget? icon;
   final String label;
+  final Color? activeColor;
   final VoidCallback? onTap;
   final bool enabled;
   const PageHeaderTextAction({
     super.key,
     required this.label,
+    this.activeColor,
     this.onTap,
     this.enabled = true,
     this.icon,
@@ -159,6 +168,7 @@ class PageHeaderTextAction extends StatelessWidget {
     return PageHeaderTappableAction(
       onTap: onTap,
       enabled: enabled,
+      activeColor: activeColor,
       child: Row(
         crossAxisAlignment: .center,
         mainAxisSize: .min,
@@ -174,6 +184,7 @@ class PageHeaderTextAction extends StatelessWidget {
 class PageHeaderSymbolAction extends StatelessWidget {
   final IconData iconData;
   final String? tooltip;
+  final Color? activeColor;
   final VoidCallback? onTap;
   final bool enabled;
   const PageHeaderSymbolAction({
@@ -181,6 +192,7 @@ class PageHeaderSymbolAction extends StatelessWidget {
     required this.onTap,
     required this.iconData,
     this.tooltip,
+    this.activeColor,
     this.enabled = true,
   });
 
@@ -193,9 +205,8 @@ class PageHeaderSymbolAction extends StatelessWidget {
       child: Icon(
         iconData,
         color: (onTap != null && enabled)
-            ? context.onBrightness(light: Colors.black, dark: Colors.white)
+            ? (activeColor ?? CupertinoColors.activeBlue)
             : CupertinoColors.inactiveGray,
-
         size: 24,
       ),
     );

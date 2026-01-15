@@ -10,4 +10,10 @@ class SpeechRecorderOptions {
     required this.recordConfig,
     this.amplitudeInterval = const Duration(milliseconds: 200),
   });
+
+  String get mimeType =>
+      RecordingFileType.mimeTypeFromAudioEncoder(recordConfig.encoder);
+
+  String get fileExtension =>
+      RecordingFileType.fileExtensionFromAudioEncoder(recordConfig.encoder);
 }

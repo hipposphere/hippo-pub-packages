@@ -84,8 +84,8 @@ class SpeechRecorderController {
     return _recorder.hasPermission();
   }
 
-  Future<void> requestPermission() async {
-    throw UnimplementedError();
+  Future<bool> requestPermission() async {
+    return _recorder.hasPermission();
   }
 
   Future<void> dispose() async {

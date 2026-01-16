@@ -26,8 +26,8 @@
             "type": "dart",
         },
         {
-            "name": "desktop_permissions (example)",
-            "cwd": "${workspaceFolder}/packages/desktop_permissions/example",
+            "name": "app_permissions (example)",
+            "cwd": "${workspaceFolder}/packages/app_permissions/example",
             "request": "launch",
             "type": "dart",
         },

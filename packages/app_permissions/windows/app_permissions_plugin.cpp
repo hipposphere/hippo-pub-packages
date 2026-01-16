@@ -1,0 +1,66 @@
+#include "app_permissions_plugin.h"
+
+// This must be included before many other Windows headers.
+#include <windows.h>
+
+#include <flutter/method_channel.h>
+#include <flutter/plugin_registrar_windows.h>
+#include <flutter/standard_method_codec.h>
+
+#include <memory>
+
+namespace app_permissions {
+
+// static
+void AppPermissionsPlugin::RegisterWithRegistrar(
+    flutter::PluginRegistrarWindows *registrar) {
+  auto channel =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          registrar->messenger(), "app_permissions",
+          &flutter::StandardMethodCodec::GetInstance());
+
+  auto plugin = std::make_unique<AppPermissionsPlugin>();
+
+  channel->SetMethodCallHandler(
+      [plugin_pointer = plugin.get()](const auto &call, auto result) {
+        plugin_pointer->HandleMethodCall(call, std::move(result));
+      });
+
+  registrar->AddPlugin(std::move(plugin));
+}
+
+AppPermissionsPlugin::AppPermissionsPlugin() {}
+
+AppPermissionsPlugin::~AppPermissionsPlugin() {}
+
+void AppPermissionsPlugin::HandleMethodCall(
+    const flutter::MethodCall<flutter::EncodableValue> &method_call,
+    std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+  
+  // On Windows, no special permissions are required for keyboard hooks,
+  // input simulation, or microphone, so all permission checks return true/granted
+  
+  if (method_call.method_name() == "isAccessibilityGranted") {
+    result->Success(flutter::EncodableValue(true));
+  } else if (method_call.method_name() == "requestAccessibility") {
+    result->Success(flutter::EncodableValue(true));
+  } else if (method_call.method_name() == "getAccessibilityStatus") {
+    result->Success(flutter::EncodableValue("notRequired"));
+  } else if (method_call.method_name() == "isInputMonitoringGranted") {
+    result->Success(flutter::EncodableValue(true));
+  } else if (method_call.method_name() == "requestInputMonitoring") {
+    result->Success(flutter::EncodableValue(true));
+  } else if (method_call.method_name() == "getInputMonitoringStatus") {
+    result->Success(flutter::EncodableValue("notRequired"));
+  } else if (method_call.method_name() == "isMicrophoneGranted") {
+    result->Success(flutter::EncodableValue(true));
+  } else if (method_call.method_name() == "requestMicrophone") {
+    result->Success(flutter::EncodableValue(true));
+  } else if (method_call.method_name() == "getMicrophoneStatus") {
+    result->Success(flutter::EncodableValue("notRequired"));
+  } else {
+    result->NotImplemented();
+  }
+}
+
+}  // namespace app_permissions

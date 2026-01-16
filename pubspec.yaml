@@ -25,8 +25,8 @@ workspace:
   - packages/postgres_models_builder
   - packages/desktop_autopaste
   - packages/desktop_autopaste/example
-  - packages/desktop_permissions
-  - packages/desktop_permissions/example
+  - packages/app_permissions
+  - packages/app_permissions/example
   - packages/speech_recorder
   - packages/speech_recorder/example
 

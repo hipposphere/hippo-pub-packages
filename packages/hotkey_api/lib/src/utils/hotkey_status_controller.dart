@@ -40,6 +40,27 @@ class HotkeyStatusController {
     });
   }
 
+  /// Reloads the hotkey API by restarting the event stream subscription.
+  ///
+  /// This is useful when the app starts without permissions on macOS/iOS
+  /// and the user grants them later in System Settings. After granting
+  /// permissions, call this method to reinitialize the event stream.
+  ///
+  /// Example:
+  /// ```dart
+  /// final controller = HotkeyStatusController();
+  ///
+  /// // Later, after user grants permissions:
+  /// if (await permissions.isAccessibilityGranted()) {
+  ///   controller.reload();
+  /// }
+  /// ```
+  void reload() {
+    _hotkeySubscription?.cancel();
+    pressedKeysSubject.add({});
+    _initController();
+  }
+
   void _addToPressedKeys(PhysicalKeyboardKey key) {
     final newSet = {...pressedKeysSubject.value, key};
     pressedKeysSubject.add(newSet);

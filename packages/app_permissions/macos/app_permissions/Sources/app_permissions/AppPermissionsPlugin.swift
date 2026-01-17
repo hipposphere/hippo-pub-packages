@@ -122,7 +122,7 @@ public class AppPermissionsPlugin: NSObject, FlutterPlugin {
   private func isInputMonitoringGranted() -> Bool {
     // IOHIDRequestAccess returns true if access is granted
     // kIOHIDRequestTypeListenEvent is for monitoring keyboard/mouse events
-    return IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOReturnSuccess
+    return IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
   }
   
   /// Gets the detailed status of Input Monitoring permission
@@ -130,7 +130,7 @@ public class AppPermissionsPlugin: NSObject, FlutterPlugin {
   private func getInputMonitoringStatus() -> String {
     let status = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
     
-    if status == kIOReturnSuccess {
+    if status == kIOHIDAccessTypeGranted {
       return "granted"
     } else {
       // IOHIDCheckAccess doesn't distinguish between denied and not determined
@@ -146,7 +146,7 @@ public class AppPermissionsPlugin: NSObject, FlutterPlugin {
     result: @escaping FlutterResult
   ) {
     // Check if already granted
-    if IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOReturnSuccess {
+    if IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted {
       result(true)
       return
     }

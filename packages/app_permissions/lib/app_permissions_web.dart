@@ -63,7 +63,7 @@ class AppPermissionsWeb extends AppPermissionsPlatform {
       // Immediately stop the stream as we only wanted to trigger the permission prompt
       final tracks = stream.getTracks().toDart;
       for (var i = 0; i < tracks.length; i++) {
-        (tracks[i] as MediaStreamTrack).stop();
+        tracks[i].stop();
       }
       return true;
     } catch (e) {
@@ -78,8 +78,7 @@ class AppPermissionsWeb extends AppPermissionsPlatform {
           .query({'name': 'microphone'}.jsify() as JSObject)
           .toDart;
 
-      final state = (status as PermissionStatus).state;
-      switch (state) {
+      switch (status.state) {
         case 'granted':
           return app_perms.PermissionStatus.granted;
         case 'denied':

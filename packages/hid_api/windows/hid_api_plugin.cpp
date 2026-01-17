@@ -176,78 +176,30 @@ class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValu
 
 class DeviceUpdateStreamHandler : public flutter::StreamHandler<flutter::EncodableValue> {
  public:
-  DeviceUpdateStreamHandler(HidApiPlugin* plugin) : plugin_(plugin), running_(false) {}
-  virtual ~DeviceUpdateStreamHandler() { Stop(); }
+  DeviceUpdateStreamHandler(HidApiPlugin* plugin) : plugin_(plugin) {}
+  virtual ~DeviceUpdateStreamHandler() {}
 
   std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(
       const flutter::EncodableValue* arguments,
       std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override {
     events_ = std::move(events);
-    running_ = true;
-    thread_ = std::thread(&DeviceUpdateStreamHandler::WatchLoop, this);
+    // Send initial device list immediately (on platform thread)
+    if (events_) {
+      flutter::EncodableList devices = plugin_->GetDeviceList();
+      events_->Success(flutter::EncodableValue(devices));
+    }
     return nullptr;
   }
 
   std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(
       const flutter::EncodableValue* arguments) override {
-    Stop();
+    events_ = nullptr;
     return nullptr;
   }
 
  private:
-  void Stop() {
-    running_ = false;
-    if (thread_.joinable()) thread_.join();
-  }
-
-  void WatchLoop() {
-    std::vector<std::string> last_paths;
-    bool first_run = true;
-    while (running_) {
-        flutter::EncodableList devices = plugin_->GetDeviceList();
-        std::vector<std::string> current_paths;
-        
-        for (const auto& dev : devices) {
-            if (auto map = std::get_if<flutter::EncodableMap>(&dev)) {
-                auto it = map->find(flutter::EncodableValue("path"));
-                if (it != map->end()) {
-                    if (auto path_val = std::get_if<std::string>(&it->second)) {
-                        current_paths.push_back(*path_val);
-                    }
-                }
-            }
-        }
-        
-        std::sort(current_paths.begin(), current_paths.end());
-
-        bool changed = false;
-        if (current_paths.size() != last_paths.size()) {
-            changed = true;
-        } else {
-            for (size_t i = 0; i < current_paths.size(); i++) {
-                if (current_paths[i] != last_paths[i]) {
-                    changed = true;
-                    break;
-                }
-            }
-        }
-        
-        if (changed || first_run) {
-             if (events_) {
-                 events_->Success(flutter::EncodableValue(devices));
-             }
-             last_paths = current_paths;
-             first_run = false;
-        }
-
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-    }
-  }
-
   HidApiPlugin* plugin_;
   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> events_;
-  std::thread thread_;
-  std::atomic<bool> running_;
 };
 
 HidApiPlugin::HidApiPlugin(flutter::BinaryMessenger* messenger) : messenger_(messenger) {}

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:hid_api/hid_api.dart';
+import 'package:hippo_utils/hippo_utils.dart';
 import 'enums.dart';
 
 typedef ButtonEventListener =
@@ -26,26 +27,27 @@ abstract class DictationDevice {
   bool _isShuttingDown = false;
 
   StreamSubscription<HidReport>? _reportSubscription;
-  final StreamController<int> _buttonEventController =
-      StreamController<int>.broadcast();
-  final StreamController<ButtonStates> _buttonStateChangedController =
-      StreamController<ButtonStates>.broadcast();
+  final DataSubject<int> _buttonEventSubject = DataSubject<int>.seeded(0);
+  final DataSubject<ButtonStates> _buttonStateChangedSubject =
+      DataSubject<ButtonStates>.seeded(ButtonStates(0));
   final StreamController<ButtonChange> _buttonChangeController =
       StreamController<ButtonChange>.broadcast();
 
   DictationDevice(this.hidDevice);
 
   /// Stream of button event bitmasks
-  ///
-  /// Emits whenever the button state changes. The bitmask contains
-  /// flags from [ButtonEvent] indicating which buttons are pressed.
-  Stream<int> get buttonEvents => _buttonEventController.stream;
+  Stream<int> get buttonEvents => _buttonEventSubject.stream;
+
+  /// Subject of button event bitmasks
+  DataSubject<int> get buttonEventsSubject => _buttonEventSubject;
 
   /// Stream of button state changes
-  ///
-  /// Emits a [ButtonStates] object whenever any button state changes.
   Stream<ButtonStates> get onButtonStateChanged =>
-      _buttonStateChangedController.stream;
+      _buttonStateChangedSubject.stream;
+
+  /// Subject of button state changes
+  DataSubject<ButtonStates> get buttonStateSubject =>
+      _buttonStateChangedSubject;
 
   /// Stream of individual button changes
   ///
@@ -66,8 +68,8 @@ abstract class DictationDevice {
       await hidDevice.close();
     }
     _buttonEventListeners.clear();
-    await _buttonEventController.close();
-    await _buttonStateChangedController.close();
+    _buttonEventSubject.close();
+    _buttonStateChangedSubject.close();
     await _buttonChangeController.close();
   }
 
@@ -103,17 +105,13 @@ abstract class DictationDevice {
     }
 
     // Emit overall button state change
-    if (!_buttonStateChangedController.isClosed) {
-      _buttonStateChangedController.add(newState);
-    }
+    _buttonStateChangedSubject.add(newState);
 
     // Legacy listeners and stream (for backward compatibility)
     for (final listener in _buttonEventListeners) {
       listener(this, outputBitMask);
     }
-    if (!_buttonEventController.isClosed) {
-      _buttonEventController.add(outputBitMask);
-    }
+    _buttonEventSubject.add(outputBitMask);
   }
 
   void _startReading() {

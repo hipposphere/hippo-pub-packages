@@ -7,7 +7,8 @@ class DictationTestingBloc extends BlocBase {
 
   final DictationDeviceManager _manager = DictationDeviceManager();
 
-  final devicesSubject = DataSubject<List<DictationDevice>>.seeded([]);
+  DataSubject<List<DictationDevice>> get devicesSubject =>
+      _manager.connectedDevicesSubject;
   final selectedDeviceSubject = DataSubject<DictationDevice?>.seeded(null);
   final currentButtonStateSubject = DataSubject<int>.seeded(0);
   final eventsSubject = DataSubject<List<String>>.seeded([]);
@@ -18,18 +19,15 @@ class DictationTestingBloc extends BlocBase {
 
   Future<void> _initBloc() async {
     await _manager.init();
-    devicesSubject.add(_manager.getDevices());
 
     _connectSubscription = _manager.deviceConnectedStream.listen((device) {
       _log('Device connected: ${device.getDeviceType().name}');
-      devicesSubject.add(_manager.getDevices());
     });
 
     _disconnectSubscription = _manager.deviceDisconnectedStream.listen((
       device,
     ) {
       _log('Device disconnected: ${device.getDeviceType().name}');
-      devicesSubject.add(_manager.getDevices());
       if (selectedDeviceSubject.value?.id == device.id) {
         selectedDeviceSubject.add(null);
         currentButtonStateSubject.add(0);
@@ -45,7 +43,7 @@ class DictationTestingBloc extends BlocBase {
     currentButtonStateSubject.add(device.currentButtonState);
     _log('Selected device: ${device.getDeviceType().name}');
 
-    _buttonSubscription = device.buttonEvents.listen((bitmask) {
+    _buttonSubscription = device.buttonEventsSubject.listen((bitmask) {
       currentButtonStateSubject.add(bitmask);
       _logButtonEvent(bitmask);
     });

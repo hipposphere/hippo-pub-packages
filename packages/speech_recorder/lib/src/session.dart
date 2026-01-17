@@ -36,7 +36,7 @@ class SpeechRecorderSession {
 
   XFile getRecordingFile() {
     final path = _pathAfterStopping ?? options.path;
-    return XFile(path);
+    return XFile(path, mimeType: options.mimeType);
   }
 
   Future<SpeechRecorderData> getRecordingData() async {
@@ -44,12 +44,11 @@ class SpeechRecorderSession {
     // Stopwatch is not the accurate duration, we need to get the actual duration
     // from the file metadata or similar.
     final duration = await MediaDataReader.getMediaDurationFromXFile(file);
-    final fileExtension = file.name.split('.').last;
     final mimeType = file.mimeType!;
     return SpeechRecorderData(
       file: file,
       duration: duration,
-      fileExtension: fileExtension,
+      fileExtension: options.fileExtension,
       mimeType: mimeType,
     );
   }

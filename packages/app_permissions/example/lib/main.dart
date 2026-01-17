@@ -13,8 +13,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final _appPermissions = AppPermissions();
-
   bool? _accessibilityGranted;
   bool? _inputMonitoringGranted;
   bool? _microphoneGranted;
@@ -30,16 +28,15 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _checkPermissions() async {
     try {
-      final accessibilityGranted = await _appPermissions
-          .isAccessibilityGranted();
-      final inputMonitoringGranted = await _appPermissions
-          .isInputMonitoringGranted();
-      final microphoneGranted = await _appPermissions.isMicrophoneGranted();
-      final accessibilityStatus = await _appPermissions
-          .getAccessibilityStatus();
-      final inputMonitoringStatus = await _appPermissions
-          .getInputMonitoringStatus();
-      final microphoneStatus = await _appPermissions.getMicrophoneStatus();
+      final accessibilityGranted =
+          await AppPermissions.isAccessibilityGranted();
+      final inputMonitoringGranted =
+          await AppPermissions.isInputMonitoringGranted();
+      final microphoneGranted = await AppPermissions.isMicrophoneGranted();
+      final accessibilityStatus = await AppPermissions.getAccessibilityStatus();
+      final inputMonitoringStatus =
+          await AppPermissions.getInputMonitoringStatus();
+      final microphoneStatus = await AppPermissions.getMicrophoneStatus();
 
       setState(() {
         _accessibilityGranted = accessibilityGranted;
@@ -55,7 +52,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _requestAccessibility({bool openPreferences = true}) async {
-    final granted = await _appPermissions.requestAccessibility(
+    final granted = await AppPermissions.requestAccessibility(
       openSystemPreferences: openPreferences,
     );
 
@@ -80,7 +77,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _requestInputMonitoring({bool openPreferences = true}) async {
-    final granted = await _appPermissions.requestInputMonitoring(
+    final granted = await AppPermissions.requestInputMonitoring(
       openSystemPreferences: openPreferences,
     );
 
@@ -104,7 +101,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _requestMicrophone() async {
-    final granted = await _appPermissions.requestMicrophone();
+    final granted = await AppPermissions.requestMicrophone();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

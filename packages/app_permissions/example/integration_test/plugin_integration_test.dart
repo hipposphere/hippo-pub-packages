@@ -7,16 +7,15 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('check accessibility permission', (WidgetTester tester) async {
-    final AppPermissions plugin = AppPermissions();
-    final bool isGranted = await plugin.isAccessibilityGranted();
+    final bool isGranted = await AppPermissions.isAccessibilityGranted();
     // On platforms where permissions are not required, this should return true
     // On macOS, it depends on whether the permission has been granted
     expect(isGranted, isA<bool>());
   });
 
   testWidgets('get accessibility status', (WidgetTester tester) async {
-    final AppPermissions plugin = AppPermissions();
-    final PermissionStatus status = await plugin.getAccessibilityStatus();
+    final PermissionStatus status =
+        await AppPermissions.getAccessibilityStatus();
     expect(status, isA<PermissionStatus>());
   });
 }

@@ -5,6 +5,8 @@ export 'src/permission_status.dart';
 
 /// Main class for permissions management.
 class AppPermissions {
+  AppPermissions._();
+
   /// Checks if Accessibility permission is granted WITHOUT requesting it.
   ///
   /// This method only reads the current permission status and will NOT
@@ -23,7 +25,7 @@ class AppPermissions {
   ///
   /// On Windows and other platforms, this always returns true as no special
   /// permissions are required.
-  Future<bool> isAccessibilityGranted() {
+  static Future<bool> isAccessibilityGranted() {
     return AppPermissionsPlatform.instance.isAccessibilityGranted();
   }
 
@@ -39,7 +41,9 @@ class AppPermissions {
   /// On Windows and other platforms, this is a no-op and returns true.
   ///
   /// Returns true if permission is already granted or successfully requested.
-  Future<bool> requestAccessibility({bool openSystemPreferences = true}) {
+  static Future<bool> requestAccessibility({
+    bool openSystemPreferences = true,
+  }) {
     return AppPermissionsPlatform.instance.requestAccessibility(
       openSystemPreferences: openSystemPreferences,
     );
@@ -52,7 +56,7 @@ class AppPermissions {
   /// - [PermissionStatus.denied]: Permission has been explicitly denied
   /// - [PermissionStatus.notDetermined]: Permission hasn't been requested yet
   /// - [PermissionStatus.notRequired]: Platform doesn't require this permission
-  Future<PermissionStatus> getAccessibilityStatus() {
+  static Future<PermissionStatus> getAccessibilityStatus() {
     return AppPermissionsPlatform.instance.getAccessibilityStatus();
   }
 
@@ -69,7 +73,7 @@ class AppPermissions {
   /// - Capturing global hotkeys and shortcuts
   ///
   /// On Windows and other platforms, this always returns true.
-  Future<bool> isInputMonitoringGranted() {
+  static Future<bool> isInputMonitoringGranted() {
     return AppPermissionsPlatform.instance.isInputMonitoringGranted();
   }
 
@@ -77,14 +81,16 @@ class AppPermissions {
   ///
   /// On macOS, opens System Settings to the Input Monitoring pane.
   /// On Windows and other platforms, this is a no-op and returns true.
-  Future<bool> requestInputMonitoring({bool openSystemPreferences = true}) {
+  static Future<bool> requestInputMonitoring({
+    bool openSystemPreferences = true,
+  }) {
     return AppPermissionsPlatform.instance.requestInputMonitoring(
       openSystemPreferences: openSystemPreferences,
     );
   }
 
   /// Gets the detailed status of Input Monitoring permission.
-  Future<PermissionStatus> getInputMonitoringStatus() {
+  static Future<PermissionStatus> getInputMonitoringStatus() {
     return AppPermissionsPlatform.instance.getInputMonitoringStatus();
   }
 
@@ -98,7 +104,7 @@ class AppPermissions {
   /// which is required for recording audio.
   ///
   /// On Windows and other platforms, this always returns true.
-  Future<bool> isMicrophoneGranted() {
+  static Future<bool> isMicrophoneGranted() {
     return AppPermissionsPlatform.instance.isMicrophoneGranted();
   }
 
@@ -118,7 +124,7 @@ class AppPermissions {
   /// On Windows and other platforms, this is a no-op and returns true.
   ///
   /// Returns true if permission is granted, false if denied.
-  Future<bool> requestMicrophone() {
+  static Future<bool> requestMicrophone() {
     return AppPermissionsPlatform.instance.requestMicrophone();
   }
 
@@ -129,7 +135,7 @@ class AppPermissions {
   /// - [PermissionStatus.denied]: Permission has been explicitly denied
   /// - [PermissionStatus.notDetermined]: Permission hasn't been requested yet
   /// - [PermissionStatus.notRequired]: Platform doesn't require this permission
-  Future<PermissionStatus> getMicrophoneStatus() {
+  static Future<PermissionStatus> getMicrophoneStatus() {
     return AppPermissionsPlatform.instance.getMicrophoneStatus();
   }
 }

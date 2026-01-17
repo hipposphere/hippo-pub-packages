@@ -64,20 +64,18 @@ void main() {
   });
 
   test('isAccessibilityGranted', () async {
-    AppPermissions appPermissionsPlugin = AppPermissions();
     MockAppPermissionsPlatform fakePlatform = MockAppPermissionsPlatform();
     AppPermissionsPlatform.instance = fakePlatform;
 
-    expect(await appPermissionsPlugin.isAccessibilityGranted(), true);
+    expect(await AppPermissions.isAccessibilityGranted(), true);
   });
 
   test('getAccessibilityStatus', () async {
-    AppPermissions appPermissionsPlugin = AppPermissions();
     MockAppPermissionsPlatform fakePlatform = MockAppPermissionsPlatform();
     AppPermissionsPlatform.instance = fakePlatform;
 
     expect(
-      await appPermissionsPlugin.getAccessibilityStatus(),
+      await AppPermissions.getAccessibilityStatus(),
       PermissionStatus.granted,
     );
   });

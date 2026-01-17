@@ -82,6 +82,8 @@ abstract class DictationDevice {
   }
 
   void notifyButtonListeners(int outputBitMask) {
+    if (outputBitMask == _lastBitMask) return;
+
     // Detect individual button changes by comparing with previous state
     final changedBits = _lastBitMask ^ outputBitMask;
     final newState = ButtonStates(outputBitMask);
@@ -112,6 +114,9 @@ abstract class DictationDevice {
       listener(this, outputBitMask);
     }
     _buttonEventSubject.add(outputBitMask);
+
+    // Update last bitmask after all notifications
+    _lastBitMask = outputBitMask;
   }
 
   void _startReading() {
@@ -162,9 +167,6 @@ abstract class DictationDevice {
         outputBitMask |= entry.key;
       }
     }
-
-    if (outputBitMask == _lastBitMask) return;
-    _lastBitMask = outputBitMask;
 
     outputBitMask = filterOutputBitMask(outputBitMask);
 

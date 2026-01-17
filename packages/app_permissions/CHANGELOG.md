@@ -1,3 +1,8 @@
+## 0.0.3
+
+*   Add web support for microphone permissions.
+*   Accessibility and Input Monitoring permissions are automatically granted/not required on web.
+
 ## 0.0.1
 
 * Initial release

@@ -1,6 +1,6 @@
 name: app_permissions
 description: "A Flutter plugin for checking and requesting permissions (Accessibility, Input Monitoring, Microphone) on macOS, Windows, iOS, and Android."
-version: 0.0.2
+version: 0.0.3
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
 
@@ -12,6 +12,9 @@ dependencies:
   flutter:
     sdk: flutter
   plugin_platform_interface: ^2.1.8
+  flutter_web_plugins:
+    sdk: flutter
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
@@ -44,6 +47,9 @@ flutter:
         pluginClass: AppPermissionsPlugin
       windows:
         pluginClass: AppPermissionsPluginCApi
+      web:
+        pluginClass: AppPermissionsWeb
+        fileName: app_permissions_web.dart
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:

@@ -5,14 +5,33 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.light,
+        ),
+        useMaterial3: true,
+      ),
+      home: const PermissionHomePage(),
+    );
+  }
 }
 
-class _MyAppState extends State<MyApp> {
+class PermissionHomePage extends StatefulWidget {
+  const PermissionHomePage({super.key});
+
+  @override
+  State<PermissionHomePage> createState() => _PermissionHomePageState();
+}
+
+class _PermissionHomePageState extends State<PermissionHomePage> {
   bool? _accessibilityGranted;
   bool? _inputMonitoringGranted;
   bool? _microphoneGranted;
@@ -122,63 +141,53 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('App Permissions Example'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('App Permissions Example'),
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        ),
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildPermissionCard(
-                  title: 'Accessibility Permission',
-                  description:
-                      'Required for global keyboard monitoring and simulating input',
-                  isGranted: _accessibilityGranted,
-                  status: _accessibilityStatus,
-                  onRequestWithPrompt: () =>
-                      _requestAccessibility(openPreferences: false),
-                  onRequestWithSettings: () =>
-                      _requestAccessibility(openPreferences: true),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildPermissionCard(
+                title: 'Accessibility Permission',
+                description:
+                    'Required for global keyboard monitoring and simulating input',
+                isGranted: _accessibilityGranted,
+                status: _accessibilityStatus,
+                onRequestWithPrompt: () =>
+                    _requestAccessibility(openPreferences: false),
+                onRequestWithSettings: () =>
+                    _requestAccessibility(openPreferences: true),
+              ),
+              const SizedBox(height: 24),
+              _buildPermissionCard(
+                title: 'Input Monitoring Permission',
+                description:
+                    'Required for monitoring keyboard/mouse when app is not focused',
+                isGranted: _inputMonitoringGranted,
+                status: _inputMonitoringStatus,
+                onRequestWithPrompt: () =>
+                    _requestInputMonitoring(openPreferences: false),
+                onRequestWithSettings: () =>
+                    _requestInputMonitoring(openPreferences: true),
+              ),
+              const SizedBox(height: 24),
+              _buildMicrophoneCard(),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: _checkPermissions,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh Permission Status'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(16),
                 ),
-                const SizedBox(height: 24),
-                _buildPermissionCard(
-                  title: 'Input Monitoring Permission',
-                  description:
-                      'Required for monitoring keyboard/mouse when app is not focused',
-                  isGranted: _inputMonitoringGranted,
-                  status: _inputMonitoringStatus,
-                  onRequestWithPrompt: () =>
-                      _requestInputMonitoring(openPreferences: false),
-                  onRequestWithSettings: () =>
-                      _requestInputMonitoring(openPreferences: true),
-                ),
-                const SizedBox(height: 24),
-                _buildMicrophoneCard(),
-                const SizedBox(height: 32),
-                ElevatedButton.icon(
-                  onPressed: _checkPermissions,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Refresh Permission Status'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.all(16),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

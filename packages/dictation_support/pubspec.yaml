@@ -18,6 +18,9 @@ dependencies:
   hippo_components:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.0
+  hippo_utils:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.0
 
 dev_dependencies:
   flutter_test:

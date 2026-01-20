@@ -2,23 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:hippo_components/hippo_components.dart';
 
-class SpeedRecorderStopwatchChip extends StatefulWidget {
-  final Color? backgroundColor;
-  final Color? foregroundColor;
+class SpeedRecorderStopwatchBuilder extends StatefulWidget {
   final Stopwatch stopwatch;
-  const SpeedRecorderStopwatchChip({
+  final Widget Function(BuildContext, Duration duration, bool isRecording)
+  builder;
+  const SpeedRecorderStopwatchBuilder({
     super.key,
-    this.backgroundColor,
-    this.foregroundColor,
     required this.stopwatch,
+    required this.builder,
   });
 
   @override
-  State<SpeedRecorderStopwatchChip> createState() =>
-      _SpeedRecorderStopwatchChipState();
+  State<SpeedRecorderStopwatchBuilder> createState() =>
+      _SpeedRecorderStopwatchBuilderState();
 }
 
-class _SpeedRecorderStopwatchChipState extends State<SpeedRecorderStopwatchChip>
+class _SpeedRecorderStopwatchBuilderState
+    extends State<SpeedRecorderStopwatchBuilder>
     with SingleTickerProviderStateMixin {
   late final Ticker ticker;
 
@@ -51,11 +51,33 @@ class _SpeedRecorderStopwatchChipState extends State<SpeedRecorderStopwatchChip>
 
   @override
   Widget build(BuildContext context) {
-    return SpeechRecorderRawDurationChip(
-      backgroundColor: widget.backgroundColor,
-      foregroundColor: widget.foregroundColor,
-      isRecording: isRecording,
-      duration: duration,
+    return widget.builder(context, duration, isRecording);
+  }
+}
+
+class SpeedRecorderStopwatchChip extends StatelessWidget {
+  final Color? backgroundColor;
+  final Color? foregroundColor;
+  final Stopwatch stopwatch;
+  const SpeedRecorderStopwatchChip({
+    super.key,
+    this.backgroundColor,
+    this.foregroundColor,
+    required this.stopwatch,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SpeedRecorderStopwatchBuilder(
+      stopwatch: stopwatch,
+      builder: (context, duration, isRecording) {
+        return SpeechRecorderRawDurationChip(
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          isRecording: isRecording,
+          duration: duration,
+        );
+      },
     );
   }
 }
@@ -77,40 +99,19 @@ class SpeechRecorderRawDurationChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final text =
         '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        color:
-            backgroundColor ??
-            context.onBrightness(
-              light: Colors.grey[400],
-              dark: Colors.grey[700],
-            ),
+    return TappableChip(
+      color: backgroundColor,
+      leading: Icon(
+        Icons.circle,
+        color: isRecording ? Colors.red : Colors.grey,
+        size: 8,
       ),
-      child: Padding(
-        padding: .all(4.0),
-        child: Row(
-          mainAxisAlignment: .center,
-          crossAxisAlignment: .center,
-          children: [
-            Icon(
-              Icons.circle,
-              color: isRecording ? Colors.red : Colors.grey,
-              size: 8,
-            ),
-            Gap(4),
-            SizedBox(
-              width: text.length * 8,
-              child: Text(
-                text,
-                style: TextStyle(
-                  color: foregroundColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
+      label: Text(
+        text,
+        style: TextStyle(
+          color: foregroundColor,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );

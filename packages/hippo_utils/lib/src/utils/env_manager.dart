@@ -45,6 +45,11 @@ class EnvParser {
   /// [EnvParser] methods are pure functions.
   const EnvParser();
 
+  Map<String, String> parseFromString(String content) {
+    final lines = const LineSplitter().convert(content);
+    return parse(lines);
+  }
+
   /// Creates a [Map](dart:core).
   /// Duplicate keys are silently discarded.
   Map<String, String> parse(Iterable<String> lines) {

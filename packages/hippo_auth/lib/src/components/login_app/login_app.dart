@@ -4,8 +4,9 @@ import 'package:hippo_auth/src/components/login_app/pages/login_overview/page.da
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
-class HippoAuthLoginApp extends StatelessWidget {
-  const HippoAuthLoginApp({super.key});
+class HippoAuthLoginFlow extends StatelessWidget {
+  final Widget? header;
+  const HippoAuthLoginFlow({super.key, this.header});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +20,20 @@ class HippoAuthLoginApp extends StatelessWidget {
           bloc: SignUpEmailBloc(loginController: hippoAuthBloc.loginController),
         ),
       ],
-      child: App(brightness: Brightness.light, home: LoginOverviewPage()),
+      child: LoginOverviewPage(header: header),
+    );
+  }
+}
+
+class HippoAuthLoginApp extends StatelessWidget {
+  final Widget? header;
+  const HippoAuthLoginApp({super.key, this.header});
+
+  @override
+  Widget build(BuildContext context) {
+    return App(
+      brightness: Brightness.light,
+      home: HippoAuthLoginFlow(header: header),
     );
   }
 }

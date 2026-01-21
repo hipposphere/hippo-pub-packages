@@ -125,6 +125,8 @@ class HippoAuthLoginController {
   LoginError _parseLoginError(dynamic error) {
     final apiError = AuthApiError.parse(error);
     switch (apiError.errorCode) {
+      case 'INVALID_EMAIL':
+        return InvalidCredentialsLoginError();
       case 'INVALID_EMAIL_OR_PASSWORD':
         return InvalidCredentialsLoginError();
       case 'PASSWORD_TOO_SHORT':

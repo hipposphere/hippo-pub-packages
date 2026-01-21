@@ -38,7 +38,7 @@ String loginErrorToString(LoginError error) {
     case NetworkLoginError():
       return 'Netzwerkfehler. Bitte versuche es erneut.';
     case EmptyEmailOrPasswordLoginError():
-      return '-Mail und Passwort dürfen nicht leer sein.';
+      return 'Mail und Passwort dürfen nicht leer sein.';
     case UnknownLoginError(error: final errorCode, message: final message):
       return 'Unbekannter Fehler: $message (Code: $errorCode)';
   }

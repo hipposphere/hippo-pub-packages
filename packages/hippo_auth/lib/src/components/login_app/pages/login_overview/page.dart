@@ -48,7 +48,13 @@ class LoginOverviewPageBody extends StatelessWidget {
             Gap(16),
             Button(
               onTap: () {
-                Routing.openPage(context, SignInEmailPage());
+                Routing.openPage(
+                  context,
+                  BlocProvider<SignInEmailBloc>(
+                    bloc: SignInEmailBloc.of(context),
+                    child: SignInEmailPage(),
+                  ),
+                );
               },
               prefix: const Icon(Icons.email_outlined),
               label: 'Mit Email anmelden',
@@ -57,7 +63,13 @@ class LoginOverviewPageBody extends StatelessWidget {
             Gap(16),
             Button(
               onTap: () {
-                Routing.openPage(context, SignUpEmailPage());
+                Routing.openPage(
+                  context,
+                  BlocProvider<SignUpEmailBloc>(
+                    bloc: SignUpEmailBloc.of(context),
+                    child: SignUpEmailPage(),
+                  ),
+                );
               },
               prefix: const Icon(Icons.add_circle_outline),
               label: 'Konto erstellen',

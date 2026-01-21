@@ -104,14 +104,11 @@ class SpeechRecorderRawDurationChip extends StatelessWidget {
       leading: Icon(
         Icons.circle,
         color: isRecording ? Colors.red : Colors.grey,
-        size: 8,
       ),
       label: Text(
         text,
         style: TextStyle(
           color: foregroundColor,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
         ),
       ),
     );

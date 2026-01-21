@@ -126,7 +126,7 @@ bool AutoPasteTextViaClipboard(const std::wstring& text) {
 
   // Add a small delay to give the target application time to process the copy
   // command.
-  ::Sleep(50);
+  ::Sleep(75);
 
   // Simulate Ctrl+V (VK_CONTROL + 'V')
   INPUT inputs[4] = {};

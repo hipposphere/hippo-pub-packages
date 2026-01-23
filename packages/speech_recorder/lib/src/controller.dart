@@ -26,19 +26,38 @@ class SpeechRecorderController {
 
   final sessionSubject = DataSubject<SpeechRecorderSession?>.seeded(null);
 
+  /// Whether a session is currently being initialized.
+  /// Use this to prevent starting multiple sessions concurrently.
+  bool _isInitializing = false;
+  bool get isInitializing => _isInitializing;
+
+  /// Whether a new session can be started.
+  /// Returns true if no session is currently initializing and no active session exists.
+  bool get canStartSession => !_isInitializing && sessionSubject.value == null;
+
   Future<SpeechRecorderSession> start() async {
-    final options = await optionsBuilder();
-    await _recorder.start(options.recordConfig, path: options.path);
-    final session = SpeechRecorderSession.create(
-      options: options,
-      recorder: _recorder,
-    );
-    session._setState(SpeechRecorderSessionState.recording);
-    _startAmplitudeListening(session, options.amplitudeInterval);
-    session.stopwatch.start();
-    sessionSubject.add(session);
-    _onSessionStarted?.call(session);
-    return session;
+    if (_isInitializing) {
+      throw StateError(
+        'Cannot start a new session while another session is initializing',
+      );
+    }
+    _isInitializing = true;
+    try {
+      final options = await optionsBuilder();
+      await _recorder.start(options.recordConfig, path: options.path);
+      final session = SpeechRecorderSession.create(
+        options: options,
+        recorder: _recorder,
+      );
+      session._setState(SpeechRecorderSessionState.recording);
+      _startAmplitudeListening(session, options.amplitudeInterval);
+      session.stopwatch.start();
+      sessionSubject.add(session);
+      _onSessionStarted?.call(session);
+      return session;
+    } finally {
+      _isInitializing = false;
+    }
   }
 
   Future<void> pause(SpeechRecorderSession session) async {

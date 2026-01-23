@@ -53,6 +53,11 @@ bool AutoPasteTextViaClipboard(const std::wstring& text) {
     return true;
   }
 
+  // Get the clipboard sequence number before we start. The sequence number
+  // only changes after CloseClipboard, so we capture it here to detect when
+  // our changes have been committed.
+  DWORD seqBefore = ::GetClipboardSequenceNumber();
+
   // Open the clipboard
   if (!::OpenClipboard(nullptr)) {
     return false;
@@ -124,9 +129,17 @@ bool AutoPasteTextViaClipboard(const std::wstring& text) {
   // Close the clipboard
   ::CloseClipboard();
 
-  // Add a small delay to give the target application time to process the copy
-  // command.
-  ::Sleep(75);
+  // Wait for the clipboard sequence number to change, confirming that our
+  // clipboard write was fully registered by Windows. This is more reliable
+  // than a fixed sleep, as it ensures the system has processed our change
+  // before we send the paste command.
+  const int kMaxRetries = 50;
+  const int kRetryDelayMs = 10;
+  int retries = 0;
+  while (::GetClipboardSequenceNumber() == seqBefore && retries < kMaxRetries) {
+    ::Sleep(kRetryDelayMs);
+    retries++;
+  }
 
   // Simulate Ctrl+V (VK_CONTROL + 'V')
   INPUT inputs[4] = {};

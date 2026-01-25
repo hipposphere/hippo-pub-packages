@@ -15,7 +15,7 @@ class HomePage extends StatelessWidget {
     return PageContainer(
       title: 'Hippo Auth Example',
       backAction: null,
-      body: CustomScrollView(
+      body: ScrollableView(
         slivers: [
           SliverGap(32),
           SliverColumn(

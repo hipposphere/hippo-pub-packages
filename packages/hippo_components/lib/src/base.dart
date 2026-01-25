@@ -51,6 +51,7 @@ export 'base/other/shortcut_symbol.dart';
 export 'base/other/svg_image.dart';
 export 'base/other/qr_code_image.dart';
 export 'base/other/pull_down_options_button.dart';
+export 'base/other/scrollable_view.dart';
 
 // Utils
 export 'base/utils/gap.dart';

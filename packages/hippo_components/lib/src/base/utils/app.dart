@@ -8,6 +8,7 @@
 // ---------------------------------------------------------------------------
 */
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -49,14 +50,12 @@ class App extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             ...localizationsDelegate,
           ],
-          scrollBehavior: MaterialScrollBehavior().copyWith(
-            dragDevices: {
-              PointerDeviceKind.mouse,
-              PointerDeviceKind.touch,
-              PointerDeviceKind.trackpad,
-              PointerDeviceKind.unknown,
-            },
-          ),
+          scrollBehavior: switch (defaultTargetPlatform) {
+            TargetPlatform.iOS || TargetPlatform.macOS => CupertinoScrollBehavior().copyWith(
+              dragDevices: PointerDeviceKind.values.toSet(),
+            ),
+            _ => MaterialScrollBehavior().copyWith(dragDevices: PointerDeviceKind.values.toSet()),
+          },
           navigatorObservers: navigatorObservers,
           locale: locale,
           supportedLocales: ComponentsLocalizations.supportedLocales,

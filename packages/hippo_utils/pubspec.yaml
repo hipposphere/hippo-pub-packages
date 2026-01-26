@@ -22,7 +22,7 @@ dependencies:
   flutter_secure_storage: ^10.0.0
   cross_file: ^0.3.5+1
   archive: ^4.0.7
-  file_picker: ^10.3.8
+  file_picker: ^10.3.9
   filesize: ^2.0.1
   mime: ^2.0.0
   intl: any
@@ -32,7 +32,7 @@ dependencies:
   audioplayers_web: ^5.1.1
   file_selector: ^1.1.0
   share_plus: ^12.0.1
-  posthog_flutter: ^5.11.1
+  posthog_flutter: ^5.12.0
   content_resolver: ^0.3.6
   package_info_plus: ^9.0.0
   app_links: 7.0.0

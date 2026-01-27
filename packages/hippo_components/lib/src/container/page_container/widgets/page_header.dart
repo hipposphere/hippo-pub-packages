@@ -37,15 +37,17 @@ class PageHeader extends CupertinoNavigationBar {
     this.leading,
     this.trailing,
     super.transitionBetweenRoutes,
+    super.padding,
     required this.title,
     this.titleBuilder,
     this.actions = const [],
   }) : super(
-         leading: leading ?? (backAction != null ? _BackActionButton(backAction: backAction) : null),
+         leading:
+             leading ?? (backAction != null ? _BackActionButton(backAction: backAction) : null),
          middle: title != null
              ? Text(title, maxLines: 1, overflow: TextOverflow.ellipsis)
              : (titleBuilder != null ? Builder(builder: titleBuilder) : null),
-         trailing:trailing ??  Row(mainAxisSize: MainAxisSize.min, children: actions),
+         trailing: trailing ?? Row(mainAxisSize: MainAxisSize.min, children: actions),
          automaticBackgroundVisibility: false,
        );
 }

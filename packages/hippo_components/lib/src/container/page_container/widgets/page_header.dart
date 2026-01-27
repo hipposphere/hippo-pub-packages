@@ -25,22 +25,27 @@ class PageHeader extends CupertinoNavigationBar {
   final PageHeaderBackAction? backAction;
   final String? title;
   final WidgetBuilder? titleBuilder;
+  // Back Action needs to be set to null to use a custom leading widget
+  final Widget? leading;
+  final Widget? trailing;
   final List<Widget> actions;
 
   PageHeader({
     super.key,
     super.border,
     this.backAction = const PageHeaderBackAction(),
+    this.leading,
+    this.trailing,
     super.transitionBetweenRoutes,
     required this.title,
     this.titleBuilder,
     this.actions = const [],
   }) : super(
-         leading: backAction != null ? _BackActionButton(backAction: backAction) : null,
+         leading: leading ?? (backAction != null ? _BackActionButton(backAction: backAction) : null),
          middle: title != null
              ? Text(title, maxLines: 1, overflow: TextOverflow.ellipsis)
              : (titleBuilder != null ? Builder(builder: titleBuilder) : null),
-         trailing: Row(mainAxisSize: MainAxisSize.min, children: actions),
+         trailing:trailing ??  Row(mainAxisSize: MainAxisSize.min, children: actions),
          automaticBackgroundVisibility: false,
        );
 }

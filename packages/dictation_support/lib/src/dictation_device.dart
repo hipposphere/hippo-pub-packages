@@ -33,6 +33,9 @@ abstract class DictationDevice {
   final StreamController<ButtonChange> _buttonChangeController =
       StreamController<ButtonChange>.broadcast();
 
+  final StreamController<void> _connectionLostController =
+      StreamController<void>.broadcast();
+
   DictationDevice(this.hidDevice);
 
   /// Stream of button event bitmasks
@@ -56,6 +59,9 @@ abstract class DictationDevice {
   /// pressed or released.
   Stream<ButtonChange> get onButtonChange => _buttonChangeController.stream;
 
+  /// Stream that emits when the connection to the device is lost/error occurs
+  Stream<void> get onConnectionLost => _connectionLostController.stream;
+
   Future<void> init() async {
     _startReading();
   }
@@ -71,6 +77,7 @@ abstract class DictationDevice {
     _buttonEventSubject.close();
     _buttonStateChangedSubject.close();
     await _buttonChangeController.close();
+    await _connectionLostController.close();
   }
 
   void addButtonEventListener(ButtonEventListener listener) {
@@ -135,6 +142,9 @@ abstract class DictationDevice {
         if (!_isShuttingDown) {
           // ignore: avoid_print
           print('Error reading from device: $e');
+          if (!_connectionLostController.isClosed) {
+            _connectionLostController.add(null);
+          }
         }
       },
       cancelOnError: false,

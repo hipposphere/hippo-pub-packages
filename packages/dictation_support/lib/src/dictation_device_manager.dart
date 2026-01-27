@@ -44,7 +44,11 @@ class DictationDeviceManager {
   final Map<int, StreamSubscription<ButtonStates>> _stateSubscriptions = {};
   final Map<int, StreamSubscription<ButtonChange>> _changeSubscriptions = {};
 
-  DictationDeviceManager();
+  final bool aggressiveReconnection;
+  Timer? _reconnectTimer;
+  static const Duration _reconnectInterval = Duration(seconds: 3);
+
+  DictationDeviceManager({this.aggressiveReconnection = false});
 
   /// Stream of newly connected dictation devices
   Stream<DictationDevice> get deviceConnectedStream =>
@@ -114,6 +118,10 @@ class DictationDeviceManager {
 
     _isInitialized = true;
 
+    if (aggressiveReconnection) {
+      _startReconnectTimer();
+    }
+
     // Emit initial device list
     _connectedDevicesSubject.add(_devices.values.toList());
 
@@ -125,6 +133,7 @@ class DictationDeviceManager {
 
   Future<void> shutdown() async {
     _failIfNotInitialized();
+    _stopReconnectTimer();
     await _deviceListSubscription?.cancel();
     _deviceListSubscription = null;
 
@@ -181,6 +190,46 @@ class DictationDeviceManager {
     if (!_isInitialized) {
       throw Exception('DictationDeviceManager not yet initialized');
     }
+  }
+
+  void _startReconnectTimer() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer.periodic(_reconnectInterval, (timer) async {
+      if (!_isInitialized) {
+        timer.cancel();
+        return;
+      }
+      try {
+        final infos = await HidApi.enumerate();
+        // Identify devices that are present but not connected/managed
+        final unmanagedInfos = infos
+            .where(
+              (info) =>
+                  !_devices.containsKey(info.path) &&
+                  !_pendingProxyDevices.containsKey(info.path),
+            )
+            .toList();
+
+        if (unmanagedInfos.isNotEmpty) {
+          // Reuse the logic to create and add devices
+          // This will try to open them. errors are caught inside _createAndAddInitializedDevices
+          final newDevices = await _createAndAddInitializedDevices(
+            unmanagedInfos,
+          );
+          for (final device in newDevices) {
+            _notifyDeviceConnected(device);
+          }
+        }
+      } catch (e) {
+        // ignore: avoid_print
+        print('Error in reconnect timer: $e');
+      }
+    });
+  }
+
+  void _stopReconnectTimer() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
   }
 
   Future<void> _onDeviceListUpdate(List<HidDeviceInfo> currentInfos) async {
@@ -353,8 +402,47 @@ class DictationDeviceManager {
       }
     });
 
+    // Subscribe to connection lost
+    // We don't track subscription here because we handle it via shutdown/unsubscribe
+    // But we need to make sure we cancel it.
+    // Actually _unsubscribeFromDevice needs to handle it if we store it.
+    // Or we can just let it be cancelled when device shuts down?
+    // No, we need to listen.
+    // Let's add it to a new subscription map?
+    // Or just treat it as a special case.
+    // Better to just listen and not store connection if we are sure it cleans up?
+    // DictationDevice.shutdown closes the controller, so the stream will close.
+    // But we want to react to the event.
+
+    device.onConnectionLost.listen((_) {
+      // Handle connection lost
+      // ignore: avoid_print
+      print('Connection lost for device ${device.id}, cleaning up...');
+      _handleDeviceConnectionLost(device);
+    });
+
     // Initialize the device's button state
     _deviceButtonStates[device.id] = device.currentButtonStates;
+  }
+
+  Future<void> _handleDeviceConnectionLost(DictationDevice device) async {
+    // Find the path for this device
+    String? pathToRemove;
+    for (final entry in _devices.entries) {
+      if (entry.value == device) {
+        pathToRemove = entry.key;
+        break;
+      }
+    }
+
+    if (pathToRemove != null) {
+      _devices.remove(pathToRemove);
+      _unsubscribeFromDevice(device);
+      _deviceButtonStates.remove(device.id);
+      // Close device to release handle, so we can try re-opening
+      await device.shutdown(closeDevice: true);
+      _notifyDeviceDisconnected(device);
+    }
   }
 
   void _unsubscribeFromDevice(DictationDevice device) {

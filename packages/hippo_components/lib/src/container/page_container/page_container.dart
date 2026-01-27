@@ -19,6 +19,7 @@ class PageContainer extends StatelessWidget {
   final PageHeaderBackAction? backAction;
   final Color? backgroundColor;
   final bool showNavBarBorder;
+  final GestureDragStartCallback? onHeaderPanStart;
   const PageContainer({
     super.key,
     this.actions = const [],
@@ -28,6 +29,7 @@ class PageContainer extends StatelessWidget {
     this.backgroundColor,
     this.backAction = const PageHeaderBackAction(),
     this.showNavBarBorder = true,
+    this.onHeaderPanStart,
   });
 
   @override
@@ -36,13 +38,16 @@ class PageContainer extends StatelessWidget {
       type: MaterialType.transparency,
       child: CupertinoPageScaffold(
         backgroundColor: backgroundColor,
-        navigationBar: PageHeader(
-          backAction: backAction,
-          title: title,
-          titleBuilder: titleBuilder,
-          actions: actions,
-          border: showNavBarBorder ? kDefaultNavBarBorder : null,
-          transitionBetweenRoutes: false,
+        navigationBar: PageHeaderDragRegion(
+          onPanStart: onHeaderPanStart,
+          child: PageHeader(
+            backAction: backAction,
+            title: title,
+            titleBuilder: titleBuilder,
+            actions: actions,
+            border: showNavBarBorder ? kDefaultNavBarBorder : null,
+            transitionBetweenRoutes: false,
+          ),
         ),
         child: Builder(
           builder: (context) {
@@ -100,6 +105,7 @@ class TabbedPageContainer extends StatelessWidget {
   final int initialTabIndex;
   final Function(int index)? onTabChanged;
   final Color? backgroundColor;
+  final GestureDragStartCallback? onHeaderPanStart;
   const TabbedPageContainer({
     super.key,
     this.actions = const [],
@@ -111,6 +117,7 @@ class TabbedPageContainer extends StatelessWidget {
     this.initialTabIndex = 0,
     this.onTabChanged,
     this.backgroundColor,
+    this.onHeaderPanStart,
   });
 
   @override
@@ -146,12 +153,15 @@ class TabbedPageContainer extends StatelessWidget {
                     ),
                     Column(
                       children: [
-                        PageHeader(
-                          title: title,
-                          backAction: backAction,
-                          actions: actions,
-                          transitionBetweenRoutes: transitionBetweenRoutes,
-                          border: null,
+                        PageHeaderDragRegion(
+                          onPanStart: onHeaderPanStart,
+                          child: PageHeader(
+                            title: title,
+                            backAction: backAction,
+                            actions: actions,
+                            transitionBetweenRoutes: transitionBetweenRoutes,
+                            border: null,
+                          ),
                         ),
                         CupertinoBlurContainer(
                           child: TabBar(

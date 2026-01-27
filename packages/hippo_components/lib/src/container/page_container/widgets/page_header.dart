@@ -8,6 +8,7 @@
 // ---------------------------------------------------------------------------
 */
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 
@@ -26,16 +27,16 @@ class PageHeader extends CupertinoNavigationBar {
   final String? title;
   final WidgetBuilder? titleBuilder;
   // Back Action needs to be set to null to use a custom leading widget
-  final Widget? leading;
-  final Widget? trailing;
+  final Widget? customLeading;
+  final Widget? customTrailing;
   final List<Widget> actions;
 
   PageHeader({
     super.key,
     super.border,
     this.backAction = const PageHeaderBackAction(),
-    this.leading,
-    this.trailing,
+    this.customLeading,
+    this.customTrailing,
     super.transitionBetweenRoutes,
     super.padding,
     required this.title,
@@ -43,13 +44,44 @@ class PageHeader extends CupertinoNavigationBar {
     this.actions = const [],
   }) : super(
          leading:
-             leading ?? (backAction != null ? _BackActionButton(backAction: backAction) : null),
+             customLeading ??
+             (backAction != null ? _BackActionButton(backAction: backAction) : null),
          middle: title != null
              ? Text(title, maxLines: 1, overflow: TextOverflow.ellipsis)
              : (titleBuilder != null ? Builder(builder: titleBuilder) : null),
-         trailing: trailing ?? Row(mainAxisSize: MainAxisSize.min, children: actions),
+         trailing: customTrailing ?? Row(mainAxisSize: MainAxisSize.min, children: actions),
          automaticBackgroundVisibility: false,
        );
+}
+
+class PageHeaderDragRegion extends StatelessWidget implements ObstructingPreferredSizeWidget {
+  final PageHeader child;
+  final GestureDragStartCallback? onPanStart;
+  final bool windowsOnly;
+
+  const PageHeaderDragRegion({
+    super.key,
+    required this.child,
+    this.onPanStart,
+    this.windowsOnly = true,
+  });
+
+  @override
+  Size get preferredSize => child.preferredSize;
+
+  @override
+  bool shouldFullyObstruct(BuildContext context) => child.shouldFullyObstruct(context);
+
+  @override
+  Widget build(BuildContext context) {
+    final handler = (windowsOnly && defaultTargetPlatform != TargetPlatform.windows)
+        ? null
+        : onPanStart;
+    if (handler == null) {
+      return child;
+    }
+    return GestureDetector(behavior: .opaque, onPanStart: handler, child: child);
+  }
 }
 
 class _BackActionButton extends StatelessWidget {

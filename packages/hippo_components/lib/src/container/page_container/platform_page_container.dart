@@ -21,6 +21,7 @@ class PlatformPageContainer extends StatelessWidget {
   final PageHeaderBackAction? backAction;
   final Color? backgroundColor;
   final bool showNavBarBorder;
+  final GestureDragStartCallback? onHeaderPanStart;
   const PlatformPageContainer({
     super.key,
     this.desktopTopBar,
@@ -31,6 +32,7 @@ class PlatformPageContainer extends StatelessWidget {
     this.backgroundColor,
     this.backAction = const PageHeaderBackAction(),
     this.showNavBarBorder = true,
+    this.onHeaderPanStart,
   });
 
   @override
@@ -50,13 +52,16 @@ class PlatformPageContainer extends StatelessWidget {
           Expanded(
             child: CupertinoPageScaffold(
               backgroundColor: backgroundColor,
-              navigationBar: PageHeader(
-                backAction: backAction,
-                title: title,
-                titleBuilder: titleBuilder,
-                actions: actions,
-                border: showNavBarBorder ? kDefaultNavBarBorder : null,
-                transitionBetweenRoutes: false,
+              navigationBar: PageHeaderDragRegion(
+                onPanStart: onHeaderPanStart,
+                child: PageHeader(
+                  backAction: backAction,
+                  title: title,
+                  titleBuilder: titleBuilder,
+                  actions: actions,
+                  border: showNavBarBorder ? kDefaultNavBarBorder : null,
+                  transitionBetweenRoutes: false,
+                ),
               ),
               child: Builder(
                 builder: (context) {

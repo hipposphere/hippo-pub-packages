@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 
 class SpeechRecorderRawContainer extends StatelessWidget {
+  final EdgeInsets padding;
   final Widget action, amplitudeHistory, details, duration;
   const SpeechRecorderRawContainer({
     super.key,
+    this.padding = const EdgeInsets.all(16),
     required this.action,
     required this.amplitudeHistory,
     required this.details,
@@ -14,7 +16,7 @@ class SpeechRecorderRawContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: .all(16),
+      padding: padding,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -24,7 +26,7 @@ class SpeechRecorderRawContainer extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 amplitudeHistory,
-                Gap(8),
+                Gap(4),
                 Row(
                   crossAxisAlignment: .center,
                   children: [

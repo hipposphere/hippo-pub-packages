@@ -1,6 +1,6 @@
 name: hippo_utils
 description: A new Flutter package project.
-version: 0.1.15
+version: 0.1.16
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace

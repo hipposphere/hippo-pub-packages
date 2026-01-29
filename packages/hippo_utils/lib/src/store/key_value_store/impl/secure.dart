@@ -14,7 +14,8 @@ class SecureKeyValueStore implements KeyValueStore {
   final FlutterSecureStorage secureStorage;
   final String? storePrefix;
 
-  SecureKeyValueStore({this.storePrefix}) : secureStorage = FlutterSecureStorage();
+  SecureKeyValueStore({this.storePrefix, FlutterSecureStorage? secureStorage})
+    : secureStorage = secureStorage ?? FlutterSecureStorage();
 
   @override
   Future<bool> containsKey(String key) {

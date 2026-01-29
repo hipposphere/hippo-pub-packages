@@ -14,8 +14,8 @@ class SharedPreferencesKeyValueStore implements KeyValueStore {
   final SharedPreferencesAsync sharedPreferencesAsync;
   final String? storePrefix;
 
-  SharedPreferencesKeyValueStore({this.storePrefix})
-    : sharedPreferencesAsync = SharedPreferencesAsync();
+  SharedPreferencesKeyValueStore({this.storePrefix, SharedPreferencesAsync? sharedPreferencesAsync})
+    : sharedPreferencesAsync = sharedPreferencesAsync ?? SharedPreferencesAsync();
 
   @override
   Future<bool> containsKey(String key) {

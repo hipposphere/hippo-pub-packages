@@ -28,6 +28,8 @@ dev_dependencies:
 flutter:
   plugin:
     platforms:
+      linux:
+        pluginClass: HotkeyApiPlugin
       windows:
         pluginClass: HotkeyApiPluginCApi
       macos:

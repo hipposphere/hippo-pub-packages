@@ -24,6 +24,8 @@ class SpeechRecorderController {
 
   final record.AudioRecorder _recorder = record.AudioRecorder();
 
+  record.AudioRecorder get audioRecorder => _recorder;
+
   final sessionSubject = DataSubject<SpeechRecorderSession?>.seeded(null);
 
   /// Whether a session is currently being initialized.

@@ -13,10 +13,19 @@ import 'package:hippo_components/hippo_components.dart';
 extension ComponentsContextExtension on BuildContext {
   ComponentsLocalizations get cl => ComponentsLocalizations.of(this)!;
 
-  String lazyTranslate({required String en, String? de}) {
+  String lazyTranslate({required String en, String? de, String? fr, String? es, String? zh}) {
     final localeName = cl.localeName;
     if (localeName == 'de' && de != null) {
       return de;
+    }
+    if (localeName == 'fr' && fr != null) {
+      return fr;
+    }
+    if (localeName == 'es' && es != null) {
+      return es;
+    }
+    if (localeName == 'zh' && zh != null) {
+      return zh;
     }
     return en;
   }
@@ -34,6 +43,6 @@ Contextable<String> translateCL(String Function(ComponentsLocalizations cl) tran
   return (context) => translate(ComponentsLocalizations.of(context)!);
 }
 
-Contextable<String> translateLazy({required String en, String? de}) {
-  return (context) => context.lazyTranslate(en: en, de: de);
+Contextable<String> translateLazy({required String en, String? de, String? fr, String? es}) {
+  return (context) => context.lazyTranslate(en: en, de: de, fr: fr, es: es);
 }

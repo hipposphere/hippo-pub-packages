@@ -7,6 +7,7 @@ import 'package:intl/intl.dart' as intl;
 
 import 'components_localizations_de.g.dart';
 import 'components_localizations_en.g.dart';
+import 'components_localizations_zh.g.dart';
 
 // ignore_for_file: type=lint
 
@@ -93,19 +94,13 @@ abstract class ComponentsLocalizations {
       ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[Locale('de'), Locale('en')];
+  static const List<Locale> supportedLocales = <Locale>[Locale('de'), Locale('en'), Locale('zh')];
 
   /// No description provided for @language_name.
   ///
   /// In en, this message translates to:
   /// **'English'**
   String get language_name;
-
-  /// The name of the application
-  ///
-  /// In en, this message translates to:
-  /// **'MediHippo'**
-  String get appName;
 
   /// No description provided for @actions_ok.
   ///
@@ -388,6 +383,12 @@ abstract class ComponentsLocalizations {
   /// In en, this message translates to:
   /// **'Receive'**
   String get actions_receive;
+
+  /// No description provided for @actions_or.
+  ///
+  /// In en, this message translates to:
+  /// **'OR'**
+  String get actions_or;
 
   /// No description provided for @common_overview.
   ///
@@ -815,60 +816,6 @@ abstract class ComponentsLocalizations {
   /// **'Expand menu'**
   String get dashboard_menu_expand;
 
-  /// No description provided for @dashboard_home.
-  ///
-  /// In en, this message translates to:
-  /// **'Home'**
-  String get dashboard_home;
-
-  /// No description provided for @dashboard_ai.
-  ///
-  /// In en, this message translates to:
-  /// **'AI-Studio'**
-  String get dashboard_ai;
-
-  /// No description provided for @dashboard_explore.
-  ///
-  /// In en, this message translates to:
-  /// **'Entdecken'**
-  String get dashboard_explore;
-
-  /// No description provided for @dashboard_study.
-  ///
-  /// In en, this message translates to:
-  /// **'Study'**
-  String get dashboard_study;
-
-  /// No description provided for @dashboard_connect.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect'**
-  String get dashboard_connect;
-
-  /// No description provided for @dashboard_groups.
-  ///
-  /// In en, this message translates to:
-  /// **'Groups'**
-  String get dashboard_groups;
-
-  /// No description provided for @dashboard_profile.
-  ///
-  /// In en, this message translates to:
-  /// **'Profile'**
-  String get dashboard_profile;
-
-  /// No description provided for @dashboard_library.
-  ///
-  /// In en, this message translates to:
-  /// **'Library'**
-  String get dashboard_library;
-
-  /// No description provided for @dashboard_settings.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get dashboard_settings;
-
   /// No description provided for @toast_loading.
   ///
   /// In en, this message translates to:
@@ -917,12 +864,6 @@ abstract class ComponentsLocalizations {
   /// **'Beim Aktualisieren ist ein Fehler aufgetreten'**
   String get toast_update_error;
 
-  /// No description provided for @actions_or.
-  ///
-  /// In en, this message translates to:
-  /// **'OR'**
-  String get actions_or;
-
   /// No description provided for @generic_no_entries_available.
   ///
   /// In en, this message translates to:
@@ -952,48 +893,6 @@ abstract class ComponentsLocalizations {
   /// In en, this message translates to:
   /// **'No file data'**
   String get viewer_no_file_data;
-
-  /// No description provided for @set_item_case.
-  ///
-  /// In en, this message translates to:
-  /// **'Case'**
-  String get set_item_case;
-
-  /// No description provided for @set_item_help.
-  ///
-  /// In en, this message translates to:
-  /// **'Help'**
-  String get set_item_help;
-
-  /// No description provided for @set_item_explanation.
-  ///
-  /// In en, this message translates to:
-  /// **'Explanation'**
-  String get set_item_explanation;
-
-  /// No description provided for @set_item_field.
-  ///
-  /// In en, this message translates to:
-  /// **'Field'**
-  String get set_item_field;
-
-  /// No description provided for @set_item_content.
-  ///
-  /// In en, this message translates to:
-  /// **'Content'**
-  String get set_item_content;
-
-  /// No description provided for @tag_filter_tags.
-  ///
-  /// In en, this message translates to:
-  /// **'Tags:'**
-  String get tag_filter_tags;
-
-  /// No description provided for @tag_filter_no_tags_selected.
-  ///
-  /// In en, this message translates to:
-  /// **'No tags selected'**
-  String get tag_filter_no_tags_selected;
 
   /// No description provided for @main_detail_select_item.
   ///
@@ -1041,7 +940,7 @@ class _ComponentsLocalizationsDelegate extends LocalizationsDelegate<ComponentsL
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['de', 'en'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['de', 'en', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_ComponentsLocalizationsDelegate old) => false;
@@ -1054,6 +953,8 @@ ComponentsLocalizations lookupComponentsLocalizations(Locale locale) {
       return ComponentsLocalizationsDe();
     case 'en':
       return ComponentsLocalizationsEn();
+    case 'zh':
+      return ComponentsLocalizationsZh();
   }
 
   throw FlutterError(

@@ -20,6 +20,7 @@ class App extends StatelessWidget {
   final Brightness brightness;
   final Widget? home;
   final Locale? locale;
+  final Iterable<Locale>? supportedLocales;
   final GlobalKey<NavigatorState>? navigatorKey;
   final List<LocalizationsDelegate> localizationsDelegate;
   final List<NavigatorObserver> navigatorObservers;
@@ -29,6 +30,7 @@ class App extends StatelessWidget {
     this.title = '',
     this.locale,
     this.navigatorKey,
+    this.supportedLocales,
     this.localizationsDelegate = const [],
     this.navigatorObservers = const [],
     this.home,
@@ -58,7 +60,7 @@ class App extends StatelessWidget {
           },
           navigatorObservers: navigatorObservers,
           locale: locale,
-          supportedLocales: ComponentsLocalizations.supportedLocales,
+          supportedLocales: supportedLocales ?? ComponentsLocalizations.supportedLocales,
           debugShowCheckedModeBanner: false,
           theme: brightness == Brightness.light ? lightCupertinoTheme : darkCupertinoTheme,
           home: home,

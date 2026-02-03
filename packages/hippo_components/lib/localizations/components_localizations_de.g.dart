@@ -12,9 +12,6 @@ class ComponentsLocalizationsDe extends ComponentsLocalizations {
   String get language_name => 'Deutsch';
 
   @override
-  String get appName => 'MediHippo';
-
-  @override
   String get actions_ok => 'OK';
 
   @override
@@ -154,6 +151,9 @@ class ComponentsLocalizationsDe extends ComponentsLocalizations {
 
   @override
   String get actions_receive => 'Empfangen';
+
+  @override
+  String get actions_or => 'ODER';
 
   @override
   String get common_overview => 'Übersicht';
@@ -369,33 +369,6 @@ class ComponentsLocalizationsDe extends ComponentsLocalizations {
   String get dashboard_menu_expand => 'Menü erweitern';
 
   @override
-  String get dashboard_home => 'Start';
-
-  @override
-  String get dashboard_ai => 'AI-Studio';
-
-  @override
-  String get dashboard_explore => 'Entdecken';
-
-  @override
-  String get dashboard_study => 'Lernen';
-
-  @override
-  String get dashboard_connect => 'Connect';
-
-  @override
-  String get dashboard_groups => 'Gruppen';
-
-  @override
-  String get dashboard_profile => 'Profil';
-
-  @override
-  String get dashboard_library => 'Bibliothek';
-
-  @override
-  String get dashboard_settings => 'Einstellungen';
-
-  @override
   String get toast_loading => 'Lade...';
 
   @override
@@ -420,9 +393,6 @@ class ComponentsLocalizationsDe extends ComponentsLocalizations {
   String get toast_update_error => 'Ein Fehler ist aufgetreten';
 
   @override
-  String get actions_or => 'ODER';
-
-  @override
   String get generic_no_entries_available => 'Keine Einträge vorhanden';
 
   @override
@@ -436,27 +406,6 @@ class ComponentsLocalizationsDe extends ComponentsLocalizations {
 
   @override
   String get viewer_no_file_data => 'Keine Dateidaten';
-
-  @override
-  String get set_item_case => 'Fall';
-
-  @override
-  String get set_item_help => 'Hilfe';
-
-  @override
-  String get set_item_explanation => 'Erklärung';
-
-  @override
-  String get set_item_field => 'Feld';
-
-  @override
-  String get set_item_content => 'Inhalt';
-
-  @override
-  String get tag_filter_tags => 'Tags:';
-
-  @override
-  String get tag_filter_no_tags_selected => 'Keine Tags ausgewählt';
 
   @override
   String get main_detail_select_item => 'Bitte wähle ein Element aus';

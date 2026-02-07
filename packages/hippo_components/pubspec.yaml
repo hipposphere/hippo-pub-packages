@@ -42,7 +42,7 @@ dependencies:
   toastification: ^3.0.3
   webview_flutter: ^4.13.1
   decimal: ^3.2.4
-  pinput: ^6.0.1
+  pinput: ^6.0.2
   percent_indicator: 4.2.5
   html: ^0.15.6
   qr_flutter: ^4.1.0

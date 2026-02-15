@@ -1,0 +1,26 @@
+name: app_release_client_example
+description: Small example for app_release_client.
+publish_to: "none"
+version: 1.0.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  app_release_client:
+    path: ../
+  hippo_utils:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.18
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

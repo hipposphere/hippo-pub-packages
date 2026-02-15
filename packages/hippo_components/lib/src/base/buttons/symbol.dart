@@ -52,10 +52,10 @@ class SymbolButton extends StatelessWidget {
           onPress: onTap,
           focusNode: focusNode,
           autofocus: autofocus,
-          style: switch (type) {
-            SymbolButtonType.primary => FButtonStyle.primary(),
-            SymbolButtonType.outline => FButtonStyle.outline(),
-            SymbolButtonType.destructive => FButtonStyle.destructive(),
+          variant: switch (type) {
+            SymbolButtonType.primary => null,
+            SymbolButtonType.outline => .outline,
+            SymbolButtonType.destructive => .destructive,
           },
           child: icon,
         ),

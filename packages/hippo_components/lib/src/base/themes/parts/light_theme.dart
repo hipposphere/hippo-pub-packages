@@ -35,6 +35,7 @@ final lightForuiTheme = FThemeData(
     primaryForeground: Color(0xFFFAFAFA),
     secondary: Color(0xFFF4F4F5),
     secondaryForeground: Color(0xFF18181B),
+    card: Color(0xFFFFFFFF),
     muted: Color(0xFFF4F4F5),
     mutedForeground: Color(0xFF71717A),
     destructive: Color(0xFFEF4444),

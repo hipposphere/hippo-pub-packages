@@ -62,30 +62,11 @@ class Button extends StatelessWidget {
           suffix: suffix,
           focusNode: focusNode,
           autofocus: autofocus,
-          style: switch (type) {
-            ButtonType.primary => FButtonStyle.primary(
-              // (style) => style.copyWith(
-              //   decoration: backgroundColor != null
-              //       ? FWidgetStateMap({
-              //           WidgetState.disabled: BoxDecoration(
-              //             borderRadius: BorderRadius.circular(8),
-              //             color: backgroundColor,
-              //           ),
-              //           WidgetState.hovered | WidgetState.pressed: BoxDecoration(
-              //             borderRadius: BorderRadius.circular(8),
-              //             color: backgroundColor,
-              //           ),
-              //           WidgetState.any: BoxDecoration(
-              //             borderRadius: BorderRadius.circular(8),
-              //             color: backgroundColor,
-              //           ),
-              //         })
-              //       : null,
-              // ),
-            ),
-            ButtonType.secondary => FButtonStyle.secondary(),
-            ButtonType.outline => FButtonStyle.outline(),
-            ButtonType.destructive => FButtonStyle.destructive(),
+          variant: switch (type) {
+            ButtonType.primary => null,
+            ButtonType.secondary => .secondary,
+            ButtonType.outline => .outline,
+            ButtonType.destructive => .destructive,
           },
           child: Text(label),
         ),
@@ -143,11 +124,11 @@ class LinkButton extends StatelessWidget {
               suffix: suffix,
               focusNode: focusNode,
               autofocus: autofocus,
-              style: switch (type) {
-                ButtonType.primary => FButtonStyle.primary(),
-                ButtonType.secondary => FButtonStyle.secondary(),
-                ButtonType.outline => FButtonStyle.outline(),
-                ButtonType.destructive => FButtonStyle.destructive(),
+              variant: switch (type) {
+                ButtonType.primary => null,
+                ButtonType.secondary => .secondary,
+                ButtonType.outline => .outline,
+                ButtonType.destructive => .destructive,
               },
               child: Text(label),
             );

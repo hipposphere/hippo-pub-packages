@@ -27,7 +27,7 @@ final darkMaterialTheme = ThemeData(
 );
 
 final darkForuiTheme = FThemeData(
-  colors: const FColors(
+  colors: FColors(
     brightness: Brightness.dark,
     background: Color(0xFF09090B),
     foreground: Color(0xFFFAFAFA),
@@ -35,6 +35,7 @@ final darkForuiTheme = FThemeData(
     primaryForeground: Color(0xFFFAFAFA),
     secondary: Color(0xFF27272A),
     secondaryForeground: Color(0xFFFAFAFA),
+    card: Color(0xFF1C1C1E),
     muted: Color(0xFF27272A),
     mutedForeground: Color(0xFFA1A1AA),
     destructive: Color(0xFF7F1D1D),

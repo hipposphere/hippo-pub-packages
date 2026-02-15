@@ -21,11 +21,11 @@ class SmallBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FBadge(
-      style: switch (type) {
-        BadgeType.primary => FBadgeStyle.primary(),
-        BadgeType.secondary => FBadgeStyle.secondary(),
-        BadgeType.outline => FBadgeStyle.outline(),
-        BadgeType.destructive => FBadgeStyle.destructive(),
+      variant: switch (type) {
+        BadgeType.primary => null,
+        BadgeType.secondary => .secondary,
+        BadgeType.outline => .outline,
+        BadgeType.destructive => .destructive,
       },
       child: Text(label),
     );

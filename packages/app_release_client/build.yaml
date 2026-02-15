@@ -1,0 +1,16 @@
+targets:
+  $default:
+    sources:
+      - $package$
+      - lib/$lib$
+      - specs/**
+    builders:
+      chopper_generator:
+        options:
+          header: "// Generated code"
+      swagger_dart_code_generator:
+        options:
+          input_folder: "specs/"
+          output_folder: "lib/api/"
+          separate_models: true
+          include_if_null: false

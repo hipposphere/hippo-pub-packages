@@ -23,9 +23,9 @@ class Alert extends StatelessWidget {
     return FAlert(
       title: Text(title),
       subtitle: subtitle != null ? Text(subtitle!) : null,
-      style: switch (style) {
-        AlertStyle.primary => FAlertStyle.primary(),
-        AlertStyle.destructive => FAlertStyle.destructive(),
+      variant: switch (style) {
+        AlertStyle.primary => null,
+        AlertStyle.destructive => .destructive,
       },
     );
   }

@@ -1,0 +1,20 @@
+name: hippo_bluetooth_client_builder
+description: Generate ready-to-use Dart BLE protocol/service clients from a BLE contract JSON.
+version: 0.1.0
+homepage: https://hippolabs.org
+publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
+resolution: workspace
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+
+dependencies:
+  args: ^2.7.0
+  path: ^1.9.1
+
+dev_dependencies:
+  lints: ^6.1.0
+  test: ^1.26.3
+
+executables:
+  hippo-bluetooth-client-builder: hippo_bluetooth_client_builder

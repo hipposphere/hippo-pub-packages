@@ -1,5 +1,5 @@
-name: postgres_base_models
-description: Provider-Like State-Management-System and more useful tools
+name: hippo_bluetooth_client
+description: Lean BLE client package for scanning, connecting, auth, and typed protocol channels.
 version: 0.1.0
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
@@ -12,7 +12,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_blue_plus: ^2.1.1
+  crypto: ^3.0.7
 
 dev_dependencies:
-  lints: ^6.1.0
-  test: any
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

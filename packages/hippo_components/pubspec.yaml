@@ -16,7 +16,7 @@ dependencies:
     sdk: flutter
   intl: any
   cupertino_icons: ^1.0.8
-  forui: 0.17.0
+  forui: 0.18.1
   super_context_menu: ^0.9.1
   wolt_modal_sheet: 0.11.0
   soft_edge_blur: 0.1.3
@@ -24,7 +24,7 @@ dependencies:
   auto_size_text: ^3.0.0
   flutter_svg: ^2.2.3
   url_launcher: ^6.3.2
-  skeletonizer: ^2.1.2
+  skeletonizer: ^2.1.3
   pencil_kit: ^2.1.1
   lottie: ^3.3.2
   gpt_markdown: ^1.1.5

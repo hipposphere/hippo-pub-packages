@@ -16,6 +16,9 @@ workspace:
   - packages/hid_api/example
   - packages/hippo_auth
   - packages/hippo_auth/example
+  - packages/hippo_bluetooth_client
+  - packages/hippo_bluetooth_client_builder
+  - packages/hippo_bluetooth_client/example
   - packages/hippo_components
   - packages/hippo_ui
   - packages/hippo_utils

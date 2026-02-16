@@ -10,6 +10,8 @@ const Set<String> supportedCharacteristicProperties = <String>{
   'indicate',
 };
 
+const Set<String> supportedChannelCodecs = <String>{'bytes', 'utf8', 'jsonMap'};
+
 enum BleContractSourceKind { services, protocols }
 
 class BleContractInfo {
@@ -30,8 +32,14 @@ class BleContractCharacteristic {
   final String? id;
   final String uuid;
   final List<String> properties;
+  final String? codec;
 
-  const BleContractCharacteristic({required this.id, required this.uuid, required this.properties});
+  const BleContractCharacteristic({
+    required this.id,
+    required this.uuid,
+    required this.properties,
+    this.codec,
+  });
 
   bool get canRead => properties.contains('read');
 
@@ -95,11 +103,13 @@ class ResolvedBleContractCharacteristic {
   final String id;
   final String uuid;
   final List<String> properties;
+  final String? codec;
 
   const ResolvedBleContractCharacteristic({
     required this.id,
     required this.uuid,
     required this.properties,
+    this.codec,
   });
 
   bool get canRead => properties.contains('read');
@@ -208,6 +218,20 @@ BleContractDocument parseBleContractJsonObject(Object? root) {
         fieldName: 'services[$serviceIndex].characteristics[$characteristicIndex].uuid',
       );
 
+      final characteristicCodec = _readOptionalString(
+        characteristicMap,
+        'codec',
+        fieldName: 'services[$serviceIndex].characteristics[$characteristicIndex].codec',
+      );
+      if (characteristicCodec != null && !supportedChannelCodecs.contains(characteristicCodec)) {
+        throw FormatException(
+          'Unsupported channel codec '
+          "'$characteristicCodec' in "
+          'services[$serviceIndex].characteristics[$characteristicIndex].codec. '
+          'Supported: ${supportedChannelCodecs.join(', ')}.',
+        );
+      }
+
       if (!seenCharacteristicUuids.add(characteristicUuid)) {
         throw FormatException(
           "Characteristic UUID '$characteristicUuid' is duplicated across services.",
@@ -250,6 +274,7 @@ BleContractDocument parseBleContractJsonObject(Object? root) {
           id: characteristicId,
           uuid: characteristicUuid,
           properties: List<String>.unmodifiable(properties),
+          codec: characteristicCodec,
         ),
       );
     }
@@ -308,6 +333,7 @@ ResolvedBleContract resolveBleContract(BleContractDocument document) {
           id: channelId,
           uuid: characteristic.uuid,
           properties: characteristic.properties,
+          codec: characteristic.codec,
         ),
       );
     }

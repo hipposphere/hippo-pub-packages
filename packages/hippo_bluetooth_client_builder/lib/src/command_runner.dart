@@ -30,7 +30,7 @@ class HippoBluetoothClientBuilderRunner extends CommandRunner<void> {
     );
     argParser.addOption(
       'codec-overrides',
-      help: 'Optional JSON file with protocol/channel codec overrides.',
+      help: 'Optional JSON file with protocol/channel codec overrides (highest precedence).',
     );
     argParser.addFlag('version', negatable: false, help: 'Print the tool version.');
   }
@@ -52,6 +52,9 @@ Codec overrides file format:
     "auth/challenge": "jsonMap",
     "device-control/status": "utf8"
   }
+
+Codec resolution precedence:
+  --codec-overrides > contract characteristic codec > --default-codec
 ''';
 
   @override

@@ -40,7 +40,11 @@ class BleClientCodegenOptions {
     this.codecOverrides = const <String, GeneratedChannelCodec>{},
   });
 
-  GeneratedChannelCodec codecFor({required String protocolId, required String channelId}) {
+  GeneratedChannelCodec codecFor({
+    required String protocolId,
+    required String channelId,
+    String? contractCodec,
+  }) {
     final byFullPath = codecOverrides['$protocolId/$channelId'];
     if (byFullPath != null) {
       return byFullPath;
@@ -48,6 +52,9 @@ class BleClientCodegenOptions {
     final byChannelOnly = codecOverrides[channelId];
     if (byChannelOnly != null) {
       return byChannelOnly;
+    }
+    if (contractCodec != null) {
+      return GeneratedChannelCodec.parse(contractCodec);
     }
     return defaultCodec;
   }
@@ -367,7 +374,11 @@ List<_ServiceBinding> _buildBindings(
         _toSafeCamel('${channel.id}_channel_id', fallback: 'channelId'),
         channelConstantNames,
       );
-      final codec = options.codecFor(protocolId: service.id, channelId: channel.id);
+      final codec = options.codecFor(
+        protocolId: service.id,
+        channelId: channel.id,
+        contractCodec: channel.codec,
+      );
       channels.add(
         _ChannelBinding(
           channel: channel,

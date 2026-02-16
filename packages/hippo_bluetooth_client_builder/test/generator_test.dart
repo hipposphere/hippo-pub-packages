@@ -116,4 +116,139 @@ void main() {
       throwsA(isA<FormatException>()),
     );
   });
+
+  test('uses per-channel contract codec when no override is provided', () {
+    final contract = parseBleContractJsonObject(<String, Object?>{
+      'bleContract': '1.0.0',
+      'info': <String, Object?>{
+        'title': 'Mixed Codec Contract',
+        'version': '1.0.0',
+        'generatedAt': '2026-02-15T20:00:00.000Z',
+      },
+      'source': <String, Object?>{'kind': 'protocols'},
+      'services': <Object?>[
+        <String, Object?>{
+          'id': 'mixed-codec',
+          'uuid': '1234567812345678123456789abc0100',
+          'advertise': true,
+          'characteristics': <Object?>[
+            <String, Object?>{
+              'id': 'plain-text',
+              'uuid': '1234567812345678123456789abc0101',
+              'properties': <Object?>['read'],
+              'codec': 'utf8',
+            },
+            <String, Object?>{
+              'id': 'payload',
+              'uuid': '1234567812345678123456789abc0102',
+              'properties': <Object?>['read'],
+              'codec': 'jsonMap',
+            },
+            <String, Object?>{
+              'id': 'raw',
+              'uuid': '1234567812345678123456789abc0103',
+              'properties': <Object?>['read'],
+            },
+          ],
+        },
+      ],
+    });
+
+    final output = generateBleClientDart(
+      contract: resolveBleContract(contract),
+      options: const BleClientCodegenOptions(defaultCodec: GeneratedChannelCodec.bytes),
+      sourceContractPath: '/tmp/mixed-codec-contract.json',
+    );
+
+    expect(output, contains('Future<String> readPlainText({'));
+    expect(output, contains('Future<Map<String, dynamic>> readPayload({'));
+    expect(output, contains('Future<Uint8List> readRaw({'));
+    expect(output, contains('codec: ChannelCodecs.utf8,'));
+    expect(output, contains('codec: ChannelCodecs.jsonMap,'));
+    expect(output, contains('codec: ChannelCodecs.bytes,'));
+  });
+
+  test('resolves codecs with precedence: override > contract codec > default', () {
+    final contract = parseBleContractJsonObject(<String, Object?>{
+      'bleContract': '1.0.0',
+      'info': <String, Object?>{
+        'title': 'Codec Priority Contract',
+        'version': '1.0.0',
+        'generatedAt': '2026-02-15T20:00:00.000Z',
+      },
+      'source': <String, Object?>{'kind': 'protocols'},
+      'services': <Object?>[
+        <String, Object?>{
+          'id': 'priority',
+          'uuid': '1234567812345678123456789abc0200',
+          'advertise': true,
+          'characteristics': <Object?>[
+            <String, Object?>{
+              'id': 'status',
+              'uuid': '1234567812345678123456789abc0201',
+              'properties': <Object?>['read'],
+              'codec': 'utf8',
+            },
+            <String, Object?>{
+              'id': 'contract-only',
+              'uuid': '1234567812345678123456789abc0202',
+              'properties': <Object?>['read'],
+              'codec': 'jsonMap',
+            },
+            <String, Object?>{
+              'id': 'fallback',
+              'uuid': '1234567812345678123456789abc0203',
+              'properties': <Object?>['read'],
+            },
+          ],
+        },
+      ],
+    });
+
+    final output = generateBleClientDart(
+      contract: resolveBleContract(contract),
+      options: const BleClientCodegenOptions(
+        defaultCodec: GeneratedChannelCodec.bytes,
+        codecOverrides: <String, GeneratedChannelCodec>{
+          'status': GeneratedChannelCodec.bytes,
+          'priority/status': GeneratedChannelCodec.jsonMap,
+        },
+      ),
+      sourceContractPath: '/tmp/codec-priority-contract.json',
+    );
+
+    expect(output, contains('Future<Map<String, dynamic>> readStatus({'));
+    expect(output, contains('Future<Map<String, dynamic>> readContractOnly({'));
+    expect(output, contains('Future<Uint8List> readFallback({'));
+  });
+
+  test('rejects unsupported channel codec metadata', () {
+    expect(
+      () => parseBleContractJsonObject(<String, Object?>{
+        'bleContract': '1.0.0',
+        'info': <String, Object?>{
+          'title': 'Invalid Codec Contract',
+          'version': '1.0.0',
+          'generatedAt': '2026-02-15T20:00:00.000Z',
+        },
+        'source': <String, Object?>{'kind': 'protocols'},
+        'services': <Object?>[
+          <String, Object?>{
+            'id': 'invalid',
+            'uuid': '1234',
+            'advertise': true,
+            'characteristics': <Object?>[
+              <String, Object?>{
+                'id': 'broken',
+                'uuid': '1235',
+                'properties': <Object?>['read'],
+                'codec': 'utf16',
+              },
+            ],
+          },
+        ],
+      }),
+      throwsA(isA<FormatException>()),
+    );
+  });
 }

@@ -21,7 +21,7 @@ dart run hippo_bluetooth_client_builder:hippo_bluetooth_client_builder \
 - `--class-prefix` (`-p`): Optional class prefix for generated types.
 - `--library-name` (`-l`): Optional Dart library name for generated file.
 - `--default-codec`: One of `bytes`, `utf8`, `jsonMap` (default: `bytes`).
-- `--codec-overrides`: Optional JSON file with codec overrides.
+- `--codec-overrides`: Optional JSON file with explicit codec overrides.
 
 Codec override file format:
 
@@ -33,3 +33,17 @@ Codec override file format:
 ```
 
 Keys are `protocolId/channelId`.
+
+Contract characteristics can also define `codec` directly:
+
+```json
+{
+  "id": "status",
+  "uuid": "1234567812345678123456789abc0001",
+  "properties": ["read", "notify"],
+  "codec": "utf8"
+}
+```
+
+Codec precedence is:
+`--codec-overrides` > contract `codec` > `--default-codec`.

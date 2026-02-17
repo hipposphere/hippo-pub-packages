@@ -70,7 +70,7 @@ class Tile extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (trailing != null) trailing!,
+                ?trailing,
                 Gap(2),
                 if (showArrowIndicator) TileArrowIndicator(enabled: enabled),
               ],

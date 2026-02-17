@@ -291,7 +291,10 @@ ApiV1ArtifactsPost$RequestBody _$ApiV1ArtifactsPost$RequestBodyFromJson(
   arch: apiV1ArtifactsPost$RequestBodyArchNullableFromJson(json['arch']),
   packageType: json['package_type'] as String,
   fileName: json['file_name'] as String?,
+  edSignature: json['ed_signature'] as String?,
+  dsaSignature: json['dsa_signature'] as String?,
   assignChannelSlug: json['assign_channel_slug'] as String?,
+  makeLive: json['make_live'] as bool?,
   file: json['file'] as String,
   appSlug: json['app_slug'] as String,
   version: json['version'] as String,
@@ -306,7 +309,10 @@ Map<String, dynamic> _$ApiV1ArtifactsPost$RequestBodyToJson(
   'arch': ?apiV1ArtifactsPost$RequestBodyArchNullableToJson(instance.arch),
   'package_type': instance.packageType,
   'file_name': ?instance.fileName,
+  'ed_signature': ?instance.edSignature,
+  'dsa_signature': ?instance.dsaSignature,
   'assign_channel_slug': ?instance.assignChannelSlug,
+  'make_live': ?instance.makeLive,
   'file': instance.file,
   'app_slug': instance.appSlug,
   'version': instance.version,
@@ -326,7 +332,10 @@ _$ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyFromJson(
   ),
   packageType: json['package_type'] as String,
   fileName: json['file_name'] as String?,
+  edSignature: json['ed_signature'] as String?,
+  dsaSignature: json['dsa_signature'] as String?,
   assignChannelSlug: json['assign_channel_slug'] as String?,
+  makeLive: json['make_live'] as bool?,
   file: json['file'] as String,
 );
 
@@ -341,7 +350,10 @@ Map<String, dynamic> _$ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyToJson(
   ),
   'package_type': instance.packageType,
   'file_name': ?instance.fileName,
+  'ed_signature': ?instance.edSignature,
+  'dsa_signature': ?instance.dsaSignature,
   'assign_channel_slug': ?instance.assignChannelSlug,
+  'make_live': ?instance.makeLive,
   'file': instance.file,
 };
 
@@ -986,7 +998,12 @@ _$ApiV1ChannelsChannelIdRollbackPost$ResponseFromJson(
     json['arch'],
   ),
   rolloutPercent: (json['rollout_percent'] as num).toInt(),
+  isLive: json['is_live'] as bool,
+  createdByUserId: json['created_by_user_id'] as String?,
+  sourceChannelId: json['source_channel_id'] as String?,
+  sourceDeploymentId: json['source_deployment_id'] as String?,
   createdAt: json['created_at'] as String,
+  retiredAt: json['retired_at'] as String?,
 );
 
 Map<String, dynamic> _$ApiV1ChannelsChannelIdRollbackPost$ResponseToJson(
@@ -1003,7 +1020,12 @@ Map<String, dynamic> _$ApiV1ChannelsChannelIdRollbackPost$ResponseToJson(
     instance.arch,
   ),
   'rollout_percent': instance.rolloutPercent,
+  'is_live': instance.isLive,
+  'created_by_user_id': ?instance.createdByUserId,
+  'source_channel_id': ?instance.sourceChannelId,
+  'source_deployment_id': ?instance.sourceDeploymentId,
   'created_at': instance.createdAt,
+  'retired_at': ?instance.retiredAt,
 };
 
 ApiV1ReleasesGet$Response$Item _$ApiV1ReleasesGet$Response$ItemFromJson(
@@ -1168,7 +1190,12 @@ _$ApiV1ReleasesReleaseIdPromotePost$ResponseFromJson(
     json['arch'],
   ),
   rolloutPercent: (json['rollout_percent'] as num).toInt(),
+  isLive: json['is_live'] as bool,
+  createdByUserId: json['created_by_user_id'] as String?,
+  sourceChannelId: json['source_channel_id'] as String?,
+  sourceDeploymentId: json['source_deployment_id'] as String?,
   createdAt: json['created_at'] as String,
+  retiredAt: json['retired_at'] as String?,
 );
 
 Map<String, dynamic> _$ApiV1ReleasesReleaseIdPromotePost$ResponseToJson(
@@ -1184,7 +1211,12 @@ Map<String, dynamic> _$ApiV1ReleasesReleaseIdPromotePost$ResponseToJson(
     instance.arch,
   ),
   'rollout_percent': instance.rolloutPercent,
+  'is_live': instance.isLive,
+  'created_by_user_id': ?instance.createdByUserId,
+  'source_channel_id': ?instance.sourceChannelId,
+  'source_deployment_id': ?instance.sourceDeploymentId,
   'created_at': instance.createdAt,
+  'retired_at': ?instance.retiredAt,
 };
 
 ApiV1ArtifactsPost$Response _$ApiV1ArtifactsPost$ResponseFromJson(
@@ -1679,7 +1711,7 @@ _$ApiV1DashboardSummaryGet$Response$TotalsFromJson(Map<String, dynamic> json) =>
       releases: (json['releases'] as num).toInt(),
       publishedReleases: (json['published_releases'] as num).toInt(),
       artifacts: (json['artifacts'] as num).toInt(),
-      channelAssignments: (json['channel_assignments'] as num).toInt(),
+      channelDeployments: (json['channel_deployments'] as num).toInt(),
       downloadsTotal: (json['downloads_total'] as num).toInt(),
       updateChecksTotal: (json['update_checks_total'] as num).toInt(),
       downloadsLast7Days: (json['downloads_last_7_days'] as num).toInt(),
@@ -1694,7 +1726,7 @@ Map<String, dynamic> _$ApiV1DashboardSummaryGet$Response$TotalsToJson(
   'releases': instance.releases,
   'published_releases': instance.publishedReleases,
   'artifacts': instance.artifacts,
-  'channel_assignments': instance.channelAssignments,
+  'channel_deployments': instance.channelDeployments,
   'downloads_total': instance.downloadsTotal,
   'update_checks_total': instance.updateChecksTotal,
   'downloads_last_7_days': instance.downloadsLast7Days,

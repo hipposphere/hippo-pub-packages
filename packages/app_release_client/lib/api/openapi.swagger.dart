@@ -610,7 +610,7 @@ abstract class Openapi extends ChopperService {
     ),
   });
 
-  ///Rollback channel assignment
+  ///Rollback channel deployment
   ///@param channel_id
   Future<chopper.Response<ApiV1ChannelsChannelIdRollbackPost$Response>>
   apiV1ChannelsChannelIdRollbackPost({
@@ -628,7 +628,7 @@ abstract class Openapi extends ChopperService {
     );
   }
 
-  ///Rollback channel assignment
+  ///Rollback channel deployment
   ///@param channel_id
   @POST(path: '/api/v1/channels/{channel_id}/rollback', optionalBody: true)
   Future<chopper.Response<ApiV1ChannelsChannelIdRollbackPost$Response>>
@@ -638,7 +638,7 @@ abstract class Openapi extends ChopperService {
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
-      summary: 'Rollback channel assignment',
+      summary: 'Rollback channel deployment',
       operationId: 'rollbackChannel',
       consumes: [],
       produces: [],
@@ -844,13 +844,16 @@ abstract class Openapi extends ChopperService {
     ),
   });
 
-  ///Create and upload an artifact, resolve release by app slug + version, and optionally assign channel
+  ///Create/upload artifact, resolve release by app slug + version, and optionally deploy to a channel
   Future<chopper.Response<ApiV1ArtifactsPost$Response>> apiV1ArtifactsPost({
     required String? platform,
     String? arch,
     required String? packageType,
     String? fileName,
+    String? edSignature,
+    String? dsaSignature,
     String? assignChannelSlug,
+    bool? makeLive,
     required List<int> file,
     required String? appSlug,
     required String? version,
@@ -867,7 +870,10 @@ abstract class Openapi extends ChopperService {
       arch: arch,
       packageType: packageType,
       fileName: fileName,
+      edSignature: edSignature,
+      dsaSignature: dsaSignature,
       assignChannelSlug: assignChannelSlug,
+      makeLive: makeLive,
       file: file,
       appSlug: appSlug,
       version: version,
@@ -876,7 +882,7 @@ abstract class Openapi extends ChopperService {
     );
   }
 
-  ///Create and upload an artifact, resolve release by app slug + version, and optionally assign channel
+  ///Create/upload artifact, resolve release by app slug + version, and optionally deploy to a channel
   @POST(path: '/api/v1/artifacts', optionalBody: true)
   @Multipart()
   Future<chopper.Response<ApiV1ArtifactsPost$Response>> _apiV1ArtifactsPost({
@@ -884,7 +890,10 @@ abstract class Openapi extends ChopperService {
     @Part('arch') String? arch,
     @Part('package_type') required String? packageType,
     @Part('file_name') String? fileName,
+    @Part('ed_signature') String? edSignature,
+    @Part('dsa_signature') String? dsaSignature,
     @Part('assign_channel_slug') String? assignChannelSlug,
+    @Part('make_live') bool? makeLive,
     @PartFile() required List<int> file,
     @Part('app_slug') required String? appSlug,
     @Part('version') required String? version,
@@ -894,7 +903,7 @@ abstract class Openapi extends ChopperService {
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary:
-          'Create and upload an artifact, resolve release by app slug + version, and optionally assign channel',
+          'Create/upload artifact, resolve release by app slug + version, and optionally deploy to a channel',
       operationId: 'createArtifactByVersion',
       consumes: [],
       produces: [],
@@ -904,7 +913,7 @@ abstract class Openapi extends ChopperService {
     ),
   });
 
-  ///Create and upload an artifact and optionally assign release to a channel
+  ///Create/upload artifact and optionally deploy release to a channel
   ///@param release_id
   Future<chopper.Response<ApiV1ReleasesReleaseIdArtifactsPost$Response>>
   apiV1ReleasesReleaseIdArtifactsPost({
@@ -913,7 +922,10 @@ abstract class Openapi extends ChopperService {
     String? arch,
     required String? packageType,
     String? fileName,
+    String? edSignature,
+    String? dsaSignature,
     String? assignChannelSlug,
+    bool? makeLive,
     required List<int> file,
   }) {
     generatedMapping.putIfAbsent(
@@ -927,12 +939,15 @@ abstract class Openapi extends ChopperService {
       arch: arch,
       packageType: packageType,
       fileName: fileName,
+      edSignature: edSignature,
+      dsaSignature: dsaSignature,
       assignChannelSlug: assignChannelSlug,
+      makeLive: makeLive,
       file: file,
     );
   }
 
-  ///Create and upload an artifact and optionally assign release to a channel
+  ///Create/upload artifact and optionally deploy release to a channel
   ///@param release_id
   @POST(path: '/api/v1/releases/{release_id}/artifacts', optionalBody: true)
   @Multipart()
@@ -943,13 +958,16 @@ abstract class Openapi extends ChopperService {
     @Part('arch') String? arch,
     @Part('package_type') required String? packageType,
     @Part('file_name') String? fileName,
+    @Part('ed_signature') String? edSignature,
+    @Part('dsa_signature') String? dsaSignature,
     @Part('assign_channel_slug') String? assignChannelSlug,
+    @Part('make_live') bool? makeLive,
     @PartFile() required List<int> file,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary:
-          'Create and upload an artifact and optionally assign release to a channel',
+          'Create/upload artifact and optionally deploy release to a channel',
       operationId: 'createArtifact',
       consumes: [],
       produces: [],

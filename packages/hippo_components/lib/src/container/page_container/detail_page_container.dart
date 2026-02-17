@@ -38,7 +38,7 @@ class DetailPageContainer extends StatelessWidget {
       backgroundColor: backgroundColor,
       body: Column(
         children: [
-          if (appBarBottom != null) appBarBottom!,
+          ?appBarBottom,
           Expanded(
             child: Row(
               children: [

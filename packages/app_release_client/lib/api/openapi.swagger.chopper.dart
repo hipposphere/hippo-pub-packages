@@ -538,7 +538,7 @@ final class _$Openapi extends Openapi {
     required ApiV1ChannelsChannelIdRollbackPost$RequestBody? body,
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
-      summary: 'Rollback channel assignment',
+      summary: 'Rollback channel deployment',
       operationId: 'rollbackChannel',
       consumes: [],
       produces: [],
@@ -747,7 +747,10 @@ final class _$Openapi extends Openapi {
     String? arch,
     required String? packageType,
     String? fileName,
+    String? edSignature,
+    String? dsaSignature,
     String? assignChannelSlug,
+    bool? makeLive,
     required List<int> file,
     required String? appSlug,
     required String? version,
@@ -756,7 +759,7 @@ final class _$Openapi extends Openapi {
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary:
-          'Create and upload an artifact, resolve release by app slug + version, and optionally assign channel',
+          'Create/upload artifact, resolve release by app slug + version, and optionally deploy to a channel',
       operationId: 'createArtifactByVersion',
       consumes: [],
       produces: [],
@@ -771,7 +774,10 @@ final class _$Openapi extends Openapi {
       PartValue<String?>('arch', arch),
       PartValue<String?>('package_type', packageType),
       PartValue<String?>('file_name', fileName),
+      PartValue<String?>('ed_signature', edSignature),
+      PartValue<String?>('dsa_signature', dsaSignature),
       PartValue<String?>('assign_channel_slug', assignChannelSlug),
+      PartValue<bool?>('make_live', makeLive),
       PartValue<String?>('app_slug', appSlug),
       PartValue<String?>('version', version),
       PartValue<String?>('build_number', buildNumber),
@@ -800,12 +806,15 @@ final class _$Openapi extends Openapi {
     String? arch,
     required String? packageType,
     String? fileName,
+    String? edSignature,
+    String? dsaSignature,
     String? assignChannelSlug,
+    bool? makeLive,
     required List<int> file,
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary:
-          'Create and upload an artifact and optionally assign release to a channel',
+          'Create/upload artifact and optionally deploy release to a channel',
       operationId: 'createArtifact',
       consumes: [],
       produces: [],
@@ -820,7 +829,10 @@ final class _$Openapi extends Openapi {
       PartValue<String?>('arch', arch),
       PartValue<String?>('package_type', packageType),
       PartValue<String?>('file_name', fileName),
+      PartValue<String?>('ed_signature', edSignature),
+      PartValue<String?>('dsa_signature', dsaSignature),
       PartValue<String?>('assign_channel_slug', assignChannelSlug),
+      PartValue<bool?>('make_live', makeLive),
       PartValueFile<List<int>>('file', file),
     ];
     final Request $request = Request(

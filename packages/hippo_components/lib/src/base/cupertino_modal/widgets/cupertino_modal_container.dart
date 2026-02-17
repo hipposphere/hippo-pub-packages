@@ -71,7 +71,7 @@ class CupertinoModalContainer extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (background != null) background!,
+          ?background,
           SafeArea(top: false, child: child),
           Positioned(
             top: 0,
@@ -116,7 +116,7 @@ class _Header extends StatelessWidget {
                     ),
                   ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );

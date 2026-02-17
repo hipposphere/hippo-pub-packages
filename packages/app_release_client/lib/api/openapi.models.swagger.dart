@@ -1195,7 +1195,10 @@ class ApiV1ArtifactsPost$RequestBody {
     this.arch,
     required this.packageType,
     this.fileName,
+    this.edSignature,
+    this.dsaSignature,
     this.assignChannelSlug,
+    this.makeLive,
     required this.file,
     required this.appSlug,
     required this.version,
@@ -1227,8 +1230,14 @@ class ApiV1ArtifactsPost$RequestBody {
   final String packageType;
   @JsonKey(name: 'file_name', includeIfNull: false)
   final String? fileName;
+  @JsonKey(name: 'ed_signature', includeIfNull: false)
+  final String? edSignature;
+  @JsonKey(name: 'dsa_signature', includeIfNull: false)
+  final String? dsaSignature;
   @JsonKey(name: 'assign_channel_slug', includeIfNull: false)
   final String? assignChannelSlug;
+  @JsonKey(name: 'make_live', includeIfNull: false)
+  final bool? makeLive;
   @JsonKey(name: 'file', includeIfNull: false)
   final String file;
   @JsonKey(name: 'app_slug', includeIfNull: false)
@@ -1262,10 +1271,25 @@ class ApiV1ArtifactsPost$RequestBody {
                   other.fileName,
                   fileName,
                 )) &&
+            (identical(other.edSignature, edSignature) ||
+                const DeepCollectionEquality().equals(
+                  other.edSignature,
+                  edSignature,
+                )) &&
+            (identical(other.dsaSignature, dsaSignature) ||
+                const DeepCollectionEquality().equals(
+                  other.dsaSignature,
+                  dsaSignature,
+                )) &&
             (identical(other.assignChannelSlug, assignChannelSlug) ||
                 const DeepCollectionEquality().equals(
                   other.assignChannelSlug,
                   assignChannelSlug,
+                )) &&
+            (identical(other.makeLive, makeLive) ||
+                const DeepCollectionEquality().equals(
+                  other.makeLive,
+                  makeLive,
                 )) &&
             (identical(other.file, file) ||
                 const DeepCollectionEquality().equals(other.file, file)) &&
@@ -1297,7 +1321,10 @@ class ApiV1ArtifactsPost$RequestBody {
       const DeepCollectionEquality().hash(arch) ^
       const DeepCollectionEquality().hash(packageType) ^
       const DeepCollectionEquality().hash(fileName) ^
+      const DeepCollectionEquality().hash(edSignature) ^
+      const DeepCollectionEquality().hash(dsaSignature) ^
       const DeepCollectionEquality().hash(assignChannelSlug) ^
+      const DeepCollectionEquality().hash(makeLive) ^
       const DeepCollectionEquality().hash(file) ^
       const DeepCollectionEquality().hash(appSlug) ^
       const DeepCollectionEquality().hash(version) ^
@@ -1313,7 +1340,10 @@ extension $ApiV1ArtifactsPost$RequestBodyExtension
     enums.ApiV1ArtifactsPost$RequestBodyArch? arch,
     String? packageType,
     String? fileName,
+    String? edSignature,
+    String? dsaSignature,
     String? assignChannelSlug,
+    bool? makeLive,
     String? file,
     String? appSlug,
     String? version,
@@ -1325,7 +1355,10 @@ extension $ApiV1ArtifactsPost$RequestBodyExtension
       arch: arch ?? this.arch,
       packageType: packageType ?? this.packageType,
       fileName: fileName ?? this.fileName,
+      edSignature: edSignature ?? this.edSignature,
+      dsaSignature: dsaSignature ?? this.dsaSignature,
       assignChannelSlug: assignChannelSlug ?? this.assignChannelSlug,
+      makeLive: makeLive ?? this.makeLive,
       file: file ?? this.file,
       appSlug: appSlug ?? this.appSlug,
       version: version ?? this.version,
@@ -1339,7 +1372,10 @@ extension $ApiV1ArtifactsPost$RequestBodyExtension
     Wrapped<enums.ApiV1ArtifactsPost$RequestBodyArch?>? arch,
     Wrapped<String>? packageType,
     Wrapped<String?>? fileName,
+    Wrapped<String?>? edSignature,
+    Wrapped<String?>? dsaSignature,
     Wrapped<String?>? assignChannelSlug,
+    Wrapped<bool?>? makeLive,
     Wrapped<String>? file,
     Wrapped<String>? appSlug,
     Wrapped<String>? version,
@@ -1351,9 +1387,14 @@ extension $ApiV1ArtifactsPost$RequestBodyExtension
       arch: (arch != null ? arch.value : this.arch),
       packageType: (packageType != null ? packageType.value : this.packageType),
       fileName: (fileName != null ? fileName.value : this.fileName),
+      edSignature: (edSignature != null ? edSignature.value : this.edSignature),
+      dsaSignature: (dsaSignature != null
+          ? dsaSignature.value
+          : this.dsaSignature),
       assignChannelSlug: (assignChannelSlug != null
           ? assignChannelSlug.value
           : this.assignChannelSlug),
+      makeLive: (makeLive != null ? makeLive.value : this.makeLive),
       file: (file != null ? file.value : this.file),
       appSlug: (appSlug != null ? appSlug.value : this.appSlug),
       version: (version != null ? version.value : this.version),
@@ -1370,7 +1411,10 @@ class ApiV1ReleasesReleaseIdArtifactsPost$RequestBody {
     this.arch,
     required this.packageType,
     this.fileName,
+    this.edSignature,
+    this.dsaSignature,
     this.assignChannelSlug,
+    this.makeLive,
     required this.file,
   });
 
@@ -1402,8 +1446,14 @@ class ApiV1ReleasesReleaseIdArtifactsPost$RequestBody {
   final String packageType;
   @JsonKey(name: 'file_name', includeIfNull: false)
   final String? fileName;
+  @JsonKey(name: 'ed_signature', includeIfNull: false)
+  final String? edSignature;
+  @JsonKey(name: 'dsa_signature', includeIfNull: false)
+  final String? dsaSignature;
   @JsonKey(name: 'assign_channel_slug', includeIfNull: false)
   final String? assignChannelSlug;
+  @JsonKey(name: 'make_live', includeIfNull: false)
+  final bool? makeLive;
   @JsonKey(name: 'file', includeIfNull: false)
   final String file;
   static const fromJsonFactory =
@@ -1430,10 +1480,25 @@ class ApiV1ReleasesReleaseIdArtifactsPost$RequestBody {
                   other.fileName,
                   fileName,
                 )) &&
+            (identical(other.edSignature, edSignature) ||
+                const DeepCollectionEquality().equals(
+                  other.edSignature,
+                  edSignature,
+                )) &&
+            (identical(other.dsaSignature, dsaSignature) ||
+                const DeepCollectionEquality().equals(
+                  other.dsaSignature,
+                  dsaSignature,
+                )) &&
             (identical(other.assignChannelSlug, assignChannelSlug) ||
                 const DeepCollectionEquality().equals(
                   other.assignChannelSlug,
                   assignChannelSlug,
+                )) &&
+            (identical(other.makeLive, makeLive) ||
+                const DeepCollectionEquality().equals(
+                  other.makeLive,
+                  makeLive,
                 )) &&
             (identical(other.file, file) ||
                 const DeepCollectionEquality().equals(other.file, file)));
@@ -1448,7 +1513,10 @@ class ApiV1ReleasesReleaseIdArtifactsPost$RequestBody {
       const DeepCollectionEquality().hash(arch) ^
       const DeepCollectionEquality().hash(packageType) ^
       const DeepCollectionEquality().hash(fileName) ^
+      const DeepCollectionEquality().hash(edSignature) ^
+      const DeepCollectionEquality().hash(dsaSignature) ^
       const DeepCollectionEquality().hash(assignChannelSlug) ^
+      const DeepCollectionEquality().hash(makeLive) ^
       const DeepCollectionEquality().hash(file) ^
       runtimeType.hashCode;
 }
@@ -1460,7 +1528,10 @@ extension $ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyExtension
     enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch? arch,
     String? packageType,
     String? fileName,
+    String? edSignature,
+    String? dsaSignature,
     String? assignChannelSlug,
+    bool? makeLive,
     String? file,
   }) {
     return ApiV1ReleasesReleaseIdArtifactsPost$RequestBody(
@@ -1468,7 +1539,10 @@ extension $ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyExtension
       arch: arch ?? this.arch,
       packageType: packageType ?? this.packageType,
       fileName: fileName ?? this.fileName,
+      edSignature: edSignature ?? this.edSignature,
+      dsaSignature: dsaSignature ?? this.dsaSignature,
       assignChannelSlug: assignChannelSlug ?? this.assignChannelSlug,
+      makeLive: makeLive ?? this.makeLive,
       file: file ?? this.file,
     );
   }
@@ -1479,7 +1553,10 @@ extension $ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyExtension
     Wrapped<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch?>? arch,
     Wrapped<String>? packageType,
     Wrapped<String?>? fileName,
+    Wrapped<String?>? edSignature,
+    Wrapped<String?>? dsaSignature,
     Wrapped<String?>? assignChannelSlug,
+    Wrapped<bool?>? makeLive,
     Wrapped<String>? file,
   }) {
     return ApiV1ReleasesReleaseIdArtifactsPost$RequestBody(
@@ -1487,9 +1564,14 @@ extension $ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyExtension
       arch: (arch != null ? arch.value : this.arch),
       packageType: (packageType != null ? packageType.value : this.packageType),
       fileName: (fileName != null ? fileName.value : this.fileName),
+      edSignature: (edSignature != null ? edSignature.value : this.edSignature),
+      dsaSignature: (dsaSignature != null
+          ? dsaSignature.value
+          : this.dsaSignature),
       assignChannelSlug: (assignChannelSlug != null
           ? assignChannelSlug.value
           : this.assignChannelSlug),
+      makeLive: (makeLive != null ? makeLive.value : this.makeLive),
       file: (file != null ? file.value : this.file),
     );
   }
@@ -4663,7 +4745,12 @@ class ApiV1ChannelsChannelIdRollbackPost$Response {
     this.platform,
     this.arch,
     required this.rolloutPercent,
+    required this.isLive,
+    required this.createdByUserId,
+    required this.sourceChannelId,
+    required this.sourceDeploymentId,
     required this.createdAt,
+    required this.retiredAt,
   });
 
   factory ApiV1ChannelsChannelIdRollbackPost$Response.fromJson(
@@ -4698,8 +4785,18 @@ class ApiV1ChannelsChannelIdRollbackPost$Response {
   final enums.ApiV1ChannelsChannelIdRollbackPost$ResponseArch? arch;
   @JsonKey(name: 'rollout_percent', includeIfNull: false)
   final int rolloutPercent;
+  @JsonKey(name: 'is_live', includeIfNull: false)
+  final bool isLive;
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
+  final String? createdByUserId;
+  @JsonKey(name: 'source_channel_id', includeIfNull: false)
+  final String? sourceChannelId;
+  @JsonKey(name: 'source_deployment_id', includeIfNull: false)
+  final String? sourceDeploymentId;
   @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
+  @JsonKey(name: 'retired_at', includeIfNull: false)
+  final String? retiredAt;
   static const fromJsonFactory =
       _$ApiV1ChannelsChannelIdRollbackPost$ResponseFromJson;
 
@@ -4731,10 +4828,32 @@ class ApiV1ChannelsChannelIdRollbackPost$Response {
                   other.rolloutPercent,
                   rolloutPercent,
                 )) &&
+            (identical(other.isLive, isLive) ||
+                const DeepCollectionEquality().equals(other.isLive, isLive)) &&
+            (identical(other.createdByUserId, createdByUserId) ||
+                const DeepCollectionEquality().equals(
+                  other.createdByUserId,
+                  createdByUserId,
+                )) &&
+            (identical(other.sourceChannelId, sourceChannelId) ||
+                const DeepCollectionEquality().equals(
+                  other.sourceChannelId,
+                  sourceChannelId,
+                )) &&
+            (identical(other.sourceDeploymentId, sourceDeploymentId) ||
+                const DeepCollectionEquality().equals(
+                  other.sourceDeploymentId,
+                  sourceDeploymentId,
+                )) &&
             (identical(other.createdAt, createdAt) ||
                 const DeepCollectionEquality().equals(
                   other.createdAt,
                   createdAt,
+                )) &&
+            (identical(other.retiredAt, retiredAt) ||
+                const DeepCollectionEquality().equals(
+                  other.retiredAt,
+                  retiredAt,
                 )));
   }
 
@@ -4749,7 +4868,12 @@ class ApiV1ChannelsChannelIdRollbackPost$Response {
       const DeepCollectionEquality().hash(platform) ^
       const DeepCollectionEquality().hash(arch) ^
       const DeepCollectionEquality().hash(rolloutPercent) ^
+      const DeepCollectionEquality().hash(isLive) ^
+      const DeepCollectionEquality().hash(createdByUserId) ^
+      const DeepCollectionEquality().hash(sourceChannelId) ^
+      const DeepCollectionEquality().hash(sourceDeploymentId) ^
       const DeepCollectionEquality().hash(createdAt) ^
+      const DeepCollectionEquality().hash(retiredAt) ^
       runtimeType.hashCode;
 }
 
@@ -4762,7 +4886,12 @@ extension $ApiV1ChannelsChannelIdRollbackPost$ResponseExtension
     enums.ApiV1ChannelsChannelIdRollbackPost$ResponsePlatform? platform,
     enums.ApiV1ChannelsChannelIdRollbackPost$ResponseArch? arch,
     int? rolloutPercent,
+    bool? isLive,
+    String? createdByUserId,
+    String? sourceChannelId,
+    String? sourceDeploymentId,
     String? createdAt,
+    String? retiredAt,
   }) {
     return ApiV1ChannelsChannelIdRollbackPost$Response(
       id: id ?? this.id,
@@ -4771,7 +4900,12 @@ extension $ApiV1ChannelsChannelIdRollbackPost$ResponseExtension
       platform: platform ?? this.platform,
       arch: arch ?? this.arch,
       rolloutPercent: rolloutPercent ?? this.rolloutPercent,
+      isLive: isLive ?? this.isLive,
+      createdByUserId: createdByUserId ?? this.createdByUserId,
+      sourceChannelId: sourceChannelId ?? this.sourceChannelId,
+      sourceDeploymentId: sourceDeploymentId ?? this.sourceDeploymentId,
       createdAt: createdAt ?? this.createdAt,
+      retiredAt: retiredAt ?? this.retiredAt,
     );
   }
 
@@ -4783,7 +4917,12 @@ extension $ApiV1ChannelsChannelIdRollbackPost$ResponseExtension
     platform,
     Wrapped<enums.ApiV1ChannelsChannelIdRollbackPost$ResponseArch?>? arch,
     Wrapped<int>? rolloutPercent,
+    Wrapped<bool>? isLive,
+    Wrapped<String?>? createdByUserId,
+    Wrapped<String?>? sourceChannelId,
+    Wrapped<String?>? sourceDeploymentId,
     Wrapped<String>? createdAt,
+    Wrapped<String?>? retiredAt,
   }) {
     return ApiV1ChannelsChannelIdRollbackPost$Response(
       id: (id != null ? id.value : this.id),
@@ -4794,7 +4933,18 @@ extension $ApiV1ChannelsChannelIdRollbackPost$ResponseExtension
       rolloutPercent: (rolloutPercent != null
           ? rolloutPercent.value
           : this.rolloutPercent),
+      isLive: (isLive != null ? isLive.value : this.isLive),
+      createdByUserId: (createdByUserId != null
+          ? createdByUserId.value
+          : this.createdByUserId),
+      sourceChannelId: (sourceChannelId != null
+          ? sourceChannelId.value
+          : this.sourceChannelId),
+      sourceDeploymentId: (sourceDeploymentId != null
+          ? sourceDeploymentId.value
+          : this.sourceDeploymentId),
       createdAt: (createdAt != null ? createdAt.value : this.createdAt),
+      retiredAt: (retiredAt != null ? retiredAt.value : this.retiredAt),
     );
   }
 }
@@ -5527,7 +5677,12 @@ class ApiV1ReleasesReleaseIdPromotePost$Response {
     this.platform,
     this.arch,
     required this.rolloutPercent,
+    required this.isLive,
+    required this.createdByUserId,
+    required this.sourceChannelId,
+    required this.sourceDeploymentId,
     required this.createdAt,
+    required this.retiredAt,
   });
 
   factory ApiV1ReleasesReleaseIdPromotePost$Response.fromJson(
@@ -5562,8 +5717,18 @@ class ApiV1ReleasesReleaseIdPromotePost$Response {
   final enums.ApiV1ReleasesReleaseIdPromotePost$ResponseArch? arch;
   @JsonKey(name: 'rollout_percent', includeIfNull: false)
   final int rolloutPercent;
+  @JsonKey(name: 'is_live', includeIfNull: false)
+  final bool isLive;
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
+  final String? createdByUserId;
+  @JsonKey(name: 'source_channel_id', includeIfNull: false)
+  final String? sourceChannelId;
+  @JsonKey(name: 'source_deployment_id', includeIfNull: false)
+  final String? sourceDeploymentId;
   @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
+  @JsonKey(name: 'retired_at', includeIfNull: false)
+  final String? retiredAt;
   static const fromJsonFactory =
       _$ApiV1ReleasesReleaseIdPromotePost$ResponseFromJson;
 
@@ -5595,10 +5760,32 @@ class ApiV1ReleasesReleaseIdPromotePost$Response {
                   other.rolloutPercent,
                   rolloutPercent,
                 )) &&
+            (identical(other.isLive, isLive) ||
+                const DeepCollectionEquality().equals(other.isLive, isLive)) &&
+            (identical(other.createdByUserId, createdByUserId) ||
+                const DeepCollectionEquality().equals(
+                  other.createdByUserId,
+                  createdByUserId,
+                )) &&
+            (identical(other.sourceChannelId, sourceChannelId) ||
+                const DeepCollectionEquality().equals(
+                  other.sourceChannelId,
+                  sourceChannelId,
+                )) &&
+            (identical(other.sourceDeploymentId, sourceDeploymentId) ||
+                const DeepCollectionEquality().equals(
+                  other.sourceDeploymentId,
+                  sourceDeploymentId,
+                )) &&
             (identical(other.createdAt, createdAt) ||
                 const DeepCollectionEquality().equals(
                   other.createdAt,
                   createdAt,
+                )) &&
+            (identical(other.retiredAt, retiredAt) ||
+                const DeepCollectionEquality().equals(
+                  other.retiredAt,
+                  retiredAt,
                 )));
   }
 
@@ -5613,7 +5800,12 @@ class ApiV1ReleasesReleaseIdPromotePost$Response {
       const DeepCollectionEquality().hash(platform) ^
       const DeepCollectionEquality().hash(arch) ^
       const DeepCollectionEquality().hash(rolloutPercent) ^
+      const DeepCollectionEquality().hash(isLive) ^
+      const DeepCollectionEquality().hash(createdByUserId) ^
+      const DeepCollectionEquality().hash(sourceChannelId) ^
+      const DeepCollectionEquality().hash(sourceDeploymentId) ^
       const DeepCollectionEquality().hash(createdAt) ^
+      const DeepCollectionEquality().hash(retiredAt) ^
       runtimeType.hashCode;
 }
 
@@ -5626,7 +5818,12 @@ extension $ApiV1ReleasesReleaseIdPromotePost$ResponseExtension
     enums.ApiV1ReleasesReleaseIdPromotePost$ResponsePlatform? platform,
     enums.ApiV1ReleasesReleaseIdPromotePost$ResponseArch? arch,
     int? rolloutPercent,
+    bool? isLive,
+    String? createdByUserId,
+    String? sourceChannelId,
+    String? sourceDeploymentId,
     String? createdAt,
+    String? retiredAt,
   }) {
     return ApiV1ReleasesReleaseIdPromotePost$Response(
       id: id ?? this.id,
@@ -5635,7 +5832,12 @@ extension $ApiV1ReleasesReleaseIdPromotePost$ResponseExtension
       platform: platform ?? this.platform,
       arch: arch ?? this.arch,
       rolloutPercent: rolloutPercent ?? this.rolloutPercent,
+      isLive: isLive ?? this.isLive,
+      createdByUserId: createdByUserId ?? this.createdByUserId,
+      sourceChannelId: sourceChannelId ?? this.sourceChannelId,
+      sourceDeploymentId: sourceDeploymentId ?? this.sourceDeploymentId,
       createdAt: createdAt ?? this.createdAt,
+      retiredAt: retiredAt ?? this.retiredAt,
     );
   }
 
@@ -5647,7 +5849,12 @@ extension $ApiV1ReleasesReleaseIdPromotePost$ResponseExtension
     platform,
     Wrapped<enums.ApiV1ReleasesReleaseIdPromotePost$ResponseArch?>? arch,
     Wrapped<int>? rolloutPercent,
+    Wrapped<bool>? isLive,
+    Wrapped<String?>? createdByUserId,
+    Wrapped<String?>? sourceChannelId,
+    Wrapped<String?>? sourceDeploymentId,
     Wrapped<String>? createdAt,
+    Wrapped<String?>? retiredAt,
   }) {
     return ApiV1ReleasesReleaseIdPromotePost$Response(
       id: (id != null ? id.value : this.id),
@@ -5658,7 +5865,18 @@ extension $ApiV1ReleasesReleaseIdPromotePost$ResponseExtension
       rolloutPercent: (rolloutPercent != null
           ? rolloutPercent.value
           : this.rolloutPercent),
+      isLive: (isLive != null ? isLive.value : this.isLive),
+      createdByUserId: (createdByUserId != null
+          ? createdByUserId.value
+          : this.createdByUserId),
+      sourceChannelId: (sourceChannelId != null
+          ? sourceChannelId.value
+          : this.sourceChannelId),
+      sourceDeploymentId: (sourceDeploymentId != null
+          ? sourceDeploymentId.value
+          : this.sourceDeploymentId),
       createdAt: (createdAt != null ? createdAt.value : this.createdAt),
+      retiredAt: (retiredAt != null ? retiredAt.value : this.retiredAt),
     );
   }
 }
@@ -7859,7 +8077,7 @@ class ApiV1DashboardSummaryGet$Response$Totals {
     required this.releases,
     required this.publishedReleases,
     required this.artifacts,
-    required this.channelAssignments,
+    required this.channelDeployments,
     required this.downloadsTotal,
     required this.updateChecksTotal,
     required this.downloadsLast7Days,
@@ -7884,8 +8102,8 @@ class ApiV1DashboardSummaryGet$Response$Totals {
   final int publishedReleases;
   @JsonKey(name: 'artifacts', includeIfNull: false)
   final int artifacts;
-  @JsonKey(name: 'channel_assignments', includeIfNull: false)
-  final int channelAssignments;
+  @JsonKey(name: 'channel_deployments', includeIfNull: false)
+  final int channelDeployments;
   @JsonKey(name: 'downloads_total', includeIfNull: false)
   final int downloadsTotal;
   @JsonKey(name: 'update_checks_total', includeIfNull: false)
@@ -7923,10 +8141,10 @@ class ApiV1DashboardSummaryGet$Response$Totals {
                   other.artifacts,
                   artifacts,
                 )) &&
-            (identical(other.channelAssignments, channelAssignments) ||
+            (identical(other.channelDeployments, channelDeployments) ||
                 const DeepCollectionEquality().equals(
-                  other.channelAssignments,
-                  channelAssignments,
+                  other.channelDeployments,
+                  channelDeployments,
                 )) &&
             (identical(other.downloadsTotal, downloadsTotal) ||
                 const DeepCollectionEquality().equals(
@@ -7960,7 +8178,7 @@ class ApiV1DashboardSummaryGet$Response$Totals {
       const DeepCollectionEquality().hash(releases) ^
       const DeepCollectionEquality().hash(publishedReleases) ^
       const DeepCollectionEquality().hash(artifacts) ^
-      const DeepCollectionEquality().hash(channelAssignments) ^
+      const DeepCollectionEquality().hash(channelDeployments) ^
       const DeepCollectionEquality().hash(downloadsTotal) ^
       const DeepCollectionEquality().hash(updateChecksTotal) ^
       const DeepCollectionEquality().hash(downloadsLast7Days) ^
@@ -7976,7 +8194,7 @@ extension $ApiV1DashboardSummaryGet$Response$TotalsExtension
     int? releases,
     int? publishedReleases,
     int? artifacts,
-    int? channelAssignments,
+    int? channelDeployments,
     int? downloadsTotal,
     int? updateChecksTotal,
     int? downloadsLast7Days,
@@ -7988,7 +8206,7 @@ extension $ApiV1DashboardSummaryGet$Response$TotalsExtension
       releases: releases ?? this.releases,
       publishedReleases: publishedReleases ?? this.publishedReleases,
       artifacts: artifacts ?? this.artifacts,
-      channelAssignments: channelAssignments ?? this.channelAssignments,
+      channelDeployments: channelDeployments ?? this.channelDeployments,
       downloadsTotal: downloadsTotal ?? this.downloadsTotal,
       updateChecksTotal: updateChecksTotal ?? this.updateChecksTotal,
       downloadsLast7Days: downloadsLast7Days ?? this.downloadsLast7Days,
@@ -8003,7 +8221,7 @@ extension $ApiV1DashboardSummaryGet$Response$TotalsExtension
     Wrapped<int>? releases,
     Wrapped<int>? publishedReleases,
     Wrapped<int>? artifacts,
-    Wrapped<int>? channelAssignments,
+    Wrapped<int>? channelDeployments,
     Wrapped<int>? downloadsTotal,
     Wrapped<int>? updateChecksTotal,
     Wrapped<int>? downloadsLast7Days,
@@ -8017,9 +8235,9 @@ extension $ApiV1DashboardSummaryGet$Response$TotalsExtension
           ? publishedReleases.value
           : this.publishedReleases),
       artifacts: (artifacts != null ? artifacts.value : this.artifacts),
-      channelAssignments: (channelAssignments != null
-          ? channelAssignments.value
-          : this.channelAssignments),
+      channelDeployments: (channelDeployments != null
+          ? channelDeployments.value
+          : this.channelDeployments),
       downloadsTotal: (downloadsTotal != null
           ? downloadsTotal.value
           : this.downloadsTotal),

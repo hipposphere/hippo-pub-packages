@@ -3,7 +3,7 @@
   "info": {
     "title": "app-release-manager API",
     "description": "Control-plane and delivery-plane API for desktop release management.",
-    "version": "0.1.5"
+    "version": "0.1.8"
   },
   "servers": [
     {
@@ -3772,7 +3772,7 @@
     "/api/v1/channels/{channel_id}/rollback": {
       "post": {
         "operationId": "rollbackChannel",
-        "summary": "Rollback channel assignment",
+        "summary": "Rollback channel deployment",
         "tags": [
           "Channels"
         ],
@@ -3817,8 +3817,51 @@
                       "minimum": 0,
                       "maximum": 100
                     },
+                    "is_live": {
+                      "type": "boolean"
+                    },
+                    "created_by_user_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_channel_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_deployment_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "created_at": {
                       "type": "string"
+                    },
+                    "retired_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -3828,7 +3871,12 @@
                     "platform",
                     "arch",
                     "rollout_percent",
-                    "created_at"
+                    "is_live",
+                    "created_by_user_id",
+                    "source_channel_id",
+                    "source_deployment_id",
+                    "created_at",
+                    "retired_at"
                   ]
                 }
               }
@@ -5036,8 +5084,51 @@
                       "minimum": 0,
                       "maximum": 100
                     },
+                    "is_live": {
+                      "type": "boolean"
+                    },
+                    "created_by_user_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_channel_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_deployment_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "created_at": {
                       "type": "string"
+                    },
+                    "retired_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -5047,7 +5138,12 @@
                     "platform",
                     "arch",
                     "rollout_percent",
-                    "created_at"
+                    "is_live",
+                    "created_by_user_id",
+                    "source_channel_id",
+                    "source_deployment_id",
+                    "created_at",
+                    "retired_at"
                   ]
                 }
               }
@@ -5202,7 +5298,7 @@
     "/api/v1/artifacts": {
       "post": {
         "operationId": "createArtifactByVersion",
-        "summary": "Create and upload an artifact, resolve release by app slug + version, and optionally assign channel",
+        "summary": "Create/upload artifact, resolve release by app slug + version, and optionally deploy to a channel",
         "tags": [
           "Artifacts"
         ],
@@ -5446,9 +5542,20 @@
                     "type": "string",
                     "minLength": 1
                   },
+                  "ed_signature": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "dsa_signature": {
+                    "type": "string",
+                    "minLength": 1
+                  },
                   "assign_channel_slug": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "make_live": {
+                    "type": "boolean"
                   },
                   "file": {
                     "type": "string",
@@ -5489,7 +5596,7 @@
     "/api/v1/releases/{release_id}/artifacts": {
       "post": {
         "operationId": "createArtifact",
-        "summary": "Create and upload an artifact and optionally assign release to a channel",
+        "summary": "Create/upload artifact and optionally deploy release to a channel",
         "tags": [
           "Artifacts"
         ],
@@ -5728,9 +5835,20 @@
                     "type": "string",
                     "minLength": 1
                   },
+                  "ed_signature": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "dsa_signature": {
+                    "type": "string",
+                    "minLength": 1
+                  },
                   "assign_channel_slug": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "make_live": {
+                    "type": "boolean"
                   },
                   "file": {
                     "type": "string",
@@ -6068,7 +6186,7 @@
                           "minimum": 0,
                           "maximum": 9007199254740991
                         },
-                        "channel_assignments": {
+                        "channel_deployments": {
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991
@@ -6100,7 +6218,7 @@
                         "releases",
                         "published_releases",
                         "artifacts",
-                        "channel_assignments",
+                        "channel_deployments",
                         "downloads_total",
                         "update_checks_total",
                         "downloads_last_7_days",

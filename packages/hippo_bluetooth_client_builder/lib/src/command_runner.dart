@@ -26,7 +26,7 @@ class HippoBluetoothClientBuilderRunner extends CommandRunner<void> {
     argParser.addOption(
       'default-codec',
       defaultsTo: 'bytes',
-      help: 'Default channel codec. One of: bytes, utf8, jsonMap.',
+      help: 'Default channel codec. One of: bytes, utf8, json.',
     );
     argParser.addOption(
       'codec-overrides',
@@ -49,7 +49,7 @@ Example:
 Codec overrides file format:
 
   {
-    "auth/challenge": "jsonMap",
+    "auth/challenge": "json",
     "device-control/status": "utf8"
   }
 

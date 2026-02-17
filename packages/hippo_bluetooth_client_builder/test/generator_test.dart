@@ -199,7 +199,7 @@ void main() {
               'id': 'payload',
               'uuid': '1234567812345678123456789abc0102',
               'properties': <Object?>['read'],
-              'codec': 'jsonMap',
+              'codec': 'json',
             },
             <String, Object?>{
               'id': 'raw',
@@ -218,10 +218,10 @@ void main() {
     );
 
     expect(output, contains('Future<String> readPlainText({'));
-    expect(output, contains('Future<Map<String, dynamic>> readPayload({'));
+    expect(output, contains('Future<dynamic> readPayload({'));
     expect(output, contains('Future<Uint8List> readRaw({'));
     expect(output, contains('codec: ChannelCodecs.utf8,'));
-    expect(output, contains('codec: ChannelCodecs.jsonMap,'));
+    expect(output, contains('codec: ChannelCodecs.json,'));
     expect(output, contains('codec: ChannelCodecs.bytes,'));
   });
 
@@ -250,7 +250,7 @@ void main() {
               'id': 'contract-only',
               'uuid': '1234567812345678123456789abc0202',
               'properties': <Object?>['read'],
-              'codec': 'jsonMap',
+              'codec': 'json',
             },
             <String, Object?>{
               'id': 'fallback',
@@ -268,15 +268,114 @@ void main() {
         defaultCodec: GeneratedChannelCodec.bytes,
         codecOverrides: <String, GeneratedChannelCodec>{
           'status': GeneratedChannelCodec.bytes,
-          'priority/status': GeneratedChannelCodec.jsonMap,
+          'priority/status': GeneratedChannelCodec.json,
         },
       ),
       sourceContractPath: '/tmp/codec-priority-contract.json',
     );
 
-    expect(output, contains('Future<Map<String, dynamic>> readStatus({'));
-    expect(output, contains('Future<Map<String, dynamic>> readContractOnly({'));
+    expect(output, contains('Future<dynamic> readStatus({'));
+    expect(output, contains('Future<dynamic> readContractOnly({'));
     expect(output, contains('Future<Uint8List> readFallback({'));
+  });
+
+  test('generates typed json payload models from codec jsonSchema metadata', () {
+    final contract = parseBleContractJsonObject(<String, Object?>{
+      'bleContract': '1.0.0',
+      'info': <String, Object?>{
+        'title': 'Schema Contract',
+        'version': '1.0.0',
+        'generatedAt': '2026-02-17T18:00:00.000Z',
+      },
+      'source': <String, Object?>{'kind': 'protocols'},
+      'services': <Object?>[
+        <String, Object?>{
+          'id': 'control',
+          'uuid': '1234567812345678123456789abc0300',
+          'advertise': true,
+          'characteristics': <Object?>[
+            <String, Object?>{
+              'id': 'command',
+              'uuid': '1234567812345678123456789abc0301',
+              'properties': <Object?>['read', 'write', 'notify'],
+              'codec': <String, Object?>{
+                'name': 'json',
+                'jsonSchema': <String, Object?>{
+                  'send': <String, Object?>{
+                    'type': 'object',
+                    'properties': <String, Object?>{
+                      'status': <String, Object?>{'type': 'string'},
+                    },
+                    'required': <Object?>['status'],
+                    'additionalProperties': false,
+                  },
+                  'receive': <String, Object?>{
+                    'type': 'object',
+                    'properties': <String, Object?>{
+                      'command': <String, Object?>{'type': 'string'},
+                    },
+                    'required': <Object?>['command'],
+                    'additionalProperties': false,
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    final output = generateBleClientDart(
+      contract: resolveBleContract(contract),
+      options: const BleClientCodegenOptions(),
+      sourceContractPath: '/tmp/schema-contract.json',
+    );
+
+    expect(output, contains('class ControlCommandSendPayload {'));
+    expect(output, contains('class ControlCommandReceivePayload {'));
+    expect(output, contains('Future<ControlCommandSendPayload> readCommand({'));
+    expect(output, contains('return ControlCommandSendPayload.fromJson(value);'));
+    expect(output, contains('Future<void> writeCommand(ControlCommandReceivePayload value, {'));
+    expect(output, contains('return _client.writeChannel<dynamic>('));
+    expect(output, contains('value.toJson(),'));
+    expect(output, contains('.map(ControlCommandSendPayload.fromJson);'));
+    expect(output, contains("codec: ChannelCodecs.json,"));
+  });
+
+  test('rejects jsonSchema metadata for non-json codecs', () {
+    expect(
+      () => parseBleContractJsonObject(<String, Object?>{
+        'bleContract': '1.0.0',
+        'info': <String, Object?>{
+          'title': 'Invalid JsonSchema Contract',
+          'version': '1.0.0',
+          'generatedAt': '2026-02-17T18:00:00.000Z',
+        },
+        'source': <String, Object?>{'kind': 'protocols'},
+        'services': <Object?>[
+          <String, Object?>{
+            'id': 'invalid-schema',
+            'uuid': '1234567812345678123456789abc0400',
+            'advertise': true,
+            'characteristics': <Object?>[
+              <String, Object?>{
+                'id': 'broken',
+                'uuid': '1234567812345678123456789abc0401',
+                'properties': <Object?>['read'],
+                'codec': 'utf8',
+                'jsonSchema': <String, Object?>{
+                  'type': 'object',
+                  'properties': <String, Object?>{
+                    'value': <String, Object?>{'type': 'string'},
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      }),
+      throwsA(isA<FormatException>()),
+    );
   });
 
   test('rejects unsupported channel codec metadata', () {

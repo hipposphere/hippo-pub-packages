@@ -46,23 +46,23 @@ void main() {
           protocolId: 'auth',
           serviceUuid: serviceUuid,
           channels: <BleChannelDefinition<dynamic>>[
-            const BleChannelDefinition<Map<String, dynamic>>(
+            const BleChannelDefinition<dynamic>(
               channelId: 'challenge',
               channelUuid: challengeUuid,
               properties: BleChannelProperties(read: true),
-              codec: JsonMapChannelCodec(),
+              codec: ChannelCodecs.json,
             ),
-            const BleChannelDefinition<Map<String, dynamic>>(
+            const BleChannelDefinition<dynamic>(
               channelId: 'response',
               channelUuid: responseUuid,
               properties: BleChannelProperties(write: true),
-              codec: JsonMapChannelCodec(),
+              codec: ChannelCodecs.json,
             ),
-            const BleChannelDefinition<Map<String, dynamic>>(
+            const BleChannelDefinition<dynamic>(
               channelId: 'result',
               channelUuid: resultUuid,
               properties: BleChannelProperties(read: true),
-              codec: JsonMapChannelCodec(),
+              codec: ChannelCodecs.json,
             ),
           ],
         ),

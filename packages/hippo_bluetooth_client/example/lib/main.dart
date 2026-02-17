@@ -145,23 +145,23 @@ class _HomePageState extends State<_HomePage> {
             properties: BleChannelProperties(write: true, notify: true),
             codec: Utf8ChannelCodec(),
           ),
-          const BleChannelDefinition<Map<String, dynamic>>(
+          const BleChannelDefinition<dynamic>(
             channelId: 'authChallenge',
             channelUuid: _challengeUuid,
             properties: BleChannelProperties(read: true),
-            codec: JsonMapChannelCodec(),
+            codec: ChannelCodecs.json,
           ),
-          const BleChannelDefinition<Map<String, dynamic>>(
+          const BleChannelDefinition<dynamic>(
             channelId: 'authResponse',
             channelUuid: _responseUuid,
             properties: BleChannelProperties(write: true),
-            codec: JsonMapChannelCodec(),
+            codec: ChannelCodecs.json,
           ),
-          const BleChannelDefinition<Map<String, dynamic>>(
+          const BleChannelDefinition<dynamic>(
             channelId: 'authResult',
             channelUuid: _resultUuid,
             properties: BleChannelProperties(read: true),
-            codec: JsonMapChannelCodec(),
+            codec: ChannelCodecs.json,
           ),
         ],
       );

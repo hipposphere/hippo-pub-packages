@@ -9,7 +9,7 @@
 */
 enum AppReleasePlatform { macos, windows, linux }
 
-enum AppReleaseArch { x64, arm64 }
+enum AppReleaseArch { x64, arm64, universal }
 
 extension AppReleasePlatformValue on AppReleasePlatform {
   String get value {
@@ -31,6 +31,8 @@ extension AppReleaseArchValue on AppReleaseArch {
         return 'x64';
       case AppReleaseArch.arm64:
         return 'arm64';
+      case AppReleaseArch.universal:
+        return 'universal';
     }
   }
 }

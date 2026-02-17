@@ -10,7 +10,7 @@ const Set<String> supportedCharacteristicProperties = <String>{
   'indicate',
 };
 
-const Set<String> supportedChannelCodecs = <String>{'bytes', 'utf8', 'jsonMap'};
+const Set<String> supportedChannelCodecs = <String>{'bytes', 'utf8', 'json'};
 
 enum BleContractSourceKind { services, protocols }
 
@@ -33,12 +33,14 @@ class BleContractCharacteristic {
   final String uuid;
   final List<String> properties;
   final String? codec;
+  final BleContractJsonSchema? codecJsonSchema;
 
   const BleContractCharacteristic({
     required this.id,
     required this.uuid,
     required this.properties,
     this.codec,
+    this.codecJsonSchema,
   });
 
   bool get canRead => properties.contains('read');
@@ -104,12 +106,14 @@ class ResolvedBleContractCharacteristic {
   final String uuid;
   final List<String> properties;
   final String? codec;
+  final BleContractJsonSchema? codecJsonSchema;
 
   const ResolvedBleContractCharacteristic({
     required this.id,
     required this.uuid,
     required this.properties,
     this.codec,
+    this.codecJsonSchema,
   });
 
   bool get canRead => properties.contains('read');
@@ -119,6 +123,13 @@ class ResolvedBleContractCharacteristic {
   bool get canWriteWithoutResponse => properties.contains('writeWithoutResponse');
 
   bool get canNotify => properties.contains('notify') || properties.contains('indicate');
+}
+
+class BleContractJsonSchema {
+  final Map<String, Object?>? send;
+  final Map<String, Object?>? receive;
+
+  const BleContractJsonSchema({this.send, this.receive});
 }
 
 BleContractDocument parseBleContractJsonString(String source) {
@@ -218,19 +229,12 @@ BleContractDocument parseBleContractJsonObject(Object? root) {
         fieldName: 'services[$serviceIndex].characteristics[$characteristicIndex].uuid',
       );
 
-      final characteristicCodec = _readOptionalString(
+      final parsedCodec = _parseCharacteristicCodec(
         characteristicMap,
-        'codec',
-        fieldName: 'services[$serviceIndex].characteristics[$characteristicIndex].codec',
+        fieldBasePath: 'services[$serviceIndex].characteristics[$characteristicIndex]',
       );
-      if (characteristicCodec != null && !supportedChannelCodecs.contains(characteristicCodec)) {
-        throw FormatException(
-          'Unsupported channel codec '
-          "'$characteristicCodec' in "
-          'services[$serviceIndex].characteristics[$characteristicIndex].codec. '
-          'Supported: ${supportedChannelCodecs.join(', ')}.',
-        );
-      }
+      final characteristicCodec = parsedCodec.codec;
+      final characteristicCodecJsonSchema = parsedCodec.jsonSchema;
 
       if (!seenCharacteristicUuids.add(characteristicUuid)) {
         throw FormatException(
@@ -275,6 +279,7 @@ BleContractDocument parseBleContractJsonObject(Object? root) {
           uuid: characteristicUuid,
           properties: List<String>.unmodifiable(properties),
           codec: characteristicCodec,
+          codecJsonSchema: characteristicCodecJsonSchema,
         ),
       );
     }
@@ -334,6 +339,7 @@ ResolvedBleContract resolveBleContract(BleContractDocument document) {
           uuid: characteristic.uuid,
           properties: characteristic.properties,
           codec: characteristic.codec,
+          codecJsonSchema: characteristic.codecJsonSchema,
         ),
       );
     }
@@ -445,4 +451,106 @@ String? _readOptionalString(Map<String, Object?> map, String key, {required Stri
     throw FormatException('$fieldName must be a non-empty string when provided.');
   }
   return value.trim();
+}
+
+String? _normalizeChannelCodec(String? value, {required String fieldName}) {
+  if (value == null) {
+    return null;
+  }
+  if (supportedChannelCodecs.contains(value)) {
+    return value;
+  }
+  throw FormatException(
+    "Unsupported channel codec '$value' in $fieldName. "
+    'Supported: ${supportedChannelCodecs.join(', ')}.',
+  );
+}
+
+_ParsedCharacteristicCodec _parseCharacteristicCodec(
+  Map<String, Object?> characteristicMap, {
+  required String fieldBasePath,
+}) {
+  final codecFieldName = '$fieldBasePath.codec';
+  final jsonSchemaFieldName = '$fieldBasePath.jsonSchema';
+  final topLevelJsonSchema = _parseCodecJsonSchema(
+    characteristicMap['jsonSchema'],
+    fieldName: jsonSchemaFieldName,
+  );
+
+  final rawCodec = characteristicMap['codec'];
+  if (rawCodec == null) {
+    if (topLevelJsonSchema != null) {
+      throw FormatException('$jsonSchemaFieldName requires codec to be set to json.');
+    }
+    return const _ParsedCharacteristicCodec(codec: null, jsonSchema: null);
+  }
+
+  if (rawCodec is String) {
+    final codec = _normalizeChannelCodec(rawCodec, fieldName: codecFieldName);
+    if (topLevelJsonSchema != null && codec != 'json') {
+      throw FormatException('$jsonSchemaFieldName is only supported when codec is json.');
+    }
+    return _ParsedCharacteristicCodec(codec: codec, jsonSchema: topLevelJsonSchema);
+  }
+
+  if (rawCodec is! Map) {
+    throw FormatException('$codecFieldName must be either a string or an object.');
+  }
+
+  final codecMap = _asObjectMap(rawCodec, codecFieldName);
+  final codecNameRaw =
+      _readOptionalString(codecMap, 'name', fieldName: '$codecFieldName.name') ??
+      _readOptionalString(codecMap, 'type', fieldName: '$codecFieldName.type');
+  final codecName = _normalizeChannelCodec(codecNameRaw, fieldName: codecFieldName);
+  final codecLevelJsonSchema = _parseCodecJsonSchema(
+    codecMap['jsonSchema'],
+    fieldName: '$codecFieldName.jsonSchema',
+  );
+  if (topLevelJsonSchema != null && codecLevelJsonSchema != null) {
+    throw FormatException(
+      'Specify jsonSchema either in $jsonSchemaFieldName or $codecFieldName.jsonSchema, not both.',
+    );
+  }
+  final resolvedJsonSchema = codecLevelJsonSchema ?? topLevelJsonSchema;
+  if (resolvedJsonSchema != null && codecName != 'json') {
+    throw FormatException('jsonSchema is only supported when codec is json in $codecFieldName.');
+  }
+  return _ParsedCharacteristicCodec(codec: codecName, jsonSchema: resolvedJsonSchema);
+}
+
+BleContractJsonSchema? _parseCodecJsonSchema(Object? rawValue, {required String fieldName}) {
+  if (rawValue == null) {
+    return null;
+  }
+  final schemaMap = _asObjectMap(rawValue, fieldName);
+  final directionalSchema = schemaMap.containsKey('send') || schemaMap.containsKey('receive');
+  if (!directionalSchema) {
+    return BleContractJsonSchema(send: schemaMap, receive: schemaMap);
+  }
+
+  final send = _readOptionalObjectMap(schemaMap, 'send', fieldName: '$fieldName.send');
+  final receive = _readOptionalObjectMap(schemaMap, 'receive', fieldName: '$fieldName.receive');
+  if (send == null && receive == null) {
+    throw FormatException('$fieldName must provide at least one of send or receive.');
+  }
+  return BleContractJsonSchema(send: send, receive: receive);
+}
+
+Map<String, Object?>? _readOptionalObjectMap(
+  Map<String, Object?> map,
+  String key, {
+  required String fieldName,
+}) {
+  final value = map[key];
+  if (value == null) {
+    return null;
+  }
+  return _asObjectMap(value, fieldName);
+}
+
+class _ParsedCharacteristicCodec {
+  final String? codec;
+  final BleContractJsonSchema? jsonSchema;
+
+  const _ParsedCharacteristicCodec({required this.codec, required this.jsonSchema});
 }

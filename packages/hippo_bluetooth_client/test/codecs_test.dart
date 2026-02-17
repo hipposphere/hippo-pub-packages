@@ -24,7 +24,7 @@ void main() {
   });
 
   test('typed json codec roundtrip', () {
-    final codec = ChannelCodecs.json<_Payload>(
+    final codec = ChannelCodecs.typedJson<_Payload>(
       fromJson: (json) => _Payload.fromJson(json as Map<String, dynamic>),
       toJson: (value) => value.toJson(),
     );
@@ -37,8 +37,8 @@ void main() {
     expect(decoded.count, 42);
   });
 
-  test('json map codec decodes object map', () {
-    const codec = JsonMapChannelCodec();
+  test('json codec decodes object map', () {
+    const codec = ChannelCodecs.json;
     final encoded = codec.encode(<String, dynamic>{
       'hello': 'world',
       'count': 1,

@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import '../errors.dart';
-
 /// Encodes/decodes channel values to/from bytes.
 abstract interface class ChannelCodec<T> {
   /// Encodes a value to bytes for transport.
@@ -60,26 +58,19 @@ class JsonChannelCodec<T> implements ChannelCodec<T> {
   }
 }
 
-/// JSON codec for object maps (`Map<String, dynamic>`).
-class JsonMapChannelCodec implements ChannelCodec<Map<String, dynamic>> {
-  /// Creates a map JSON codec.
-  const JsonMapChannelCodec();
+/// General JSON codec (`Map`, `List`, primitives, and `null`).
+class JsonAnyChannelCodec implements ChannelCodec<dynamic> {
+  /// Creates a broad JSON codec.
+  const JsonAnyChannelCodec();
 
   @override
-  Uint8List encode(Map<String, dynamic> value) {
+  Uint8List encode(dynamic value) {
     return Uint8List.fromList(utf8.encode(jsonEncode(value)));
   }
 
   @override
-  Map<String, dynamic> decode(Uint8List bytes) {
-    final decoded = jsonDecode(utf8.decode(bytes));
-    if (decoded is Map<String, dynamic>) {
-      return decoded;
-    }
-    if (decoded is Map) {
-      return decoded.map((key, value) => MapEntry(key.toString(), value));
-    }
-    throw ProtocolError('Expected JSON object map, got ${decoded.runtimeType}');
+  dynamic decode(Uint8List bytes) {
+    return jsonDecode(utf8.decode(bytes));
   }
 }
 
@@ -91,11 +82,11 @@ abstract final class ChannelCodecs {
   /// UTF-8 codec.
   static const Utf8ChannelCodec utf8 = Utf8ChannelCodec();
 
-  /// JSON map codec.
-  static const JsonMapChannelCodec jsonMap = JsonMapChannelCodec();
+  /// General JSON codec.
+  static const JsonAnyChannelCodec json = JsonAnyChannelCodec();
 
   /// Creates a typed JSON codec for [T].
-  static JsonChannelCodec<T> json<T>({
+  static JsonChannelCodec<T> typedJson<T>({
     required T Function(Object? jsonValue) fromJson,
     required Object? Function(T value) toJson,
   }) {

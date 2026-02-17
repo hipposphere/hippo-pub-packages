@@ -8,7 +8,7 @@ Built on [flutter_blue_plus](https://pub.dev/packages/flutter_blue_plus), with a
 
 - Low-level GATT client abstraction (`BleGattClient`) with `flutter_blue_plus` implementation.
 - Typed protocol definitions by protocol/service/channel ids.
-- Codecs for `bytes`, `utf8`, and `json<T>`.
+- Codecs for `bytes`, `utf8`, and broad `json`.
 - Chunked sequenced wire transport compatible with server frame format.
 - Challenge-response auth helper with HMAC signing.
 - Deterministic unit tests with fake transport.
@@ -72,14 +72,11 @@ final protocol = BleProtocolDefinition(
       properties: BleChannelProperties(read: true, write: true, notify: true),
       codec: Utf8ChannelCodec(),
     ),
-    BleChannelDefinition<MyPayload>(
+    const BleChannelDefinition<dynamic>(
       channelId: 'json-payload',
       channelUuid: '00000000-0000-0000-0000-00000000a103',
       properties: const BleChannelProperties(read: true, write: true),
-      codec: ChannelCodecs.json<MyPayload>(
-        fromJson: (json) => MyPayload.fromJson(json as Map<String, dynamic>),
-        toJson: (value) => value.toJson(),
-      ),
+      codec: ChannelCodecs.json,
     ),
   ],
 );

@@ -70,7 +70,7 @@ class ApiV1AppsPost$RequestBody {
   final String slug;
   @JsonKey(name: 'name', includeIfNull: false)
   final String name;
-  @JsonKey(name: 'bundleId', includeIfNull: false)
+  @JsonKey(name: 'bundle_id', includeIfNull: false)
   final String? bundleId;
   static const fromJsonFactory = _$ApiV1AppsPost$RequestBodyFromJson;
 
@@ -149,11 +149,11 @@ class ApiV1AppsAppIdRepositoryConnectionPut$RequestBody {
   final String owner;
   @JsonKey(name: 'repo', includeIfNull: false)
   final String repo;
-  @JsonKey(name: 'installationId', includeIfNull: false)
+  @JsonKey(name: 'installation_id', includeIfNull: false)
   final String? installationId;
-  @JsonKey(name: 'defaultBranch', includeIfNull: false)
+  @JsonKey(name: 'default_branch', includeIfNull: false)
   final String? defaultBranch;
-  @JsonKey(name: 'workflowFile', includeIfNull: false)
+  @JsonKey(name: 'workflow_file', includeIfNull: false)
   final String? workflowFile;
   static const fromJsonFactory =
       _$ApiV1AppsAppIdRepositoryConnectionPut$RequestBodyFromJson;
@@ -350,7 +350,7 @@ class ApiV1AppsAppIdBuildProfilesPost$RequestBody {
     fromJson: apiV1AppsAppIdBuildProfilesPost$RequestBodyPlatformFromJson,
   )
   final enums.ApiV1AppsAppIdBuildProfilesPost$RequestBodyPlatform platform;
-  @JsonKey(name: 'packageType', includeIfNull: false)
+  @JsonKey(name: 'package_type', includeIfNull: false)
   final String packageType;
   @JsonKey(
     name: 'arch',
@@ -359,15 +359,15 @@ class ApiV1AppsAppIdBuildProfilesPost$RequestBody {
     fromJson: apiV1AppsAppIdBuildProfilesPost$RequestBodyArchNullableFromJson,
   )
   final enums.ApiV1AppsAppIdBuildProfilesPost$RequestBodyArch? arch;
-  @JsonKey(name: 'workflowIdentifier', includeIfNull: false)
+  @JsonKey(name: 'workflow_identifier', includeIfNull: false)
   final String workflowIdentifier;
-  @JsonKey(name: 'workflowRef', includeIfNull: false)
+  @JsonKey(name: 'workflow_ref', includeIfNull: false)
   final String? workflowRef;
-  @JsonKey(name: 'workflowInputs', includeIfNull: false)
+  @JsonKey(name: 'workflow_inputs', includeIfNull: false)
   final Map<String, dynamic>? workflowInputs;
-  @JsonKey(name: 'artifactPathGlob', includeIfNull: false)
+  @JsonKey(name: 'artifact_path_glob', includeIfNull: false)
   final String? artifactPathGlob;
-  @JsonKey(name: 'autoDeployTargetId', includeIfNull: false)
+  @JsonKey(name: 'auto_deploy_target_id', includeIfNull: false)
   final String? autoDeployTargetId;
   static const fromJsonFactory =
       _$ApiV1AppsAppIdBuildProfilesPost$RequestBodyFromJson;
@@ -515,10 +515,10 @@ class ApiV1AppsAppIdPipelineRunsPost$RequestBody {
 
   @JsonKey(name: 'branch', includeIfNull: false)
   final String? branch;
-  @JsonKey(name: 'profileIds', includeIfNull: false, defaultValue: <String>[])
+  @JsonKey(name: 'profile_ids', includeIfNull: false, defaultValue: <String>[])
   final List<String> profileIds;
   @JsonKey(
-    name: 'triggerMode',
+    name: 'trigger_mode',
     includeIfNull: false,
     toJson: apiV1AppsAppIdPipelineRunsPost$RequestBodyTriggerModeNullableToJson,
     fromJson:
@@ -526,9 +526,9 @@ class ApiV1AppsAppIdPipelineRunsPost$RequestBody {
   )
   final enums.ApiV1AppsAppIdPipelineRunsPost$RequestBodyTriggerMode?
   triggerMode;
-  @JsonKey(name: 'releaseId', includeIfNull: false)
+  @JsonKey(name: 'release_id', includeIfNull: false)
   final String? releaseId;
-  @JsonKey(name: 'commitSha', includeIfNull: false)
+  @JsonKey(name: 'commit_sha', includeIfNull: false)
   final String? commitSha;
   static const fromJsonFactory =
       _$ApiV1AppsAppIdPipelineRunsPost$RequestBodyFromJson;
@@ -628,11 +628,11 @@ class ApiV1ChannelsPost$RequestBody {
   static const toJsonFactory = _$ApiV1ChannelsPost$RequestBodyToJson;
   Map<String, dynamic> toJson() => _$ApiV1ChannelsPost$RequestBodyToJson(this);
 
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(name: 'slug', includeIfNull: false)
   final String slug;
-  @JsonKey(name: 'displayName', includeIfNull: false)
+  @JsonKey(name: 'display_name', includeIfNull: false)
   final String? displayName;
   @JsonKey(
     name: 'kind',
@@ -648,9 +648,9 @@ class ApiV1ChannelsPost$RequestBody {
     fromJson: apiV1ChannelsPost$RequestBodyVisibilityNullableFromJson,
   )
   final enums.ApiV1ChannelsPost$RequestBodyVisibility? visibility;
-  @JsonKey(name: 'parentChannelId', includeIfNull: false)
+  @JsonKey(name: 'parent_channel_id', includeIfNull: false)
   final String? parentChannelId;
-  @JsonKey(name: 'rolloutPercent', includeIfNull: false)
+  @JsonKey(name: 'rollout_percent', includeIfNull: false)
   final int? rolloutPercent;
   static const fromJsonFactory = _$ApiV1ChannelsPost$RequestBodyFromJson;
 
@@ -764,7 +764,7 @@ class ApiV1ChannelsChannelIdPatch$RequestBody {
   Map<String, dynamic> toJson() =>
       _$ApiV1ChannelsChannelIdPatch$RequestBodyToJson(this);
 
-  @JsonKey(name: 'displayName', includeIfNull: false)
+  @JsonKey(name: 'display_name', includeIfNull: false)
   final String? displayName;
   @JsonKey(
     name: 'visibility',
@@ -773,7 +773,7 @@ class ApiV1ChannelsChannelIdPatch$RequestBody {
     fromJson: apiV1ChannelsChannelIdPatch$RequestBodyVisibilityNullableFromJson,
   )
   final enums.ApiV1ChannelsChannelIdPatch$RequestBodyVisibility? visibility;
-  @JsonKey(name: 'rolloutPercent', includeIfNull: false)
+  @JsonKey(name: 'rollout_percent', includeIfNull: false)
   final int? rolloutPercent;
   static const fromJsonFactory =
       _$ApiV1ChannelsChannelIdPatch$RequestBodyFromJson;
@@ -874,7 +874,7 @@ class ApiV1ChannelsChannelIdRollbackPost$RequestBody {
         apiV1ChannelsChannelIdRollbackPost$RequestBodyArchNullableFromJson,
   )
   final enums.ApiV1ChannelsChannelIdRollbackPost$RequestBodyArch? arch;
-  @JsonKey(name: 'toReleaseId', includeIfNull: false)
+  @JsonKey(name: 'to_release_id', includeIfNull: false)
   final String? toReleaseId;
   static const fromJsonFactory =
       _$ApiV1ChannelsChannelIdRollbackPost$RequestBodyFromJson;
@@ -951,11 +951,11 @@ class ApiV1ReleasesPost$RequestBody {
   static const toJsonFactory = _$ApiV1ReleasesPost$RequestBodyToJson;
   Map<String, dynamic> toJson() => _$ApiV1ReleasesPost$RequestBodyToJson(this);
 
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(name: 'version', includeIfNull: false)
   final String version;
-  @JsonKey(name: 'buildNumber', includeIfNull: false)
+  @JsonKey(name: 'build_number', includeIfNull: false)
   final String? buildNumber;
   @JsonKey(name: 'notes', includeIfNull: false)
   final String? notes;
@@ -1097,9 +1097,9 @@ class ApiV1ReleasesReleaseIdPromotePost$RequestBody {
   Map<String, dynamic> toJson() =>
       _$ApiV1ReleasesReleaseIdPromotePost$RequestBodyToJson(this);
 
-  @JsonKey(name: 'fromChannelId', includeIfNull: false)
+  @JsonKey(name: 'from_channel_id', includeIfNull: false)
   final String fromChannelId;
-  @JsonKey(name: 'toChannelId', includeIfNull: false)
+  @JsonKey(name: 'to_channel_id', includeIfNull: false)
   final String toChannelId;
   @JsonKey(
     name: 'platform',
@@ -1189,68 +1189,62 @@ extension $ApiV1ReleasesReleaseIdPromotePost$RequestBodyExtension
 }
 
 @JsonSerializable(explicitToJson: true)
-class ApiV1ArtifactsUploadUrlPost$RequestBody {
-  const ApiV1ArtifactsUploadUrlPost$RequestBody({
+class ApiV1ArtifactsPost$RequestBody {
+  const ApiV1ArtifactsPost$RequestBody({
     required this.platform,
     this.arch,
     required this.packageType,
-    required this.fileName,
-    this.sizeBytes,
-    this.sha256,
+    this.fileName,
     this.assignChannelSlug,
+    required this.file,
     required this.appSlug,
     required this.version,
     this.buildNumber,
     this.notes,
   });
 
-  factory ApiV1ArtifactsUploadUrlPost$RequestBody.fromJson(
-    Map<String, dynamic> json,
-  ) => _$ApiV1ArtifactsUploadUrlPost$RequestBodyFromJson(json);
+  factory ApiV1ArtifactsPost$RequestBody.fromJson(Map<String, dynamic> json) =>
+      _$ApiV1ArtifactsPost$RequestBodyFromJson(json);
 
-  static const toJsonFactory = _$ApiV1ArtifactsUploadUrlPost$RequestBodyToJson;
-  Map<String, dynamic> toJson() =>
-      _$ApiV1ArtifactsUploadUrlPost$RequestBodyToJson(this);
+  static const toJsonFactory = _$ApiV1ArtifactsPost$RequestBodyToJson;
+  Map<String, dynamic> toJson() => _$ApiV1ArtifactsPost$RequestBodyToJson(this);
 
   @JsonKey(
     name: 'platform',
     includeIfNull: false,
-    toJson: apiV1ArtifactsUploadUrlPost$RequestBodyPlatformToJson,
-    fromJson: apiV1ArtifactsUploadUrlPost$RequestBodyPlatformFromJson,
+    toJson: apiV1ArtifactsPost$RequestBodyPlatformToJson,
+    fromJson: apiV1ArtifactsPost$RequestBodyPlatformFromJson,
   )
-  final enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform platform;
+  final enums.ApiV1ArtifactsPost$RequestBodyPlatform platform;
   @JsonKey(
     name: 'arch',
     includeIfNull: false,
-    toJson: apiV1ArtifactsUploadUrlPost$RequestBodyArchNullableToJson,
-    fromJson: apiV1ArtifactsUploadUrlPost$RequestBodyArchNullableFromJson,
+    toJson: apiV1ArtifactsPost$RequestBodyArchNullableToJson,
+    fromJson: apiV1ArtifactsPost$RequestBodyArchNullableFromJson,
   )
-  final enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch? arch;
-  @JsonKey(name: 'packageType', includeIfNull: false)
+  final enums.ApiV1ArtifactsPost$RequestBodyArch? arch;
+  @JsonKey(name: 'package_type', includeIfNull: false)
   final String packageType;
-  @JsonKey(name: 'fileName', includeIfNull: false)
-  final String fileName;
-  @JsonKey(name: 'sizeBytes', includeIfNull: false)
-  final int? sizeBytes;
-  @JsonKey(name: 'sha256', includeIfNull: false)
-  final String? sha256;
-  @JsonKey(name: 'assignChannelSlug', includeIfNull: false)
+  @JsonKey(name: 'file_name', includeIfNull: false)
+  final String? fileName;
+  @JsonKey(name: 'assign_channel_slug', includeIfNull: false)
   final String? assignChannelSlug;
-  @JsonKey(name: 'appSlug', includeIfNull: false)
+  @JsonKey(name: 'file', includeIfNull: false)
+  final String file;
+  @JsonKey(name: 'app_slug', includeIfNull: false)
   final String appSlug;
   @JsonKey(name: 'version', includeIfNull: false)
   final String version;
-  @JsonKey(name: 'buildNumber', includeIfNull: false)
+  @JsonKey(name: 'build_number', includeIfNull: false)
   final String? buildNumber;
   @JsonKey(name: 'notes', includeIfNull: false)
   final String? notes;
-  static const fromJsonFactory =
-      _$ApiV1ArtifactsUploadUrlPost$RequestBodyFromJson;
+  static const fromJsonFactory = _$ApiV1ArtifactsPost$RequestBodyFromJson;
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        (other is ApiV1ArtifactsUploadUrlPost$RequestBody &&
+        (other is ApiV1ArtifactsPost$RequestBody &&
             (identical(other.platform, platform) ||
                 const DeepCollectionEquality().equals(
                   other.platform,
@@ -1268,18 +1262,13 @@ class ApiV1ArtifactsUploadUrlPost$RequestBody {
                   other.fileName,
                   fileName,
                 )) &&
-            (identical(other.sizeBytes, sizeBytes) ||
-                const DeepCollectionEquality().equals(
-                  other.sizeBytes,
-                  sizeBytes,
-                )) &&
-            (identical(other.sha256, sha256) ||
-                const DeepCollectionEquality().equals(other.sha256, sha256)) &&
             (identical(other.assignChannelSlug, assignChannelSlug) ||
                 const DeepCollectionEquality().equals(
                   other.assignChannelSlug,
                   assignChannelSlug,
                 )) &&
+            (identical(other.file, file) ||
+                const DeepCollectionEquality().equals(other.file, file)) &&
             (identical(other.appSlug, appSlug) ||
                 const DeepCollectionEquality().equals(
                   other.appSlug,
@@ -1308,9 +1297,8 @@ class ApiV1ArtifactsUploadUrlPost$RequestBody {
       const DeepCollectionEquality().hash(arch) ^
       const DeepCollectionEquality().hash(packageType) ^
       const DeepCollectionEquality().hash(fileName) ^
-      const DeepCollectionEquality().hash(sizeBytes) ^
-      const DeepCollectionEquality().hash(sha256) ^
       const DeepCollectionEquality().hash(assignChannelSlug) ^
+      const DeepCollectionEquality().hash(file) ^
       const DeepCollectionEquality().hash(appSlug) ^
       const DeepCollectionEquality().hash(version) ^
       const DeepCollectionEquality().hash(buildNumber) ^
@@ -1318,29 +1306,27 @@ class ApiV1ArtifactsUploadUrlPost$RequestBody {
       runtimeType.hashCode;
 }
 
-extension $ApiV1ArtifactsUploadUrlPost$RequestBodyExtension
-    on ApiV1ArtifactsUploadUrlPost$RequestBody {
-  ApiV1ArtifactsUploadUrlPost$RequestBody copyWith({
-    enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform? platform,
-    enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch? arch,
+extension $ApiV1ArtifactsPost$RequestBodyExtension
+    on ApiV1ArtifactsPost$RequestBody {
+  ApiV1ArtifactsPost$RequestBody copyWith({
+    enums.ApiV1ArtifactsPost$RequestBodyPlatform? platform,
+    enums.ApiV1ArtifactsPost$RequestBodyArch? arch,
     String? packageType,
     String? fileName,
-    int? sizeBytes,
-    String? sha256,
     String? assignChannelSlug,
+    String? file,
     String? appSlug,
     String? version,
     String? buildNumber,
     String? notes,
   }) {
-    return ApiV1ArtifactsUploadUrlPost$RequestBody(
+    return ApiV1ArtifactsPost$RequestBody(
       platform: platform ?? this.platform,
       arch: arch ?? this.arch,
       packageType: packageType ?? this.packageType,
       fileName: fileName ?? this.fileName,
-      sizeBytes: sizeBytes ?? this.sizeBytes,
-      sha256: sha256 ?? this.sha256,
       assignChannelSlug: assignChannelSlug ?? this.assignChannelSlug,
+      file: file ?? this.file,
       appSlug: appSlug ?? this.appSlug,
       version: version ?? this.version,
       buildNumber: buildNumber ?? this.buildNumber,
@@ -1348,29 +1334,27 @@ extension $ApiV1ArtifactsUploadUrlPost$RequestBodyExtension
     );
   }
 
-  ApiV1ArtifactsUploadUrlPost$RequestBody copyWithWrapped({
-    Wrapped<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform>? platform,
-    Wrapped<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch?>? arch,
+  ApiV1ArtifactsPost$RequestBody copyWithWrapped({
+    Wrapped<enums.ApiV1ArtifactsPost$RequestBodyPlatform>? platform,
+    Wrapped<enums.ApiV1ArtifactsPost$RequestBodyArch?>? arch,
     Wrapped<String>? packageType,
-    Wrapped<String>? fileName,
-    Wrapped<int?>? sizeBytes,
-    Wrapped<String?>? sha256,
+    Wrapped<String?>? fileName,
     Wrapped<String?>? assignChannelSlug,
+    Wrapped<String>? file,
     Wrapped<String>? appSlug,
     Wrapped<String>? version,
     Wrapped<String?>? buildNumber,
     Wrapped<String?>? notes,
   }) {
-    return ApiV1ArtifactsUploadUrlPost$RequestBody(
+    return ApiV1ArtifactsPost$RequestBody(
       platform: (platform != null ? platform.value : this.platform),
       arch: (arch != null ? arch.value : this.arch),
       packageType: (packageType != null ? packageType.value : this.packageType),
       fileName: (fileName != null ? fileName.value : this.fileName),
-      sizeBytes: (sizeBytes != null ? sizeBytes.value : this.sizeBytes),
-      sha256: (sha256 != null ? sha256.value : this.sha256),
       assignChannelSlug: (assignChannelSlug != null
           ? assignChannelSlug.value
           : this.assignChannelSlug),
+      file: (file != null ? file.value : this.file),
       appSlug: (appSlug != null ? appSlug.value : this.appSlug),
       version: (version != null ? version.value : this.version),
       buildNumber: (buildNumber != null ? buildNumber.value : this.buildNumber),
@@ -1380,63 +1364,55 @@ extension $ApiV1ArtifactsUploadUrlPost$RequestBodyExtension
 }
 
 @JsonSerializable(explicitToJson: true)
-class ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody {
-  const ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody({
+class ApiV1ReleasesReleaseIdArtifactsPost$RequestBody {
+  const ApiV1ReleasesReleaseIdArtifactsPost$RequestBody({
     required this.platform,
     this.arch,
     required this.packageType,
-    required this.fileName,
-    this.sizeBytes,
-    this.sha256,
+    this.fileName,
     this.assignChannelSlug,
+    required this.file,
   });
 
-  factory ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody.fromJson(
+  factory ApiV1ReleasesReleaseIdArtifactsPost$RequestBody.fromJson(
     Map<String, dynamic> json,
-  ) => _$ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyFromJson(json);
+  ) => _$ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyFromJson(json);
 
   static const toJsonFactory =
-      _$ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyToJson;
+      _$ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyToJson;
   Map<String, dynamic> toJson() =>
-      _$ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyToJson(this);
+      _$ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyToJson(this);
 
   @JsonKey(
     name: 'platform',
     includeIfNull: false,
-    toJson:
-        apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatformToJson,
-    fromJson:
-        apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatformFromJson,
+    toJson: apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatformToJson,
+    fromJson: apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatformFromJson,
   )
-  final enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform
-  platform;
+  final enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform platform;
   @JsonKey(
     name: 'arch',
     includeIfNull: false,
-    toJson:
-        apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArchNullableToJson,
+    toJson: apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArchNullableToJson,
     fromJson:
-        apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArchNullableFromJson,
+        apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArchNullableFromJson,
   )
-  final enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch?
-  arch;
-  @JsonKey(name: 'packageType', includeIfNull: false)
+  final enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch? arch;
+  @JsonKey(name: 'package_type', includeIfNull: false)
   final String packageType;
-  @JsonKey(name: 'fileName', includeIfNull: false)
-  final String fileName;
-  @JsonKey(name: 'sizeBytes', includeIfNull: false)
-  final int? sizeBytes;
-  @JsonKey(name: 'sha256', includeIfNull: false)
-  final String? sha256;
-  @JsonKey(name: 'assignChannelSlug', includeIfNull: false)
+  @JsonKey(name: 'file_name', includeIfNull: false)
+  final String? fileName;
+  @JsonKey(name: 'assign_channel_slug', includeIfNull: false)
   final String? assignChannelSlug;
+  @JsonKey(name: 'file', includeIfNull: false)
+  final String file;
   static const fromJsonFactory =
-      _$ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyFromJson;
+      _$ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyFromJson;
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        (other is ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody &&
+        (other is ApiV1ReleasesReleaseIdArtifactsPost$RequestBody &&
             (identical(other.platform, platform) ||
                 const DeepCollectionEquality().equals(
                   other.platform,
@@ -1454,18 +1430,13 @@ class ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody {
                   other.fileName,
                   fileName,
                 )) &&
-            (identical(other.sizeBytes, sizeBytes) ||
-                const DeepCollectionEquality().equals(
-                  other.sizeBytes,
-                  sizeBytes,
-                )) &&
-            (identical(other.sha256, sha256) ||
-                const DeepCollectionEquality().equals(other.sha256, sha256)) &&
             (identical(other.assignChannelSlug, assignChannelSlug) ||
                 const DeepCollectionEquality().equals(
                   other.assignChannelSlug,
                   assignChannelSlug,
-                )));
+                )) &&
+            (identical(other.file, file) ||
+                const DeepCollectionEquality().equals(other.file, file)));
   }
 
   @override
@@ -1477,60 +1448,49 @@ class ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody {
       const DeepCollectionEquality().hash(arch) ^
       const DeepCollectionEquality().hash(packageType) ^
       const DeepCollectionEquality().hash(fileName) ^
-      const DeepCollectionEquality().hash(sizeBytes) ^
-      const DeepCollectionEquality().hash(sha256) ^
       const DeepCollectionEquality().hash(assignChannelSlug) ^
+      const DeepCollectionEquality().hash(file) ^
       runtimeType.hashCode;
 }
 
-extension $ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyExtension
-    on ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody {
-  ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody copyWith({
-    enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform?
-    platform,
-    enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch? arch,
+extension $ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyExtension
+    on ApiV1ReleasesReleaseIdArtifactsPost$RequestBody {
+  ApiV1ReleasesReleaseIdArtifactsPost$RequestBody copyWith({
+    enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform? platform,
+    enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch? arch,
     String? packageType,
     String? fileName,
-    int? sizeBytes,
-    String? sha256,
     String? assignChannelSlug,
+    String? file,
   }) {
-    return ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody(
+    return ApiV1ReleasesReleaseIdArtifactsPost$RequestBody(
       platform: platform ?? this.platform,
       arch: arch ?? this.arch,
       packageType: packageType ?? this.packageType,
       fileName: fileName ?? this.fileName,
-      sizeBytes: sizeBytes ?? this.sizeBytes,
-      sha256: sha256 ?? this.sha256,
       assignChannelSlug: assignChannelSlug ?? this.assignChannelSlug,
+      file: file ?? this.file,
     );
   }
 
-  ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody copyWithWrapped({
-    Wrapped<
-      enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform
-    >?
+  ApiV1ReleasesReleaseIdArtifactsPost$RequestBody copyWithWrapped({
+    Wrapped<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform>?
     platform,
-    Wrapped<
-      enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch?
-    >?
-    arch,
+    Wrapped<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch?>? arch,
     Wrapped<String>? packageType,
-    Wrapped<String>? fileName,
-    Wrapped<int?>? sizeBytes,
-    Wrapped<String?>? sha256,
+    Wrapped<String?>? fileName,
     Wrapped<String?>? assignChannelSlug,
+    Wrapped<String>? file,
   }) {
-    return ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody(
+    return ApiV1ReleasesReleaseIdArtifactsPost$RequestBody(
       platform: (platform != null ? platform.value : this.platform),
       arch: (arch != null ? arch.value : this.arch),
       packageType: (packageType != null ? packageType.value : this.packageType),
       fileName: (fileName != null ? fileName.value : this.fileName),
-      sizeBytes: (sizeBytes != null ? sizeBytes.value : this.sizeBytes),
-      sha256: (sha256 != null ? sha256.value : this.sha256),
       assignChannelSlug: (assignChannelSlug != null
           ? assignChannelSlug.value
           : this.assignChannelSlug),
+      file: (file != null ? file.value : this.file),
     );
   }
 }
@@ -1648,19 +1608,19 @@ class ApiV1ApiKeysGet$Response$Item {
   final String id;
   @JsonKey(name: 'name', includeIfNull: false)
   final String name;
-  @JsonKey(name: 'tokenId', includeIfNull: false)
+  @JsonKey(name: 'token_id', includeIfNull: false)
   final String tokenId;
-  @JsonKey(name: 'keyPrefix', includeIfNull: false)
+  @JsonKey(name: 'key_prefix', includeIfNull: false)
   final String keyPrefix;
-  @JsonKey(name: 'createdByUserId', includeIfNull: false)
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
   final String? createdByUserId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'lastUsedAt', includeIfNull: false)
+  @JsonKey(name: 'last_used_at', includeIfNull: false)
   final String? lastUsedAt;
-  @JsonKey(name: 'revokedAt', includeIfNull: false)
+  @JsonKey(name: 'revoked_at', includeIfNull: false)
   final String? revokedAt;
-  @JsonKey(name: 'revokedByUserId', includeIfNull: false)
+  @JsonKey(name: 'revoked_by_user_id', includeIfNull: false)
   final String? revokedByUserId;
   static const fromJsonFactory = _$ApiV1ApiKeysGet$Response$ItemFromJson;
 
@@ -1794,9 +1754,9 @@ class ApiV1ApiKeysPost$Response {
   static const toJsonFactory = _$ApiV1ApiKeysPost$ResponseToJson;
   Map<String, dynamic> toJson() => _$ApiV1ApiKeysPost$ResponseToJson(this);
 
-  @JsonKey(name: 'apiKey', includeIfNull: false)
+  @JsonKey(name: 'api_key', includeIfNull: false)
   final ApiV1ApiKeysPost$Response$ApiKey apiKey;
-  @JsonKey(name: 'plainTextKey', includeIfNull: false)
+  @JsonKey(name: 'plain_text_key', includeIfNull: false)
   final String plainTextKey;
   static const fromJsonFactory = _$ApiV1ApiKeysPost$ResponseFromJson;
 
@@ -1873,19 +1833,19 @@ class ApiV1ApiKeysApiKeyIdRevokePost$Response {
   final String id;
   @JsonKey(name: 'name', includeIfNull: false)
   final String name;
-  @JsonKey(name: 'tokenId', includeIfNull: false)
+  @JsonKey(name: 'token_id', includeIfNull: false)
   final String tokenId;
-  @JsonKey(name: 'keyPrefix', includeIfNull: false)
+  @JsonKey(name: 'key_prefix', includeIfNull: false)
   final String keyPrefix;
-  @JsonKey(name: 'createdByUserId', includeIfNull: false)
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
   final String? createdByUserId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'lastUsedAt', includeIfNull: false)
+  @JsonKey(name: 'last_used_at', includeIfNull: false)
   final String? lastUsedAt;
-  @JsonKey(name: 'revokedAt', includeIfNull: false)
+  @JsonKey(name: 'revoked_at', includeIfNull: false)
   final String? revokedAt;
-  @JsonKey(name: 'revokedByUserId', includeIfNull: false)
+  @JsonKey(name: 'revoked_by_user_id', includeIfNull: false)
   final String? revokedByUserId;
   static const fromJsonFactory =
       _$ApiV1ApiKeysApiKeyIdRevokePost$ResponseFromJson;
@@ -2031,9 +1991,9 @@ class ApiV1AppsGet$Response$Item {
   final String slug;
   @JsonKey(name: 'name', includeIfNull: false)
   final String name;
-  @JsonKey(name: 'bundleId', includeIfNull: false)
+  @JsonKey(name: 'bundle_id', includeIfNull: false)
   final String? bundleId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   static const fromJsonFactory = _$ApiV1AppsGet$Response$ItemFromJson;
 
@@ -2128,9 +2088,9 @@ class ApiV1AppsPost$Response {
   final String slug;
   @JsonKey(name: 'name', includeIfNull: false)
   final String name;
-  @JsonKey(name: 'bundleId', includeIfNull: false)
+  @JsonKey(name: 'bundle_id', includeIfNull: false)
   final String? bundleId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   static const fromJsonFactory = _$ApiV1AppsPost$ResponseFromJson;
 
@@ -2230,7 +2190,7 @@ class ApiV1AppsAppIdRepositoryConnectionGet$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(
     name: 'provider',
@@ -2243,17 +2203,17 @@ class ApiV1AppsAppIdRepositoryConnectionGet$Response {
   final String owner;
   @JsonKey(name: 'repo', includeIfNull: false)
   final String repo;
-  @JsonKey(name: 'installationId', includeIfNull: false)
+  @JsonKey(name: 'installation_id', includeIfNull: false)
   final String? installationId;
-  @JsonKey(name: 'defaultBranch', includeIfNull: false)
+  @JsonKey(name: 'default_branch', includeIfNull: false)
   final String defaultBranch;
-  @JsonKey(name: 'workflowFile', includeIfNull: false)
+  @JsonKey(name: 'workflow_file', includeIfNull: false)
   final String? workflowFile;
-  @JsonKey(name: 'createdByUserId', includeIfNull: false)
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
   final String? createdByUserId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'updatedAt', includeIfNull: false)
+  @JsonKey(name: 'updated_at', includeIfNull: false)
   final String updatedAt;
   static const fromJsonFactory =
       _$ApiV1AppsAppIdRepositoryConnectionGet$ResponseFromJson;
@@ -2421,7 +2381,7 @@ class ApiV1AppsAppIdRepositoryConnectionPut$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(
     name: 'provider',
@@ -2434,17 +2394,17 @@ class ApiV1AppsAppIdRepositoryConnectionPut$Response {
   final String owner;
   @JsonKey(name: 'repo', includeIfNull: false)
   final String repo;
-  @JsonKey(name: 'installationId', includeIfNull: false)
+  @JsonKey(name: 'installation_id', includeIfNull: false)
   final String? installationId;
-  @JsonKey(name: 'defaultBranch', includeIfNull: false)
+  @JsonKey(name: 'default_branch', includeIfNull: false)
   final String defaultBranch;
-  @JsonKey(name: 'workflowFile', includeIfNull: false)
+  @JsonKey(name: 'workflow_file', includeIfNull: false)
   final String? workflowFile;
-  @JsonKey(name: 'createdByUserId', includeIfNull: false)
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
   final String? createdByUserId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'updatedAt', includeIfNull: false)
+  @JsonKey(name: 'updated_at', includeIfNull: false)
   final String updatedAt;
   static const fromJsonFactory =
       _$ApiV1AppsAppIdRepositoryConnectionPut$ResponseFromJson;
@@ -2613,7 +2573,7 @@ class ApiV1AppsAppIdDeploymentTargetsGet$Response$Item {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(
     name: 'kind',
@@ -2626,13 +2586,13 @@ class ApiV1AppsAppIdDeploymentTargetsGet$Response$Item {
   final String name;
   @JsonKey(name: 'config', includeIfNull: false)
   final Map<String, dynamic> config;
-  @JsonKey(name: 'createdByUserId', includeIfNull: false)
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
   final String? createdByUserId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'updatedAt', includeIfNull: false)
+  @JsonKey(name: 'updated_at', includeIfNull: false)
   final String updatedAt;
-  @JsonKey(name: 'disabledAt', includeIfNull: false)
+  @JsonKey(name: 'disabled_at', includeIfNull: false)
   final String? disabledAt;
   static const fromJsonFactory =
       _$ApiV1AppsAppIdDeploymentTargetsGet$Response$ItemFromJson;
@@ -2768,7 +2728,7 @@ class ApiV1AppsAppIdDeploymentTargetsPost$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(
     name: 'kind',
@@ -2781,13 +2741,13 @@ class ApiV1AppsAppIdDeploymentTargetsPost$Response {
   final String name;
   @JsonKey(name: 'config', includeIfNull: false)
   final Map<String, dynamic> config;
-  @JsonKey(name: 'createdByUserId', includeIfNull: false)
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
   final String? createdByUserId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'updatedAt', includeIfNull: false)
+  @JsonKey(name: 'updated_at', includeIfNull: false)
   final String updatedAt;
-  @JsonKey(name: 'disabledAt', includeIfNull: false)
+  @JsonKey(name: 'disabled_at', includeIfNull: false)
   final String? disabledAt;
   static const fromJsonFactory =
       _$ApiV1AppsAppIdDeploymentTargetsPost$ResponseFromJson;
@@ -2932,7 +2892,7 @@ class ApiV1AppsAppIdBuildProfilesGet$Response$Item {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(name: 'name', includeIfNull: false)
   final String name;
@@ -2943,7 +2903,7 @@ class ApiV1AppsAppIdBuildProfilesGet$Response$Item {
     fromJson: apiV1AppsAppIdBuildProfilesGet$Response$ItemPlatformFromJson,
   )
   final enums.ApiV1AppsAppIdBuildProfilesGet$Response$ItemPlatform platform;
-  @JsonKey(name: 'packageType', includeIfNull: false)
+  @JsonKey(name: 'package_type', includeIfNull: false)
   final String packageType;
   @JsonKey(
     name: 'arch',
@@ -2952,23 +2912,23 @@ class ApiV1AppsAppIdBuildProfilesGet$Response$Item {
     fromJson: apiV1AppsAppIdBuildProfilesGet$Response$ItemArchNullableFromJson,
   )
   final enums.ApiV1AppsAppIdBuildProfilesGet$Response$ItemArch? arch;
-  @JsonKey(name: 'workflowIdentifier', includeIfNull: false)
+  @JsonKey(name: 'workflow_identifier', includeIfNull: false)
   final String workflowIdentifier;
-  @JsonKey(name: 'workflowRef', includeIfNull: false)
+  @JsonKey(name: 'workflow_ref', includeIfNull: false)
   final String? workflowRef;
-  @JsonKey(name: 'workflowInputs', includeIfNull: false)
+  @JsonKey(name: 'workflow_inputs', includeIfNull: false)
   final Map<String, dynamic> workflowInputs;
-  @JsonKey(name: 'artifactPathGlob', includeIfNull: false)
+  @JsonKey(name: 'artifact_path_glob', includeIfNull: false)
   final String? artifactPathGlob;
-  @JsonKey(name: 'autoDeployTargetId', includeIfNull: false)
+  @JsonKey(name: 'auto_deploy_target_id', includeIfNull: false)
   final String? autoDeployTargetId;
-  @JsonKey(name: 'createdByUserId', includeIfNull: false)
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
   final String? createdByUserId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'updatedAt', includeIfNull: false)
+  @JsonKey(name: 'updated_at', includeIfNull: false)
   final String updatedAt;
-  @JsonKey(name: 'disabledAt', includeIfNull: false)
+  @JsonKey(name: 'disabled_at', includeIfNull: false)
   final String? disabledAt;
   static const fromJsonFactory =
       _$ApiV1AppsAppIdBuildProfilesGet$Response$ItemFromJson;
@@ -3181,7 +3141,7 @@ class ApiV1AppsAppIdBuildProfilesPost$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(name: 'name', includeIfNull: false)
   final String name;
@@ -3192,7 +3152,7 @@ class ApiV1AppsAppIdBuildProfilesPost$Response {
     fromJson: apiV1AppsAppIdBuildProfilesPost$ResponsePlatformFromJson,
   )
   final enums.ApiV1AppsAppIdBuildProfilesPost$ResponsePlatform platform;
-  @JsonKey(name: 'packageType', includeIfNull: false)
+  @JsonKey(name: 'package_type', includeIfNull: false)
   final String packageType;
   @JsonKey(
     name: 'arch',
@@ -3201,23 +3161,23 @@ class ApiV1AppsAppIdBuildProfilesPost$Response {
     fromJson: apiV1AppsAppIdBuildProfilesPost$ResponseArchNullableFromJson,
   )
   final enums.ApiV1AppsAppIdBuildProfilesPost$ResponseArch? arch;
-  @JsonKey(name: 'workflowIdentifier', includeIfNull: false)
+  @JsonKey(name: 'workflow_identifier', includeIfNull: false)
   final String workflowIdentifier;
-  @JsonKey(name: 'workflowRef', includeIfNull: false)
+  @JsonKey(name: 'workflow_ref', includeIfNull: false)
   final String? workflowRef;
-  @JsonKey(name: 'workflowInputs', includeIfNull: false)
+  @JsonKey(name: 'workflow_inputs', includeIfNull: false)
   final Map<String, dynamic> workflowInputs;
-  @JsonKey(name: 'artifactPathGlob', includeIfNull: false)
+  @JsonKey(name: 'artifact_path_glob', includeIfNull: false)
   final String? artifactPathGlob;
-  @JsonKey(name: 'autoDeployTargetId', includeIfNull: false)
+  @JsonKey(name: 'auto_deploy_target_id', includeIfNull: false)
   final String? autoDeployTargetId;
-  @JsonKey(name: 'createdByUserId', includeIfNull: false)
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
   final String? createdByUserId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'updatedAt', includeIfNull: false)
+  @JsonKey(name: 'updated_at', includeIfNull: false)
   final String updatedAt;
-  @JsonKey(name: 'disabledAt', includeIfNull: false)
+  @JsonKey(name: 'disabled_at', includeIfNull: false)
   final String? disabledAt;
   static const fromJsonFactory =
       _$ApiV1AppsAppIdBuildProfilesPost$ResponseFromJson;
@@ -3432,14 +3392,14 @@ class ApiV1AppsAppIdPipelineRunsGet$Response$Item {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
-  @JsonKey(name: 'repositoryConnectionId', includeIfNull: false)
+  @JsonKey(name: 'repository_connection_id', includeIfNull: false)
   final String? repositoryConnectionId;
-  @JsonKey(name: 'releaseId', includeIfNull: false)
+  @JsonKey(name: 'release_id', includeIfNull: false)
   final String? releaseId;
   @JsonKey(
-    name: 'triggerMode',
+    name: 'trigger_mode',
     includeIfNull: false,
     toJson: apiV1AppsAppIdPipelineRunsGet$Response$ItemTriggerModeToJson,
     fromJson: apiV1AppsAppIdPipelineRunsGet$Response$ItemTriggerModeFromJson,
@@ -3448,7 +3408,7 @@ class ApiV1AppsAppIdPipelineRunsGet$Response$Item {
   triggerMode;
   @JsonKey(name: 'branch', includeIfNull: false)
   final String branch;
-  @JsonKey(name: 'commitSha', includeIfNull: false)
+  @JsonKey(name: 'commit_sha', includeIfNull: false)
   final String? commitSha;
   @JsonKey(
     name: 'status',
@@ -3457,17 +3417,17 @@ class ApiV1AppsAppIdPipelineRunsGet$Response$Item {
     fromJson: apiV1AppsAppIdPipelineRunsGet$Response$ItemStatusFromJson,
   )
   final enums.ApiV1AppsAppIdPipelineRunsGet$Response$ItemStatus status;
-  @JsonKey(name: 'requestedByUserId', includeIfNull: false)
+  @JsonKey(name: 'requested_by_user_id', includeIfNull: false)
   final String? requestedByUserId;
-  @JsonKey(name: 'externalRunId', includeIfNull: false)
+  @JsonKey(name: 'external_run_id', includeIfNull: false)
   final String? externalRunId;
-  @JsonKey(name: 'startedAt', includeIfNull: false)
+  @JsonKey(name: 'started_at', includeIfNull: false)
   final String? startedAt;
-  @JsonKey(name: 'finishedAt', includeIfNull: false)
+  @JsonKey(name: 'finished_at', includeIfNull: false)
   final String? finishedAt;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'updatedAt', includeIfNull: false)
+  @JsonKey(name: 'updated_at', includeIfNull: false)
   final String updatedAt;
   static const fromJsonFactory =
       _$ApiV1AppsAppIdPipelineRunsGet$Response$ItemFromJson;
@@ -3667,14 +3627,14 @@ class ApiV1AppsAppIdPipelineRunsPost$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
-  @JsonKey(name: 'repositoryConnectionId', includeIfNull: false)
+  @JsonKey(name: 'repository_connection_id', includeIfNull: false)
   final String? repositoryConnectionId;
-  @JsonKey(name: 'releaseId', includeIfNull: false)
+  @JsonKey(name: 'release_id', includeIfNull: false)
   final String? releaseId;
   @JsonKey(
-    name: 'triggerMode',
+    name: 'trigger_mode',
     includeIfNull: false,
     toJson: apiV1AppsAppIdPipelineRunsPost$ResponseTriggerModeToJson,
     fromJson: apiV1AppsAppIdPipelineRunsPost$ResponseTriggerModeFromJson,
@@ -3682,7 +3642,7 @@ class ApiV1AppsAppIdPipelineRunsPost$Response {
   final enums.ApiV1AppsAppIdPipelineRunsPost$ResponseTriggerMode triggerMode;
   @JsonKey(name: 'branch', includeIfNull: false)
   final String branch;
-  @JsonKey(name: 'commitSha', includeIfNull: false)
+  @JsonKey(name: 'commit_sha', includeIfNull: false)
   final String? commitSha;
   @JsonKey(
     name: 'status',
@@ -3691,17 +3651,17 @@ class ApiV1AppsAppIdPipelineRunsPost$Response {
     fromJson: apiV1AppsAppIdPipelineRunsPost$ResponseStatusFromJson,
   )
   final enums.ApiV1AppsAppIdPipelineRunsPost$ResponseStatus status;
-  @JsonKey(name: 'requestedByUserId', includeIfNull: false)
+  @JsonKey(name: 'requested_by_user_id', includeIfNull: false)
   final String? requestedByUserId;
-  @JsonKey(name: 'externalRunId', includeIfNull: false)
+  @JsonKey(name: 'external_run_id', includeIfNull: false)
   final String? externalRunId;
-  @JsonKey(name: 'startedAt', includeIfNull: false)
+  @JsonKey(name: 'started_at', includeIfNull: false)
   final String? startedAt;
-  @JsonKey(name: 'finishedAt', includeIfNull: false)
+  @JsonKey(name: 'finished_at', includeIfNull: false)
   final String? finishedAt;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'updatedAt', includeIfNull: false)
+  @JsonKey(name: 'updated_at', includeIfNull: false)
   final String updatedAt;
   @JsonKey(name: 'jobs', includeIfNull: false)
   final List<ApiV1AppsAppIdPipelineRunsPost$Response$Jobs$Item> jobs;
@@ -3911,14 +3871,14 @@ class ApiV1PipelineRunsPipelineRunIdGet$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
-  @JsonKey(name: 'repositoryConnectionId', includeIfNull: false)
+  @JsonKey(name: 'repository_connection_id', includeIfNull: false)
   final String? repositoryConnectionId;
-  @JsonKey(name: 'releaseId', includeIfNull: false)
+  @JsonKey(name: 'release_id', includeIfNull: false)
   final String? releaseId;
   @JsonKey(
-    name: 'triggerMode',
+    name: 'trigger_mode',
     includeIfNull: false,
     toJson: apiV1PipelineRunsPipelineRunIdGet$ResponseTriggerModeToJson,
     fromJson: apiV1PipelineRunsPipelineRunIdGet$ResponseTriggerModeFromJson,
@@ -3926,7 +3886,7 @@ class ApiV1PipelineRunsPipelineRunIdGet$Response {
   final enums.ApiV1PipelineRunsPipelineRunIdGet$ResponseTriggerMode triggerMode;
   @JsonKey(name: 'branch', includeIfNull: false)
   final String branch;
-  @JsonKey(name: 'commitSha', includeIfNull: false)
+  @JsonKey(name: 'commit_sha', includeIfNull: false)
   final String? commitSha;
   @JsonKey(
     name: 'status',
@@ -3935,17 +3895,17 @@ class ApiV1PipelineRunsPipelineRunIdGet$Response {
     fromJson: apiV1PipelineRunsPipelineRunIdGet$ResponseStatusFromJson,
   )
   final enums.ApiV1PipelineRunsPipelineRunIdGet$ResponseStatus status;
-  @JsonKey(name: 'requestedByUserId', includeIfNull: false)
+  @JsonKey(name: 'requested_by_user_id', includeIfNull: false)
   final String? requestedByUserId;
-  @JsonKey(name: 'externalRunId', includeIfNull: false)
+  @JsonKey(name: 'external_run_id', includeIfNull: false)
   final String? externalRunId;
-  @JsonKey(name: 'startedAt', includeIfNull: false)
+  @JsonKey(name: 'started_at', includeIfNull: false)
   final String? startedAt;
-  @JsonKey(name: 'finishedAt', includeIfNull: false)
+  @JsonKey(name: 'finished_at', includeIfNull: false)
   final String? finishedAt;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'updatedAt', includeIfNull: false)
+  @JsonKey(name: 'updated_at', includeIfNull: false)
   final String updatedAt;
   @JsonKey(name: 'jobs', includeIfNull: false)
   final List<ApiV1PipelineRunsPipelineRunIdGet$Response$Jobs$Item> jobs;
@@ -4150,11 +4110,11 @@ class ApiV1ChannelsGet$Response$Item {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(name: 'slug', includeIfNull: false)
   final String slug;
-  @JsonKey(name: 'displayName', includeIfNull: false)
+  @JsonKey(name: 'display_name', includeIfNull: false)
   final String? displayName;
   @JsonKey(
     name: 'kind',
@@ -4170,15 +4130,15 @@ class ApiV1ChannelsGet$Response$Item {
     fromJson: apiV1ChannelsGet$Response$ItemVisibilityFromJson,
   )
   final enums.ApiV1ChannelsGet$Response$ItemVisibility visibility;
-  @JsonKey(name: 'isSystem', includeIfNull: false)
+  @JsonKey(name: 'is_system', includeIfNull: false)
   final bool isSystem;
-  @JsonKey(name: 'rolloutPercent', includeIfNull: false)
+  @JsonKey(name: 'rollout_percent', includeIfNull: false)
   final int rolloutPercent;
-  @JsonKey(name: 'parentChannelId', includeIfNull: false)
+  @JsonKey(name: 'parent_channel_id', includeIfNull: false)
   final String? parentChannelId;
-  @JsonKey(name: 'createdByUserId', includeIfNull: false)
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
   final String? createdByUserId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   static const fromJsonFactory = _$ApiV1ChannelsGet$Response$ItemFromJson;
 
@@ -4339,11 +4299,11 @@ class ApiV1ChannelsPost$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(name: 'slug', includeIfNull: false)
   final String slug;
-  @JsonKey(name: 'displayName', includeIfNull: false)
+  @JsonKey(name: 'display_name', includeIfNull: false)
   final String? displayName;
   @JsonKey(
     name: 'kind',
@@ -4359,15 +4319,15 @@ class ApiV1ChannelsPost$Response {
     fromJson: apiV1ChannelsPost$ResponseVisibilityFromJson,
   )
   final enums.ApiV1ChannelsPost$ResponseVisibility visibility;
-  @JsonKey(name: 'isSystem', includeIfNull: false)
+  @JsonKey(name: 'is_system', includeIfNull: false)
   final bool isSystem;
-  @JsonKey(name: 'rolloutPercent', includeIfNull: false)
+  @JsonKey(name: 'rollout_percent', includeIfNull: false)
   final int rolloutPercent;
-  @JsonKey(name: 'parentChannelId', includeIfNull: false)
+  @JsonKey(name: 'parent_channel_id', includeIfNull: false)
   final String? parentChannelId;
-  @JsonKey(name: 'createdByUserId', includeIfNull: false)
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
   final String? createdByUserId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   static const fromJsonFactory = _$ApiV1ChannelsPost$ResponseFromJson;
 
@@ -4529,11 +4489,11 @@ class ApiV1ChannelsChannelIdPatch$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(name: 'slug', includeIfNull: false)
   final String slug;
-  @JsonKey(name: 'displayName', includeIfNull: false)
+  @JsonKey(name: 'display_name', includeIfNull: false)
   final String? displayName;
   @JsonKey(
     name: 'kind',
@@ -4549,15 +4509,15 @@ class ApiV1ChannelsChannelIdPatch$Response {
     fromJson: apiV1ChannelsChannelIdPatch$ResponseVisibilityFromJson,
   )
   final enums.ApiV1ChannelsChannelIdPatch$ResponseVisibility visibility;
-  @JsonKey(name: 'isSystem', includeIfNull: false)
+  @JsonKey(name: 'is_system', includeIfNull: false)
   final bool isSystem;
-  @JsonKey(name: 'rolloutPercent', includeIfNull: false)
+  @JsonKey(name: 'rollout_percent', includeIfNull: false)
   final int rolloutPercent;
-  @JsonKey(name: 'parentChannelId', includeIfNull: false)
+  @JsonKey(name: 'parent_channel_id', includeIfNull: false)
   final String? parentChannelId;
-  @JsonKey(name: 'createdByUserId', includeIfNull: false)
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
   final String? createdByUserId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   static const fromJsonFactory = _$ApiV1ChannelsChannelIdPatch$ResponseFromJson;
 
@@ -4717,9 +4677,9 @@ class ApiV1ChannelsChannelIdRollbackPost$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'channelId', includeIfNull: false)
+  @JsonKey(name: 'channel_id', includeIfNull: false)
   final String channelId;
-  @JsonKey(name: 'releaseId', includeIfNull: false)
+  @JsonKey(name: 'release_id', includeIfNull: false)
   final String releaseId;
   @JsonKey(
     name: 'platform',
@@ -4736,9 +4696,9 @@ class ApiV1ChannelsChannelIdRollbackPost$Response {
     fromJson: apiV1ChannelsChannelIdRollbackPost$ResponseArchNullableFromJson,
   )
   final enums.ApiV1ChannelsChannelIdRollbackPost$ResponseArch? arch;
-  @JsonKey(name: 'rolloutPercent', includeIfNull: false)
+  @JsonKey(name: 'rollout_percent', includeIfNull: false)
   final int rolloutPercent;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   static const fromJsonFactory =
       _$ApiV1ChannelsChannelIdRollbackPost$ResponseFromJson;
@@ -4862,11 +4822,11 @@ class ApiV1ReleasesGet$Response$Item {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(name: 'version', includeIfNull: false)
   final String version;
-  @JsonKey(name: 'buildNumber', includeIfNull: false)
+  @JsonKey(name: 'build_number', includeIfNull: false)
   final String? buildNumber;
   @JsonKey(
     name: 'status',
@@ -4877,9 +4837,9 @@ class ApiV1ReleasesGet$Response$Item {
   final enums.ApiV1ReleasesGet$Response$ItemStatus status;
   @JsonKey(name: 'notes', includeIfNull: false)
   final String? notes;
-  @JsonKey(name: 'publishedAt', includeIfNull: false)
+  @JsonKey(name: 'published_at', includeIfNull: false)
   final String? publishedAt;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   static const fromJsonFactory = _$ApiV1ReleasesGet$Response$ItemFromJson;
 
@@ -5001,11 +4961,11 @@ class ApiV1ReleasesPost$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(name: 'version', includeIfNull: false)
   final String version;
-  @JsonKey(name: 'buildNumber', includeIfNull: false)
+  @JsonKey(name: 'build_number', includeIfNull: false)
   final String? buildNumber;
   @JsonKey(
     name: 'status',
@@ -5016,9 +4976,9 @@ class ApiV1ReleasesPost$Response {
   final enums.ApiV1ReleasesPost$ResponseStatus status;
   @JsonKey(name: 'notes', includeIfNull: false)
   final String? notes;
-  @JsonKey(name: 'publishedAt', includeIfNull: false)
+  @JsonKey(name: 'published_at', includeIfNull: false)
   final String? publishedAt;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   static const fromJsonFactory = _$ApiV1ReleasesPost$ResponseFromJson;
 
@@ -5142,11 +5102,11 @@ class ApiV1ReleasesReleaseIdGet$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(name: 'version', includeIfNull: false)
   final String version;
-  @JsonKey(name: 'buildNumber', includeIfNull: false)
+  @JsonKey(name: 'build_number', includeIfNull: false)
   final String? buildNumber;
   @JsonKey(
     name: 'status',
@@ -5157,9 +5117,9 @@ class ApiV1ReleasesReleaseIdGet$Response {
   final enums.ApiV1ReleasesReleaseIdGet$ResponseStatus status;
   @JsonKey(name: 'notes', includeIfNull: false)
   final String? notes;
-  @JsonKey(name: 'publishedAt', includeIfNull: false)
+  @JsonKey(name: 'published_at', includeIfNull: false)
   final String? publishedAt;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   @JsonKey(name: 'artifacts', includeIfNull: false)
   final List<ApiV1ReleasesReleaseIdGet$Response$Artifacts$Item> artifacts;
@@ -5296,11 +5256,11 @@ class ApiV1ReleasesReleaseIdVerifyPost$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(name: 'version', includeIfNull: false)
   final String version;
-  @JsonKey(name: 'buildNumber', includeIfNull: false)
+  @JsonKey(name: 'build_number', includeIfNull: false)
   final String? buildNumber;
   @JsonKey(
     name: 'status',
@@ -5311,9 +5271,9 @@ class ApiV1ReleasesReleaseIdVerifyPost$Response {
   final enums.ApiV1ReleasesReleaseIdVerifyPost$ResponseStatus status;
   @JsonKey(name: 'notes', includeIfNull: false)
   final String? notes;
-  @JsonKey(name: 'publishedAt', includeIfNull: false)
+  @JsonKey(name: 'published_at', includeIfNull: false)
   final String? publishedAt;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   static const fromJsonFactory =
       _$ApiV1ReleasesReleaseIdVerifyPost$ResponseFromJson;
@@ -5439,11 +5399,11 @@ class ApiV1ReleasesReleaseIdPublishPost$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
   @JsonKey(name: 'version', includeIfNull: false)
   final String version;
-  @JsonKey(name: 'buildNumber', includeIfNull: false)
+  @JsonKey(name: 'build_number', includeIfNull: false)
   final String? buildNumber;
   @JsonKey(
     name: 'status',
@@ -5454,9 +5414,9 @@ class ApiV1ReleasesReleaseIdPublishPost$Response {
   final enums.ApiV1ReleasesReleaseIdPublishPost$ResponseStatus status;
   @JsonKey(name: 'notes', includeIfNull: false)
   final String? notes;
-  @JsonKey(name: 'publishedAt', includeIfNull: false)
+  @JsonKey(name: 'published_at', includeIfNull: false)
   final String? publishedAt;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   static const fromJsonFactory =
       _$ApiV1ReleasesReleaseIdPublishPost$ResponseFromJson;
@@ -5581,9 +5541,9 @@ class ApiV1ReleasesReleaseIdPromotePost$Response {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'channelId', includeIfNull: false)
+  @JsonKey(name: 'channel_id', includeIfNull: false)
   final String channelId;
-  @JsonKey(name: 'releaseId', includeIfNull: false)
+  @JsonKey(name: 'release_id', includeIfNull: false)
   final String releaseId;
   @JsonKey(
     name: 'platform',
@@ -5600,9 +5560,9 @@ class ApiV1ReleasesReleaseIdPromotePost$Response {
     fromJson: apiV1ReleasesReleaseIdPromotePost$ResponseArchNullableFromJson,
   )
   final enums.ApiV1ReleasesReleaseIdPromotePost$ResponseArch? arch;
-  @JsonKey(name: 'rolloutPercent', includeIfNull: false)
+  @JsonKey(name: 'rollout_percent', includeIfNull: false)
   final int rolloutPercent;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   static const fromJsonFactory =
       _$ApiV1ReleasesReleaseIdPromotePost$ResponseFromJson;
@@ -5704,59 +5664,31 @@ extension $ApiV1ReleasesReleaseIdPromotePost$ResponseExtension
 }
 
 @JsonSerializable(explicitToJson: true)
-class ApiV1ArtifactsUploadUrlPost$Response {
-  const ApiV1ArtifactsUploadUrlPost$Response({
-    required this.artifactId,
-    required this.uploadUrl,
-    required this.s3Key,
-    required this.expiresAt,
+class ApiV1ArtifactsPost$Response {
+  const ApiV1ArtifactsPost$Response({
     required this.releaseId,
     required this.releaseCreated,
+    required this.artifact,
   });
 
-  factory ApiV1ArtifactsUploadUrlPost$Response.fromJson(
-    Map<String, dynamic> json,
-  ) => _$ApiV1ArtifactsUploadUrlPost$ResponseFromJson(json);
+  factory ApiV1ArtifactsPost$Response.fromJson(Map<String, dynamic> json) =>
+      _$ApiV1ArtifactsPost$ResponseFromJson(json);
 
-  static const toJsonFactory = _$ApiV1ArtifactsUploadUrlPost$ResponseToJson;
-  Map<String, dynamic> toJson() =>
-      _$ApiV1ArtifactsUploadUrlPost$ResponseToJson(this);
+  static const toJsonFactory = _$ApiV1ArtifactsPost$ResponseToJson;
+  Map<String, dynamic> toJson() => _$ApiV1ArtifactsPost$ResponseToJson(this);
 
-  @JsonKey(name: 'artifactId', includeIfNull: false)
-  final String artifactId;
-  @JsonKey(name: 'uploadUrl', includeIfNull: false)
-  final String uploadUrl;
-  @JsonKey(name: 's3Key', includeIfNull: false)
-  final String s3Key;
-  @JsonKey(name: 'expiresAt', includeIfNull: false)
-  final String expiresAt;
-  @JsonKey(name: 'releaseId', includeIfNull: false)
+  @JsonKey(name: 'release_id', includeIfNull: false)
   final String releaseId;
-  @JsonKey(name: 'releaseCreated', includeIfNull: false)
+  @JsonKey(name: 'release_created', includeIfNull: false)
   final bool releaseCreated;
-  static const fromJsonFactory = _$ApiV1ArtifactsUploadUrlPost$ResponseFromJson;
+  @JsonKey(name: 'artifact', includeIfNull: false)
+  final ApiV1ArtifactsPost$Response$Artifact artifact;
+  static const fromJsonFactory = _$ApiV1ArtifactsPost$ResponseFromJson;
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        (other is ApiV1ArtifactsUploadUrlPost$Response &&
-            (identical(other.artifactId, artifactId) ||
-                const DeepCollectionEquality().equals(
-                  other.artifactId,
-                  artifactId,
-                )) &&
-            (identical(other.uploadUrl, uploadUrl) ||
-                const DeepCollectionEquality().equals(
-                  other.uploadUrl,
-                  uploadUrl,
-                )) &&
-            (identical(other.s3Key, s3Key) ||
-                const DeepCollectionEquality().equals(other.s3Key, s3Key)) &&
-            (identical(other.expiresAt, expiresAt) ||
-                const DeepCollectionEquality().equals(
-                  other.expiresAt,
-                  expiresAt,
-                )) &&
+        (other is ApiV1ArtifactsPost$Response &&
             (identical(other.releaseId, releaseId) ||
                 const DeepCollectionEquality().equals(
                   other.releaseId,
@@ -5766,6 +5698,11 @@ class ApiV1ArtifactsUploadUrlPost$Response {
                 const DeepCollectionEquality().equals(
                   other.releaseCreated,
                   releaseCreated,
+                )) &&
+            (identical(other.artifact, artifact) ||
+                const DeepCollectionEquality().equals(
+                  other.artifact,
+                  artifact,
                 )));
   }
 
@@ -5774,105 +5711,154 @@ class ApiV1ArtifactsUploadUrlPost$Response {
 
   @override
   int get hashCode =>
-      const DeepCollectionEquality().hash(artifactId) ^
-      const DeepCollectionEquality().hash(uploadUrl) ^
-      const DeepCollectionEquality().hash(s3Key) ^
-      const DeepCollectionEquality().hash(expiresAt) ^
       const DeepCollectionEquality().hash(releaseId) ^
       const DeepCollectionEquality().hash(releaseCreated) ^
+      const DeepCollectionEquality().hash(artifact) ^
       runtimeType.hashCode;
 }
 
-extension $ApiV1ArtifactsUploadUrlPost$ResponseExtension
-    on ApiV1ArtifactsUploadUrlPost$Response {
-  ApiV1ArtifactsUploadUrlPost$Response copyWith({
-    String? artifactId,
-    String? uploadUrl,
-    String? s3Key,
-    String? expiresAt,
+extension $ApiV1ArtifactsPost$ResponseExtension on ApiV1ArtifactsPost$Response {
+  ApiV1ArtifactsPost$Response copyWith({
     String? releaseId,
     bool? releaseCreated,
+    ApiV1ArtifactsPost$Response$Artifact? artifact,
   }) {
-    return ApiV1ArtifactsUploadUrlPost$Response(
-      artifactId: artifactId ?? this.artifactId,
-      uploadUrl: uploadUrl ?? this.uploadUrl,
-      s3Key: s3Key ?? this.s3Key,
-      expiresAt: expiresAt ?? this.expiresAt,
+    return ApiV1ArtifactsPost$Response(
       releaseId: releaseId ?? this.releaseId,
       releaseCreated: releaseCreated ?? this.releaseCreated,
+      artifact: artifact ?? this.artifact,
     );
   }
 
-  ApiV1ArtifactsUploadUrlPost$Response copyWithWrapped({
-    Wrapped<String>? artifactId,
-    Wrapped<String>? uploadUrl,
-    Wrapped<String>? s3Key,
-    Wrapped<String>? expiresAt,
+  ApiV1ArtifactsPost$Response copyWithWrapped({
     Wrapped<String>? releaseId,
     Wrapped<bool>? releaseCreated,
+    Wrapped<ApiV1ArtifactsPost$Response$Artifact>? artifact,
   }) {
-    return ApiV1ArtifactsUploadUrlPost$Response(
-      artifactId: (artifactId != null ? artifactId.value : this.artifactId),
-      uploadUrl: (uploadUrl != null ? uploadUrl.value : this.uploadUrl),
-      s3Key: (s3Key != null ? s3Key.value : this.s3Key),
-      expiresAt: (expiresAt != null ? expiresAt.value : this.expiresAt),
+    return ApiV1ArtifactsPost$Response(
       releaseId: (releaseId != null ? releaseId.value : this.releaseId),
       releaseCreated: (releaseCreated != null
           ? releaseCreated.value
           : this.releaseCreated),
+      artifact: (artifact != null ? artifact.value : this.artifact),
     );
   }
 }
 
 @JsonSerializable(explicitToJson: true)
-class ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response {
-  const ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response({
-    required this.artifactId,
-    required this.uploadUrl,
+class ApiV1ReleasesReleaseIdArtifactsPost$Response {
+  const ApiV1ReleasesReleaseIdArtifactsPost$Response({
+    required this.id,
+    required this.releaseId,
+    required this.platform,
+    required this.arch,
+    required this.packageType,
+    required this.fileName,
     required this.s3Key,
-    required this.expiresAt,
+    required this.sha256,
+    required this.signature,
+    required this.sizeBytes,
+    required this.verified,
+    required this.createdAt,
   });
 
-  factory ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response.fromJson(
+  factory ApiV1ReleasesReleaseIdArtifactsPost$Response.fromJson(
     Map<String, dynamic> json,
-  ) => _$ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$ResponseFromJson(json);
+  ) => _$ApiV1ReleasesReleaseIdArtifactsPost$ResponseFromJson(json);
 
   static const toJsonFactory =
-      _$ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$ResponseToJson;
+      _$ApiV1ReleasesReleaseIdArtifactsPost$ResponseToJson;
   Map<String, dynamic> toJson() =>
-      _$ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$ResponseToJson(this);
+      _$ApiV1ReleasesReleaseIdArtifactsPost$ResponseToJson(this);
 
-  @JsonKey(name: 'artifactId', includeIfNull: false)
-  final String artifactId;
-  @JsonKey(name: 'uploadUrl', includeIfNull: false)
-  final String uploadUrl;
-  @JsonKey(name: 's3Key', includeIfNull: false)
+  @JsonKey(name: 'id', includeIfNull: false)
+  final String id;
+  @JsonKey(name: 'release_id', includeIfNull: false)
+  final String releaseId;
+  @JsonKey(
+    name: 'platform',
+    includeIfNull: false,
+    toJson: apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatformToJson,
+    fromJson: apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatformFromJson,
+  )
+  final enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform platform;
+  @JsonKey(
+    name: 'arch',
+    includeIfNull: false,
+    toJson: apiV1ReleasesReleaseIdArtifactsPost$ResponseArchToJson,
+    fromJson: apiV1ReleasesReleaseIdArtifactsPost$ResponseArchFromJson,
+  )
+  final enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch arch;
+  @JsonKey(name: 'package_type', includeIfNull: false)
+  final String packageType;
+  @JsonKey(name: 'file_name', includeIfNull: false)
+  final String fileName;
+  @JsonKey(name: 's3_key', includeIfNull: false)
   final String s3Key;
-  @JsonKey(name: 'expiresAt', includeIfNull: false)
-  final String expiresAt;
+  @JsonKey(name: 'sha256', includeIfNull: false)
+  final String? sha256;
+  @JsonKey(name: 'signature', includeIfNull: false)
+  final String? signature;
+  @JsonKey(name: 'size_bytes', includeIfNull: false)
+  final int sizeBytes;
+  @JsonKey(name: 'verified', includeIfNull: false)
+  final bool verified;
+  @JsonKey(name: 'created_at', includeIfNull: false)
+  final String createdAt;
   static const fromJsonFactory =
-      _$ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$ResponseFromJson;
+      _$ApiV1ReleasesReleaseIdArtifactsPost$ResponseFromJson;
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        (other is ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response &&
-            (identical(other.artifactId, artifactId) ||
+        (other is ApiV1ReleasesReleaseIdArtifactsPost$Response &&
+            (identical(other.id, id) ||
+                const DeepCollectionEquality().equals(other.id, id)) &&
+            (identical(other.releaseId, releaseId) ||
                 const DeepCollectionEquality().equals(
-                  other.artifactId,
-                  artifactId,
+                  other.releaseId,
+                  releaseId,
                 )) &&
-            (identical(other.uploadUrl, uploadUrl) ||
+            (identical(other.platform, platform) ||
                 const DeepCollectionEquality().equals(
-                  other.uploadUrl,
-                  uploadUrl,
+                  other.platform,
+                  platform,
+                )) &&
+            (identical(other.arch, arch) ||
+                const DeepCollectionEquality().equals(other.arch, arch)) &&
+            (identical(other.packageType, packageType) ||
+                const DeepCollectionEquality().equals(
+                  other.packageType,
+                  packageType,
+                )) &&
+            (identical(other.fileName, fileName) ||
+                const DeepCollectionEquality().equals(
+                  other.fileName,
+                  fileName,
                 )) &&
             (identical(other.s3Key, s3Key) ||
                 const DeepCollectionEquality().equals(other.s3Key, s3Key)) &&
-            (identical(other.expiresAt, expiresAt) ||
+            (identical(other.sha256, sha256) ||
+                const DeepCollectionEquality().equals(other.sha256, sha256)) &&
+            (identical(other.signature, signature) ||
                 const DeepCollectionEquality().equals(
-                  other.expiresAt,
-                  expiresAt,
+                  other.signature,
+                  signature,
+                )) &&
+            (identical(other.sizeBytes, sizeBytes) ||
+                const DeepCollectionEquality().equals(
+                  other.sizeBytes,
+                  sizeBytes,
+                )) &&
+            (identical(other.verified, verified) ||
+                const DeepCollectionEquality().equals(
+                  other.verified,
+                  verified,
+                )) &&
+            (identical(other.createdAt, createdAt) ||
+                const DeepCollectionEquality().equals(
+                  other.createdAt,
+                  createdAt,
                 )));
   }
 
@@ -5881,40 +5867,81 @@ class ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response {
 
   @override
   int get hashCode =>
-      const DeepCollectionEquality().hash(artifactId) ^
-      const DeepCollectionEquality().hash(uploadUrl) ^
+      const DeepCollectionEquality().hash(id) ^
+      const DeepCollectionEquality().hash(releaseId) ^
+      const DeepCollectionEquality().hash(platform) ^
+      const DeepCollectionEquality().hash(arch) ^
+      const DeepCollectionEquality().hash(packageType) ^
+      const DeepCollectionEquality().hash(fileName) ^
       const DeepCollectionEquality().hash(s3Key) ^
-      const DeepCollectionEquality().hash(expiresAt) ^
+      const DeepCollectionEquality().hash(sha256) ^
+      const DeepCollectionEquality().hash(signature) ^
+      const DeepCollectionEquality().hash(sizeBytes) ^
+      const DeepCollectionEquality().hash(verified) ^
+      const DeepCollectionEquality().hash(createdAt) ^
       runtimeType.hashCode;
 }
 
-extension $ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$ResponseExtension
-    on ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response {
-  ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response copyWith({
-    String? artifactId,
-    String? uploadUrl,
+extension $ApiV1ReleasesReleaseIdArtifactsPost$ResponseExtension
+    on ApiV1ReleasesReleaseIdArtifactsPost$Response {
+  ApiV1ReleasesReleaseIdArtifactsPost$Response copyWith({
+    String? id,
+    String? releaseId,
+    enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform? platform,
+    enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch? arch,
+    String? packageType,
+    String? fileName,
     String? s3Key,
-    String? expiresAt,
+    String? sha256,
+    String? signature,
+    int? sizeBytes,
+    bool? verified,
+    String? createdAt,
   }) {
-    return ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response(
-      artifactId: artifactId ?? this.artifactId,
-      uploadUrl: uploadUrl ?? this.uploadUrl,
+    return ApiV1ReleasesReleaseIdArtifactsPost$Response(
+      id: id ?? this.id,
+      releaseId: releaseId ?? this.releaseId,
+      platform: platform ?? this.platform,
+      arch: arch ?? this.arch,
+      packageType: packageType ?? this.packageType,
+      fileName: fileName ?? this.fileName,
       s3Key: s3Key ?? this.s3Key,
-      expiresAt: expiresAt ?? this.expiresAt,
+      sha256: sha256 ?? this.sha256,
+      signature: signature ?? this.signature,
+      sizeBytes: sizeBytes ?? this.sizeBytes,
+      verified: verified ?? this.verified,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
-  ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response copyWithWrapped({
-    Wrapped<String>? artifactId,
-    Wrapped<String>? uploadUrl,
+  ApiV1ReleasesReleaseIdArtifactsPost$Response copyWithWrapped({
+    Wrapped<String>? id,
+    Wrapped<String>? releaseId,
+    Wrapped<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform>?
+    platform,
+    Wrapped<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch>? arch,
+    Wrapped<String>? packageType,
+    Wrapped<String>? fileName,
     Wrapped<String>? s3Key,
-    Wrapped<String>? expiresAt,
+    Wrapped<String?>? sha256,
+    Wrapped<String?>? signature,
+    Wrapped<int>? sizeBytes,
+    Wrapped<bool>? verified,
+    Wrapped<String>? createdAt,
   }) {
-    return ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response(
-      artifactId: (artifactId != null ? artifactId.value : this.artifactId),
-      uploadUrl: (uploadUrl != null ? uploadUrl.value : this.uploadUrl),
+    return ApiV1ReleasesReleaseIdArtifactsPost$Response(
+      id: (id != null ? id.value : this.id),
+      releaseId: (releaseId != null ? releaseId.value : this.releaseId),
+      platform: (platform != null ? platform.value : this.platform),
+      arch: (arch != null ? arch.value : this.arch),
+      packageType: (packageType != null ? packageType.value : this.packageType),
+      fileName: (fileName != null ? fileName.value : this.fileName),
       s3Key: (s3Key != null ? s3Key.value : this.s3Key),
-      expiresAt: (expiresAt != null ? expiresAt.value : this.expiresAt),
+      sha256: (sha256 != null ? sha256.value : this.sha256),
+      signature: (signature != null ? signature.value : this.signature),
+      sizeBytes: (sizeBytes != null ? sizeBytes.value : this.sizeBytes),
+      verified: (verified != null ? verified.value : this.verified),
+      createdAt: (createdAt != null ? createdAt.value : this.createdAt),
     );
   }
 }
@@ -6034,13 +6061,13 @@ class ApiV1DashboardSummaryGet$Response {
   Map<String, dynamic> toJson() =>
       _$ApiV1DashboardSummaryGet$ResponseToJson(this);
 
-  @JsonKey(name: 'generatedAt', includeIfNull: false)
+  @JsonKey(name: 'generated_at', includeIfNull: false)
   final String generatedAt;
   @JsonKey(name: 'totals', includeIfNull: false)
   final ApiV1DashboardSummaryGet$Response$Totals totals;
   @JsonKey(name: 'apps', includeIfNull: false)
   final List<ApiV1DashboardSummaryGet$Response$Apps$Item> apps;
-  @JsonKey(name: 'activeAssignments', includeIfNull: false)
+  @JsonKey(name: 'active_assignments', includeIfNull: false)
   final List<ApiV1DashboardSummaryGet$Response$ActiveAssignments$Item>
   activeAssignments;
   static const fromJsonFactory = _$ApiV1DashboardSummaryGet$ResponseFromJson;
@@ -6112,6 +6139,200 @@ extension $ApiV1DashboardSummaryGet$ResponseExtension
   }
 }
 
+typedef ApiPublicV1ChannelsGet$Response =
+    List<ApiPublicV1ChannelsGet$Response$Item>;
+
+@JsonSerializable(explicitToJson: true)
+class ApiPublicV1ChannelsGet$Response$Item {
+  const ApiPublicV1ChannelsGet$Response$Item({
+    required this.id,
+    required this.appId,
+    required this.slug,
+    required this.displayName,
+    required this.kind,
+    required this.isSystem,
+    required this.rolloutPercent,
+    required this.parentChannelId,
+    required this.createdByUserId,
+    required this.createdAt,
+    required this.visibility,
+  });
+
+  factory ApiPublicV1ChannelsGet$Response$Item.fromJson(
+    Map<String, dynamic> json,
+  ) => _$ApiPublicV1ChannelsGet$Response$ItemFromJson(json);
+
+  static const toJsonFactory = _$ApiPublicV1ChannelsGet$Response$ItemToJson;
+  Map<String, dynamic> toJson() =>
+      _$ApiPublicV1ChannelsGet$Response$ItemToJson(this);
+
+  @JsonKey(name: 'id', includeIfNull: false)
+  final String id;
+  @JsonKey(name: 'app_id', includeIfNull: false)
+  final String appId;
+  @JsonKey(name: 'slug', includeIfNull: false)
+  final String slug;
+  @JsonKey(name: 'display_name', includeIfNull: false)
+  final String? displayName;
+  @JsonKey(
+    name: 'kind',
+    includeIfNull: false,
+    toJson: apiPublicV1ChannelsGet$Response$ItemKindToJson,
+    fromJson: apiPublicV1ChannelsGet$Response$ItemKindFromJson,
+  )
+  final enums.ApiPublicV1ChannelsGet$Response$ItemKind kind;
+  @JsonKey(name: 'is_system', includeIfNull: false)
+  final bool isSystem;
+  @JsonKey(name: 'rollout_percent', includeIfNull: false)
+  final int rolloutPercent;
+  @JsonKey(name: 'parent_channel_id', includeIfNull: false)
+  final String? parentChannelId;
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
+  final String? createdByUserId;
+  @JsonKey(name: 'created_at', includeIfNull: false)
+  final String createdAt;
+  @JsonKey(
+    name: 'visibility',
+    includeIfNull: false,
+    toJson: apiPublicV1ChannelsGet$Response$ItemVisibilityToJson,
+    fromJson: apiPublicV1ChannelsGet$Response$ItemVisibilityFromJson,
+  )
+  final enums.ApiPublicV1ChannelsGet$Response$ItemVisibility visibility;
+  static const fromJsonFactory = _$ApiPublicV1ChannelsGet$Response$ItemFromJson;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other is ApiPublicV1ChannelsGet$Response$Item &&
+            (identical(other.id, id) ||
+                const DeepCollectionEquality().equals(other.id, id)) &&
+            (identical(other.appId, appId) ||
+                const DeepCollectionEquality().equals(other.appId, appId)) &&
+            (identical(other.slug, slug) ||
+                const DeepCollectionEquality().equals(other.slug, slug)) &&
+            (identical(other.displayName, displayName) ||
+                const DeepCollectionEquality().equals(
+                  other.displayName,
+                  displayName,
+                )) &&
+            (identical(other.kind, kind) ||
+                const DeepCollectionEquality().equals(other.kind, kind)) &&
+            (identical(other.isSystem, isSystem) ||
+                const DeepCollectionEquality().equals(
+                  other.isSystem,
+                  isSystem,
+                )) &&
+            (identical(other.rolloutPercent, rolloutPercent) ||
+                const DeepCollectionEquality().equals(
+                  other.rolloutPercent,
+                  rolloutPercent,
+                )) &&
+            (identical(other.parentChannelId, parentChannelId) ||
+                const DeepCollectionEquality().equals(
+                  other.parentChannelId,
+                  parentChannelId,
+                )) &&
+            (identical(other.createdByUserId, createdByUserId) ||
+                const DeepCollectionEquality().equals(
+                  other.createdByUserId,
+                  createdByUserId,
+                )) &&
+            (identical(other.createdAt, createdAt) ||
+                const DeepCollectionEquality().equals(
+                  other.createdAt,
+                  createdAt,
+                )) &&
+            (identical(other.visibility, visibility) ||
+                const DeepCollectionEquality().equals(
+                  other.visibility,
+                  visibility,
+                )));
+  }
+
+  @override
+  String toString() => jsonEncode(this);
+
+  @override
+  int get hashCode =>
+      const DeepCollectionEquality().hash(id) ^
+      const DeepCollectionEquality().hash(appId) ^
+      const DeepCollectionEquality().hash(slug) ^
+      const DeepCollectionEquality().hash(displayName) ^
+      const DeepCollectionEquality().hash(kind) ^
+      const DeepCollectionEquality().hash(isSystem) ^
+      const DeepCollectionEquality().hash(rolloutPercent) ^
+      const DeepCollectionEquality().hash(parentChannelId) ^
+      const DeepCollectionEquality().hash(createdByUserId) ^
+      const DeepCollectionEquality().hash(createdAt) ^
+      const DeepCollectionEquality().hash(visibility) ^
+      runtimeType.hashCode;
+}
+
+extension $ApiPublicV1ChannelsGet$Response$ItemExtension
+    on ApiPublicV1ChannelsGet$Response$Item {
+  ApiPublicV1ChannelsGet$Response$Item copyWith({
+    String? id,
+    String? appId,
+    String? slug,
+    String? displayName,
+    enums.ApiPublicV1ChannelsGet$Response$ItemKind? kind,
+    bool? isSystem,
+    int? rolloutPercent,
+    String? parentChannelId,
+    String? createdByUserId,
+    String? createdAt,
+    enums.ApiPublicV1ChannelsGet$Response$ItemVisibility? visibility,
+  }) {
+    return ApiPublicV1ChannelsGet$Response$Item(
+      id: id ?? this.id,
+      appId: appId ?? this.appId,
+      slug: slug ?? this.slug,
+      displayName: displayName ?? this.displayName,
+      kind: kind ?? this.kind,
+      isSystem: isSystem ?? this.isSystem,
+      rolloutPercent: rolloutPercent ?? this.rolloutPercent,
+      parentChannelId: parentChannelId ?? this.parentChannelId,
+      createdByUserId: createdByUserId ?? this.createdByUserId,
+      createdAt: createdAt ?? this.createdAt,
+      visibility: visibility ?? this.visibility,
+    );
+  }
+
+  ApiPublicV1ChannelsGet$Response$Item copyWithWrapped({
+    Wrapped<String>? id,
+    Wrapped<String>? appId,
+    Wrapped<String>? slug,
+    Wrapped<String?>? displayName,
+    Wrapped<enums.ApiPublicV1ChannelsGet$Response$ItemKind>? kind,
+    Wrapped<bool>? isSystem,
+    Wrapped<int>? rolloutPercent,
+    Wrapped<String?>? parentChannelId,
+    Wrapped<String?>? createdByUserId,
+    Wrapped<String>? createdAt,
+    Wrapped<enums.ApiPublicV1ChannelsGet$Response$ItemVisibility>? visibility,
+  }) {
+    return ApiPublicV1ChannelsGet$Response$Item(
+      id: (id != null ? id.value : this.id),
+      appId: (appId != null ? appId.value : this.appId),
+      slug: (slug != null ? slug.value : this.slug),
+      displayName: (displayName != null ? displayName.value : this.displayName),
+      kind: (kind != null ? kind.value : this.kind),
+      isSystem: (isSystem != null ? isSystem.value : this.isSystem),
+      rolloutPercent: (rolloutPercent != null
+          ? rolloutPercent.value
+          : this.rolloutPercent),
+      parentChannelId: (parentChannelId != null
+          ? parentChannelId.value
+          : this.parentChannelId),
+      createdByUserId: (createdByUserId != null
+          ? createdByUserId.value
+          : this.createdByUserId),
+      createdAt: (createdAt != null ? createdAt.value : this.createdAt),
+      visibility: (visibility != null ? visibility.value : this.visibility),
+    );
+  }
+}
+
 @JsonSerializable(explicitToJson: true)
 class ApiV1ReleasesReleaseIdPublishPost$RequestBody$Targets$Item {
   const ApiV1ReleasesReleaseIdPublishPost$RequestBody$Targets$Item({
@@ -6132,7 +6353,7 @@ class ApiV1ReleasesReleaseIdPublishPost$RequestBody$Targets$Item {
   Map<String, dynamic> toJson() =>
       _$ApiV1ReleasesReleaseIdPublishPost$RequestBody$Targets$ItemToJson(this);
 
-  @JsonKey(name: 'channelId', includeIfNull: false)
+  @JsonKey(name: 'channel_id', includeIfNull: false)
   final String channelId;
   @JsonKey(
     name: 'platform',
@@ -6154,7 +6375,7 @@ class ApiV1ReleasesReleaseIdPublishPost$RequestBody$Targets$Item {
   )
   final enums.ApiV1ReleasesReleaseIdPublishPost$RequestBody$Targets$ItemArch?
   arch;
-  @JsonKey(name: 'rolloutPercent', includeIfNull: false)
+  @JsonKey(name: 'rollout_percent', includeIfNull: false)
   final int? rolloutPercent;
   static const fromJsonFactory =
       _$ApiV1ReleasesReleaseIdPublishPost$RequestBody$Targets$ItemFromJson;
@@ -6260,19 +6481,19 @@ class ApiV1ApiKeysPost$Response$ApiKey {
   final String id;
   @JsonKey(name: 'name', includeIfNull: false)
   final String name;
-  @JsonKey(name: 'tokenId', includeIfNull: false)
+  @JsonKey(name: 'token_id', includeIfNull: false)
   final String tokenId;
-  @JsonKey(name: 'keyPrefix', includeIfNull: false)
+  @JsonKey(name: 'key_prefix', includeIfNull: false)
   final String keyPrefix;
-  @JsonKey(name: 'createdByUserId', includeIfNull: false)
+  @JsonKey(name: 'created_by_user_id', includeIfNull: false)
   final String? createdByUserId;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'lastUsedAt', includeIfNull: false)
+  @JsonKey(name: 'last_used_at', includeIfNull: false)
   final String? lastUsedAt;
-  @JsonKey(name: 'revokedAt', includeIfNull: false)
+  @JsonKey(name: 'revoked_at', includeIfNull: false)
   final String? revokedAt;
-  @JsonKey(name: 'revokedByUserId', includeIfNull: false)
+  @JsonKey(name: 'revoked_by_user_id', includeIfNull: false)
   final String? revokedByUserId;
   static const fromJsonFactory = _$ApiV1ApiKeysPost$Response$ApiKeyFromJson;
 
@@ -6426,9 +6647,9 @@ class ApiV1AppsAppIdPipelineRunsPost$Response$Jobs$Item {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'pipelineRunId', includeIfNull: false)
+  @JsonKey(name: 'pipeline_run_id', includeIfNull: false)
   final String pipelineRunId;
-  @JsonKey(name: 'buildProfileId', includeIfNull: false)
+  @JsonKey(name: 'build_profile_id', includeIfNull: false)
   final String? buildProfileId;
   @JsonKey(
     name: 'platform',
@@ -6438,7 +6659,7 @@ class ApiV1AppsAppIdPipelineRunsPost$Response$Jobs$Item {
   )
   final enums.ApiV1AppsAppIdPipelineRunsPost$Response$Jobs$ItemPlatform
   platform;
-  @JsonKey(name: 'packageType', includeIfNull: false)
+  @JsonKey(name: 'package_type', includeIfNull: false)
   final String packageType;
   @JsonKey(
     name: 'arch',
@@ -6455,14 +6676,14 @@ class ApiV1AppsAppIdPipelineRunsPost$Response$Jobs$Item {
     fromJson: apiV1AppsAppIdPipelineRunsPost$Response$Jobs$ItemStatusFromJson,
   )
   final enums.ApiV1AppsAppIdPipelineRunsPost$Response$Jobs$ItemStatus status;
-  @JsonKey(name: 'externalJobId', includeIfNull: false)
+  @JsonKey(name: 'external_job_id', includeIfNull: false)
   final String? externalJobId;
-  @JsonKey(name: 'artifactId', includeIfNull: false)
+  @JsonKey(name: 'artifact_id', includeIfNull: false)
   final String? artifactId;
-  @JsonKey(name: 'deploymentTargetId', includeIfNull: false)
+  @JsonKey(name: 'deployment_target_id', includeIfNull: false)
   final String? deploymentTargetId;
   @JsonKey(
-    name: 'deploymentStatus',
+    name: 'deployment_status',
     includeIfNull: false,
     toJson:
         apiV1AppsAppIdPipelineRunsPost$Response$Jobs$ItemDeploymentStatusNullableToJson,
@@ -6471,17 +6692,17 @@ class ApiV1AppsAppIdPipelineRunsPost$Response$Jobs$Item {
   )
   final enums.ApiV1AppsAppIdPipelineRunsPost$Response$Jobs$ItemDeploymentStatus?
   deploymentStatus;
-  @JsonKey(name: 'logsUrl', includeIfNull: false)
+  @JsonKey(name: 'logs_url', includeIfNull: false)
   final String? logsUrl;
-  @JsonKey(name: 'errorMessage', includeIfNull: false)
+  @JsonKey(name: 'error_message', includeIfNull: false)
   final String? errorMessage;
-  @JsonKey(name: 'startedAt', includeIfNull: false)
+  @JsonKey(name: 'started_at', includeIfNull: false)
   final String? startedAt;
-  @JsonKey(name: 'finishedAt', includeIfNull: false)
+  @JsonKey(name: 'finished_at', includeIfNull: false)
   final String? finishedAt;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'updatedAt', includeIfNull: false)
+  @JsonKey(name: 'updated_at', includeIfNull: false)
   final String updatedAt;
   static const fromJsonFactory =
       _$ApiV1AppsAppIdPipelineRunsPost$Response$Jobs$ItemFromJson;
@@ -6727,9 +6948,9 @@ class ApiV1PipelineRunsPipelineRunIdGet$Response$Jobs$Item {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'pipelineRunId', includeIfNull: false)
+  @JsonKey(name: 'pipeline_run_id', includeIfNull: false)
   final String pipelineRunId;
-  @JsonKey(name: 'buildProfileId', includeIfNull: false)
+  @JsonKey(name: 'build_profile_id', includeIfNull: false)
   final String? buildProfileId;
   @JsonKey(
     name: 'platform',
@@ -6740,7 +6961,7 @@ class ApiV1PipelineRunsPipelineRunIdGet$Response$Jobs$Item {
   )
   final enums.ApiV1PipelineRunsPipelineRunIdGet$Response$Jobs$ItemPlatform
   platform;
-  @JsonKey(name: 'packageType', includeIfNull: false)
+  @JsonKey(name: 'package_type', includeIfNull: false)
   final String packageType;
   @JsonKey(
     name: 'arch',
@@ -6759,14 +6980,14 @@ class ApiV1PipelineRunsPipelineRunIdGet$Response$Jobs$Item {
         apiV1PipelineRunsPipelineRunIdGet$Response$Jobs$ItemStatusFromJson,
   )
   final enums.ApiV1PipelineRunsPipelineRunIdGet$Response$Jobs$ItemStatus status;
-  @JsonKey(name: 'externalJobId', includeIfNull: false)
+  @JsonKey(name: 'external_job_id', includeIfNull: false)
   final String? externalJobId;
-  @JsonKey(name: 'artifactId', includeIfNull: false)
+  @JsonKey(name: 'artifact_id', includeIfNull: false)
   final String? artifactId;
-  @JsonKey(name: 'deploymentTargetId', includeIfNull: false)
+  @JsonKey(name: 'deployment_target_id', includeIfNull: false)
   final String? deploymentTargetId;
   @JsonKey(
-    name: 'deploymentStatus',
+    name: 'deployment_status',
     includeIfNull: false,
     toJson:
         apiV1PipelineRunsPipelineRunIdGet$Response$Jobs$ItemDeploymentStatusNullableToJson,
@@ -6775,17 +6996,17 @@ class ApiV1PipelineRunsPipelineRunIdGet$Response$Jobs$Item {
   )
   final enums.ApiV1PipelineRunsPipelineRunIdGet$Response$Jobs$ItemDeploymentStatus?
   deploymentStatus;
-  @JsonKey(name: 'logsUrl', includeIfNull: false)
+  @JsonKey(name: 'logs_url', includeIfNull: false)
   final String? logsUrl;
-  @JsonKey(name: 'errorMessage', includeIfNull: false)
+  @JsonKey(name: 'error_message', includeIfNull: false)
   final String? errorMessage;
-  @JsonKey(name: 'startedAt', includeIfNull: false)
+  @JsonKey(name: 'started_at', includeIfNull: false)
   final String? startedAt;
-  @JsonKey(name: 'finishedAt', includeIfNull: false)
+  @JsonKey(name: 'finished_at', includeIfNull: false)
   final String? finishedAt;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
-  @JsonKey(name: 'updatedAt', includeIfNull: false)
+  @JsonKey(name: 'updated_at', includeIfNull: false)
   final String updatedAt;
   static const fromJsonFactory =
       _$ApiV1PipelineRunsPipelineRunIdGet$Response$Jobs$ItemFromJson;
@@ -7028,7 +7249,7 @@ class ApiV1ReleasesReleaseIdGet$Response$Artifacts$Item {
 
   @JsonKey(name: 'id', includeIfNull: false)
   final String id;
-  @JsonKey(name: 'releaseId', includeIfNull: false)
+  @JsonKey(name: 'release_id', includeIfNull: false)
   final String releaseId;
   @JsonKey(
     name: 'platform',
@@ -7045,21 +7266,21 @@ class ApiV1ReleasesReleaseIdGet$Response$Artifacts$Item {
     fromJson: apiV1ReleasesReleaseIdGet$Response$Artifacts$ItemArchFromJson,
   )
   final enums.ApiV1ReleasesReleaseIdGet$Response$Artifacts$ItemArch arch;
-  @JsonKey(name: 'packageType', includeIfNull: false)
+  @JsonKey(name: 'package_type', includeIfNull: false)
   final String packageType;
-  @JsonKey(name: 'fileName', includeIfNull: false)
+  @JsonKey(name: 'file_name', includeIfNull: false)
   final String fileName;
-  @JsonKey(name: 's3Key', includeIfNull: false)
+  @JsonKey(name: 's3_key', includeIfNull: false)
   final String s3Key;
   @JsonKey(name: 'sha256', includeIfNull: false)
   final String? sha256;
   @JsonKey(name: 'signature', includeIfNull: false)
   final String? signature;
-  @JsonKey(name: 'sizeBytes', includeIfNull: false)
+  @JsonKey(name: 'size_bytes', includeIfNull: false)
   final int sizeBytes;
   @JsonKey(name: 'verified', includeIfNull: false)
   final bool verified;
-  @JsonKey(name: 'createdAt', includeIfNull: false)
+  @JsonKey(name: 'created_at', includeIfNull: false)
   final String createdAt;
   static const fromJsonFactory =
       _$ApiV1ReleasesReleaseIdGet$Response$Artifacts$ItemFromJson;
@@ -7203,6 +7424,204 @@ extension $ApiV1ReleasesReleaseIdGet$Response$Artifacts$ItemExtension
 }
 
 @JsonSerializable(explicitToJson: true)
+class ApiV1ArtifactsPost$Response$Artifact {
+  const ApiV1ArtifactsPost$Response$Artifact({
+    required this.id,
+    required this.releaseId,
+    required this.platform,
+    required this.arch,
+    required this.packageType,
+    required this.fileName,
+    required this.s3Key,
+    required this.sha256,
+    required this.signature,
+    required this.sizeBytes,
+    required this.verified,
+    required this.createdAt,
+  });
+
+  factory ApiV1ArtifactsPost$Response$Artifact.fromJson(
+    Map<String, dynamic> json,
+  ) => _$ApiV1ArtifactsPost$Response$ArtifactFromJson(json);
+
+  static const toJsonFactory = _$ApiV1ArtifactsPost$Response$ArtifactToJson;
+  Map<String, dynamic> toJson() =>
+      _$ApiV1ArtifactsPost$Response$ArtifactToJson(this);
+
+  @JsonKey(name: 'id', includeIfNull: false)
+  final String id;
+  @JsonKey(name: 'release_id', includeIfNull: false)
+  final String releaseId;
+  @JsonKey(
+    name: 'platform',
+    includeIfNull: false,
+    toJson: apiV1ArtifactsPost$Response$ArtifactPlatformToJson,
+    fromJson: apiV1ArtifactsPost$Response$ArtifactPlatformFromJson,
+  )
+  final enums.ApiV1ArtifactsPost$Response$ArtifactPlatform platform;
+  @JsonKey(
+    name: 'arch',
+    includeIfNull: false,
+    toJson: apiV1ArtifactsPost$Response$ArtifactArchToJson,
+    fromJson: apiV1ArtifactsPost$Response$ArtifactArchFromJson,
+  )
+  final enums.ApiV1ArtifactsPost$Response$ArtifactArch arch;
+  @JsonKey(name: 'package_type', includeIfNull: false)
+  final String packageType;
+  @JsonKey(name: 'file_name', includeIfNull: false)
+  final String fileName;
+  @JsonKey(name: 's3_key', includeIfNull: false)
+  final String s3Key;
+  @JsonKey(name: 'sha256', includeIfNull: false)
+  final String? sha256;
+  @JsonKey(name: 'signature', includeIfNull: false)
+  final String? signature;
+  @JsonKey(name: 'size_bytes', includeIfNull: false)
+  final int sizeBytes;
+  @JsonKey(name: 'verified', includeIfNull: false)
+  final bool verified;
+  @JsonKey(name: 'created_at', includeIfNull: false)
+  final String createdAt;
+  static const fromJsonFactory = _$ApiV1ArtifactsPost$Response$ArtifactFromJson;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other is ApiV1ArtifactsPost$Response$Artifact &&
+            (identical(other.id, id) ||
+                const DeepCollectionEquality().equals(other.id, id)) &&
+            (identical(other.releaseId, releaseId) ||
+                const DeepCollectionEquality().equals(
+                  other.releaseId,
+                  releaseId,
+                )) &&
+            (identical(other.platform, platform) ||
+                const DeepCollectionEquality().equals(
+                  other.platform,
+                  platform,
+                )) &&
+            (identical(other.arch, arch) ||
+                const DeepCollectionEquality().equals(other.arch, arch)) &&
+            (identical(other.packageType, packageType) ||
+                const DeepCollectionEquality().equals(
+                  other.packageType,
+                  packageType,
+                )) &&
+            (identical(other.fileName, fileName) ||
+                const DeepCollectionEquality().equals(
+                  other.fileName,
+                  fileName,
+                )) &&
+            (identical(other.s3Key, s3Key) ||
+                const DeepCollectionEquality().equals(other.s3Key, s3Key)) &&
+            (identical(other.sha256, sha256) ||
+                const DeepCollectionEquality().equals(other.sha256, sha256)) &&
+            (identical(other.signature, signature) ||
+                const DeepCollectionEquality().equals(
+                  other.signature,
+                  signature,
+                )) &&
+            (identical(other.sizeBytes, sizeBytes) ||
+                const DeepCollectionEquality().equals(
+                  other.sizeBytes,
+                  sizeBytes,
+                )) &&
+            (identical(other.verified, verified) ||
+                const DeepCollectionEquality().equals(
+                  other.verified,
+                  verified,
+                )) &&
+            (identical(other.createdAt, createdAt) ||
+                const DeepCollectionEquality().equals(
+                  other.createdAt,
+                  createdAt,
+                )));
+  }
+
+  @override
+  String toString() => jsonEncode(this);
+
+  @override
+  int get hashCode =>
+      const DeepCollectionEquality().hash(id) ^
+      const DeepCollectionEquality().hash(releaseId) ^
+      const DeepCollectionEquality().hash(platform) ^
+      const DeepCollectionEquality().hash(arch) ^
+      const DeepCollectionEquality().hash(packageType) ^
+      const DeepCollectionEquality().hash(fileName) ^
+      const DeepCollectionEquality().hash(s3Key) ^
+      const DeepCollectionEquality().hash(sha256) ^
+      const DeepCollectionEquality().hash(signature) ^
+      const DeepCollectionEquality().hash(sizeBytes) ^
+      const DeepCollectionEquality().hash(verified) ^
+      const DeepCollectionEquality().hash(createdAt) ^
+      runtimeType.hashCode;
+}
+
+extension $ApiV1ArtifactsPost$Response$ArtifactExtension
+    on ApiV1ArtifactsPost$Response$Artifact {
+  ApiV1ArtifactsPost$Response$Artifact copyWith({
+    String? id,
+    String? releaseId,
+    enums.ApiV1ArtifactsPost$Response$ArtifactPlatform? platform,
+    enums.ApiV1ArtifactsPost$Response$ArtifactArch? arch,
+    String? packageType,
+    String? fileName,
+    String? s3Key,
+    String? sha256,
+    String? signature,
+    int? sizeBytes,
+    bool? verified,
+    String? createdAt,
+  }) {
+    return ApiV1ArtifactsPost$Response$Artifact(
+      id: id ?? this.id,
+      releaseId: releaseId ?? this.releaseId,
+      platform: platform ?? this.platform,
+      arch: arch ?? this.arch,
+      packageType: packageType ?? this.packageType,
+      fileName: fileName ?? this.fileName,
+      s3Key: s3Key ?? this.s3Key,
+      sha256: sha256 ?? this.sha256,
+      signature: signature ?? this.signature,
+      sizeBytes: sizeBytes ?? this.sizeBytes,
+      verified: verified ?? this.verified,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  ApiV1ArtifactsPost$Response$Artifact copyWithWrapped({
+    Wrapped<String>? id,
+    Wrapped<String>? releaseId,
+    Wrapped<enums.ApiV1ArtifactsPost$Response$ArtifactPlatform>? platform,
+    Wrapped<enums.ApiV1ArtifactsPost$Response$ArtifactArch>? arch,
+    Wrapped<String>? packageType,
+    Wrapped<String>? fileName,
+    Wrapped<String>? s3Key,
+    Wrapped<String?>? sha256,
+    Wrapped<String?>? signature,
+    Wrapped<int>? sizeBytes,
+    Wrapped<bool>? verified,
+    Wrapped<String>? createdAt,
+  }) {
+    return ApiV1ArtifactsPost$Response$Artifact(
+      id: (id != null ? id.value : this.id),
+      releaseId: (releaseId != null ? releaseId.value : this.releaseId),
+      platform: (platform != null ? platform.value : this.platform),
+      arch: (arch != null ? arch.value : this.arch),
+      packageType: (packageType != null ? packageType.value : this.packageType),
+      fileName: (fileName != null ? fileName.value : this.fileName),
+      s3Key: (s3Key != null ? s3Key.value : this.s3Key),
+      sha256: (sha256 != null ? sha256.value : this.sha256),
+      signature: (signature != null ? signature.value : this.signature),
+      sizeBytes: (sizeBytes != null ? sizeBytes.value : this.sizeBytes),
+      verified: (verified != null ? verified.value : this.verified),
+      createdAt: (createdAt != null ? createdAt.value : this.createdAt),
+    );
+  }
+}
+
+@JsonSerializable(explicitToJson: true)
 class ApiV1MetricsDownloadsGet$Response$Series$Item {
   const ApiV1MetricsDownloadsGet$Response$Series$Item({
     required this.bucketStart,
@@ -7222,7 +7641,7 @@ class ApiV1MetricsDownloadsGet$Response$Series$Item {
   Map<String, dynamic> toJson() =>
       _$ApiV1MetricsDownloadsGet$Response$Series$ItemToJson(this);
 
-  @JsonKey(name: 'bucketStart', includeIfNull: false)
+  @JsonKey(name: 'bucket_start', includeIfNull: false)
   final String bucketStart;
   @JsonKey(name: 'count', includeIfNull: false)
   final int count;
@@ -7337,7 +7756,7 @@ class ApiV1MetricsUpdateChecksGet$Response$Series$Item {
   Map<String, dynamic> toJson() =>
       _$ApiV1MetricsUpdateChecksGet$Response$Series$ItemToJson(this);
 
-  @JsonKey(name: 'bucketStart', includeIfNull: false)
+  @JsonKey(name: 'bucket_start', includeIfNull: false)
   final String bucketStart;
   @JsonKey(name: 'count', includeIfNull: false)
   final int count;
@@ -7461,19 +7880,19 @@ class ApiV1DashboardSummaryGet$Response$Totals {
   final int channels;
   @JsonKey(name: 'releases', includeIfNull: false)
   final int releases;
-  @JsonKey(name: 'publishedReleases', includeIfNull: false)
+  @JsonKey(name: 'published_releases', includeIfNull: false)
   final int publishedReleases;
   @JsonKey(name: 'artifacts', includeIfNull: false)
   final int artifacts;
-  @JsonKey(name: 'channelAssignments', includeIfNull: false)
+  @JsonKey(name: 'channel_assignments', includeIfNull: false)
   final int channelAssignments;
-  @JsonKey(name: 'downloadsTotal', includeIfNull: false)
+  @JsonKey(name: 'downloads_total', includeIfNull: false)
   final int downloadsTotal;
-  @JsonKey(name: 'updateChecksTotal', includeIfNull: false)
+  @JsonKey(name: 'update_checks_total', includeIfNull: false)
   final int updateChecksTotal;
-  @JsonKey(name: 'downloadsLast7Days', includeIfNull: false)
+  @JsonKey(name: 'downloads_last_7_days', includeIfNull: false)
   final int downloadsLast7Days;
-  @JsonKey(name: 'updateChecksLast7Days', includeIfNull: false)
+  @JsonKey(name: 'update_checks_last_7_days', includeIfNull: false)
   final int updateChecksLast7Days;
   static const fromJsonFactory =
       _$ApiV1DashboardSummaryGet$Response$TotalsFromJson;
@@ -7641,25 +8060,25 @@ class ApiV1DashboardSummaryGet$Response$Apps$Item {
   Map<String, dynamic> toJson() =>
       _$ApiV1DashboardSummaryGet$Response$Apps$ItemToJson(this);
 
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
-  @JsonKey(name: 'appSlug', includeIfNull: false)
+  @JsonKey(name: 'app_slug', includeIfNull: false)
   final String appSlug;
-  @JsonKey(name: 'appName', includeIfNull: false)
+  @JsonKey(name: 'app_name', includeIfNull: false)
   final String appName;
   @JsonKey(name: 'channels', includeIfNull: false)
   final int channels;
   @JsonKey(name: 'releases', includeIfNull: false)
   final int releases;
-  @JsonKey(name: 'publishedReleases', includeIfNull: false)
+  @JsonKey(name: 'published_releases', includeIfNull: false)
   final int publishedReleases;
-  @JsonKey(name: 'downloadsTotal', includeIfNull: false)
+  @JsonKey(name: 'downloads_total', includeIfNull: false)
   final int downloadsTotal;
-  @JsonKey(name: 'updateChecksTotal', includeIfNull: false)
+  @JsonKey(name: 'update_checks_total', includeIfNull: false)
   final int updateChecksTotal;
-  @JsonKey(name: 'lastDownloadAt', includeIfNull: false)
+  @JsonKey(name: 'last_download_at', includeIfNull: false)
   final String? lastDownloadAt;
-  @JsonKey(name: 'lastUpdateCheckAt', includeIfNull: false)
+  @JsonKey(name: 'last_update_check_at', includeIfNull: false)
   final String? lastUpdateCheckAt;
   static const fromJsonFactory =
       _$ApiV1DashboardSummaryGet$Response$Apps$ItemFromJson;
@@ -7825,16 +8244,16 @@ class ApiV1DashboardSummaryGet$Response$ActiveAssignments$Item {
   Map<String, dynamic> toJson() =>
       _$ApiV1DashboardSummaryGet$Response$ActiveAssignments$ItemToJson(this);
 
-  @JsonKey(name: 'appId', includeIfNull: false)
+  @JsonKey(name: 'app_id', includeIfNull: false)
   final String appId;
-  @JsonKey(name: 'appSlug', includeIfNull: false)
+  @JsonKey(name: 'app_slug', includeIfNull: false)
   final String appSlug;
-  @JsonKey(name: 'channelId', includeIfNull: false)
+  @JsonKey(name: 'channel_id', includeIfNull: false)
   final String channelId;
-  @JsonKey(name: 'channelSlug', includeIfNull: false)
+  @JsonKey(name: 'channel_slug', includeIfNull: false)
   final String channelSlug;
   @JsonKey(
-    name: 'channelKind',
+    name: 'channel_kind',
     includeIfNull: false,
     toJson:
         apiV1DashboardSummaryGet$Response$ActiveAssignments$ItemChannelKindToJson,
@@ -7843,9 +8262,9 @@ class ApiV1DashboardSummaryGet$Response$ActiveAssignments$Item {
   )
   final enums.ApiV1DashboardSummaryGet$Response$ActiveAssignments$ItemChannelKind
   channelKind;
-  @JsonKey(name: 'releaseId', includeIfNull: false)
+  @JsonKey(name: 'release_id', includeIfNull: false)
   final String releaseId;
-  @JsonKey(name: 'releaseVersion', includeIfNull: false)
+  @JsonKey(name: 'release_version', includeIfNull: false)
   final String releaseVersion;
   @JsonKey(
     name: 'platform',
@@ -7867,9 +8286,9 @@ class ApiV1DashboardSummaryGet$Response$ActiveAssignments$Item {
   )
   final enums.ApiV1DashboardSummaryGet$Response$ActiveAssignments$ItemArch?
   arch;
-  @JsonKey(name: 'rolloutPercent', includeIfNull: false)
+  @JsonKey(name: 'rollout_percent', includeIfNull: false)
   final int rolloutPercent;
-  @JsonKey(name: 'assignedAt', includeIfNull: false)
+  @JsonKey(name: 'assigned_at', includeIfNull: false)
   final String assignedAt;
   static const fromJsonFactory =
       _$ApiV1DashboardSummaryGet$Response$ActiveAssignments$ItemFromJson;
@@ -12164,6 +12583,410 @@ apiV1ReleasesReleaseIdPromotePost$ResponseArchNullableListFromJson(
       .toList();
 }
 
+String? apiV1ArtifactsPost$Response$ArtifactPlatformNullableToJson(
+  enums.ApiV1ArtifactsPost$Response$ArtifactPlatform?
+  apiV1ArtifactsPost$Response$ArtifactPlatform,
+) {
+  return apiV1ArtifactsPost$Response$ArtifactPlatform?.value;
+}
+
+String? apiV1ArtifactsPost$Response$ArtifactPlatformToJson(
+  enums.ApiV1ArtifactsPost$Response$ArtifactPlatform
+  apiV1ArtifactsPost$Response$ArtifactPlatform,
+) {
+  return apiV1ArtifactsPost$Response$ArtifactPlatform.value;
+}
+
+enums.ApiV1ArtifactsPost$Response$ArtifactPlatform
+apiV1ArtifactsPost$Response$ArtifactPlatformFromJson(
+  Object? apiV1ArtifactsPost$Response$ArtifactPlatform, [
+  enums.ApiV1ArtifactsPost$Response$ArtifactPlatform? defaultValue,
+]) {
+  return enums.ApiV1ArtifactsPost$Response$ArtifactPlatform.values
+          .firstWhereOrNull(
+            (e) => e.value == apiV1ArtifactsPost$Response$ArtifactPlatform,
+          ) ??
+      defaultValue ??
+      enums
+          .ApiV1ArtifactsPost$Response$ArtifactPlatform
+          .swaggerGeneratedUnknown;
+}
+
+enums.ApiV1ArtifactsPost$Response$ArtifactPlatform?
+apiV1ArtifactsPost$Response$ArtifactPlatformNullableFromJson(
+  Object? apiV1ArtifactsPost$Response$ArtifactPlatform, [
+  enums.ApiV1ArtifactsPost$Response$ArtifactPlatform? defaultValue,
+]) {
+  if (apiV1ArtifactsPost$Response$ArtifactPlatform == null) {
+    return null;
+  }
+  return enums.ApiV1ArtifactsPost$Response$ArtifactPlatform.values
+          .firstWhereOrNull(
+            (e) => e.value == apiV1ArtifactsPost$Response$ArtifactPlatform,
+          ) ??
+      defaultValue;
+}
+
+String apiV1ArtifactsPost$Response$ArtifactPlatformExplodedListToJson(
+  List<enums.ApiV1ArtifactsPost$Response$ArtifactPlatform>?
+  apiV1ArtifactsPost$Response$ArtifactPlatform,
+) {
+  return apiV1ArtifactsPost$Response$ArtifactPlatform
+          ?.map((e) => e.value!)
+          .join(',') ??
+      '';
+}
+
+List<String> apiV1ArtifactsPost$Response$ArtifactPlatformListToJson(
+  List<enums.ApiV1ArtifactsPost$Response$ArtifactPlatform>?
+  apiV1ArtifactsPost$Response$ArtifactPlatform,
+) {
+  if (apiV1ArtifactsPost$Response$ArtifactPlatform == null) {
+    return [];
+  }
+
+  return apiV1ArtifactsPost$Response$ArtifactPlatform
+      .map((e) => e.value!)
+      .toList();
+}
+
+List<enums.ApiV1ArtifactsPost$Response$ArtifactPlatform>
+apiV1ArtifactsPost$Response$ArtifactPlatformListFromJson(
+  List? apiV1ArtifactsPost$Response$ArtifactPlatform, [
+  List<enums.ApiV1ArtifactsPost$Response$ArtifactPlatform>? defaultValue,
+]) {
+  if (apiV1ArtifactsPost$Response$ArtifactPlatform == null) {
+    return defaultValue ?? [];
+  }
+
+  return apiV1ArtifactsPost$Response$ArtifactPlatform
+      .map(
+        (e) =>
+            apiV1ArtifactsPost$Response$ArtifactPlatformFromJson(e.toString()),
+      )
+      .toList();
+}
+
+List<enums.ApiV1ArtifactsPost$Response$ArtifactPlatform>?
+apiV1ArtifactsPost$Response$ArtifactPlatformNullableListFromJson(
+  List? apiV1ArtifactsPost$Response$ArtifactPlatform, [
+  List<enums.ApiV1ArtifactsPost$Response$ArtifactPlatform>? defaultValue,
+]) {
+  if (apiV1ArtifactsPost$Response$ArtifactPlatform == null) {
+    return defaultValue;
+  }
+
+  return apiV1ArtifactsPost$Response$ArtifactPlatform
+      .map(
+        (e) =>
+            apiV1ArtifactsPost$Response$ArtifactPlatformFromJson(e.toString()),
+      )
+      .toList();
+}
+
+String? apiV1ArtifactsPost$Response$ArtifactArchNullableToJson(
+  enums.ApiV1ArtifactsPost$Response$ArtifactArch?
+  apiV1ArtifactsPost$Response$ArtifactArch,
+) {
+  return apiV1ArtifactsPost$Response$ArtifactArch?.value;
+}
+
+String? apiV1ArtifactsPost$Response$ArtifactArchToJson(
+  enums.ApiV1ArtifactsPost$Response$ArtifactArch
+  apiV1ArtifactsPost$Response$ArtifactArch,
+) {
+  return apiV1ArtifactsPost$Response$ArtifactArch.value;
+}
+
+enums.ApiV1ArtifactsPost$Response$ArtifactArch
+apiV1ArtifactsPost$Response$ArtifactArchFromJson(
+  Object? apiV1ArtifactsPost$Response$ArtifactArch, [
+  enums.ApiV1ArtifactsPost$Response$ArtifactArch? defaultValue,
+]) {
+  return enums.ApiV1ArtifactsPost$Response$ArtifactArch.values.firstWhereOrNull(
+        (e) => e.value == apiV1ArtifactsPost$Response$ArtifactArch,
+      ) ??
+      defaultValue ??
+      enums.ApiV1ArtifactsPost$Response$ArtifactArch.swaggerGeneratedUnknown;
+}
+
+enums.ApiV1ArtifactsPost$Response$ArtifactArch?
+apiV1ArtifactsPost$Response$ArtifactArchNullableFromJson(
+  Object? apiV1ArtifactsPost$Response$ArtifactArch, [
+  enums.ApiV1ArtifactsPost$Response$ArtifactArch? defaultValue,
+]) {
+  if (apiV1ArtifactsPost$Response$ArtifactArch == null) {
+    return null;
+  }
+  return enums.ApiV1ArtifactsPost$Response$ArtifactArch.values.firstWhereOrNull(
+        (e) => e.value == apiV1ArtifactsPost$Response$ArtifactArch,
+      ) ??
+      defaultValue;
+}
+
+String apiV1ArtifactsPost$Response$ArtifactArchExplodedListToJson(
+  List<enums.ApiV1ArtifactsPost$Response$ArtifactArch>?
+  apiV1ArtifactsPost$Response$ArtifactArch,
+) {
+  return apiV1ArtifactsPost$Response$ArtifactArch
+          ?.map((e) => e.value!)
+          .join(',') ??
+      '';
+}
+
+List<String> apiV1ArtifactsPost$Response$ArtifactArchListToJson(
+  List<enums.ApiV1ArtifactsPost$Response$ArtifactArch>?
+  apiV1ArtifactsPost$Response$ArtifactArch,
+) {
+  if (apiV1ArtifactsPost$Response$ArtifactArch == null) {
+    return [];
+  }
+
+  return apiV1ArtifactsPost$Response$ArtifactArch.map((e) => e.value!).toList();
+}
+
+List<enums.ApiV1ArtifactsPost$Response$ArtifactArch>
+apiV1ArtifactsPost$Response$ArtifactArchListFromJson(
+  List? apiV1ArtifactsPost$Response$ArtifactArch, [
+  List<enums.ApiV1ArtifactsPost$Response$ArtifactArch>? defaultValue,
+]) {
+  if (apiV1ArtifactsPost$Response$ArtifactArch == null) {
+    return defaultValue ?? [];
+  }
+
+  return apiV1ArtifactsPost$Response$ArtifactArch
+      .map(
+        (e) => apiV1ArtifactsPost$Response$ArtifactArchFromJson(e.toString()),
+      )
+      .toList();
+}
+
+List<enums.ApiV1ArtifactsPost$Response$ArtifactArch>?
+apiV1ArtifactsPost$Response$ArtifactArchNullableListFromJson(
+  List? apiV1ArtifactsPost$Response$ArtifactArch, [
+  List<enums.ApiV1ArtifactsPost$Response$ArtifactArch>? defaultValue,
+]) {
+  if (apiV1ArtifactsPost$Response$ArtifactArch == null) {
+    return defaultValue;
+  }
+
+  return apiV1ArtifactsPost$Response$ArtifactArch
+      .map(
+        (e) => apiV1ArtifactsPost$Response$ArtifactArchFromJson(e.toString()),
+      )
+      .toList();
+}
+
+String? apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatformNullableToJson(
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform?
+  apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform,
+) {
+  return apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform?.value;
+}
+
+String? apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatformToJson(
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform
+  apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform,
+) {
+  return apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform.value;
+}
+
+enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform
+apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatformFromJson(
+  Object? apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform, [
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform? defaultValue,
+]) {
+  return enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform.values
+          .firstWhereOrNull(
+            (e) =>
+                e.value == apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform,
+          ) ??
+      defaultValue ??
+      enums
+          .ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform
+          .swaggerGeneratedUnknown;
+}
+
+enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform?
+apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatformNullableFromJson(
+  Object? apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform, [
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform? defaultValue,
+]) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform == null) {
+    return null;
+  }
+  return enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform.values
+          .firstWhereOrNull(
+            (e) =>
+                e.value == apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform,
+          ) ??
+      defaultValue;
+}
+
+String apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatformExplodedListToJson(
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform>?
+  apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform,
+) {
+  return apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform
+          ?.map((e) => e.value!)
+          .join(',') ??
+      '';
+}
+
+List<String> apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatformListToJson(
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform>?
+  apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform,
+) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform == null) {
+    return [];
+  }
+
+  return apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform
+      .map((e) => e.value!)
+      .toList();
+}
+
+List<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform>
+apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatformListFromJson(
+  List? apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform, [
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform>?
+  defaultValue,
+]) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform == null) {
+    return defaultValue ?? [];
+  }
+
+  return apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform
+      .map(
+        (e) => apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatformFromJson(
+          e.toString(),
+        ),
+      )
+      .toList();
+}
+
+List<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform>?
+apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatformNullableListFromJson(
+  List? apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform, [
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform>?
+  defaultValue,
+]) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform == null) {
+    return defaultValue;
+  }
+
+  return apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform
+      .map(
+        (e) => apiV1ReleasesReleaseIdArtifactsPost$ResponsePlatformFromJson(
+          e.toString(),
+        ),
+      )
+      .toList();
+}
+
+String? apiV1ReleasesReleaseIdArtifactsPost$ResponseArchNullableToJson(
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch?
+  apiV1ReleasesReleaseIdArtifactsPost$ResponseArch,
+) {
+  return apiV1ReleasesReleaseIdArtifactsPost$ResponseArch?.value;
+}
+
+String? apiV1ReleasesReleaseIdArtifactsPost$ResponseArchToJson(
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch
+  apiV1ReleasesReleaseIdArtifactsPost$ResponseArch,
+) {
+  return apiV1ReleasesReleaseIdArtifactsPost$ResponseArch.value;
+}
+
+enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch
+apiV1ReleasesReleaseIdArtifactsPost$ResponseArchFromJson(
+  Object? apiV1ReleasesReleaseIdArtifactsPost$ResponseArch, [
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch? defaultValue,
+]) {
+  return enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch.values
+          .firstWhereOrNull(
+            (e) => e.value == apiV1ReleasesReleaseIdArtifactsPost$ResponseArch,
+          ) ??
+      defaultValue ??
+      enums
+          .ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch
+          .swaggerGeneratedUnknown;
+}
+
+enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch?
+apiV1ReleasesReleaseIdArtifactsPost$ResponseArchNullableFromJson(
+  Object? apiV1ReleasesReleaseIdArtifactsPost$ResponseArch, [
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch? defaultValue,
+]) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$ResponseArch == null) {
+    return null;
+  }
+  return enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch.values
+          .firstWhereOrNull(
+            (e) => e.value == apiV1ReleasesReleaseIdArtifactsPost$ResponseArch,
+          ) ??
+      defaultValue;
+}
+
+String apiV1ReleasesReleaseIdArtifactsPost$ResponseArchExplodedListToJson(
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch>?
+  apiV1ReleasesReleaseIdArtifactsPost$ResponseArch,
+) {
+  return apiV1ReleasesReleaseIdArtifactsPost$ResponseArch
+          ?.map((e) => e.value!)
+          .join(',') ??
+      '';
+}
+
+List<String> apiV1ReleasesReleaseIdArtifactsPost$ResponseArchListToJson(
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch>?
+  apiV1ReleasesReleaseIdArtifactsPost$ResponseArch,
+) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$ResponseArch == null) {
+    return [];
+  }
+
+  return apiV1ReleasesReleaseIdArtifactsPost$ResponseArch
+      .map((e) => e.value!)
+      .toList();
+}
+
+List<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch>
+apiV1ReleasesReleaseIdArtifactsPost$ResponseArchListFromJson(
+  List? apiV1ReleasesReleaseIdArtifactsPost$ResponseArch, [
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch>? defaultValue,
+]) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$ResponseArch == null) {
+    return defaultValue ?? [];
+  }
+
+  return apiV1ReleasesReleaseIdArtifactsPost$ResponseArch
+      .map(
+        (e) => apiV1ReleasesReleaseIdArtifactsPost$ResponseArchFromJson(
+          e.toString(),
+        ),
+      )
+      .toList();
+}
+
+List<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch>?
+apiV1ReleasesReleaseIdArtifactsPost$ResponseArchNullableListFromJson(
+  List? apiV1ReleasesReleaseIdArtifactsPost$ResponseArch, [
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch>? defaultValue,
+]) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$ResponseArch == null) {
+    return defaultValue;
+  }
+
+  return apiV1ReleasesReleaseIdArtifactsPost$ResponseArch
+      .map(
+        (e) => apiV1ReleasesReleaseIdArtifactsPost$ResponseArchFromJson(
+          e.toString(),
+        ),
+      )
+      .toList();
+}
+
 String?
 apiV1DashboardSummaryGet$Response$ActiveAssignments$ItemChannelKindNullableToJson(
   enums.ApiV1DashboardSummaryGet$Response$ActiveAssignments$ItemChannelKind?
@@ -12540,6 +13363,202 @@ apiV1DashboardSummaryGet$Response$ActiveAssignments$ItemArchNullableListFromJson
             apiV1DashboardSummaryGet$Response$ActiveAssignments$ItemArchFromJson(
               e.toString(),
             ),
+      )
+      .toList();
+}
+
+String? apiPublicV1ChannelsGet$Response$ItemKindNullableToJson(
+  enums.ApiPublicV1ChannelsGet$Response$ItemKind?
+  apiPublicV1ChannelsGet$Response$ItemKind,
+) {
+  return apiPublicV1ChannelsGet$Response$ItemKind?.value;
+}
+
+String? apiPublicV1ChannelsGet$Response$ItemKindToJson(
+  enums.ApiPublicV1ChannelsGet$Response$ItemKind
+  apiPublicV1ChannelsGet$Response$ItemKind,
+) {
+  return apiPublicV1ChannelsGet$Response$ItemKind.value;
+}
+
+enums.ApiPublicV1ChannelsGet$Response$ItemKind
+apiPublicV1ChannelsGet$Response$ItemKindFromJson(
+  Object? apiPublicV1ChannelsGet$Response$ItemKind, [
+  enums.ApiPublicV1ChannelsGet$Response$ItemKind? defaultValue,
+]) {
+  return enums.ApiPublicV1ChannelsGet$Response$ItemKind.values.firstWhereOrNull(
+        (e) => e.value == apiPublicV1ChannelsGet$Response$ItemKind,
+      ) ??
+      defaultValue ??
+      enums.ApiPublicV1ChannelsGet$Response$ItemKind.swaggerGeneratedUnknown;
+}
+
+enums.ApiPublicV1ChannelsGet$Response$ItemKind?
+apiPublicV1ChannelsGet$Response$ItemKindNullableFromJson(
+  Object? apiPublicV1ChannelsGet$Response$ItemKind, [
+  enums.ApiPublicV1ChannelsGet$Response$ItemKind? defaultValue,
+]) {
+  if (apiPublicV1ChannelsGet$Response$ItemKind == null) {
+    return null;
+  }
+  return enums.ApiPublicV1ChannelsGet$Response$ItemKind.values.firstWhereOrNull(
+        (e) => e.value == apiPublicV1ChannelsGet$Response$ItemKind,
+      ) ??
+      defaultValue;
+}
+
+String apiPublicV1ChannelsGet$Response$ItemKindExplodedListToJson(
+  List<enums.ApiPublicV1ChannelsGet$Response$ItemKind>?
+  apiPublicV1ChannelsGet$Response$ItemKind,
+) {
+  return apiPublicV1ChannelsGet$Response$ItemKind
+          ?.map((e) => e.value!)
+          .join(',') ??
+      '';
+}
+
+List<String> apiPublicV1ChannelsGet$Response$ItemKindListToJson(
+  List<enums.ApiPublicV1ChannelsGet$Response$ItemKind>?
+  apiPublicV1ChannelsGet$Response$ItemKind,
+) {
+  if (apiPublicV1ChannelsGet$Response$ItemKind == null) {
+    return [];
+  }
+
+  return apiPublicV1ChannelsGet$Response$ItemKind.map((e) => e.value!).toList();
+}
+
+List<enums.ApiPublicV1ChannelsGet$Response$ItemKind>
+apiPublicV1ChannelsGet$Response$ItemKindListFromJson(
+  List? apiPublicV1ChannelsGet$Response$ItemKind, [
+  List<enums.ApiPublicV1ChannelsGet$Response$ItemKind>? defaultValue,
+]) {
+  if (apiPublicV1ChannelsGet$Response$ItemKind == null) {
+    return defaultValue ?? [];
+  }
+
+  return apiPublicV1ChannelsGet$Response$ItemKind
+      .map(
+        (e) => apiPublicV1ChannelsGet$Response$ItemKindFromJson(e.toString()),
+      )
+      .toList();
+}
+
+List<enums.ApiPublicV1ChannelsGet$Response$ItemKind>?
+apiPublicV1ChannelsGet$Response$ItemKindNullableListFromJson(
+  List? apiPublicV1ChannelsGet$Response$ItemKind, [
+  List<enums.ApiPublicV1ChannelsGet$Response$ItemKind>? defaultValue,
+]) {
+  if (apiPublicV1ChannelsGet$Response$ItemKind == null) {
+    return defaultValue;
+  }
+
+  return apiPublicV1ChannelsGet$Response$ItemKind
+      .map(
+        (e) => apiPublicV1ChannelsGet$Response$ItemKindFromJson(e.toString()),
+      )
+      .toList();
+}
+
+String? apiPublicV1ChannelsGet$Response$ItemVisibilityNullableToJson(
+  enums.ApiPublicV1ChannelsGet$Response$ItemVisibility?
+  apiPublicV1ChannelsGet$Response$ItemVisibility,
+) {
+  return apiPublicV1ChannelsGet$Response$ItemVisibility?.value;
+}
+
+String? apiPublicV1ChannelsGet$Response$ItemVisibilityToJson(
+  enums.ApiPublicV1ChannelsGet$Response$ItemVisibility
+  apiPublicV1ChannelsGet$Response$ItemVisibility,
+) {
+  return apiPublicV1ChannelsGet$Response$ItemVisibility.value;
+}
+
+enums.ApiPublicV1ChannelsGet$Response$ItemVisibility
+apiPublicV1ChannelsGet$Response$ItemVisibilityFromJson(
+  Object? apiPublicV1ChannelsGet$Response$ItemVisibility, [
+  enums.ApiPublicV1ChannelsGet$Response$ItemVisibility? defaultValue,
+]) {
+  return enums.ApiPublicV1ChannelsGet$Response$ItemVisibility.values
+          .firstWhereOrNull(
+            (e) => e.value == apiPublicV1ChannelsGet$Response$ItemVisibility,
+          ) ??
+      defaultValue ??
+      enums
+          .ApiPublicV1ChannelsGet$Response$ItemVisibility
+          .swaggerGeneratedUnknown;
+}
+
+enums.ApiPublicV1ChannelsGet$Response$ItemVisibility?
+apiPublicV1ChannelsGet$Response$ItemVisibilityNullableFromJson(
+  Object? apiPublicV1ChannelsGet$Response$ItemVisibility, [
+  enums.ApiPublicV1ChannelsGet$Response$ItemVisibility? defaultValue,
+]) {
+  if (apiPublicV1ChannelsGet$Response$ItemVisibility == null) {
+    return null;
+  }
+  return enums.ApiPublicV1ChannelsGet$Response$ItemVisibility.values
+          .firstWhereOrNull(
+            (e) => e.value == apiPublicV1ChannelsGet$Response$ItemVisibility,
+          ) ??
+      defaultValue;
+}
+
+String apiPublicV1ChannelsGet$Response$ItemVisibilityExplodedListToJson(
+  List<enums.ApiPublicV1ChannelsGet$Response$ItemVisibility>?
+  apiPublicV1ChannelsGet$Response$ItemVisibility,
+) {
+  return apiPublicV1ChannelsGet$Response$ItemVisibility
+          ?.map((e) => e.value!)
+          .join(',') ??
+      '';
+}
+
+List<String> apiPublicV1ChannelsGet$Response$ItemVisibilityListToJson(
+  List<enums.ApiPublicV1ChannelsGet$Response$ItemVisibility>?
+  apiPublicV1ChannelsGet$Response$ItemVisibility,
+) {
+  if (apiPublicV1ChannelsGet$Response$ItemVisibility == null) {
+    return [];
+  }
+
+  return apiPublicV1ChannelsGet$Response$ItemVisibility
+      .map((e) => e.value!)
+      .toList();
+}
+
+List<enums.ApiPublicV1ChannelsGet$Response$ItemVisibility>
+apiPublicV1ChannelsGet$Response$ItemVisibilityListFromJson(
+  List? apiPublicV1ChannelsGet$Response$ItemVisibility, [
+  List<enums.ApiPublicV1ChannelsGet$Response$ItemVisibility>? defaultValue,
+]) {
+  if (apiPublicV1ChannelsGet$Response$ItemVisibility == null) {
+    return defaultValue ?? [];
+  }
+
+  return apiPublicV1ChannelsGet$Response$ItemVisibility
+      .map(
+        (e) => apiPublicV1ChannelsGet$Response$ItemVisibilityFromJson(
+          e.toString(),
+        ),
+      )
+      .toList();
+}
+
+List<enums.ApiPublicV1ChannelsGet$Response$ItemVisibility>?
+apiPublicV1ChannelsGet$Response$ItemVisibilityNullableListFromJson(
+  List? apiPublicV1ChannelsGet$Response$ItemVisibility, [
+  List<enums.ApiPublicV1ChannelsGet$Response$ItemVisibility>? defaultValue,
+]) {
+  if (apiPublicV1ChannelsGet$Response$ItemVisibility == null) {
+    return defaultValue;
+  }
+
+  return apiPublicV1ChannelsGet$Response$ItemVisibility
+      .map(
+        (e) => apiPublicV1ChannelsGet$Response$ItemVisibilityFromJson(
+          e.toString(),
+        ),
       )
       .toList();
 }
@@ -14157,449 +15176,391 @@ apiV1ReleasesReleaseIdPromotePost$RequestBodyArchNullableListFromJson(
       .toList();
 }
 
-String? apiV1ArtifactsUploadUrlPost$RequestBodyPlatformNullableToJson(
-  enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform?
-  apiV1ArtifactsUploadUrlPost$RequestBodyPlatform,
+String? apiV1ArtifactsPost$RequestBodyPlatformNullableToJson(
+  enums.ApiV1ArtifactsPost$RequestBodyPlatform?
+  apiV1ArtifactsPost$RequestBodyPlatform,
 ) {
-  return apiV1ArtifactsUploadUrlPost$RequestBodyPlatform?.value;
+  return apiV1ArtifactsPost$RequestBodyPlatform?.value;
 }
 
-String? apiV1ArtifactsUploadUrlPost$RequestBodyPlatformToJson(
-  enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform
-  apiV1ArtifactsUploadUrlPost$RequestBodyPlatform,
+String? apiV1ArtifactsPost$RequestBodyPlatformToJson(
+  enums.ApiV1ArtifactsPost$RequestBodyPlatform
+  apiV1ArtifactsPost$RequestBodyPlatform,
 ) {
-  return apiV1ArtifactsUploadUrlPost$RequestBodyPlatform.value;
+  return apiV1ArtifactsPost$RequestBodyPlatform.value;
 }
 
-enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform
-apiV1ArtifactsUploadUrlPost$RequestBodyPlatformFromJson(
-  Object? apiV1ArtifactsUploadUrlPost$RequestBodyPlatform, [
-  enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform? defaultValue,
+enums.ApiV1ArtifactsPost$RequestBodyPlatform
+apiV1ArtifactsPost$RequestBodyPlatformFromJson(
+  Object? apiV1ArtifactsPost$RequestBodyPlatform, [
+  enums.ApiV1ArtifactsPost$RequestBodyPlatform? defaultValue,
 ]) {
-  return enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform.values
-          .firstWhereOrNull(
-            (e) => e.value == apiV1ArtifactsUploadUrlPost$RequestBodyPlatform,
-          ) ??
+  return enums.ApiV1ArtifactsPost$RequestBodyPlatform.values.firstWhereOrNull(
+        (e) => e.value == apiV1ArtifactsPost$RequestBodyPlatform,
+      ) ??
       defaultValue ??
-      enums
-          .ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform
-          .swaggerGeneratedUnknown;
+      enums.ApiV1ArtifactsPost$RequestBodyPlatform.swaggerGeneratedUnknown;
 }
 
-enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform?
-apiV1ArtifactsUploadUrlPost$RequestBodyPlatformNullableFromJson(
-  Object? apiV1ArtifactsUploadUrlPost$RequestBodyPlatform, [
-  enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform? defaultValue,
+enums.ApiV1ArtifactsPost$RequestBodyPlatform?
+apiV1ArtifactsPost$RequestBodyPlatformNullableFromJson(
+  Object? apiV1ArtifactsPost$RequestBodyPlatform, [
+  enums.ApiV1ArtifactsPost$RequestBodyPlatform? defaultValue,
 ]) {
-  if (apiV1ArtifactsUploadUrlPost$RequestBodyPlatform == null) {
+  if (apiV1ArtifactsPost$RequestBodyPlatform == null) {
     return null;
   }
-  return enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform.values
-          .firstWhereOrNull(
-            (e) => e.value == apiV1ArtifactsUploadUrlPost$RequestBodyPlatform,
-          ) ??
+  return enums.ApiV1ArtifactsPost$RequestBodyPlatform.values.firstWhereOrNull(
+        (e) => e.value == apiV1ArtifactsPost$RequestBodyPlatform,
+      ) ??
       defaultValue;
 }
 
-String apiV1ArtifactsUploadUrlPost$RequestBodyPlatformExplodedListToJson(
-  List<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform>?
-  apiV1ArtifactsUploadUrlPost$RequestBodyPlatform,
+String apiV1ArtifactsPost$RequestBodyPlatformExplodedListToJson(
+  List<enums.ApiV1ArtifactsPost$RequestBodyPlatform>?
+  apiV1ArtifactsPost$RequestBodyPlatform,
 ) {
-  return apiV1ArtifactsUploadUrlPost$RequestBodyPlatform
+  return apiV1ArtifactsPost$RequestBodyPlatform
           ?.map((e) => e.value!)
           .join(',') ??
       '';
 }
 
-List<String> apiV1ArtifactsUploadUrlPost$RequestBodyPlatformListToJson(
-  List<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform>?
-  apiV1ArtifactsUploadUrlPost$RequestBodyPlatform,
+List<String> apiV1ArtifactsPost$RequestBodyPlatformListToJson(
+  List<enums.ApiV1ArtifactsPost$RequestBodyPlatform>?
+  apiV1ArtifactsPost$RequestBodyPlatform,
 ) {
-  if (apiV1ArtifactsUploadUrlPost$RequestBodyPlatform == null) {
+  if (apiV1ArtifactsPost$RequestBodyPlatform == null) {
     return [];
   }
 
-  return apiV1ArtifactsUploadUrlPost$RequestBodyPlatform
+  return apiV1ArtifactsPost$RequestBodyPlatform.map((e) => e.value!).toList();
+}
+
+List<enums.ApiV1ArtifactsPost$RequestBodyPlatform>
+apiV1ArtifactsPost$RequestBodyPlatformListFromJson(
+  List? apiV1ArtifactsPost$RequestBodyPlatform, [
+  List<enums.ApiV1ArtifactsPost$RequestBodyPlatform>? defaultValue,
+]) {
+  if (apiV1ArtifactsPost$RequestBodyPlatform == null) {
+    return defaultValue ?? [];
+  }
+
+  return apiV1ArtifactsPost$RequestBodyPlatform
+      .map((e) => apiV1ArtifactsPost$RequestBodyPlatformFromJson(e.toString()))
+      .toList();
+}
+
+List<enums.ApiV1ArtifactsPost$RequestBodyPlatform>?
+apiV1ArtifactsPost$RequestBodyPlatformNullableListFromJson(
+  List? apiV1ArtifactsPost$RequestBodyPlatform, [
+  List<enums.ApiV1ArtifactsPost$RequestBodyPlatform>? defaultValue,
+]) {
+  if (apiV1ArtifactsPost$RequestBodyPlatform == null) {
+    return defaultValue;
+  }
+
+  return apiV1ArtifactsPost$RequestBodyPlatform
+      .map((e) => apiV1ArtifactsPost$RequestBodyPlatformFromJson(e.toString()))
+      .toList();
+}
+
+String? apiV1ArtifactsPost$RequestBodyArchNullableToJson(
+  enums.ApiV1ArtifactsPost$RequestBodyArch? apiV1ArtifactsPost$RequestBodyArch,
+) {
+  return apiV1ArtifactsPost$RequestBodyArch?.value;
+}
+
+String? apiV1ArtifactsPost$RequestBodyArchToJson(
+  enums.ApiV1ArtifactsPost$RequestBodyArch apiV1ArtifactsPost$RequestBodyArch,
+) {
+  return apiV1ArtifactsPost$RequestBodyArch.value;
+}
+
+enums.ApiV1ArtifactsPost$RequestBodyArch
+apiV1ArtifactsPost$RequestBodyArchFromJson(
+  Object? apiV1ArtifactsPost$RequestBodyArch, [
+  enums.ApiV1ArtifactsPost$RequestBodyArch? defaultValue,
+]) {
+  return enums.ApiV1ArtifactsPost$RequestBodyArch.values.firstWhereOrNull(
+        (e) => e.value == apiV1ArtifactsPost$RequestBodyArch,
+      ) ??
+      defaultValue ??
+      enums.ApiV1ArtifactsPost$RequestBodyArch.swaggerGeneratedUnknown;
+}
+
+enums.ApiV1ArtifactsPost$RequestBodyArch?
+apiV1ArtifactsPost$RequestBodyArchNullableFromJson(
+  Object? apiV1ArtifactsPost$RequestBodyArch, [
+  enums.ApiV1ArtifactsPost$RequestBodyArch? defaultValue,
+]) {
+  if (apiV1ArtifactsPost$RequestBodyArch == null) {
+    return null;
+  }
+  return enums.ApiV1ArtifactsPost$RequestBodyArch.values.firstWhereOrNull(
+        (e) => e.value == apiV1ArtifactsPost$RequestBodyArch,
+      ) ??
+      defaultValue;
+}
+
+String apiV1ArtifactsPost$RequestBodyArchExplodedListToJson(
+  List<enums.ApiV1ArtifactsPost$RequestBodyArch>?
+  apiV1ArtifactsPost$RequestBodyArch,
+) {
+  return apiV1ArtifactsPost$RequestBodyArch?.map((e) => e.value!).join(',') ??
+      '';
+}
+
+List<String> apiV1ArtifactsPost$RequestBodyArchListToJson(
+  List<enums.ApiV1ArtifactsPost$RequestBodyArch>?
+  apiV1ArtifactsPost$RequestBodyArch,
+) {
+  if (apiV1ArtifactsPost$RequestBodyArch == null) {
+    return [];
+  }
+
+  return apiV1ArtifactsPost$RequestBodyArch.map((e) => e.value!).toList();
+}
+
+List<enums.ApiV1ArtifactsPost$RequestBodyArch>
+apiV1ArtifactsPost$RequestBodyArchListFromJson(
+  List? apiV1ArtifactsPost$RequestBodyArch, [
+  List<enums.ApiV1ArtifactsPost$RequestBodyArch>? defaultValue,
+]) {
+  if (apiV1ArtifactsPost$RequestBodyArch == null) {
+    return defaultValue ?? [];
+  }
+
+  return apiV1ArtifactsPost$RequestBodyArch
+      .map((e) => apiV1ArtifactsPost$RequestBodyArchFromJson(e.toString()))
+      .toList();
+}
+
+List<enums.ApiV1ArtifactsPost$RequestBodyArch>?
+apiV1ArtifactsPost$RequestBodyArchNullableListFromJson(
+  List? apiV1ArtifactsPost$RequestBodyArch, [
+  List<enums.ApiV1ArtifactsPost$RequestBodyArch>? defaultValue,
+]) {
+  if (apiV1ArtifactsPost$RequestBodyArch == null) {
+    return defaultValue;
+  }
+
+  return apiV1ArtifactsPost$RequestBodyArch
+      .map((e) => apiV1ArtifactsPost$RequestBodyArchFromJson(e.toString()))
+      .toList();
+}
+
+String? apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatformNullableToJson(
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform?
+  apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform,
+) {
+  return apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform?.value;
+}
+
+String? apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatformToJson(
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform
+  apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform,
+) {
+  return apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform.value;
+}
+
+enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform
+apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatformFromJson(
+  Object? apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform, [
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform? defaultValue,
+]) {
+  return enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform.values
+          .firstWhereOrNull(
+            (e) =>
+                e.value ==
+                apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform,
+          ) ??
+      defaultValue ??
+      enums
+          .ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform
+          .swaggerGeneratedUnknown;
+}
+
+enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform?
+apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatformNullableFromJson(
+  Object? apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform, [
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform? defaultValue,
+]) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform == null) {
+    return null;
+  }
+  return enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform.values
+          .firstWhereOrNull(
+            (e) =>
+                e.value ==
+                apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform,
+          ) ??
+      defaultValue;
+}
+
+String
+apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatformExplodedListToJson(
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform>?
+  apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform,
+) {
+  return apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform
+          ?.map((e) => e.value!)
+          .join(',') ??
+      '';
+}
+
+List<String> apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatformListToJson(
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform>?
+  apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform,
+) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform == null) {
+    return [];
+  }
+
+  return apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform
       .map((e) => e.value!)
       .toList();
 }
 
-List<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform>
-apiV1ArtifactsUploadUrlPost$RequestBodyPlatformListFromJson(
-  List? apiV1ArtifactsUploadUrlPost$RequestBodyPlatform, [
-  List<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform>? defaultValue,
+List<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform>
+apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatformListFromJson(
+  List? apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform, [
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform>?
+  defaultValue,
 ]) {
-  if (apiV1ArtifactsUploadUrlPost$RequestBodyPlatform == null) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform == null) {
     return defaultValue ?? [];
   }
 
-  return apiV1ArtifactsUploadUrlPost$RequestBodyPlatform
+  return apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform
       .map(
-        (e) => apiV1ArtifactsUploadUrlPost$RequestBodyPlatformFromJson(
+        (e) => apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatformFromJson(
           e.toString(),
         ),
       )
       .toList();
 }
 
-List<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform>?
-apiV1ArtifactsUploadUrlPost$RequestBodyPlatformNullableListFromJson(
-  List? apiV1ArtifactsUploadUrlPost$RequestBodyPlatform, [
-  List<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform>? defaultValue,
+List<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform>?
+apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatformNullableListFromJson(
+  List? apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform, [
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform>?
+  defaultValue,
 ]) {
-  if (apiV1ArtifactsUploadUrlPost$RequestBodyPlatform == null) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform == null) {
     return defaultValue;
   }
 
-  return apiV1ArtifactsUploadUrlPost$RequestBodyPlatform
+  return apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform
       .map(
-        (e) => apiV1ArtifactsUploadUrlPost$RequestBodyPlatformFromJson(
+        (e) => apiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatformFromJson(
           e.toString(),
         ),
       )
       .toList();
 }
 
-String? apiV1ArtifactsUploadUrlPost$RequestBodyArchNullableToJson(
-  enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch?
-  apiV1ArtifactsUploadUrlPost$RequestBodyArch,
+String? apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArchNullableToJson(
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch?
+  apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch,
 ) {
-  return apiV1ArtifactsUploadUrlPost$RequestBodyArch?.value;
+  return apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch?.value;
 }
 
-String? apiV1ArtifactsUploadUrlPost$RequestBodyArchToJson(
-  enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch
-  apiV1ArtifactsUploadUrlPost$RequestBodyArch,
+String? apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArchToJson(
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch
+  apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch,
 ) {
-  return apiV1ArtifactsUploadUrlPost$RequestBodyArch.value;
+  return apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch.value;
 }
 
-enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch
-apiV1ArtifactsUploadUrlPost$RequestBodyArchFromJson(
-  Object? apiV1ArtifactsUploadUrlPost$RequestBodyArch, [
-  enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch? defaultValue,
+enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch
+apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArchFromJson(
+  Object? apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch, [
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch? defaultValue,
 ]) {
-  return enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch.values
-          .firstWhereOrNull(
-            (e) => e.value == apiV1ArtifactsUploadUrlPost$RequestBodyArch,
-          ) ??
-      defaultValue ??
-      enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch.swaggerGeneratedUnknown;
-}
-
-enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch?
-apiV1ArtifactsUploadUrlPost$RequestBodyArchNullableFromJson(
-  Object? apiV1ArtifactsUploadUrlPost$RequestBodyArch, [
-  enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch? defaultValue,
-]) {
-  if (apiV1ArtifactsUploadUrlPost$RequestBodyArch == null) {
-    return null;
-  }
-  return enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch.values
-          .firstWhereOrNull(
-            (e) => e.value == apiV1ArtifactsUploadUrlPost$RequestBodyArch,
-          ) ??
-      defaultValue;
-}
-
-String apiV1ArtifactsUploadUrlPost$RequestBodyArchExplodedListToJson(
-  List<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch>?
-  apiV1ArtifactsUploadUrlPost$RequestBodyArch,
-) {
-  return apiV1ArtifactsUploadUrlPost$RequestBodyArch
-          ?.map((e) => e.value!)
-          .join(',') ??
-      '';
-}
-
-List<String> apiV1ArtifactsUploadUrlPost$RequestBodyArchListToJson(
-  List<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch>?
-  apiV1ArtifactsUploadUrlPost$RequestBodyArch,
-) {
-  if (apiV1ArtifactsUploadUrlPost$RequestBodyArch == null) {
-    return [];
-  }
-
-  return apiV1ArtifactsUploadUrlPost$RequestBodyArch
-      .map((e) => e.value!)
-      .toList();
-}
-
-List<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch>
-apiV1ArtifactsUploadUrlPost$RequestBodyArchListFromJson(
-  List? apiV1ArtifactsUploadUrlPost$RequestBodyArch, [
-  List<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch>? defaultValue,
-]) {
-  if (apiV1ArtifactsUploadUrlPost$RequestBodyArch == null) {
-    return defaultValue ?? [];
-  }
-
-  return apiV1ArtifactsUploadUrlPost$RequestBodyArch
-      .map(
-        (e) =>
-            apiV1ArtifactsUploadUrlPost$RequestBodyArchFromJson(e.toString()),
-      )
-      .toList();
-}
-
-List<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch>?
-apiV1ArtifactsUploadUrlPost$RequestBodyArchNullableListFromJson(
-  List? apiV1ArtifactsUploadUrlPost$RequestBodyArch, [
-  List<enums.ApiV1ArtifactsUploadUrlPost$RequestBodyArch>? defaultValue,
-]) {
-  if (apiV1ArtifactsUploadUrlPost$RequestBodyArch == null) {
-    return defaultValue;
-  }
-
-  return apiV1ArtifactsUploadUrlPost$RequestBodyArch
-      .map(
-        (e) =>
-            apiV1ArtifactsUploadUrlPost$RequestBodyArchFromJson(e.toString()),
-      )
-      .toList();
-}
-
-String?
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatformNullableToJson(
-  enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform?
-  apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform,
-) {
-  return apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform
-      ?.value;
-}
-
-String? apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatformToJson(
-  enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform
-  apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform,
-) {
-  return apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform.value;
-}
-
-enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatformFromJson(
-  Object? apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform, [
-  enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform?
-  defaultValue,
-]) {
-  return enums
-          .ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform
-          .values
+  return enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch.values
           .firstWhereOrNull(
             (e) =>
-                e.value ==
-                apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform,
+                e.value == apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch,
           ) ??
       defaultValue ??
       enums
-          .ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform
+          .ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch
           .swaggerGeneratedUnknown;
 }
 
-enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform?
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatformNullableFromJson(
-  Object? apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform, [
-  enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform?
-  defaultValue,
+enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch?
+apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArchNullableFromJson(
+  Object? apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch, [
+  enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch? defaultValue,
 ]) {
-  if (apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform ==
-      null) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch == null) {
     return null;
   }
-  return enums
-          .ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform
-          .values
+  return enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch.values
           .firstWhereOrNull(
             (e) =>
-                e.value ==
-                apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform,
+                e.value == apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch,
           ) ??
       defaultValue;
 }
 
-String
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatformExplodedListToJson(
-  List<enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform>?
-  apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform,
+String apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArchExplodedListToJson(
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch>?
+  apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch,
 ) {
-  return apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform
+  return apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch
           ?.map((e) => e.value!)
           .join(',') ??
       '';
 }
 
-List<String>
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatformListToJson(
-  List<enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform>?
-  apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform,
+List<String> apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArchListToJson(
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch>?
+  apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch,
 ) {
-  if (apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform ==
-      null) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch == null) {
     return [];
   }
 
-  return apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform
+  return apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch
       .map((e) => e.value!)
       .toList();
 }
 
-List<enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform>
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatformListFromJson(
-  List? apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform, [
-  List<enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform>?
-  defaultValue,
+List<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch>
+apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArchListFromJson(
+  List? apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch, [
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch>? defaultValue,
 ]) {
-  if (apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform ==
-      null) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch == null) {
     return defaultValue ?? [];
   }
 
-  return apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform
+  return apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch
       .map(
-        (e) =>
-            apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatformFromJson(
-              e.toString(),
-            ),
+        (e) => apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArchFromJson(
+          e.toString(),
+        ),
       )
       .toList();
 }
 
-List<enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform>?
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatformNullableListFromJson(
-  List? apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform, [
-  List<enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform>?
-  defaultValue,
+List<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch>?
+apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArchNullableListFromJson(
+  List? apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch, [
+  List<enums.ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch>? defaultValue,
 ]) {
-  if (apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform ==
-      null) {
+  if (apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch == null) {
     return defaultValue;
   }
 
-  return apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform
+  return apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch
       .map(
-        (e) =>
-            apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatformFromJson(
-              e.toString(),
-            ),
-      )
-      .toList();
-}
-
-String?
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArchNullableToJson(
-  enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch?
-  apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch,
-) {
-  return apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch?.value;
-}
-
-String? apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArchToJson(
-  enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch
-  apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch,
-) {
-  return apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch.value;
-}
-
-enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArchFromJson(
-  Object? apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch, [
-  enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch?
-  defaultValue,
-]) {
-  return enums
-          .ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch
-          .values
-          .firstWhereOrNull(
-            (e) =>
-                e.value ==
-                apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch,
-          ) ??
-      defaultValue ??
-      enums
-          .ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch
-          .swaggerGeneratedUnknown;
-}
-
-enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch?
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArchNullableFromJson(
-  Object? apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch, [
-  enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch?
-  defaultValue,
-]) {
-  if (apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch == null) {
-    return null;
-  }
-  return enums
-          .ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch
-          .values
-          .firstWhereOrNull(
-            (e) =>
-                e.value ==
-                apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch,
-          ) ??
-      defaultValue;
-}
-
-String
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArchExplodedListToJson(
-  List<enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch>?
-  apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch,
-) {
-  return apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch
-          ?.map((e) => e.value!)
-          .join(',') ??
-      '';
-}
-
-List<String>
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArchListToJson(
-  List<enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch>?
-  apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch,
-) {
-  if (apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch == null) {
-    return [];
-  }
-
-  return apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch
-      .map((e) => e.value!)
-      .toList();
-}
-
-List<enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch>
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArchListFromJson(
-  List? apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch, [
-  List<enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch>?
-  defaultValue,
-]) {
-  if (apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch == null) {
-    return defaultValue ?? [];
-  }
-
-  return apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch
-      .map(
-        (e) =>
-            apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArchFromJson(
-              e.toString(),
-            ),
-      )
-      .toList();
-}
-
-List<enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch>?
-apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArchNullableListFromJson(
-  List? apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch, [
-  List<enums.ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch>?
-  defaultValue,
-]) {
-  if (apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch == null) {
-    return defaultValue;
-  }
-
-  return apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch
-      .map(
-        (e) =>
-            apiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArchFromJson(
-              e.toString(),
-            ),
+        (e) => apiV1ReleasesReleaseIdArtifactsPost$RequestBodyArchFromJson(
+          e.toString(),
+        ),
       )
       .toList();
 }

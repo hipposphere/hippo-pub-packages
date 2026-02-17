@@ -3,8 +3,9 @@
 ## Features
 
 - `AppReleaseClientBloc` with `appCastUrlSubject` (resolved appcast URL)
-- Channel list loading from app-release-manager OpenAPI client
+- Channel loading via public channels APIs (`/api/public/v1/channels`)
 - Persisted selected channel using `hippo_utils` `KeyValueStore`
+- Persisted known hidden-channel slugs for repeated hidden lookups
 - Default `AppReleaseChannelSelector` widget for channel selection UI
 
 ## Basic usage
@@ -19,10 +20,14 @@ final bloc = AppReleaseClientBloc.create(
   arch: AppReleaseArch.arm64,
   // optional: appcast query packageType=dmg&packageType=zip
   packageTypes: const ['dmg', 'zip'],
-  // optional interceptors, e.g. auth headers for /api/v1/apps + /api/v1/channels
+  // optional interceptors, e.g. custom headers for your release API host
   interceptors: const [],
-  // optional if you already know it; otherwise resolved via list apps
+  // optional optimization; if omitted, appSlug is used for public channel lookups
   appId: null,
+  // optional: defaults to true; set false to include persisted hidden channel slugs
+  publicChannelsOnly: true,
+  // optional custom store key for known hidden slugs
+  knownHiddenChannelSlugsStoreKey: 'app_release_client.known_hidden_channel_slugs',
   // optional: defaults to 'stable'
   defaultChannelSlug: 'stable',
 );

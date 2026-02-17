@@ -3,7 +3,7 @@
   "info": {
     "title": "app-release-manager API",
     "description": "Control-plane and delivery-plane API for desktop release management.",
-    "version": "0.1.3"
+    "version": "0.1.5"
   },
   "servers": [
     {
@@ -139,13 +139,13 @@
                       "name": {
                         "type": "string"
                       },
-                      "tokenId": {
+                      "token_id": {
                         "type": "string"
                       },
-                      "keyPrefix": {
+                      "key_prefix": {
                         "type": "string"
                       },
-                      "createdByUserId": {
+                      "created_by_user_id": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -155,10 +155,10 @@
                           }
                         ]
                       },
-                      "createdAt": {
+                      "created_at": {
                         "type": "string"
                       },
-                      "lastUsedAt": {
+                      "last_used_at": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -168,7 +168,7 @@
                           }
                         ]
                       },
-                      "revokedAt": {
+                      "revoked_at": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -178,7 +178,7 @@
                           }
                         ]
                       },
-                      "revokedByUserId": {
+                      "revoked_by_user_id": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -192,13 +192,13 @@
                     "required": [
                       "id",
                       "name",
-                      "tokenId",
-                      "keyPrefix",
-                      "createdByUserId",
-                      "createdAt",
-                      "lastUsedAt",
-                      "revokedAt",
-                      "revokedByUserId"
+                      "token_id",
+                      "key_prefix",
+                      "created_by_user_id",
+                      "created_at",
+                      "last_used_at",
+                      "revoked_at",
+                      "revoked_by_user_id"
                     ]
                   }
                 }
@@ -267,7 +267,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "apiKey": {
+                    "api_key": {
                       "type": "object",
                       "properties": {
                         "id": {
@@ -276,13 +276,13 @@
                         "name": {
                           "type": "string"
                         },
-                        "tokenId": {
+                        "token_id": {
                           "type": "string"
                         },
-                        "keyPrefix": {
+                        "key_prefix": {
                           "type": "string"
                         },
-                        "createdByUserId": {
+                        "created_by_user_id": {
                           "anyOf": [
                             {
                               "type": "string"
@@ -292,10 +292,10 @@
                             }
                           ]
                         },
-                        "createdAt": {
+                        "created_at": {
                           "type": "string"
                         },
-                        "lastUsedAt": {
+                        "last_used_at": {
                           "anyOf": [
                             {
                               "type": "string"
@@ -305,7 +305,7 @@
                             }
                           ]
                         },
-                        "revokedAt": {
+                        "revoked_at": {
                           "anyOf": [
                             {
                               "type": "string"
@@ -315,7 +315,7 @@
                             }
                           ]
                         },
-                        "revokedByUserId": {
+                        "revoked_by_user_id": {
                           "anyOf": [
                             {
                               "type": "string"
@@ -329,22 +329,22 @@
                       "required": [
                         "id",
                         "name",
-                        "tokenId",
-                        "keyPrefix",
-                        "createdByUserId",
-                        "createdAt",
-                        "lastUsedAt",
-                        "revokedAt",
-                        "revokedByUserId"
+                        "token_id",
+                        "key_prefix",
+                        "created_by_user_id",
+                        "created_at",
+                        "last_used_at",
+                        "revoked_at",
+                        "revoked_by_user_id"
                       ]
                     },
-                    "plainTextKey": {
+                    "plain_text_key": {
                       "type": "string"
                     }
                   },
                   "required": [
-                    "apiKey",
-                    "plainTextKey"
+                    "api_key",
+                    "plain_text_key"
                   ]
                 }
               }
@@ -441,7 +441,7 @@
         }
       }
     },
-    "/api/v1/api-keys/{apiKeyId}/revoke": {
+    "/api/v1/api-keys/{api_key_id}/revoke": {
       "post": {
         "operationId": "revokeApiKey",
         "summary": "Revoke API key",
@@ -462,13 +462,13 @@
                     "name": {
                       "type": "string"
                     },
-                    "tokenId": {
+                    "token_id": {
                       "type": "string"
                     },
-                    "keyPrefix": {
+                    "key_prefix": {
                       "type": "string"
                     },
-                    "createdByUserId": {
+                    "created_by_user_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -478,10 +478,10 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     },
-                    "lastUsedAt": {
+                    "last_used_at": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -491,7 +491,7 @@
                         }
                       ]
                     },
-                    "revokedAt": {
+                    "revoked_at": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -501,7 +501,7 @@
                         }
                       ]
                     },
-                    "revokedByUserId": {
+                    "revoked_by_user_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -515,13 +515,13 @@
                   "required": [
                     "id",
                     "name",
-                    "tokenId",
-                    "keyPrefix",
-                    "createdByUserId",
-                    "createdAt",
-                    "lastUsedAt",
-                    "revokedAt",
-                    "revokedByUserId"
+                    "token_id",
+                    "key_prefix",
+                    "created_by_user_id",
+                    "created_at",
+                    "last_used_at",
+                    "revoked_at",
+                    "revoked_by_user_id"
                   ]
                 }
               }
@@ -600,7 +600,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "apiKeyId",
+            "name": "api_key_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -636,7 +636,7 @@
                       "name": {
                         "type": "string"
                       },
-                      "bundleId": {
+                      "bundle_id": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -646,7 +646,7 @@
                           }
                         ]
                       },
-                      "createdAt": {
+                      "created_at": {
                         "type": "string"
                       }
                     },
@@ -654,8 +654,8 @@
                       "id",
                       "slug",
                       "name",
-                      "bundleId",
-                      "createdAt"
+                      "bundle_id",
+                      "created_at"
                     ]
                   }
                 }
@@ -733,7 +733,7 @@
                     "name": {
                       "type": "string"
                     },
-                    "bundleId": {
+                    "bundle_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -743,7 +743,7 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     }
                   },
@@ -751,8 +751,8 @@
                     "id",
                     "slug",
                     "name",
-                    "bundleId",
-                    "createdAt"
+                    "bundle_id",
+                    "created_at"
                   ]
                 }
               }
@@ -842,7 +842,7 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "bundleId": {
+                  "bundle_id": {
                     "type": "string",
                     "minLength": 1
                   }
@@ -857,7 +857,7 @@
         }
       }
     },
-    "/api/v1/apps/{appId}/repository-connection": {
+    "/api/v1/apps/{app_id}/repository-connection": {
       "get": {
         "operationId": "getRepositoryConnection",
         "summary": "Get GitHub repository connection for an app",
@@ -875,7 +875,7 @@
                     "id": {
                       "type": "string"
                     },
-                    "appId": {
+                    "app_id": {
                       "type": "string"
                     },
                     "provider": {
@@ -890,7 +890,7 @@
                     "repo": {
                       "type": "string"
                     },
-                    "installationId": {
+                    "installation_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -900,10 +900,10 @@
                         }
                       ]
                     },
-                    "defaultBranch": {
+                    "default_branch": {
                       "type": "string"
                     },
-                    "workflowFile": {
+                    "workflow_file": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -913,7 +913,7 @@
                         }
                       ]
                     },
-                    "createdByUserId": {
+                    "created_by_user_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -923,25 +923,25 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     },
-                    "updatedAt": {
+                    "updated_at": {
                       "type": "string"
                     }
                   },
                   "required": [
                     "id",
-                    "appId",
+                    "app_id",
                     "provider",
                     "owner",
                     "repo",
-                    "installationId",
-                    "defaultBranch",
-                    "workflowFile",
-                    "createdByUserId",
-                    "createdAt",
-                    "updatedAt"
+                    "installation_id",
+                    "default_branch",
+                    "workflow_file",
+                    "created_by_user_id",
+                    "created_at",
+                    "updated_at"
                   ]
                 }
               }
@@ -1020,7 +1020,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "appId",
+            "name": "app_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -1046,7 +1046,7 @@
                     "id": {
                       "type": "string"
                     },
-                    "appId": {
+                    "app_id": {
                       "type": "string"
                     },
                     "provider": {
@@ -1061,7 +1061,7 @@
                     "repo": {
                       "type": "string"
                     },
-                    "installationId": {
+                    "installation_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -1071,10 +1071,10 @@
                         }
                       ]
                     },
-                    "defaultBranch": {
+                    "default_branch": {
                       "type": "string"
                     },
-                    "workflowFile": {
+                    "workflow_file": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -1084,7 +1084,7 @@
                         }
                       ]
                     },
-                    "createdByUserId": {
+                    "created_by_user_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -1094,25 +1094,25 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     },
-                    "updatedAt": {
+                    "updated_at": {
                       "type": "string"
                     }
                   },
                   "required": [
                     "id",
-                    "appId",
+                    "app_id",
                     "provider",
                     "owner",
                     "repo",
-                    "installationId",
-                    "defaultBranch",
-                    "workflowFile",
-                    "createdByUserId",
-                    "createdAt",
-                    "updatedAt"
+                    "installation_id",
+                    "default_branch",
+                    "workflow_file",
+                    "created_by_user_id",
+                    "created_at",
+                    "updated_at"
                   ]
                 }
               }
@@ -1214,7 +1214,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "appId",
+            "name": "app_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -1236,15 +1236,15 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "installationId": {
+                  "installation_id": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "defaultBranch": {
+                  "default_branch": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "workflowFile": {
+                  "workflow_file": {
                     "type": "string",
                     "minLength": 1
                   }
@@ -1259,7 +1259,7 @@
         }
       }
     },
-    "/api/v1/apps/{appId}/deployment-targets": {
+    "/api/v1/apps/{app_id}/deployment-targets": {
       "get": {
         "operationId": "listDeploymentTargets",
         "summary": "List app deployment targets",
@@ -1279,7 +1279,7 @@
                       "id": {
                         "type": "string"
                       },
-                      "appId": {
+                      "app_id": {
                         "type": "string"
                       },
                       "kind": {
@@ -1300,7 +1300,7 @@
                         },
                         "additionalProperties": {}
                       },
-                      "createdByUserId": {
+                      "created_by_user_id": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -1310,13 +1310,13 @@
                           }
                         ]
                       },
-                      "createdAt": {
+                      "created_at": {
                         "type": "string"
                       },
-                      "updatedAt": {
+                      "updated_at": {
                         "type": "string"
                       },
-                      "disabledAt": {
+                      "disabled_at": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -1329,14 +1329,14 @@
                     },
                     "required": [
                       "id",
-                      "appId",
+                      "app_id",
                       "kind",
                       "name",
                       "config",
-                      "createdByUserId",
-                      "createdAt",
-                      "updatedAt",
-                      "disabledAt"
+                      "created_by_user_id",
+                      "created_at",
+                      "updated_at",
+                      "disabled_at"
                     ]
                   }
                 }
@@ -1393,7 +1393,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "appId",
+            "name": "app_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -1419,7 +1419,7 @@
                     "id": {
                       "type": "string"
                     },
-                    "appId": {
+                    "app_id": {
                       "type": "string"
                     },
                     "kind": {
@@ -1440,7 +1440,7 @@
                       },
                       "additionalProperties": {}
                     },
-                    "createdByUserId": {
+                    "created_by_user_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -1450,13 +1450,13 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     },
-                    "updatedAt": {
+                    "updated_at": {
                       "type": "string"
                     },
-                    "disabledAt": {
+                    "disabled_at": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -1469,14 +1469,14 @@
                   },
                   "required": [
                     "id",
-                    "appId",
+                    "app_id",
                     "kind",
                     "name",
                     "config",
-                    "createdByUserId",
-                    "createdAt",
-                    "updatedAt",
-                    "disabledAt"
+                    "created_by_user_id",
+                    "created_at",
+                    "updated_at",
+                    "disabled_at"
                   ]
                 }
               }
@@ -1578,7 +1578,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "appId",
+            "name": "app_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -1622,7 +1622,7 @@
         }
       }
     },
-    "/api/v1/apps/{appId}/build-profiles": {
+    "/api/v1/apps/{app_id}/build-profiles": {
       "get": {
         "operationId": "listBuildProfiles",
         "summary": "List app build profiles",
@@ -1642,7 +1642,7 @@
                       "id": {
                         "type": "string"
                       },
-                      "appId": {
+                      "app_id": {
                         "type": "string"
                       },
                       "name": {
@@ -1658,7 +1658,7 @@
                           "android"
                         ]
                       },
-                      "packageType": {
+                      "package_type": {
                         "type": "string",
                         "minLength": 1
                       },
@@ -1670,10 +1670,10 @@
                         ],
                         "nullable": true
                       },
-                      "workflowIdentifier": {
+                      "workflow_identifier": {
                         "type": "string"
                       },
-                      "workflowRef": {
+                      "workflow_ref": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -1683,14 +1683,14 @@
                           }
                         ]
                       },
-                      "workflowInputs": {
+                      "workflow_inputs": {
                         "type": "object",
                         "propertyNames": {
                           "type": "string"
                         },
                         "additionalProperties": {}
                       },
-                      "artifactPathGlob": {
+                      "artifact_path_glob": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -1700,7 +1700,7 @@
                           }
                         ]
                       },
-                      "autoDeployTargetId": {
+                      "auto_deploy_target_id": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -1710,7 +1710,7 @@
                           }
                         ]
                       },
-                      "createdByUserId": {
+                      "created_by_user_id": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -1720,13 +1720,13 @@
                           }
                         ]
                       },
-                      "createdAt": {
+                      "created_at": {
                         "type": "string"
                       },
-                      "updatedAt": {
+                      "updated_at": {
                         "type": "string"
                       },
-                      "disabledAt": {
+                      "disabled_at": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -1739,20 +1739,20 @@
                     },
                     "required": [
                       "id",
-                      "appId",
+                      "app_id",
                       "name",
                       "platform",
-                      "packageType",
+                      "package_type",
                       "arch",
-                      "workflowIdentifier",
-                      "workflowRef",
-                      "workflowInputs",
-                      "artifactPathGlob",
-                      "autoDeployTargetId",
-                      "createdByUserId",
-                      "createdAt",
-                      "updatedAt",
-                      "disabledAt"
+                      "workflow_identifier",
+                      "workflow_ref",
+                      "workflow_inputs",
+                      "artifact_path_glob",
+                      "auto_deploy_target_id",
+                      "created_by_user_id",
+                      "created_at",
+                      "updated_at",
+                      "disabled_at"
                     ]
                   }
                 }
@@ -1809,7 +1809,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "appId",
+            "name": "app_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -1835,7 +1835,7 @@
                     "id": {
                       "type": "string"
                     },
-                    "appId": {
+                    "app_id": {
                       "type": "string"
                     },
                     "name": {
@@ -1851,7 +1851,7 @@
                         "android"
                       ]
                     },
-                    "packageType": {
+                    "package_type": {
                       "type": "string",
                       "minLength": 1
                     },
@@ -1863,10 +1863,10 @@
                       ],
                       "nullable": true
                     },
-                    "workflowIdentifier": {
+                    "workflow_identifier": {
                       "type": "string"
                     },
-                    "workflowRef": {
+                    "workflow_ref": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -1876,14 +1876,14 @@
                         }
                       ]
                     },
-                    "workflowInputs": {
+                    "workflow_inputs": {
                       "type": "object",
                       "propertyNames": {
                         "type": "string"
                       },
                       "additionalProperties": {}
                     },
-                    "artifactPathGlob": {
+                    "artifact_path_glob": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -1893,7 +1893,7 @@
                         }
                       ]
                     },
-                    "autoDeployTargetId": {
+                    "auto_deploy_target_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -1903,7 +1903,7 @@
                         }
                       ]
                     },
-                    "createdByUserId": {
+                    "created_by_user_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -1913,13 +1913,13 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     },
-                    "updatedAt": {
+                    "updated_at": {
                       "type": "string"
                     },
-                    "disabledAt": {
+                    "disabled_at": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -1932,20 +1932,20 @@
                   },
                   "required": [
                     "id",
-                    "appId",
+                    "app_id",
                     "name",
                     "platform",
-                    "packageType",
+                    "package_type",
                     "arch",
-                    "workflowIdentifier",
-                    "workflowRef",
-                    "workflowInputs",
-                    "artifactPathGlob",
-                    "autoDeployTargetId",
-                    "createdByUserId",
-                    "createdAt",
-                    "updatedAt",
-                    "disabledAt"
+                    "workflow_identifier",
+                    "workflow_ref",
+                    "workflow_inputs",
+                    "artifact_path_glob",
+                    "auto_deploy_target_id",
+                    "created_by_user_id",
+                    "created_at",
+                    "updated_at",
+                    "disabled_at"
                   ]
                 }
               }
@@ -2047,7 +2047,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "appId",
+            "name": "app_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -2075,7 +2075,7 @@
                       "android"
                     ]
                   },
-                  "packageType": {
+                  "package_type": {
                     "type": "string",
                     "minLength": 1
                   },
@@ -2086,26 +2086,26 @@
                       "arm64"
                     ]
                   },
-                  "workflowIdentifier": {
+                  "workflow_identifier": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "workflowRef": {
+                  "workflow_ref": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "workflowInputs": {
+                  "workflow_inputs": {
                     "type": "object",
                     "propertyNames": {
                       "type": "string"
                     },
                     "additionalProperties": {}
                   },
-                  "artifactPathGlob": {
+                  "artifact_path_glob": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "autoDeployTargetId": {
+                  "auto_deploy_target_id": {
                     "type": "string",
                     "minLength": 1
                   }
@@ -2113,8 +2113,8 @@
                 "required": [
                   "name",
                   "platform",
-                  "packageType",
-                  "workflowIdentifier"
+                  "package_type",
+                  "workflow_identifier"
                 ]
               }
             }
@@ -2122,7 +2122,7 @@
         }
       }
     },
-    "/api/v1/apps/{appId}/pipeline-runs": {
+    "/api/v1/apps/{app_id}/pipeline-runs": {
       "get": {
         "operationId": "listPipelineRuns",
         "summary": "List pipeline runs for an app",
@@ -2142,10 +2142,10 @@
                       "id": {
                         "type": "string"
                       },
-                      "appId": {
+                      "app_id": {
                         "type": "string"
                       },
-                      "repositoryConnectionId": {
+                      "repository_connection_id": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -2155,7 +2155,7 @@
                           }
                         ]
                       },
-                      "releaseId": {
+                      "release_id": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -2165,7 +2165,7 @@
                           }
                         ]
                       },
-                      "triggerMode": {
+                      "trigger_mode": {
                         "type": "string",
                         "enum": [
                           "manual",
@@ -2175,7 +2175,7 @@
                       "branch": {
                         "type": "string"
                       },
-                      "commitSha": {
+                      "commit_sha": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -2196,7 +2196,7 @@
                           "partially_succeeded"
                         ]
                       },
-                      "requestedByUserId": {
+                      "requested_by_user_id": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -2206,7 +2206,7 @@
                           }
                         ]
                       },
-                      "externalRunId": {
+                      "external_run_id": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -2216,7 +2216,7 @@
                           }
                         ]
                       },
-                      "startedAt": {
+                      "started_at": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -2226,7 +2226,7 @@
                           }
                         ]
                       },
-                      "finishedAt": {
+                      "finished_at": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -2236,28 +2236,28 @@
                           }
                         ]
                       },
-                      "createdAt": {
+                      "created_at": {
                         "type": "string"
                       },
-                      "updatedAt": {
+                      "updated_at": {
                         "type": "string"
                       }
                     },
                     "required": [
                       "id",
-                      "appId",
-                      "repositoryConnectionId",
-                      "releaseId",
-                      "triggerMode",
+                      "app_id",
+                      "repository_connection_id",
+                      "release_id",
+                      "trigger_mode",
                       "branch",
-                      "commitSha",
+                      "commit_sha",
                       "status",
-                      "requestedByUserId",
-                      "externalRunId",
-                      "startedAt",
-                      "finishedAt",
-                      "createdAt",
-                      "updatedAt"
+                      "requested_by_user_id",
+                      "external_run_id",
+                      "started_at",
+                      "finished_at",
+                      "created_at",
+                      "updated_at"
                     ]
                   }
                 }
@@ -2314,7 +2314,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "appId",
+            "name": "app_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -2340,10 +2340,10 @@
                     "id": {
                       "type": "string"
                     },
-                    "appId": {
+                    "app_id": {
                       "type": "string"
                     },
-                    "repositoryConnectionId": {
+                    "repository_connection_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2353,7 +2353,7 @@
                         }
                       ]
                     },
-                    "releaseId": {
+                    "release_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2363,7 +2363,7 @@
                         }
                       ]
                     },
-                    "triggerMode": {
+                    "trigger_mode": {
                       "type": "string",
                       "enum": [
                         "manual",
@@ -2373,7 +2373,7 @@
                     "branch": {
                       "type": "string"
                     },
-                    "commitSha": {
+                    "commit_sha": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2394,7 +2394,7 @@
                         "partially_succeeded"
                       ]
                     },
-                    "requestedByUserId": {
+                    "requested_by_user_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2404,7 +2404,7 @@
                         }
                       ]
                     },
-                    "externalRunId": {
+                    "external_run_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2414,7 +2414,7 @@
                         }
                       ]
                     },
-                    "startedAt": {
+                    "started_at": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2424,7 +2424,7 @@
                         }
                       ]
                     },
-                    "finishedAt": {
+                    "finished_at": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2434,10 +2434,10 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     },
-                    "updatedAt": {
+                    "updated_at": {
                       "type": "string"
                     },
                     "jobs": {
@@ -2448,10 +2448,10 @@
                           "id": {
                             "type": "string"
                           },
-                          "pipelineRunId": {
+                          "pipeline_run_id": {
                             "type": "string"
                           },
-                          "buildProfileId": {
+                          "build_profile_id": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2471,7 +2471,7 @@
                               "android"
                             ]
                           },
-                          "packageType": {
+                          "package_type": {
                             "type": "string"
                           },
                           "arch": {
@@ -2493,7 +2493,7 @@
                               "skipped"
                             ]
                           },
-                          "externalJobId": {
+                          "external_job_id": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2503,7 +2503,7 @@
                               }
                             ]
                           },
-                          "artifactId": {
+                          "artifact_id": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2513,7 +2513,7 @@
                               }
                             ]
                           },
-                          "deploymentTargetId": {
+                          "deployment_target_id": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2523,7 +2523,7 @@
                               }
                             ]
                           },
-                          "deploymentStatus": {
+                          "deployment_status": {
                             "type": "string",
                             "enum": [
                               "queued",
@@ -2534,7 +2534,7 @@
                             ],
                             "nullable": true
                           },
-                          "logsUrl": {
+                          "logs_url": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2544,7 +2544,7 @@
                               }
                             ]
                           },
-                          "errorMessage": {
+                          "error_message": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2554,7 +2554,7 @@
                               }
                             ]
                           },
-                          "startedAt": {
+                          "started_at": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2564,7 +2564,7 @@
                               }
                             ]
                           },
-                          "finishedAt": {
+                          "finished_at": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2574,50 +2574,50 @@
                               }
                             ]
                           },
-                          "createdAt": {
+                          "created_at": {
                             "type": "string"
                           },
-                          "updatedAt": {
+                          "updated_at": {
                             "type": "string"
                           }
                         },
                         "required": [
                           "id",
-                          "pipelineRunId",
-                          "buildProfileId",
+                          "pipeline_run_id",
+                          "build_profile_id",
                           "platform",
-                          "packageType",
+                          "package_type",
                           "arch",
                           "status",
-                          "externalJobId",
-                          "artifactId",
-                          "deploymentTargetId",
-                          "deploymentStatus",
-                          "logsUrl",
-                          "errorMessage",
-                          "startedAt",
-                          "finishedAt",
-                          "createdAt",
-                          "updatedAt"
+                          "external_job_id",
+                          "artifact_id",
+                          "deployment_target_id",
+                          "deployment_status",
+                          "logs_url",
+                          "error_message",
+                          "started_at",
+                          "finished_at",
+                          "created_at",
+                          "updated_at"
                         ]
                       }
                     }
                   },
                   "required": [
                     "id",
-                    "appId",
-                    "repositoryConnectionId",
-                    "releaseId",
-                    "triggerMode",
+                    "app_id",
+                    "repository_connection_id",
+                    "release_id",
+                    "trigger_mode",
                     "branch",
-                    "commitSha",
+                    "commit_sha",
                     "status",
-                    "requestedByUserId",
-                    "externalRunId",
-                    "startedAt",
-                    "finishedAt",
-                    "createdAt",
-                    "updatedAt",
+                    "requested_by_user_id",
+                    "external_run_id",
+                    "started_at",
+                    "finished_at",
+                    "created_at",
+                    "updated_at",
                     "jobs"
                   ]
                 }
@@ -2720,7 +2720,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "appId",
+            "name": "app_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -2738,7 +2738,7 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "profileIds": {
+                  "profile_ids": {
                     "minItems": 1,
                     "type": "array",
                     "items": {
@@ -2746,24 +2746,24 @@
                       "minLength": 1
                     }
                   },
-                  "triggerMode": {
+                  "trigger_mode": {
                     "type": "string",
                     "enum": [
                       "manual",
                       "webhook"
                     ]
                   },
-                  "releaseId": {
+                  "release_id": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "commitSha": {
+                  "commit_sha": {
                     "type": "string",
                     "minLength": 7
                   }
                 },
                 "required": [
-                  "profileIds"
+                  "profile_ids"
                 ]
               }
             }
@@ -2771,7 +2771,7 @@
         }
       }
     },
-    "/api/v1/pipeline-runs/{pipelineRunId}": {
+    "/api/v1/pipeline-runs/{pipeline_run_id}": {
       "get": {
         "operationId": "getPipelineRun",
         "summary": "Get pipeline run details",
@@ -2789,10 +2789,10 @@
                     "id": {
                       "type": "string"
                     },
-                    "appId": {
+                    "app_id": {
                       "type": "string"
                     },
-                    "repositoryConnectionId": {
+                    "repository_connection_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2802,7 +2802,7 @@
                         }
                       ]
                     },
-                    "releaseId": {
+                    "release_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2812,7 +2812,7 @@
                         }
                       ]
                     },
-                    "triggerMode": {
+                    "trigger_mode": {
                       "type": "string",
                       "enum": [
                         "manual",
@@ -2822,7 +2822,7 @@
                     "branch": {
                       "type": "string"
                     },
-                    "commitSha": {
+                    "commit_sha": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2843,7 +2843,7 @@
                         "partially_succeeded"
                       ]
                     },
-                    "requestedByUserId": {
+                    "requested_by_user_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2853,7 +2853,7 @@
                         }
                       ]
                     },
-                    "externalRunId": {
+                    "external_run_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2863,7 +2863,7 @@
                         }
                       ]
                     },
-                    "startedAt": {
+                    "started_at": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2873,7 +2873,7 @@
                         }
                       ]
                     },
-                    "finishedAt": {
+                    "finished_at": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -2883,10 +2883,10 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     },
-                    "updatedAt": {
+                    "updated_at": {
                       "type": "string"
                     },
                     "jobs": {
@@ -2897,10 +2897,10 @@
                           "id": {
                             "type": "string"
                           },
-                          "pipelineRunId": {
+                          "pipeline_run_id": {
                             "type": "string"
                           },
-                          "buildProfileId": {
+                          "build_profile_id": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2920,7 +2920,7 @@
                               "android"
                             ]
                           },
-                          "packageType": {
+                          "package_type": {
                             "type": "string"
                           },
                           "arch": {
@@ -2942,7 +2942,7 @@
                               "skipped"
                             ]
                           },
-                          "externalJobId": {
+                          "external_job_id": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2952,7 +2952,7 @@
                               }
                             ]
                           },
-                          "artifactId": {
+                          "artifact_id": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2962,7 +2962,7 @@
                               }
                             ]
                           },
-                          "deploymentTargetId": {
+                          "deployment_target_id": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2972,7 +2972,7 @@
                               }
                             ]
                           },
-                          "deploymentStatus": {
+                          "deployment_status": {
                             "type": "string",
                             "enum": [
                               "queued",
@@ -2983,7 +2983,7 @@
                             ],
                             "nullable": true
                           },
-                          "logsUrl": {
+                          "logs_url": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -2993,7 +2993,7 @@
                               }
                             ]
                           },
-                          "errorMessage": {
+                          "error_message": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -3003,7 +3003,7 @@
                               }
                             ]
                           },
-                          "startedAt": {
+                          "started_at": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -3013,7 +3013,7 @@
                               }
                             ]
                           },
-                          "finishedAt": {
+                          "finished_at": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -3023,50 +3023,50 @@
                               }
                             ]
                           },
-                          "createdAt": {
+                          "created_at": {
                             "type": "string"
                           },
-                          "updatedAt": {
+                          "updated_at": {
                             "type": "string"
                           }
                         },
                         "required": [
                           "id",
-                          "pipelineRunId",
-                          "buildProfileId",
+                          "pipeline_run_id",
+                          "build_profile_id",
                           "platform",
-                          "packageType",
+                          "package_type",
                           "arch",
                           "status",
-                          "externalJobId",
-                          "artifactId",
-                          "deploymentTargetId",
-                          "deploymentStatus",
-                          "logsUrl",
-                          "errorMessage",
-                          "startedAt",
-                          "finishedAt",
-                          "createdAt",
-                          "updatedAt"
+                          "external_job_id",
+                          "artifact_id",
+                          "deployment_target_id",
+                          "deployment_status",
+                          "logs_url",
+                          "error_message",
+                          "started_at",
+                          "finished_at",
+                          "created_at",
+                          "updated_at"
                         ]
                       }
                     }
                   },
                   "required": [
                     "id",
-                    "appId",
-                    "repositoryConnectionId",
-                    "releaseId",
-                    "triggerMode",
+                    "app_id",
+                    "repository_connection_id",
+                    "release_id",
+                    "trigger_mode",
                     "branch",
-                    "commitSha",
+                    "commit_sha",
                     "status",
-                    "requestedByUserId",
-                    "externalRunId",
-                    "startedAt",
-                    "finishedAt",
-                    "createdAt",
-                    "updatedAt",
+                    "requested_by_user_id",
+                    "external_run_id",
+                    "started_at",
+                    "finished_at",
+                    "created_at",
+                    "updated_at",
                     "jobs"
                   ]
                 }
@@ -3146,7 +3146,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "pipelineRunId",
+            "name": "pipeline_run_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -3176,13 +3176,13 @@
                       "id": {
                         "type": "string"
                       },
-                      "appId": {
+                      "app_id": {
                         "type": "string"
                       },
                       "slug": {
                         "type": "string"
                       },
-                      "displayName": {
+                      "display_name": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -3203,18 +3203,19 @@
                         "type": "string",
                         "enum": [
                           "public",
-                          "private"
+                          "private",
+                          "hidden"
                         ]
                       },
-                      "isSystem": {
+                      "is_system": {
                         "type": "boolean"
                       },
-                      "rolloutPercent": {
+                      "rollout_percent": {
                         "type": "integer",
                         "minimum": 0,
                         "maximum": 100
                       },
-                      "parentChannelId": {
+                      "parent_channel_id": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -3224,7 +3225,7 @@
                           }
                         ]
                       },
-                      "createdByUserId": {
+                      "created_by_user_id": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -3234,22 +3235,22 @@
                           }
                         ]
                       },
-                      "createdAt": {
+                      "created_at": {
                         "type": "string"
                       }
                     },
                     "required": [
                       "id",
-                      "appId",
+                      "app_id",
                       "slug",
-                      "displayName",
+                      "display_name",
                       "kind",
                       "visibility",
-                      "isSystem",
-                      "rolloutPercent",
-                      "parentChannelId",
-                      "createdByUserId",
-                      "createdAt"
+                      "is_system",
+                      "rollout_percent",
+                      "parent_channel_id",
+                      "created_by_user_id",
+                      "created_at"
                     ]
                   }
                 }
@@ -3306,7 +3307,7 @@
         "parameters": [
           {
             "in": "query",
-            "name": "appId",
+            "name": "app_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -3332,13 +3333,13 @@
                     "id": {
                       "type": "string"
                     },
-                    "appId": {
+                    "app_id": {
                       "type": "string"
                     },
                     "slug": {
                       "type": "string"
                     },
-                    "displayName": {
+                    "display_name": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -3359,18 +3360,19 @@
                       "type": "string",
                       "enum": [
                         "public",
-                        "private"
+                        "private",
+                        "hidden"
                       ]
                     },
-                    "isSystem": {
+                    "is_system": {
                       "type": "boolean"
                     },
-                    "rolloutPercent": {
+                    "rollout_percent": {
                       "type": "integer",
                       "minimum": 0,
                       "maximum": 100
                     },
-                    "parentChannelId": {
+                    "parent_channel_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -3380,7 +3382,7 @@
                         }
                       ]
                     },
-                    "createdByUserId": {
+                    "created_by_user_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -3390,22 +3392,22 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     }
                   },
                   "required": [
                     "id",
-                    "appId",
+                    "app_id",
                     "slug",
-                    "displayName",
+                    "display_name",
                     "kind",
                     "visibility",
-                    "isSystem",
-                    "rolloutPercent",
-                    "parentChannelId",
-                    "createdByUserId",
-                    "createdAt"
+                    "is_system",
+                    "rollout_percent",
+                    "parent_channel_id",
+                    "created_by_user_id",
+                    "created_at"
                   ]
                 }
               }
@@ -3487,7 +3489,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "appId": {
+                  "app_id": {
                     "type": "string",
                     "minLength": 1
                   },
@@ -3495,7 +3497,7 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "displayName": {
+                  "display_name": {
                     "type": "string",
                     "minLength": 1
                   },
@@ -3510,21 +3512,22 @@
                     "type": "string",
                     "enum": [
                       "public",
-                      "private"
+                      "private",
+                      "hidden"
                     ]
                   },
-                  "parentChannelId": {
+                  "parent_channel_id": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "rolloutPercent": {
+                  "rollout_percent": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 100
                   }
                 },
                 "required": [
-                  "appId",
+                  "app_id",
                   "slug",
                   "kind"
                 ]
@@ -3534,7 +3537,7 @@
         }
       }
     },
-    "/api/v1/channels/{channelId}": {
+    "/api/v1/channels/{channel_id}": {
       "patch": {
         "operationId": "updateChannel",
         "summary": "Update channel policy",
@@ -3552,13 +3555,13 @@
                     "id": {
                       "type": "string"
                     },
-                    "appId": {
+                    "app_id": {
                       "type": "string"
                     },
                     "slug": {
                       "type": "string"
                     },
-                    "displayName": {
+                    "display_name": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -3579,18 +3582,19 @@
                       "type": "string",
                       "enum": [
                         "public",
-                        "private"
+                        "private",
+                        "hidden"
                       ]
                     },
-                    "isSystem": {
+                    "is_system": {
                       "type": "boolean"
                     },
-                    "rolloutPercent": {
+                    "rollout_percent": {
                       "type": "integer",
                       "minimum": 0,
                       "maximum": 100
                     },
-                    "parentChannelId": {
+                    "parent_channel_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -3600,7 +3604,7 @@
                         }
                       ]
                     },
-                    "createdByUserId": {
+                    "created_by_user_id": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -3610,22 +3614,22 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     }
                   },
                   "required": [
                     "id",
-                    "appId",
+                    "app_id",
                     "slug",
-                    "displayName",
+                    "display_name",
                     "kind",
                     "visibility",
-                    "isSystem",
-                    "rolloutPercent",
-                    "parentChannelId",
-                    "createdByUserId",
-                    "createdAt"
+                    "is_system",
+                    "rollout_percent",
+                    "parent_channel_id",
+                    "created_by_user_id",
+                    "created_at"
                   ]
                 }
               }
@@ -3727,7 +3731,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "channelId",
+            "name": "channel_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -3741,7 +3745,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "displayName": {
+                  "display_name": {
                     "type": "string",
                     "minLength": 1
                   },
@@ -3749,10 +3753,11 @@
                     "type": "string",
                     "enum": [
                       "public",
-                      "private"
+                      "private",
+                      "hidden"
                     ]
                   },
-                  "rolloutPercent": {
+                  "rollout_percent": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 100
@@ -3764,7 +3769,7 @@
         }
       }
     },
-    "/api/v1/channels/{channelId}/rollback": {
+    "/api/v1/channels/{channel_id}/rollback": {
       "post": {
         "operationId": "rollbackChannel",
         "summary": "Rollback channel assignment",
@@ -3782,10 +3787,10 @@
                     "id": {
                       "type": "string"
                     },
-                    "channelId": {
+                    "channel_id": {
                       "type": "string"
                     },
-                    "releaseId": {
+                    "release_id": {
                       "type": "string"
                     },
                     "platform": {
@@ -3807,23 +3812,23 @@
                       ],
                       "nullable": true
                     },
-                    "rolloutPercent": {
+                    "rollout_percent": {
                       "type": "integer",
                       "minimum": 0,
                       "maximum": 100
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     }
                   },
                   "required": [
                     "id",
-                    "channelId",
-                    "releaseId",
+                    "channel_id",
+                    "release_id",
                     "platform",
                     "arch",
-                    "rolloutPercent",
-                    "createdAt"
+                    "rollout_percent",
+                    "created_at"
                   ]
                 }
               }
@@ -3925,7 +3930,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "channelId",
+            "name": "channel_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -3956,7 +3961,7 @@
                       "arm64"
                     ]
                   },
-                  "toReleaseId": {
+                  "to_release_id": {
                     "type": "string",
                     "minLength": 1
                   }
@@ -3987,13 +3992,13 @@
                       "id": {
                         "type": "string"
                       },
-                      "appId": {
+                      "app_id": {
                         "type": "string"
                       },
                       "version": {
                         "type": "string"
                       },
-                      "buildNumber": {
+                      "build_number": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -4022,7 +4027,7 @@
                           }
                         ]
                       },
-                      "publishedAt": {
+                      "published_at": {
                         "anyOf": [
                           {
                             "type": "string"
@@ -4032,19 +4037,19 @@
                           }
                         ]
                       },
-                      "createdAt": {
+                      "created_at": {
                         "type": "string"
                       }
                     },
                     "required": [
                       "id",
-                      "appId",
+                      "app_id",
                       "version",
-                      "buildNumber",
+                      "build_number",
                       "status",
                       "notes",
-                      "publishedAt",
-                      "createdAt"
+                      "published_at",
+                      "created_at"
                     ]
                   }
                 }
@@ -4101,7 +4106,7 @@
         "parameters": [
           {
             "in": "query",
-            "name": "appId",
+            "name": "app_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -4140,13 +4145,13 @@
                     "id": {
                       "type": "string"
                     },
-                    "appId": {
+                    "app_id": {
                       "type": "string"
                     },
                     "version": {
                       "type": "string"
                     },
-                    "buildNumber": {
+                    "build_number": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -4175,7 +4180,7 @@
                         }
                       ]
                     },
-                    "publishedAt": {
+                    "published_at": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -4185,19 +4190,19 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     }
                   },
                   "required": [
                     "id",
-                    "appId",
+                    "app_id",
                     "version",
-                    "buildNumber",
+                    "build_number",
                     "status",
                     "notes",
-                    "publishedAt",
-                    "createdAt"
+                    "published_at",
+                    "created_at"
                   ]
                 }
               }
@@ -4279,7 +4284,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "appId": {
+                  "app_id": {
                     "type": "string",
                     "minLength": 1
                   },
@@ -4287,7 +4292,7 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "buildNumber": {
+                  "build_number": {
                     "type": "string",
                     "minLength": 1
                   },
@@ -4297,7 +4302,7 @@
                   }
                 },
                 "required": [
-                  "appId",
+                  "app_id",
                   "version"
                 ]
               }
@@ -4306,7 +4311,7 @@
         }
       }
     },
-    "/api/v1/releases/{releaseId}": {
+    "/api/v1/releases/{release_id}": {
       "get": {
         "operationId": "getRelease",
         "summary": "Get release details",
@@ -4324,13 +4329,13 @@
                     "id": {
                       "type": "string"
                     },
-                    "appId": {
+                    "app_id": {
                       "type": "string"
                     },
                     "version": {
                       "type": "string"
                     },
-                    "buildNumber": {
+                    "build_number": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -4359,7 +4364,7 @@
                         }
                       ]
                     },
-                    "publishedAt": {
+                    "published_at": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -4369,7 +4374,7 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     },
                     "artifacts": {
@@ -4380,7 +4385,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "releaseId": {
+                          "release_id": {
                             "type": "string"
                           },
                           "platform": {
@@ -4401,13 +4406,13 @@
                               "universal"
                             ]
                           },
-                          "packageType": {
+                          "package_type": {
                             "type": "string"
                           },
-                          "fileName": {
+                          "file_name": {
                             "type": "string"
                           },
-                          "s3Key": {
+                          "s3_key": {
                             "type": "string"
                           },
                           "sha256": {
@@ -4430,7 +4435,7 @@
                               }
                             ]
                           },
-                          "sizeBytes": {
+                          "size_bytes": {
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 9007199254740991
@@ -4438,36 +4443,36 @@
                           "verified": {
                             "type": "boolean"
                           },
-                          "createdAt": {
+                          "created_at": {
                             "type": "string"
                           }
                         },
                         "required": [
                           "id",
-                          "releaseId",
+                          "release_id",
                           "platform",
                           "arch",
-                          "packageType",
-                          "fileName",
-                          "s3Key",
+                          "package_type",
+                          "file_name",
+                          "s3_key",
                           "sha256",
                           "signature",
-                          "sizeBytes",
+                          "size_bytes",
                           "verified",
-                          "createdAt"
+                          "created_at"
                         ]
                       }
                     }
                   },
                   "required": [
                     "id",
-                    "appId",
+                    "app_id",
                     "version",
-                    "buildNumber",
+                    "build_number",
                     "status",
                     "notes",
-                    "publishedAt",
-                    "createdAt",
+                    "published_at",
+                    "created_at",
                     "artifacts"
                   ]
                 }
@@ -4547,7 +4552,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "releaseId",
+            "name": "release_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -4557,7 +4562,7 @@
         ]
       }
     },
-    "/api/v1/releases/{releaseId}/verify": {
+    "/api/v1/releases/{release_id}/verify": {
       "post": {
         "operationId": "verifyRelease",
         "summary": "Verify release artifact integrity and policy coverage",
@@ -4575,13 +4580,13 @@
                     "id": {
                       "type": "string"
                     },
-                    "appId": {
+                    "app_id": {
                       "type": "string"
                     },
                     "version": {
                       "type": "string"
                     },
-                    "buildNumber": {
+                    "build_number": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -4610,7 +4615,7 @@
                         }
                       ]
                     },
-                    "publishedAt": {
+                    "published_at": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -4620,19 +4625,19 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     }
                   },
                   "required": [
                     "id",
-                    "appId",
+                    "app_id",
                     "version",
-                    "buildNumber",
+                    "build_number",
                     "status",
                     "notes",
-                    "publishedAt",
-                    "createdAt"
+                    "published_at",
+                    "created_at"
                   ]
                 }
               }
@@ -4734,7 +4739,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "releaseId",
+            "name": "release_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -4744,7 +4749,7 @@
         ]
       }
     },
-    "/api/v1/releases/{releaseId}/publish": {
+    "/api/v1/releases/{release_id}/publish": {
       "post": {
         "operationId": "publishRelease",
         "summary": "Publish release to one or more channels",
@@ -4762,13 +4767,13 @@
                     "id": {
                       "type": "string"
                     },
-                    "appId": {
+                    "app_id": {
                       "type": "string"
                     },
                     "version": {
                       "type": "string"
                     },
-                    "buildNumber": {
+                    "build_number": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -4797,7 +4802,7 @@
                         }
                       ]
                     },
-                    "publishedAt": {
+                    "published_at": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -4807,19 +4812,19 @@
                         }
                       ]
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     }
                   },
                   "required": [
                     "id",
-                    "appId",
+                    "app_id",
                     "version",
-                    "buildNumber",
+                    "build_number",
                     "status",
                     "notes",
-                    "publishedAt",
-                    "createdAt"
+                    "published_at",
+                    "created_at"
                   ]
                 }
               }
@@ -4921,7 +4926,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "releaseId",
+            "name": "release_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -4941,7 +4946,7 @@
                     "items": {
                       "type": "object",
                       "properties": {
-                        "channelId": {
+                        "channel_id": {
                           "type": "string",
                           "minLength": 1
                         },
@@ -4962,14 +4967,14 @@
                             "arm64"
                           ]
                         },
-                        "rolloutPercent": {
+                        "rollout_percent": {
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 100
                         }
                       },
                       "required": [
-                        "channelId"
+                        "channel_id"
                       ]
                     }
                   }
@@ -4983,7 +4988,7 @@
         }
       }
     },
-    "/api/v1/releases/{releaseId}/promote": {
+    "/api/v1/releases/{release_id}/promote": {
       "post": {
         "operationId": "promoteRelease",
         "summary": "Promote release between channels",
@@ -5001,10 +5006,10 @@
                     "id": {
                       "type": "string"
                     },
-                    "channelId": {
+                    "channel_id": {
                       "type": "string"
                     },
-                    "releaseId": {
+                    "release_id": {
                       "type": "string"
                     },
                     "platform": {
@@ -5026,23 +5031,23 @@
                       ],
                       "nullable": true
                     },
-                    "rolloutPercent": {
+                    "rollout_percent": {
                       "type": "integer",
                       "minimum": 0,
                       "maximum": 100
                     },
-                    "createdAt": {
+                    "created_at": {
                       "type": "string"
                     }
                   },
                   "required": [
                     "id",
-                    "channelId",
-                    "releaseId",
+                    "channel_id",
+                    "release_id",
                     "platform",
                     "arch",
-                    "rolloutPercent",
-                    "createdAt"
+                    "rollout_percent",
+                    "created_at"
                   ]
                 }
               }
@@ -5144,7 +5149,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "releaseId",
+            "name": "release_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -5158,11 +5163,11 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "fromChannelId": {
+                  "from_channel_id": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "toChannelId": {
+                  "to_channel_id": {
                     "type": "string",
                     "minLength": 1
                   },
@@ -5185,8 +5190,8 @@
                   }
                 },
                 "required": [
-                  "fromChannelId",
-                  "toChannelId"
+                  "from_channel_id",
+                  "to_channel_id"
                 ]
               }
             }
@@ -5194,10 +5199,10 @@
         }
       }
     },
-    "/api/v1/artifacts/upload-url": {
+    "/api/v1/artifacts": {
       "post": {
-        "operationId": "createArtifactUploadUrlByVersion",
-        "summary": "Create upload URL for an artifact and resolve release by app slug + version",
+        "operationId": "createArtifactByVersion",
+        "summary": "Create and upload an artifact, resolve release by app slug + version, and optionally assign channel",
         "tags": [
           "Artifacts"
         ],
@@ -5211,39 +5216,106 @@
         ],
         "responses": {
           "201": {
-            "description": "Upload URL created",
+            "description": "Artifact uploaded",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "artifactId": {
+                    "release_id": {
                       "type": "string"
                     },
-                    "uploadUrl": {
-                      "type": "string",
-                      "format": "uri"
-                    },
-                    "s3Key": {
-                      "type": "string"
-                    },
-                    "expiresAt": {
-                      "type": "string"
-                    },
-                    "releaseId": {
-                      "type": "string"
-                    },
-                    "releaseCreated": {
+                    "release_created": {
                       "type": "boolean"
+                    },
+                    "artifact": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "release_id": {
+                          "type": "string"
+                        },
+                        "platform": {
+                          "type": "string",
+                          "enum": [
+                            "macos",
+                            "windows",
+                            "linux",
+                            "ios",
+                            "android"
+                          ]
+                        },
+                        "arch": {
+                          "type": "string",
+                          "enum": [
+                            "x64",
+                            "arm64",
+                            "universal"
+                          ]
+                        },
+                        "package_type": {
+                          "type": "string"
+                        },
+                        "file_name": {
+                          "type": "string"
+                        },
+                        "s3_key": {
+                          "type": "string"
+                        },
+                        "sha256": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "signature": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "size_bytes": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "verified": {
+                          "type": "boolean"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "release_id",
+                        "platform",
+                        "arch",
+                        "package_type",
+                        "file_name",
+                        "s3_key",
+                        "sha256",
+                        "signature",
+                        "size_bytes",
+                        "verified",
+                        "created_at"
+                      ]
                     }
                   },
                   "required": [
-                    "artifactId",
-                    "uploadUrl",
-                    "s3Key",
-                    "expiresAt",
-                    "releaseId",
-                    "releaseCreated"
+                    "release_id",
+                    "release_created",
+                    "artifact"
                   ]
                 }
               }
@@ -5344,7 +5416,7 @@
         },
         "requestBody": {
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
                 "type": "object",
                 "properties": {
@@ -5366,28 +5438,25 @@
                       "universal"
                     ]
                   },
-                  "packageType": {
+                  "package_type": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "fileName": {
+                  "file_name": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "sizeBytes": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 9007199254740991
-                  },
-                  "sha256": {
+                  "assign_channel_slug": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "assignChannelSlug": {
+                  "file": {
                     "type": "string",
+                    "format": "binary",
+                    "contentEncoding": "binary",
                     "minLength": 1
                   },
-                  "appSlug": {
+                  "app_slug": {
                     "type": "string",
                     "minLength": 1
                   },
@@ -5395,7 +5464,7 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "buildNumber": {
+                  "build_number": {
                     "type": "string",
                     "minLength": 1
                   },
@@ -5406,9 +5475,9 @@
                 },
                 "required": [
                   "platform",
-                  "packageType",
-                  "fileName",
-                  "appSlug",
+                  "package_type",
+                  "file",
+                  "app_slug",
                   "version"
                 ]
               }
@@ -5417,10 +5486,10 @@
         }
       }
     },
-    "/api/v1/releases/{releaseId}/artifacts/upload-url": {
+    "/api/v1/releases/{release_id}/artifacts": {
       "post": {
-        "operationId": "createArtifactUploadUrl",
-        "summary": "Create upload URL for an artifact",
+        "operationId": "createArtifact",
+        "summary": "Create and upload an artifact and optionally assign release to a channel",
         "tags": [
           "Artifacts"
         ],
@@ -5434,31 +5503,90 @@
         ],
         "responses": {
           "201": {
-            "description": "Upload URL created",
+            "description": "Artifact uploaded",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "artifactId": {
+                    "id": {
                       "type": "string"
                     },
-                    "uploadUrl": {
+                    "release_id": {
+                      "type": "string"
+                    },
+                    "platform": {
                       "type": "string",
-                      "format": "uri"
+                      "enum": [
+                        "macos",
+                        "windows",
+                        "linux",
+                        "ios",
+                        "android"
+                      ]
                     },
-                    "s3Key": {
+                    "arch": {
+                      "type": "string",
+                      "enum": [
+                        "x64",
+                        "arm64",
+                        "universal"
+                      ]
+                    },
+                    "package_type": {
                       "type": "string"
                     },
-                    "expiresAt": {
+                    "file_name": {
+                      "type": "string"
+                    },
+                    "s3_key": {
+                      "type": "string"
+                    },
+                    "sha256": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "signature": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "size_bytes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "created_at": {
                       "type": "string"
                     }
                   },
                   "required": [
-                    "artifactId",
-                    "uploadUrl",
-                    "s3Key",
-                    "expiresAt"
+                    "id",
+                    "release_id",
+                    "platform",
+                    "arch",
+                    "package_type",
+                    "file_name",
+                    "s3_key",
+                    "sha256",
+                    "signature",
+                    "size_bytes",
+                    "verified",
+                    "created_at"
                   ]
                 }
               }
@@ -5560,7 +5688,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "releaseId",
+            "name": "release_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -5570,7 +5698,7 @@
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
                 "type": "object",
                 "properties": {
@@ -5592,32 +5720,29 @@
                       "universal"
                     ]
                   },
-                  "packageType": {
+                  "package_type": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "fileName": {
+                  "file_name": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "sizeBytes": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 9007199254740991
-                  },
-                  "sha256": {
+                  "assign_channel_slug": {
                     "type": "string",
                     "minLength": 1
                   },
-                  "assignChannelSlug": {
+                  "file": {
                     "type": "string",
+                    "format": "binary",
+                    "contentEncoding": "binary",
                     "minLength": 1
                   }
                 },
                 "required": [
                   "platform",
-                  "packageType",
-                  "fileName"
+                  "package_type",
+                  "file"
                 ]
               }
             }
@@ -5645,7 +5770,7 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "bucketStart": {
+                          "bucket_start": {
                             "type": "string"
                           },
                           "count": {
@@ -5667,7 +5792,7 @@
                           }
                         },
                         "required": [
-                          "bucketStart",
+                          "bucket_start",
                           "count"
                         ]
                       }
@@ -5730,7 +5855,7 @@
         "parameters": [
           {
             "in": "query",
-            "name": "appId",
+            "name": "app_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -5781,7 +5906,7 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "bucketStart": {
+                          "bucket_start": {
                             "type": "string"
                           },
                           "count": {
@@ -5803,7 +5928,7 @@
                           }
                         },
                         "required": [
-                          "bucketStart",
+                          "bucket_start",
                           "count"
                         ]
                       }
@@ -5866,7 +5991,7 @@
         "parameters": [
           {
             "in": "query",
-            "name": "appId",
+            "name": "app_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -5912,7 +6037,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "generatedAt": {
+                    "generated_at": {
                       "type": "string"
                     },
                     "totals": {
@@ -5933,7 +6058,7 @@
                           "minimum": 0,
                           "maximum": 9007199254740991
                         },
-                        "publishedReleases": {
+                        "published_releases": {
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991
@@ -5943,27 +6068,27 @@
                           "minimum": 0,
                           "maximum": 9007199254740991
                         },
-                        "channelAssignments": {
+                        "channel_assignments": {
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991
                         },
-                        "downloadsTotal": {
+                        "downloads_total": {
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991
                         },
-                        "updateChecksTotal": {
+                        "update_checks_total": {
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991
                         },
-                        "downloadsLast7Days": {
+                        "downloads_last_7_days": {
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991
                         },
-                        "updateChecksLast7Days": {
+                        "update_checks_last_7_days": {
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991
@@ -5973,13 +6098,13 @@
                         "apps",
                         "channels",
                         "releases",
-                        "publishedReleases",
+                        "published_releases",
                         "artifacts",
-                        "channelAssignments",
-                        "downloadsTotal",
-                        "updateChecksTotal",
-                        "downloadsLast7Days",
-                        "updateChecksLast7Days"
+                        "channel_assignments",
+                        "downloads_total",
+                        "update_checks_total",
+                        "downloads_last_7_days",
+                        "update_checks_last_7_days"
                       ]
                     },
                     "apps": {
@@ -5987,13 +6112,13 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "appId": {
+                          "app_id": {
                             "type": "string"
                           },
-                          "appSlug": {
+                          "app_slug": {
                             "type": "string"
                           },
-                          "appName": {
+                          "app_name": {
                             "type": "string"
                           },
                           "channels": {
@@ -6006,22 +6131,22 @@
                             "minimum": 0,
                             "maximum": 9007199254740991
                           },
-                          "publishedReleases": {
+                          "published_releases": {
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 9007199254740991
                           },
-                          "downloadsTotal": {
+                          "downloads_total": {
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 9007199254740991
                           },
-                          "updateChecksTotal": {
+                          "update_checks_total": {
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 9007199254740991
                           },
-                          "lastDownloadAt": {
+                          "last_download_at": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -6031,7 +6156,7 @@
                               }
                             ]
                           },
-                          "lastUpdateCheckAt": {
+                          "last_update_check_at": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -6043,47 +6168,47 @@
                           }
                         },
                         "required": [
-                          "appId",
-                          "appSlug",
-                          "appName",
+                          "app_id",
+                          "app_slug",
+                          "app_name",
                           "channels",
                           "releases",
-                          "publishedReleases",
-                          "downloadsTotal",
-                          "updateChecksTotal",
-                          "lastDownloadAt",
-                          "lastUpdateCheckAt"
+                          "published_releases",
+                          "downloads_total",
+                          "update_checks_total",
+                          "last_download_at",
+                          "last_update_check_at"
                         ]
                       }
                     },
-                    "activeAssignments": {
+                    "active_assignments": {
                       "type": "array",
                       "items": {
                         "type": "object",
                         "properties": {
-                          "appId": {
+                          "app_id": {
                             "type": "string"
                           },
-                          "appSlug": {
+                          "app_slug": {
                             "type": "string"
                           },
-                          "channelId": {
+                          "channel_id": {
                             "type": "string"
                           },
-                          "channelSlug": {
+                          "channel_slug": {
                             "type": "string"
                           },
-                          "channelKind": {
+                          "channel_kind": {
                             "type": "string",
                             "enum": [
                               "system",
                               "custom"
                             ]
                           },
-                          "releaseId": {
+                          "release_id": {
                             "type": "string"
                           },
-                          "releaseVersion": {
+                          "release_version": {
                             "type": "string"
                           },
                           "platform": {
@@ -6105,36 +6230,36 @@
                             ],
                             "nullable": true
                           },
-                          "rolloutPercent": {
+                          "rollout_percent": {
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 100
                           },
-                          "assignedAt": {
+                          "assigned_at": {
                             "type": "string"
                           }
                         },
                         "required": [
-                          "appId",
-                          "appSlug",
-                          "channelId",
-                          "channelSlug",
-                          "channelKind",
-                          "releaseId",
-                          "releaseVersion",
+                          "app_id",
+                          "app_slug",
+                          "channel_id",
+                          "channel_slug",
+                          "channel_kind",
+                          "release_id",
+                          "release_version",
                           "platform",
                           "arch",
-                          "rolloutPercent",
-                          "assignedAt"
+                          "rollout_percent",
+                          "assigned_at"
                         ]
                       }
                     }
                   },
                   "required": [
-                    "generatedAt",
+                    "generated_at",
                     "totals",
                     "apps",
-                    "activeAssignments"
+                    "active_assignments"
                   ]
                 }
               }
@@ -6189,7 +6314,171 @@
         }
       }
     },
-    "/api/public/v1/appcast/{appSlug}/{platform}/{channel}/appcast.xml": {
+    "/api/public/v1/channels": {
+      "get": {
+        "operationId": "listPublicChannels",
+        "summary": "List channels for an app, with optional hidden-channel slug overrides",
+        "tags": [
+          "Public"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Channels list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "app_id": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "type": "string"
+                      },
+                      "display_name": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "system",
+                          "custom"
+                        ]
+                      },
+                      "is_system": {
+                        "type": "boolean"
+                      },
+                      "rollout_percent": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "parent_channel_id": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "created_by_user_id": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "created_at": {
+                        "type": "string"
+                      },
+                      "visibility": {
+                        "type": "string",
+                        "enum": [
+                          "public",
+                          "hidden"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "app_id",
+                      "slug",
+                      "display_name",
+                      "kind",
+                      "is_system",
+                      "rollout_percent",
+                      "parent_channel_id",
+                      "created_by_user_id",
+                      "created_at",
+                      "visibility"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {}
+                  },
+                  "required": [
+                    "code",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "app_id",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "app_slug",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_hidden_channel_slugs",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/public/v1/appcast/{app_slug}/{platform}/{channel}/appcast.xml": {
       "get": {
         "operationId": "getAppcast",
         "summary": "Get appcast XML for update clients",
@@ -6258,7 +6547,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "appSlug",
+            "name": "app_slug",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -6289,7 +6578,7 @@
           },
           {
             "in": "query",
-            "name": "currentVersion",
+            "name": "current_version",
             "schema": {
               "type": "string"
             }
@@ -6308,7 +6597,7 @@
           },
           {
             "in": "query",
-            "name": "packageType",
+            "name": "package_type",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -6317,7 +6606,7 @@
         ]
       }
     },
-    "/api/public/v1/channels/{appSlug}/{channelSlug}/download/{artifactId}": {
+    "/api/public/v1/channels/{app_slug}/{channel_slug}/download/{artifact_id}": {
       "get": {
         "operationId": "downloadChannelArtifact",
         "summary": "Track and redirect to artifact download scoped to an app channel",
@@ -6402,7 +6691,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "appSlug",
+            "name": "app_slug",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -6411,7 +6700,7 @@
           },
           {
             "in": "path",
-            "name": "channelSlug",
+            "name": "channel_slug",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -6420,7 +6709,7 @@
           },
           {
             "in": "path",
-            "name": "artifactId",
+            "name": "artifact_id",
             "schema": {
               "type": "string",
               "minLength": 1
@@ -6430,7 +6719,7 @@
         ]
       }
     },
-    "/api/public/v1/download/{artifactId}": {
+    "/api/public/v1/download/{artifact_id}": {
       "get": {
         "operationId": "downloadArtifact",
         "summary": "Track and redirect to artifact download",
@@ -6492,7 +6781,7 @@
         "parameters": [
           {
             "in": "path",
-            "name": "artifactId",
+            "name": "artifact_id",
             "schema": {
               "type": "string",
               "minLength": 1

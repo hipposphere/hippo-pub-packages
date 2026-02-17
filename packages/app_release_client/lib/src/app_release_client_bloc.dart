@@ -66,6 +66,7 @@ class AppReleaseClientBloc extends BlocBase {
     String defaultChannelSlug = 'stable',
     String? currentVersion,
     String? selectedChannelStoreKey,
+    String? knownHiddenChannelSlugsStoreKey,
     bool publicChannelsOnly = true,
     List<Interceptor>? interceptors,
   }) {
@@ -77,6 +78,7 @@ class AppReleaseClientBloc extends BlocBase {
       channelSelectionStore: ChannelSelectionStore(
         keyValueStore: keyValueStore,
         selectedChannelStoreKey: selectedChannelStoreKey,
+        knownHiddenChannelSlugsStoreKey: knownHiddenChannelSlugsStoreKey,
       ),
       appSlug: appSlug,
       platform: platform,
@@ -103,16 +105,29 @@ class AppReleaseClientBloc extends BlocBase {
 
   Future<void> initialize() async {
     try {
-      final channels = await _loadChannels();
-      channelsSubject.add(SelectedValue(channels));
-
       final storedChannelSlug = await channelSelectionStore
           .readSelectedChannelSlug();
+      final knownHiddenChannelSlugs = await channelSelectionStore
+          .readKnownHiddenChannelSlugs();
       final preferredChannelSlug = storedChannelSlug ?? defaultChannelSlug;
+      final hiddenChannelSlugs = publicChannelsOnly
+          ? const <String>[]
+          : <String>[
+              ...knownHiddenChannelSlugs,
+              if (storedChannelSlug != null) preferredChannelSlug,
+            ];
+      final channels = await _loadChannels(
+        hiddenChannelSlugs: hiddenChannelSlugs,
+      );
+      channelsSubject.add(SelectedValue(channels));
 
       final selectedChannel = _resolveSelectedChannel(
         channels: channels,
         preferredChannelSlug: preferredChannelSlug,
+      );
+      await _rememberKnownHiddenChannels(
+        channels: channels,
+        selectedChannel: selectedChannel,
       );
 
       selectedChannelSubject.add(SelectedValue(selectedChannel));
@@ -152,6 +167,11 @@ class AppReleaseClientBloc extends BlocBase {
     }
 
     await channelSelectionStore.saveSelectedChannelSlug(selectedChannel.slug);
+    if (!selectedChannel.isPublic) {
+      await channelSelectionStore.rememberHiddenChannelSlug(
+        selectedChannel.slug,
+      );
+    }
     selectedChannelSubject.add(SelectedValue(selectedChannel));
     appCastUrlSubject.add(
       SelectedValue(_buildAppCastUrl(selectedChannel.slug)),
@@ -179,36 +199,50 @@ class AppReleaseClientBloc extends BlocBase {
     );
   }
 
-  Future<List<AppReleaseChannel>> _loadChannels() async {
-    final appId = await _resolveAppId();
-    if (appId == null || appId.isEmpty) {
-      return [
-        AppReleaseChannel.fallback(slug: defaultChannelSlug, appId: _appId),
-      ];
-    }
-
+  Future<List<AppReleaseChannel>> _loadChannels({
+    required Iterable<String> hiddenChannelSlugs,
+  }) async {
     final channels = await apiController.listChannels(
-      appId: appId,
+      appId: _appId,
+      appSlug: appSlug,
       publicOnly: publicChannelsOnly,
+      includeHiddenChannelSlugs: publicChannelsOnly ? null : hiddenChannelSlugs,
     );
 
-    if (channels.isEmpty) {
-      return [
-        AppReleaseChannel.fallback(slug: defaultChannelSlug, appId: appId),
-      ];
+    if (channels.isNotEmpty) {
+      final resolvedAppId = channels.first.appId;
+      if ((_appId == null || _appId!.isEmpty) && resolvedAppId.isNotEmpty) {
+        _appId = resolvedAppId;
+      }
+      return channels;
     }
 
-    return channels;
+    return [
+      AppReleaseChannel.fallback(slug: defaultChannelSlug, appId: _appId),
+    ];
   }
 
-  Future<String?> _resolveAppId() async {
-    if (_appId != null && _appId!.isNotEmpty) {
-      return _appId;
+  Future<void> _rememberKnownHiddenChannels({
+    required List<AppReleaseChannel> channels,
+    required AppReleaseChannel? selectedChannel,
+  }) async {
+    if (publicChannelsOnly) {
+      return;
     }
 
-    final appId = await apiController.findAppIdBySlug(appSlug);
-    _appId = appId;
-    return appId;
+    final knownHiddenChannelSlugs = <String>[
+      for (final channel in channels)
+        if (!channel.isPublic) channel.slug,
+      if (selectedChannel != null && !selectedChannel.isPublic)
+        selectedChannel.slug,
+    ];
+    if (knownHiddenChannelSlugs.isEmpty) {
+      return;
+    }
+
+    await channelSelectionStore.rememberHiddenChannelSlugs(
+      knownHiddenChannelSlugs,
+    );
   }
 
   AppReleaseChannel? _resolveSelectedChannel({

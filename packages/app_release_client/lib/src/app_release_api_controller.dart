@@ -47,10 +47,35 @@ class AppReleaseApiController {
   }
 
   Future<List<AppReleaseChannel>> listChannels({
-    required String appId,
+    String? appId,
+    String? appSlug,
     bool publicOnly = true,
+    String? includeHiddenChannelSlug,
+    Iterable<String>? includeHiddenChannelSlugs,
   }) async {
-    final response = await api.apiV1ChannelsGet(appId: appId);
+    final normalizedAppId = _normalizeOptionalValue(appId);
+    final normalizedAppSlug = _normalizeOptionalValue(appSlug);
+    final normalizedHiddenChannelSlugs = _normalizeOptionalValues([
+      includeHiddenChannelSlug,
+      ...?includeHiddenChannelSlugs,
+    ]);
+
+    if (normalizedAppId == null && normalizedAppSlug == null) {
+      throw AppReleaseClientApiException(
+        'Unable to list channels. Either appId or appSlug must be provided.',
+      );
+    }
+
+    final includeHiddenChannelSlugsQuery =
+        !publicOnly && normalizedHiddenChannelSlugs.isNotEmpty
+        ? normalizedHiddenChannelSlugs.join(',')
+        : null;
+
+    final response = await api.apiPublicV1ChannelsGet(
+      appId: normalizedAppId,
+      appSlug: normalizedAppSlug,
+      includeHiddenChannelSlugs: includeHiddenChannelSlugsQuery,
+    );
     if (!response.isSuccessful) {
       throw AppReleaseClientApiException(
         'Unable to list channels. HTTP ${response.statusCode}.',
@@ -58,14 +83,17 @@ class AppReleaseApiController {
     }
 
     final channels = response.body ?? const [];
-    final mapped = channels
-        .map(AppReleaseChannel.fromApi)
+    final mappedChannels = channels
+        .map(AppReleaseChannel.fromPublicListApi)
         .toList(growable: false);
-    if (!publicOnly) {
-      return mapped;
+
+    if (publicOnly) {
+      return mappedChannels
+          .where((channel) => channel.isPublic)
+          .toList(growable: false);
     }
 
-    return mapped.where((channel) => channel.isPublic).toList(growable: false);
+    return mappedChannels;
   }
 
   Uri buildAppCastUri({
@@ -106,6 +134,29 @@ class AppReleaseApiController {
 
   void dispose() {
     api.client.dispose();
+  }
+
+  static String? _normalizeOptionalValue(String? value) {
+    final normalizedValue = value?.trim();
+    if (normalizedValue == null || normalizedValue.isEmpty) {
+      return null;
+    }
+    return normalizedValue;
+  }
+
+  static List<String> _normalizeOptionalValues(Iterable<String?> values) {
+    final normalizedValues = <String>[];
+    final seen = <String>{};
+
+    for (final value in values) {
+      final normalizedValue = _normalizeOptionalValue(value);
+      if (normalizedValue == null || !seen.add(normalizedValue)) {
+        continue;
+      }
+      normalizedValues.add(normalizedValue);
+    }
+
+    return normalizedValues;
   }
 }
 

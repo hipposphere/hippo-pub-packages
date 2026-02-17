@@ -7,7 +7,6 @@
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
-import 'package:app_release_client/api/openapi.enums.swagger.dart' as api_enums;
 import 'package:app_release_client/api/openapi.models.swagger.dart';
 
 class AppReleaseChannel {
@@ -30,15 +29,27 @@ class AppReleaseChannel {
   });
 
   factory AppReleaseChannel.fromApi(ApiV1ChannelsGet$Response$Item item) {
-    return AppReleaseChannel(
+    return _fromApiFields(
       id: item.id,
       appId: item.appId,
       slug: item.slug,
       displayName: item.displayName,
       isSystem: item.isSystem,
-      isPublic:
-          item.visibility ==
-          api_enums.ApiV1ChannelsGet$Response$ItemVisibility.public,
+      visibility: item.visibility.value ?? '',
+      rolloutPercent: item.rolloutPercent,
+    );
+  }
+
+  factory AppReleaseChannel.fromPublicListApi(
+    ApiPublicV1ChannelsGet$Response$Item item,
+  ) {
+    return _fromApiFields(
+      id: item.id,
+      appId: item.appId,
+      slug: item.slug,
+      displayName: item.displayName,
+      isSystem: item.isSystem,
+      visibility: item.visibility.value ?? '',
       rolloutPercent: item.rolloutPercent,
     );
   }
@@ -66,5 +77,25 @@ class AppReleaseChannel {
   @override
   String toString() {
     return 'AppReleaseChannel(slug: $slug, label: $label, isPublic: $isPublic)';
+  }
+
+  static AppReleaseChannel _fromApiFields({
+    required String id,
+    required String appId,
+    required String slug,
+    required String? displayName,
+    required bool isSystem,
+    required String visibility,
+    required int rolloutPercent,
+  }) {
+    return AppReleaseChannel(
+      id: id,
+      appId: appId,
+      slug: slug,
+      displayName: displayName,
+      isSystem: isSystem,
+      isPublic: visibility == 'public',
+      rolloutPercent: rolloutPercent,
+    );
   }
 }

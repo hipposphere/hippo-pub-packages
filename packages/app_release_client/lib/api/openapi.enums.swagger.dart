@@ -415,7 +415,9 @@ enum ApiV1ChannelsGet$Response$ItemVisibility {
   @JsonValue('public')
   public('public'),
   @JsonValue('private')
-  private('private');
+  private('private'),
+  @JsonValue('hidden')
+  hidden('hidden');
 
   final String? value;
 
@@ -443,7 +445,9 @@ enum ApiV1ChannelsPost$ResponseVisibility {
   @JsonValue('public')
   public('public'),
   @JsonValue('private')
-  private('private');
+  private('private'),
+  @JsonValue('hidden')
+  hidden('hidden');
 
   final String? value;
 
@@ -471,7 +475,9 @@ enum ApiV1ChannelsChannelIdPatch$ResponseVisibility {
   @JsonValue('public')
   public('public'),
   @JsonValue('private')
-  private('private');
+  private('private'),
+  @JsonValue('hidden')
+  hidden('hidden');
 
   final String? value;
 
@@ -690,6 +696,78 @@ enum ApiV1ReleasesReleaseIdPromotePost$ResponseArch {
   const ApiV1ReleasesReleaseIdPromotePost$ResponseArch(this.value);
 }
 
+enum ApiV1ArtifactsPost$Response$ArtifactPlatform {
+  @JsonValue(null)
+  swaggerGeneratedUnknown(null),
+
+  @JsonValue('macos')
+  macos('macos'),
+  @JsonValue('windows')
+  windows('windows'),
+  @JsonValue('linux')
+  linux('linux'),
+  @JsonValue('ios')
+  ios('ios'),
+  @JsonValue('android')
+  android('android');
+
+  final String? value;
+
+  const ApiV1ArtifactsPost$Response$ArtifactPlatform(this.value);
+}
+
+enum ApiV1ArtifactsPost$Response$ArtifactArch {
+  @JsonValue(null)
+  swaggerGeneratedUnknown(null),
+
+  @JsonValue('x64')
+  x64('x64'),
+  @JsonValue('arm64')
+  arm64('arm64'),
+  @JsonValue('universal')
+  universal('universal');
+
+  final String? value;
+
+  const ApiV1ArtifactsPost$Response$ArtifactArch(this.value);
+}
+
+enum ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform {
+  @JsonValue(null)
+  swaggerGeneratedUnknown(null),
+
+  @JsonValue('macos')
+  macos('macos'),
+  @JsonValue('windows')
+  windows('windows'),
+  @JsonValue('linux')
+  linux('linux'),
+  @JsonValue('ios')
+  ios('ios'),
+  @JsonValue('android')
+  android('android');
+
+  final String? value;
+
+  const ApiV1ReleasesReleaseIdArtifactsPost$ResponsePlatform(this.value);
+}
+
+enum ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch {
+  @JsonValue(null)
+  swaggerGeneratedUnknown(null),
+
+  @JsonValue('x64')
+  x64('x64'),
+  @JsonValue('arm64')
+  arm64('arm64'),
+  @JsonValue('universal')
+  universal('universal');
+
+  final String? value;
+
+  const ApiV1ReleasesReleaseIdArtifactsPost$ResponseArch(this.value);
+}
+
 enum ApiV1DashboardSummaryGet$Response$ActiveAssignments$ItemChannelKind {
   @JsonValue(null)
   swaggerGeneratedUnknown(null),
@@ -742,6 +820,34 @@ enum ApiV1DashboardSummaryGet$Response$ActiveAssignments$ItemArch {
   const ApiV1DashboardSummaryGet$Response$ActiveAssignments$ItemArch(
     this.value,
   );
+}
+
+enum ApiPublicV1ChannelsGet$Response$ItemKind {
+  @JsonValue(null)
+  swaggerGeneratedUnknown(null),
+
+  @JsonValue('system')
+  system('system'),
+  @JsonValue('custom')
+  custom('custom');
+
+  final String? value;
+
+  const ApiPublicV1ChannelsGet$Response$ItemKind(this.value);
+}
+
+enum ApiPublicV1ChannelsGet$Response$ItemVisibility {
+  @JsonValue(null)
+  swaggerGeneratedUnknown(null),
+
+  @JsonValue('public')
+  public('public'),
+  @JsonValue('hidden')
+  hidden('hidden');
+
+  final String? value;
+
+  const ApiPublicV1ChannelsGet$Response$ItemVisibility(this.value);
 }
 
 enum ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform {
@@ -863,7 +969,9 @@ enum ApiV1ChannelsPost$RequestBodyVisibility {
   @JsonValue('public')
   public('public'),
   @JsonValue('private')
-  private('private');
+  private('private'),
+  @JsonValue('hidden')
+  hidden('hidden');
 
   final String? value;
 
@@ -877,7 +985,9 @@ enum ApiV1ChannelsChannelIdPatch$RequestBodyVisibility {
   @JsonValue('public')
   public('public'),
   @JsonValue('private')
-  private('private');
+  private('private'),
+  @JsonValue('hidden')
+  hidden('hidden');
 
   final String? value;
 
@@ -990,7 +1100,7 @@ enum ApiV1ReleasesReleaseIdPromotePost$RequestBodyArch {
   const ApiV1ReleasesReleaseIdPromotePost$RequestBodyArch(this.value);
 }
 
-enum ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform {
+enum ApiV1ArtifactsPost$RequestBodyPlatform {
   @JsonValue(null)
   swaggerGeneratedUnknown(null),
 
@@ -1007,10 +1117,10 @@ enum ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform {
 
   final String? value;
 
-  const ApiV1ArtifactsUploadUrlPost$RequestBodyPlatform(this.value);
+  const ApiV1ArtifactsPost$RequestBodyPlatform(this.value);
 }
 
-enum ApiV1ArtifactsUploadUrlPost$RequestBodyArch {
+enum ApiV1ArtifactsPost$RequestBodyArch {
   @JsonValue(null)
   swaggerGeneratedUnknown(null),
 
@@ -1023,10 +1133,10 @@ enum ApiV1ArtifactsUploadUrlPost$RequestBodyArch {
 
   final String? value;
 
-  const ApiV1ArtifactsUploadUrlPost$RequestBodyArch(this.value);
+  const ApiV1ArtifactsPost$RequestBodyArch(this.value);
 }
 
-enum ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform {
+enum ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform {
   @JsonValue(null)
   swaggerGeneratedUnknown(null),
 
@@ -1043,12 +1153,10 @@ enum ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform {
 
   final String? value;
 
-  const ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyPlatform(
-    this.value,
-  );
+  const ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyPlatform(this.value);
 }
 
-enum ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch {
+enum ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch {
   @JsonValue(null)
   swaggerGeneratedUnknown(null),
 
@@ -1061,7 +1169,5 @@ enum ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch {
 
   final String? value;
 
-  const ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyArch(
-    this.value,
-  );
+  const ApiV1ReleasesReleaseIdArtifactsPost$RequestBodyArch(this.value);
 }

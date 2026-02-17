@@ -135,7 +135,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Revoke API key
-  ///@param apiKeyId
+  ///@param api_key_id
   Future<chopper.Response<ApiV1ApiKeysApiKeyIdRevokePost$Response>>
   apiV1ApiKeysApiKeyIdRevokePost({required String? apiKeyId}) {
     generatedMapping.putIfAbsent(
@@ -147,11 +147,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Revoke API key
-  ///@param apiKeyId
-  @POST(path: '/api/v1/api-keys/{apiKeyId}/revoke', optionalBody: true)
+  ///@param api_key_id
+  @POST(path: '/api/v1/api-keys/{api_key_id}/revoke', optionalBody: true)
   Future<chopper.Response<ApiV1ApiKeysApiKeyIdRevokePost$Response>>
   _apiV1ApiKeysApiKeyIdRevokePost({
-    @Path('apiKeyId') required String? apiKeyId,
+    @Path('api_key_id') required String? apiKeyId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
@@ -221,7 +221,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Get GitHub repository connection for an app
-  ///@param appId
+  ///@param app_id
   Future<chopper.Response<ApiV1AppsAppIdRepositoryConnectionGet$Response>>
   apiV1AppsAppIdRepositoryConnectionGet({required String? appId}) {
     generatedMapping.putIfAbsent(
@@ -233,11 +233,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Get GitHub repository connection for an app
-  ///@param appId
-  @GET(path: '/api/v1/apps/{appId}/repository-connection')
+  ///@param app_id
+  @GET(path: '/api/v1/apps/{app_id}/repository-connection')
   Future<chopper.Response<ApiV1AppsAppIdRepositoryConnectionGet$Response>>
   _apiV1AppsAppIdRepositoryConnectionGet({
-    @Path('appId') required String? appId,
+    @Path('app_id') required String? appId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
@@ -252,7 +252,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Create or update app GitHub repository connection
-  ///@param appId
+  ///@param app_id
   Future<chopper.Response<ApiV1AppsAppIdRepositoryConnectionPut$Response>>
   apiV1AppsAppIdRepositoryConnectionPut({
     required String? appId,
@@ -267,11 +267,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Create or update app GitHub repository connection
-  ///@param appId
-  @PUT(path: '/api/v1/apps/{appId}/repository-connection', optionalBody: true)
+  ///@param app_id
+  @PUT(path: '/api/v1/apps/{app_id}/repository-connection', optionalBody: true)
   Future<chopper.Response<ApiV1AppsAppIdRepositoryConnectionPut$Response>>
   _apiV1AppsAppIdRepositoryConnectionPut({
-    @Path('appId') required String? appId,
+    @Path('app_id') required String? appId,
     @Body() required ApiV1AppsAppIdRepositoryConnectionPut$RequestBody? body,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
@@ -287,7 +287,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///List app deployment targets
-  ///@param appId
+  ///@param app_id
   Future<chopper.Response<ApiV1AppsAppIdDeploymentTargetsGet$Response>>
   apiV1AppsAppIdDeploymentTargetsGet({required String? appId}) {
     generatedMapping.putIfAbsent(
@@ -299,11 +299,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///List app deployment targets
-  ///@param appId
-  @GET(path: '/api/v1/apps/{appId}/deployment-targets')
+  ///@param app_id
+  @GET(path: '/api/v1/apps/{app_id}/deployment-targets')
   Future<chopper.Response<ApiV1AppsAppIdDeploymentTargetsGet$Response>>
   _apiV1AppsAppIdDeploymentTargetsGet({
-    @Path('appId') required String? appId,
+    @Path('app_id') required String? appId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
@@ -318,7 +318,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Create app deployment target
-  ///@param appId
+  ///@param app_id
   Future<chopper.Response<ApiV1AppsAppIdDeploymentTargetsPost$Response>>
   apiV1AppsAppIdDeploymentTargetsPost({
     required String? appId,
@@ -333,11 +333,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Create app deployment target
-  ///@param appId
-  @POST(path: '/api/v1/apps/{appId}/deployment-targets', optionalBody: true)
+  ///@param app_id
+  @POST(path: '/api/v1/apps/{app_id}/deployment-targets', optionalBody: true)
   Future<chopper.Response<ApiV1AppsAppIdDeploymentTargetsPost$Response>>
   _apiV1AppsAppIdDeploymentTargetsPost({
-    @Path('appId') required String? appId,
+    @Path('app_id') required String? appId,
     @Body() required ApiV1AppsAppIdDeploymentTargetsPost$RequestBody? body,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
@@ -353,7 +353,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///List app build profiles
-  ///@param appId
+  ///@param app_id
   Future<chopper.Response<ApiV1AppsAppIdBuildProfilesGet$Response>>
   apiV1AppsAppIdBuildProfilesGet({required String? appId}) {
     generatedMapping.putIfAbsent(
@@ -365,11 +365,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///List app build profiles
-  ///@param appId
-  @GET(path: '/api/v1/apps/{appId}/build-profiles')
+  ///@param app_id
+  @GET(path: '/api/v1/apps/{app_id}/build-profiles')
   Future<chopper.Response<ApiV1AppsAppIdBuildProfilesGet$Response>>
   _apiV1AppsAppIdBuildProfilesGet({
-    @Path('appId') required String? appId,
+    @Path('app_id') required String? appId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
@@ -384,7 +384,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Create app build profile
-  ///@param appId
+  ///@param app_id
   Future<chopper.Response<ApiV1AppsAppIdBuildProfilesPost$Response>>
   apiV1AppsAppIdBuildProfilesPost({
     required String? appId,
@@ -399,11 +399,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Create app build profile
-  ///@param appId
-  @POST(path: '/api/v1/apps/{appId}/build-profiles', optionalBody: true)
+  ///@param app_id
+  @POST(path: '/api/v1/apps/{app_id}/build-profiles', optionalBody: true)
   Future<chopper.Response<ApiV1AppsAppIdBuildProfilesPost$Response>>
   _apiV1AppsAppIdBuildProfilesPost({
-    @Path('appId') required String? appId,
+    @Path('app_id') required String? appId,
     @Body() required ApiV1AppsAppIdBuildProfilesPost$RequestBody? body,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
@@ -419,7 +419,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///List pipeline runs for an app
-  ///@param appId
+  ///@param app_id
   Future<chopper.Response<ApiV1AppsAppIdPipelineRunsGet$Response>>
   apiV1AppsAppIdPipelineRunsGet({required String? appId}) {
     generatedMapping.putIfAbsent(
@@ -431,11 +431,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///List pipeline runs for an app
-  ///@param appId
-  @GET(path: '/api/v1/apps/{appId}/pipeline-runs')
+  ///@param app_id
+  @GET(path: '/api/v1/apps/{app_id}/pipeline-runs')
   Future<chopper.Response<ApiV1AppsAppIdPipelineRunsGet$Response>>
   _apiV1AppsAppIdPipelineRunsGet({
-    @Path('appId') required String? appId,
+    @Path('app_id') required String? appId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
@@ -450,7 +450,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Create and queue a pipeline run
-  ///@param appId
+  ///@param app_id
   Future<chopper.Response<ApiV1AppsAppIdPipelineRunsPost$Response>>
   apiV1AppsAppIdPipelineRunsPost({
     required String? appId,
@@ -465,11 +465,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Create and queue a pipeline run
-  ///@param appId
-  @POST(path: '/api/v1/apps/{appId}/pipeline-runs', optionalBody: true)
+  ///@param app_id
+  @POST(path: '/api/v1/apps/{app_id}/pipeline-runs', optionalBody: true)
   Future<chopper.Response<ApiV1AppsAppIdPipelineRunsPost$Response>>
   _apiV1AppsAppIdPipelineRunsPost({
-    @Path('appId') required String? appId,
+    @Path('app_id') required String? appId,
     @Body() required ApiV1AppsAppIdPipelineRunsPost$RequestBody? body,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
@@ -485,7 +485,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Get pipeline run details
-  ///@param pipelineRunId
+  ///@param pipeline_run_id
   Future<chopper.Response<ApiV1PipelineRunsPipelineRunIdGet$Response>>
   apiV1PipelineRunsPipelineRunIdGet({required String? pipelineRunId}) {
     generatedMapping.putIfAbsent(
@@ -497,11 +497,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Get pipeline run details
-  ///@param pipelineRunId
-  @GET(path: '/api/v1/pipeline-runs/{pipelineRunId}')
+  ///@param pipeline_run_id
+  @GET(path: '/api/v1/pipeline-runs/{pipeline_run_id}')
   Future<chopper.Response<ApiV1PipelineRunsPipelineRunIdGet$Response>>
   _apiV1PipelineRunsPipelineRunIdGet({
-    @Path('pipelineRunId') required String? pipelineRunId,
+    @Path('pipeline_run_id') required String? pipelineRunId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
@@ -516,7 +516,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///List channels for an app
-  ///@param appId
+  ///@param app_id
   Future<chopper.Response<ApiV1ChannelsGet$Response>> apiV1ChannelsGet({
     required String? appId,
   }) {
@@ -529,10 +529,10 @@ abstract class Openapi extends ChopperService {
   }
 
   ///List channels for an app
-  ///@param appId
+  ///@param app_id
   @GET(path: '/api/v1/channels')
   Future<chopper.Response<ApiV1ChannelsGet$Response>> _apiV1ChannelsGet({
-    @Query('appId') required String? appId,
+    @Query('app_id') required String? appId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
@@ -576,7 +576,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Update channel policy
-  ///@param channelId
+  ///@param channel_id
   Future<chopper.Response<ApiV1ChannelsChannelIdPatch$Response>>
   apiV1ChannelsChannelIdPatch({
     required String? channelId,
@@ -591,11 +591,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Update channel policy
-  ///@param channelId
-  @PATCH(path: '/api/v1/channels/{channelId}', optionalBody: true)
+  ///@param channel_id
+  @PATCH(path: '/api/v1/channels/{channel_id}', optionalBody: true)
   Future<chopper.Response<ApiV1ChannelsChannelIdPatch$Response>>
   _apiV1ChannelsChannelIdPatch({
-    @Path('channelId') required String? channelId,
+    @Path('channel_id') required String? channelId,
     @Body() required ApiV1ChannelsChannelIdPatch$RequestBody? body,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
@@ -611,7 +611,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Rollback channel assignment
-  ///@param channelId
+  ///@param channel_id
   Future<chopper.Response<ApiV1ChannelsChannelIdRollbackPost$Response>>
   apiV1ChannelsChannelIdRollbackPost({
     required String? channelId,
@@ -629,11 +629,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Rollback channel assignment
-  ///@param channelId
-  @POST(path: '/api/v1/channels/{channelId}/rollback', optionalBody: true)
+  ///@param channel_id
+  @POST(path: '/api/v1/channels/{channel_id}/rollback', optionalBody: true)
   Future<chopper.Response<ApiV1ChannelsChannelIdRollbackPost$Response>>
   _apiV1ChannelsChannelIdRollbackPost({
-    @Path('channelId') required String? channelId,
+    @Path('channel_id') required String? channelId,
     @Body() required ApiV1ChannelsChannelIdRollbackPost$RequestBody? body,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
@@ -649,7 +649,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///List releases for an app
-  ///@param appId
+  ///@param app_id
   ///@param status
   Future<chopper.Response<ApiV1ReleasesGet$Response>> apiV1ReleasesGet({
     required String? appId,
@@ -664,11 +664,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///List releases for an app
-  ///@param appId
+  ///@param app_id
   ///@param status
   @GET(path: '/api/v1/releases')
   Future<chopper.Response<ApiV1ReleasesGet$Response>> _apiV1ReleasesGet({
-    @Query('appId') required String? appId,
+    @Query('app_id') required String? appId,
     @Query('status') String? status,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
@@ -713,7 +713,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Get release details
-  ///@param releaseId
+  ///@param release_id
   Future<chopper.Response<ApiV1ReleasesReleaseIdGet$Response>>
   apiV1ReleasesReleaseIdGet({required String? releaseId}) {
     generatedMapping.putIfAbsent(
@@ -725,11 +725,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Get release details
-  ///@param releaseId
-  @GET(path: '/api/v1/releases/{releaseId}')
+  ///@param release_id
+  @GET(path: '/api/v1/releases/{release_id}')
   Future<chopper.Response<ApiV1ReleasesReleaseIdGet$Response>>
   _apiV1ReleasesReleaseIdGet({
-    @Path('releaseId') required String? releaseId,
+    @Path('release_id') required String? releaseId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
@@ -744,7 +744,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Verify release artifact integrity and policy coverage
-  ///@param releaseId
+  ///@param release_id
   Future<chopper.Response<ApiV1ReleasesReleaseIdVerifyPost$Response>>
   apiV1ReleasesReleaseIdVerifyPost({required String? releaseId}) {
     generatedMapping.putIfAbsent(
@@ -756,11 +756,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Verify release artifact integrity and policy coverage
-  ///@param releaseId
-  @POST(path: '/api/v1/releases/{releaseId}/verify', optionalBody: true)
+  ///@param release_id
+  @POST(path: '/api/v1/releases/{release_id}/verify', optionalBody: true)
   Future<chopper.Response<ApiV1ReleasesReleaseIdVerifyPost$Response>>
   _apiV1ReleasesReleaseIdVerifyPost({
-    @Path('releaseId') required String? releaseId,
+    @Path('release_id') required String? releaseId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
@@ -775,7 +775,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Publish release to one or more channels
-  ///@param releaseId
+  ///@param release_id
   Future<chopper.Response<ApiV1ReleasesReleaseIdPublishPost$Response>>
   apiV1ReleasesReleaseIdPublishPost({
     required String? releaseId,
@@ -790,11 +790,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Publish release to one or more channels
-  ///@param releaseId
-  @POST(path: '/api/v1/releases/{releaseId}/publish', optionalBody: true)
+  ///@param release_id
+  @POST(path: '/api/v1/releases/{release_id}/publish', optionalBody: true)
   Future<chopper.Response<ApiV1ReleasesReleaseIdPublishPost$Response>>
   _apiV1ReleasesReleaseIdPublishPost({
-    @Path('releaseId') required String? releaseId,
+    @Path('release_id') required String? releaseId,
     @Body() required ApiV1ReleasesReleaseIdPublishPost$RequestBody? body,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
@@ -810,7 +810,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Promote release between channels
-  ///@param releaseId
+  ///@param release_id
   Future<chopper.Response<ApiV1ReleasesReleaseIdPromotePost$Response>>
   apiV1ReleasesReleaseIdPromotePost({
     required String? releaseId,
@@ -825,11 +825,11 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Promote release between channels
-  ///@param releaseId
-  @POST(path: '/api/v1/releases/{releaseId}/promote', optionalBody: true)
+  ///@param release_id
+  @POST(path: '/api/v1/releases/{release_id}/promote', optionalBody: true)
   Future<chopper.Response<ApiV1ReleasesReleaseIdPromotePost$Response>>
   _apiV1ReleasesReleaseIdPromotePost({
-    @Path('releaseId') required String? releaseId,
+    @Path('release_id') required String? releaseId,
     @Body() required ApiV1ReleasesReleaseIdPromotePost$RequestBody? body,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
@@ -844,30 +844,58 @@ abstract class Openapi extends ChopperService {
     ),
   });
 
-  ///Create upload URL for an artifact and resolve release by app slug + version
-  Future<chopper.Response<ApiV1ArtifactsUploadUrlPost$Response>>
-  apiV1ArtifactsUploadUrlPost({
-    required ApiV1ArtifactsUploadUrlPost$RequestBody? body,
+  ///Create and upload an artifact, resolve release by app slug + version, and optionally assign channel
+  Future<chopper.Response<ApiV1ArtifactsPost$Response>> apiV1ArtifactsPost({
+    required String? platform,
+    String? arch,
+    required String? packageType,
+    String? fileName,
+    String? assignChannelSlug,
+    required List<int> file,
+    required String? appSlug,
+    required String? version,
+    String? buildNumber,
+    String? notes,
   }) {
     generatedMapping.putIfAbsent(
-      ApiV1ArtifactsUploadUrlPost$Response,
-      () => ApiV1ArtifactsUploadUrlPost$Response.fromJsonFactory,
+      ApiV1ArtifactsPost$Response,
+      () => ApiV1ArtifactsPost$Response.fromJsonFactory,
     );
 
-    return _apiV1ArtifactsUploadUrlPost(body: body);
+    return _apiV1ArtifactsPost(
+      platform: platform,
+      arch: arch,
+      packageType: packageType,
+      fileName: fileName,
+      assignChannelSlug: assignChannelSlug,
+      file: file,
+      appSlug: appSlug,
+      version: version,
+      buildNumber: buildNumber,
+      notes: notes,
+    );
   }
 
-  ///Create upload URL for an artifact and resolve release by app slug + version
-  @POST(path: '/api/v1/artifacts/upload-url', optionalBody: true)
-  Future<chopper.Response<ApiV1ArtifactsUploadUrlPost$Response>>
-  _apiV1ArtifactsUploadUrlPost({
-    @Body() required ApiV1ArtifactsUploadUrlPost$RequestBody? body,
+  ///Create and upload an artifact, resolve release by app slug + version, and optionally assign channel
+  @POST(path: '/api/v1/artifacts', optionalBody: true)
+  @Multipart()
+  Future<chopper.Response<ApiV1ArtifactsPost$Response>> _apiV1ArtifactsPost({
+    @Part('platform') required String? platform,
+    @Part('arch') String? arch,
+    @Part('package_type') required String? packageType,
+    @Part('file_name') String? fileName,
+    @Part('assign_channel_slug') String? assignChannelSlug,
+    @PartFile() required List<int> file,
+    @Part('app_slug') required String? appSlug,
+    @Part('version') required String? version,
+    @Part('build_number') String? buildNumber,
+    @Part('notes') String? notes,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary:
-          'Create upload URL for an artifact and resolve release by app slug + version',
-      operationId: 'createArtifactUploadUrlByVersion',
+          'Create and upload an artifact, resolve release by app slug + version, and optionally assign channel',
+      operationId: 'createArtifactByVersion',
       consumes: [],
       produces: [],
       security: ["HippoAuthBearer", "ApiKeyHeader"],
@@ -876,45 +904,53 @@ abstract class Openapi extends ChopperService {
     ),
   });
 
-  ///Create upload URL for an artifact
-  ///@param releaseId
-  Future<
-    chopper.Response<ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response>
-  >
-  apiV1ReleasesReleaseIdArtifactsUploadUrlPost({
+  ///Create and upload an artifact and optionally assign release to a channel
+  ///@param release_id
+  Future<chopper.Response<ApiV1ReleasesReleaseIdArtifactsPost$Response>>
+  apiV1ReleasesReleaseIdArtifactsPost({
     required String? releaseId,
-    required ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody? body,
+    required String? platform,
+    String? arch,
+    required String? packageType,
+    String? fileName,
+    String? assignChannelSlug,
+    required List<int> file,
   }) {
     generatedMapping.putIfAbsent(
-      ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response,
-      () =>
-          ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response.fromJsonFactory,
+      ApiV1ReleasesReleaseIdArtifactsPost$Response,
+      () => ApiV1ReleasesReleaseIdArtifactsPost$Response.fromJsonFactory,
     );
 
-    return _apiV1ReleasesReleaseIdArtifactsUploadUrlPost(
+    return _apiV1ReleasesReleaseIdArtifactsPost(
       releaseId: releaseId,
-      body: body,
+      platform: platform,
+      arch: arch,
+      packageType: packageType,
+      fileName: fileName,
+      assignChannelSlug: assignChannelSlug,
+      file: file,
     );
   }
 
-  ///Create upload URL for an artifact
-  ///@param releaseId
-  @POST(
-    path: '/api/v1/releases/{releaseId}/artifacts/upload-url',
-    optionalBody: true,
-  )
-  Future<
-    chopper.Response<ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response>
-  >
-  _apiV1ReleasesReleaseIdArtifactsUploadUrlPost({
-    @Path('releaseId') required String? releaseId,
-    @Body()
-    required ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody? body,
+  ///Create and upload an artifact and optionally assign release to a channel
+  ///@param release_id
+  @POST(path: '/api/v1/releases/{release_id}/artifacts', optionalBody: true)
+  @Multipart()
+  Future<chopper.Response<ApiV1ReleasesReleaseIdArtifactsPost$Response>>
+  _apiV1ReleasesReleaseIdArtifactsPost({
+    @Path('release_id') required String? releaseId,
+    @Part('platform') required String? platform,
+    @Part('arch') String? arch,
+    @Part('package_type') required String? packageType,
+    @Part('file_name') String? fileName,
+    @Part('assign_channel_slug') String? assignChannelSlug,
+    @PartFile() required List<int> file,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
-      summary: 'Create upload URL for an artifact',
-      operationId: 'createArtifactUploadUrl',
+      summary:
+          'Create and upload an artifact and optionally assign release to a channel',
+      operationId: 'createArtifact',
       consumes: [],
       produces: [],
       security: ["HippoAuthBearer", "ApiKeyHeader"],
@@ -924,7 +960,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Get aggregated download metrics
-  ///@param appId
+  ///@param app_id
   ///@param from
   ///@param to
   ///@param channel
@@ -949,14 +985,14 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Get aggregated download metrics
-  ///@param appId
+  ///@param app_id
   ///@param from
   ///@param to
   ///@param channel
   @GET(path: '/api/v1/metrics/downloads')
   Future<chopper.Response<ApiV1MetricsDownloadsGet$Response>>
   _apiV1MetricsDownloadsGet({
-    @Query('appId') required String? appId,
+    @Query('app_id') required String? appId,
     @Query('from') String? from,
     @Query('to') String? to,
     @Query('channel') String? channel,
@@ -974,7 +1010,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Get aggregated update-check metrics
-  ///@param appId
+  ///@param app_id
   ///@param from
   ///@param to
   ///@param channel
@@ -999,14 +1035,14 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Get aggregated update-check metrics
-  ///@param appId
+  ///@param app_id
   ///@param from
   ///@param to
   ///@param channel
   @GET(path: '/api/v1/metrics/update-checks')
   Future<chopper.Response<ApiV1MetricsUpdateChecksGet$Response>>
   _apiV1MetricsUpdateChecksGet({
-    @Query('appId') required String? appId,
+    @Query('app_id') required String? appId,
     @Query('from') String? from,
     @Query('to') String? to,
     @Query('channel') String? channel,
@@ -1051,13 +1087,59 @@ abstract class Openapi extends ChopperService {
     ),
   });
 
+  ///List channels for an app, with optional hidden-channel slug overrides
+  ///@param app_id
+  ///@param app_slug
+  ///@param include_hidden_channel_slugs
+  Future<chopper.Response<ApiPublicV1ChannelsGet$Response>>
+  apiPublicV1ChannelsGet({
+    String? appId,
+    String? appSlug,
+    String? includeHiddenChannelSlugs,
+  }) {
+    generatedMapping.putIfAbsent(
+      ApiPublicV1ChannelsGet$Response$Item,
+      () => ApiPublicV1ChannelsGet$Response$Item.fromJsonFactory,
+    );
+
+    return _apiPublicV1ChannelsGet(
+      appId: appId,
+      appSlug: appSlug,
+      includeHiddenChannelSlugs: includeHiddenChannelSlugs,
+    );
+  }
+
+  ///List channels for an app, with optional hidden-channel slug overrides
+  ///@param app_id
+  ///@param app_slug
+  ///@param include_hidden_channel_slugs
+  @GET(path: '/api/public/v1/channels')
+  Future<chopper.Response<ApiPublicV1ChannelsGet$Response>>
+  _apiPublicV1ChannelsGet({
+    @Query('app_id') String? appId,
+    @Query('app_slug') String? appSlug,
+    @Query('include_hidden_channel_slugs') String? includeHiddenChannelSlugs,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary:
+          'List channels for an app, with optional hidden-channel slug overrides',
+      operationId: 'listPublicChannels',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: ["Public"],
+      deprecated: false,
+    ),
+  });
+
   ///Get appcast XML for update clients
-  ///@param appSlug
+  ///@param app_slug
   ///@param platform
   ///@param channel
-  ///@param currentVersion
+  ///@param current_version
   ///@param arch
-  ///@param packageType
+  ///@param package_type
   Future<chopper.Response<String>>
   apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGet({
     required String? appSlug,
@@ -1079,23 +1161,23 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Get appcast XML for update clients
-  ///@param appSlug
+  ///@param app_slug
   ///@param platform
   ///@param channel
-  ///@param currentVersion
+  ///@param current_version
   ///@param arch
-  ///@param packageType
+  ///@param package_type
   @GET(
-    path: '/api/public/v1/appcast/{appSlug}/{platform}/{channel}/appcast.xml',
+    path: '/api/public/v1/appcast/{app_slug}/{platform}/{channel}/appcast.xml',
   )
   Future<chopper.Response<String>>
   _apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGet({
-    @Path('appSlug') required String? appSlug,
+    @Path('app_slug') required String? appSlug,
     @Path('platform') required String? platform,
     @Path('channel') required String? channel,
-    @Query('currentVersion') String? currentVersion,
+    @Query('current_version') String? currentVersion,
     @Query('arch') String? arch,
-    @Query('packageType') String? packageType,
+    @Query('package_type') String? packageType,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
@@ -1110,9 +1192,9 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Track and redirect to artifact download scoped to an app channel
-  ///@param appSlug
-  ///@param channelSlug
-  ///@param artifactId
+  ///@param app_slug
+  ///@param channel_slug
+  ///@param artifact_id
   Future<chopper.Response>
   apiPublicV1ChannelsAppSlugChannelSlugDownloadArtifactIdGet({
     required String? appSlug,
@@ -1127,18 +1209,18 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Track and redirect to artifact download scoped to an app channel
-  ///@param appSlug
-  ///@param channelSlug
-  ///@param artifactId
+  ///@param app_slug
+  ///@param channel_slug
+  ///@param artifact_id
   @GET(
     path:
-        '/api/public/v1/channels/{appSlug}/{channelSlug}/download/{artifactId}',
+        '/api/public/v1/channels/{app_slug}/{channel_slug}/download/{artifact_id}',
   )
   Future<chopper.Response>
   _apiPublicV1ChannelsAppSlugChannelSlugDownloadArtifactIdGet({
-    @Path('appSlug') required String? appSlug,
-    @Path('channelSlug') required String? channelSlug,
-    @Path('artifactId') required String? artifactId,
+    @Path('app_slug') required String? appSlug,
+    @Path('channel_slug') required String? channelSlug,
+    @Path('artifact_id') required String? artifactId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
@@ -1154,7 +1236,7 @@ abstract class Openapi extends ChopperService {
   });
 
   ///Track and redirect to artifact download
-  ///@param artifactId
+  ///@param artifact_id
   Future<chopper.Response> apiPublicV1DownloadArtifactIdGet({
     required String? artifactId,
   }) {
@@ -1162,10 +1244,10 @@ abstract class Openapi extends ChopperService {
   }
 
   ///Track and redirect to artifact download
-  ///@param artifactId
-  @GET(path: '/api/public/v1/download/{artifactId}')
+  ///@param artifact_id
+  @GET(path: '/api/public/v1/download/{artifact_id}')
   Future<chopper.Response> _apiPublicV1DownloadArtifactIdGet({
-    @Path('artifactId') required String? artifactId,
+    @Path('artifact_id') required String? artifactId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',

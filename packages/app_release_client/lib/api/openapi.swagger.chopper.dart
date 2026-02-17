@@ -458,7 +458,7 @@ final class _$Openapi extends Openapi {
     ),
   }) {
     final Uri $url = Uri.parse('/api/v1/channels');
-    final Map<String, dynamic> $params = <String, dynamic>{'appId': appId};
+    final Map<String, dynamic> $params = <String, dynamic>{'app_id': appId};
     final Request $request = Request(
       'GET',
       $url,
@@ -579,7 +579,7 @@ final class _$Openapi extends Openapi {
   }) {
     final Uri $url = Uri.parse('/api/v1/releases');
     final Map<String, dynamic> $params = <String, dynamic>{
-      'appId': appId,
+      'app_id': appId,
       'status': status,
     };
     final Request $request = Request(
@@ -742,14 +742,22 @@ final class _$Openapi extends Openapi {
   }
 
   @override
-  Future<Response<ApiV1ArtifactsUploadUrlPost$Response>>
-  _apiV1ArtifactsUploadUrlPost({
-    required ApiV1ArtifactsUploadUrlPost$RequestBody? body,
+  Future<Response<ApiV1ArtifactsPost$Response>> _apiV1ArtifactsPost({
+    required String? platform,
+    String? arch,
+    required String? packageType,
+    String? fileName,
+    String? assignChannelSlug,
+    required List<int> file,
+    required String? appSlug,
+    required String? version,
+    String? buildNumber,
+    String? notes,
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary:
-          'Create upload URL for an artifact and resolve release by app slug + version',
-      operationId: 'createArtifactUploadUrlByVersion',
+          'Create and upload an artifact, resolve release by app slug + version, and optionally assign channel',
+      operationId: 'createArtifactByVersion',
       consumes: [],
       produces: [],
       security: ["HippoAuthBearer", "ApiKeyHeader"],
@@ -757,30 +765,48 @@ final class _$Openapi extends Openapi {
       deprecated: false,
     ),
   }) {
-    final Uri $url = Uri.parse('/api/v1/artifacts/upload-url');
-    final $body = body;
+    final Uri $url = Uri.parse('/api/v1/artifacts');
+    final List<PartValue> $parts = <PartValue>[
+      PartValue<String?>('platform', platform),
+      PartValue<String?>('arch', arch),
+      PartValue<String?>('package_type', packageType),
+      PartValue<String?>('file_name', fileName),
+      PartValue<String?>('assign_channel_slug', assignChannelSlug),
+      PartValue<String?>('app_slug', appSlug),
+      PartValue<String?>('version', version),
+      PartValue<String?>('build_number', buildNumber),
+      PartValue<String?>('notes', notes),
+      PartValueFile<List<int>>('file', file),
+    ];
     final Request $request = Request(
       'POST',
       $url,
       client.baseUrl,
-      body: $body,
+      parts: $parts,
+      multipart: true,
       tag: swaggerMetaData,
     );
-    return client.send<
-      ApiV1ArtifactsUploadUrlPost$Response,
-      ApiV1ArtifactsUploadUrlPost$Response
-    >($request);
+    return client
+        .send<ApiV1ArtifactsPost$Response, ApiV1ArtifactsPost$Response>(
+          $request,
+        );
   }
 
   @override
-  Future<Response<ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response>>
-  _apiV1ReleasesReleaseIdArtifactsUploadUrlPost({
+  Future<Response<ApiV1ReleasesReleaseIdArtifactsPost$Response>>
+  _apiV1ReleasesReleaseIdArtifactsPost({
     required String? releaseId,
-    required ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody? body,
+    required String? platform,
+    String? arch,
+    required String? packageType,
+    String? fileName,
+    String? assignChannelSlug,
+    required List<int> file,
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
-      summary: 'Create upload URL for an artifact',
-      operationId: 'createArtifactUploadUrl',
+      summary:
+          'Create and upload an artifact and optionally assign release to a channel',
+      operationId: 'createArtifact',
       consumes: [],
       produces: [],
       security: ["HippoAuthBearer", "ApiKeyHeader"],
@@ -788,20 +814,26 @@ final class _$Openapi extends Openapi {
       deprecated: false,
     ),
   }) {
-    final Uri $url = Uri.parse(
-      '/api/v1/releases/${releaseId}/artifacts/upload-url',
-    );
-    final $body = body;
+    final Uri $url = Uri.parse('/api/v1/releases/${releaseId}/artifacts');
+    final List<PartValue> $parts = <PartValue>[
+      PartValue<String?>('platform', platform),
+      PartValue<String?>('arch', arch),
+      PartValue<String?>('package_type', packageType),
+      PartValue<String?>('file_name', fileName),
+      PartValue<String?>('assign_channel_slug', assignChannelSlug),
+      PartValueFile<List<int>>('file', file),
+    ];
     final Request $request = Request(
       'POST',
       $url,
       client.baseUrl,
-      body: $body,
+      parts: $parts,
+      multipart: true,
       tag: swaggerMetaData,
     );
     return client.send<
-      ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response,
-      ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$Response
+      ApiV1ReleasesReleaseIdArtifactsPost$Response,
+      ApiV1ReleasesReleaseIdArtifactsPost$Response
     >($request);
   }
 
@@ -825,7 +857,7 @@ final class _$Openapi extends Openapi {
   }) {
     final Uri $url = Uri.parse('/api/v1/metrics/downloads');
     final Map<String, dynamic> $params = <String, dynamic>{
-      'appId': appId,
+      'app_id': appId,
       'from': from,
       'to': to,
       'channel': channel,
@@ -863,7 +895,7 @@ final class _$Openapi extends Openapi {
   }) {
     final Uri $url = Uri.parse('/api/v1/metrics/update-checks');
     final Map<String, dynamic> $params = <String, dynamic>{
-      'appId': appId,
+      'app_id': appId,
       'from': from,
       'to': to,
       'channel': channel,
@@ -909,6 +941,43 @@ final class _$Openapi extends Openapi {
   }
 
   @override
+  Future<Response<List<ApiPublicV1ChannelsGet$Response$Item>>>
+  _apiPublicV1ChannelsGet({
+    String? appId,
+    String? appSlug,
+    String? includeHiddenChannelSlugs,
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary:
+          'List channels for an app, with optional hidden-channel slug overrides',
+      operationId: 'listPublicChannels',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: ["Public"],
+      deprecated: false,
+    ),
+  }) {
+    final Uri $url = Uri.parse('/api/public/v1/channels');
+    final Map<String, dynamic> $params = <String, dynamic>{
+      'app_id': appId,
+      'app_slug': appSlug,
+      'include_hidden_channel_slugs': includeHiddenChannelSlugs,
+    };
+    final Request $request = Request(
+      'GET',
+      $url,
+      client.baseUrl,
+      parameters: $params,
+      tag: swaggerMetaData,
+    );
+    return client.send<
+      List<ApiPublicV1ChannelsGet$Response$Item>,
+      ApiPublicV1ChannelsGet$Response$Item
+    >($request);
+  }
+
+  @override
   Future<Response<String>>
   _apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGet({
     required String? appSlug,
@@ -932,9 +1001,9 @@ final class _$Openapi extends Openapi {
       '/api/public/v1/appcast/${appSlug}/${platform}/${channel}/appcast.xml',
     );
     final Map<String, dynamic> $params = <String, dynamic>{
-      'currentVersion': currentVersion,
+      'current_version': currentVersion,
       'arch': arch,
-      'packageType': packageType,
+      'package_type': packageType,
     };
     final Request $request = Request(
       'GET',

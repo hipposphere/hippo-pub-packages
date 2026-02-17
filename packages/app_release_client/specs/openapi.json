@@ -3,7 +3,7 @@
   "info": {
     "title": "app-release-manager API",
     "description": "Control-plane and delivery-plane API for desktop release management.",
-    "version": "0.1.1"
+    "version": "0.1.3"
   },
   "servers": [
     {
@@ -5383,6 +5383,10 @@
                     "type": "string",
                     "minLength": 1
                   },
+                  "assignChannelSlug": {
+                    "type": "string",
+                    "minLength": 1
+                  },
                   "appSlug": {
                     "type": "string",
                     "minLength": 1
@@ -5602,6 +5606,10 @@
                     "maximum": 9007199254740991
                   },
                   "sha256": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "assignChannelSlug": {
                     "type": "string",
                     "minLength": 1
                   }
@@ -6181,7 +6189,7 @@
         }
       }
     },
-    "/api/public/v1/appcast/{appSlug}/{platform}/{arch}/{channel}/appcast.xml": {
+    "/api/public/v1/appcast/{appSlug}/{platform}/{channel}/appcast.xml": {
       "get": {
         "operationId": "getAppcast",
         "summary": "Get appcast XML for update clients",
@@ -6272,19 +6280,6 @@
           },
           {
             "in": "path",
-            "name": "arch",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "x64",
-                "arm64",
-                "universal"
-              ]
-            },
-            "required": true
-          },
-          {
-            "in": "path",
             "name": "channel",
             "schema": {
               "type": "string",
@@ -6297,6 +6292,26 @@
             "name": "currentVersion",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "arch",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "x64",
+                "arm64",
+                "universal"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "packageType",
+            "schema": {
+              "type": "string",
+              "minLength": 1
             }
           }
         ]

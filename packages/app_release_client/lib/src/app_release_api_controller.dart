@@ -71,19 +71,28 @@ class AppReleaseApiController {
   Uri buildAppCastUri({
     required String appSlug,
     required AppReleasePlatform platform,
-    required AppReleaseArch arch,
+    AppReleaseArch? arch,
+    List<String>? packageTypes,
     required String channelSlug,
     String? currentVersion,
   }) {
     final encodedAppSlug = Uri.encodeComponent(appSlug);
     final encodedChannelSlug = Uri.encodeComponent(channelSlug);
     final appcastPath =
-        '/api/public/v1/appcast/$encodedAppSlug/${platform.value}/${arch.value}/$encodedChannelSlug/appcast.xml';
+        '/api/public/v1/appcast/$encodedAppSlug/${platform.value}/$encodedChannelSlug/appcast.xml';
 
-    final queryParameters = <String, String>{
+    final normalizedPackageTypes = packageTypes
+        ?.map((packageType) => packageType.trim())
+        .where((packageType) => packageType.isNotEmpty)
+        .toList(growable: false);
+    final queryParts = <String>[
+      if (arch != null) 'arch=${Uri.encodeQueryComponent(arch.value)}',
       if (currentVersion != null && currentVersion.isNotEmpty)
-        'currentVersion': currentVersion,
-    };
+        'currentVersion=${Uri.encodeQueryComponent(currentVersion)}',
+      if (normalizedPackageTypes != null)
+        for (final packageType in normalizedPackageTypes)
+          'packageType=${Uri.encodeQueryComponent(packageType)}',
+    ];
 
     final basePath = baseUrl.path.endsWith('/')
         ? baseUrl.path.substring(0, baseUrl.path.length - 1)
@@ -91,7 +100,7 @@ class AppReleaseApiController {
 
     return baseUrl.replace(
       path: '$basePath$appcastPath',
-      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+      query: queryParts.isEmpty ? null : queryParts.join('&'),
     );
   }
 

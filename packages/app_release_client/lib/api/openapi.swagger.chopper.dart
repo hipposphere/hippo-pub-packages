@@ -910,12 +910,13 @@ final class _$Openapi extends Openapi {
 
   @override
   Future<Response<String>>
-  _apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGet({
+  _apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGet({
     required String? appSlug,
     required String? platform,
-    required String? arch,
     required String? channel,
     String? currentVersion,
+    String? arch,
+    String? packageType,
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary: 'Get appcast XML for update clients',
@@ -928,10 +929,12 @@ final class _$Openapi extends Openapi {
     ),
   }) {
     final Uri $url = Uri.parse(
-      '/api/public/v1/appcast/${appSlug}/${platform}/${arch}/${channel}/appcast.xml',
+      '/api/public/v1/appcast/${appSlug}/${platform}/${channel}/appcast.xml',
     );
     final Map<String, dynamic> $params = <String, dynamic>{
       'currentVersion': currentVersion,
+      'arch': arch,
+      'packageType': packageType,
     };
     final Request $request = Request(
       'GET',

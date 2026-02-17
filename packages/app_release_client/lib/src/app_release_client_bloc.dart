@@ -23,7 +23,8 @@ class AppReleaseClientBloc extends BlocBase {
 
   final String appSlug;
   final AppReleasePlatform platform;
-  final AppReleaseArch arch;
+  final AppReleaseArch? arch;
+  final List<String>? packageTypes;
   final String defaultChannelSlug;
   final String? currentVersion;
   final bool publicChannelsOnly;
@@ -41,6 +42,7 @@ class AppReleaseClientBloc extends BlocBase {
     required this.appSlug,
     required this.platform,
     required this.arch,
+    required this.packageTypes,
     required String? appId,
     required this.defaultChannelSlug,
     required this.currentVersion,
@@ -58,7 +60,8 @@ class AppReleaseClientBloc extends BlocBase {
     required KeyValueStore keyValueStore,
     required String appSlug,
     required AppReleasePlatform platform,
-    required AppReleaseArch arch,
+    AppReleaseArch? arch,
+    List<String>? packageTypes,
     String? appId,
     String defaultChannelSlug = 'stable',
     String? currentVersion,
@@ -78,6 +81,7 @@ class AppReleaseClientBloc extends BlocBase {
       appSlug: appSlug,
       platform: platform,
       arch: arch,
+      packageTypes: packageTypes?.toList(growable: false),
       appId: appId,
       defaultChannelSlug: defaultChannelSlug,
       currentVersion: currentVersion,
@@ -169,6 +173,7 @@ class AppReleaseClientBloc extends BlocBase {
       appSlug: appSlug,
       platform: platform,
       arch: arch,
+      packageTypes: packageTypes,
       channelSlug: channelSlug,
       currentVersion: currentVersion,
     );

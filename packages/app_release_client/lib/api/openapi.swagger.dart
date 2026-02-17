@@ -1054,45 +1054,48 @@ abstract class Openapi extends ChopperService {
   ///Get appcast XML for update clients
   ///@param appSlug
   ///@param platform
-  ///@param arch
   ///@param channel
   ///@param currentVersion
+  ///@param arch
+  ///@param packageType
   Future<chopper.Response<String>>
-  apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGet({
+  apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGet({
     required String? appSlug,
-    required enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform?
+    required enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform?
     platform,
-    required enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch?
-    arch,
     required String? channel,
     String? currentVersion,
+    enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch? arch,
+    String? packageType,
   }) {
-    return _apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGet(
+    return _apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGet(
       appSlug: appSlug,
       platform: platform?.value?.toString(),
-      arch: arch?.value?.toString(),
       channel: channel,
       currentVersion: currentVersion,
+      arch: arch?.value?.toString(),
+      packageType: packageType,
     );
   }
 
   ///Get appcast XML for update clients
   ///@param appSlug
   ///@param platform
-  ///@param arch
   ///@param channel
   ///@param currentVersion
+  ///@param arch
+  ///@param packageType
   @GET(
-    path:
-        '/api/public/v1/appcast/{appSlug}/{platform}/{arch}/{channel}/appcast.xml',
+    path: '/api/public/v1/appcast/{appSlug}/{platform}/{channel}/appcast.xml',
   )
   Future<chopper.Response<String>>
-  _apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGet({
+  _apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGet({
     @Path('appSlug') required String? appSlug,
     @Path('platform') required String? platform,
-    @Path('arch') required String? arch,
     @Path('channel') required String? channel,
     @Query('currentVersion') String? currentVersion,
+    @Query('arch') String? arch,
+    @Query('packageType') String? packageType,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',

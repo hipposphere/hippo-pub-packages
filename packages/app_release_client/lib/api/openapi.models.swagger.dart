@@ -1197,6 +1197,7 @@ class ApiV1ArtifactsUploadUrlPost$RequestBody {
     required this.fileName,
     this.sizeBytes,
     this.sha256,
+    this.assignChannelSlug,
     required this.appSlug,
     required this.version,
     this.buildNumber,
@@ -1233,6 +1234,8 @@ class ApiV1ArtifactsUploadUrlPost$RequestBody {
   final int? sizeBytes;
   @JsonKey(name: 'sha256', includeIfNull: false)
   final String? sha256;
+  @JsonKey(name: 'assignChannelSlug', includeIfNull: false)
+  final String? assignChannelSlug;
   @JsonKey(name: 'appSlug', includeIfNull: false)
   final String appSlug;
   @JsonKey(name: 'version', includeIfNull: false)
@@ -1272,6 +1275,11 @@ class ApiV1ArtifactsUploadUrlPost$RequestBody {
                 )) &&
             (identical(other.sha256, sha256) ||
                 const DeepCollectionEquality().equals(other.sha256, sha256)) &&
+            (identical(other.assignChannelSlug, assignChannelSlug) ||
+                const DeepCollectionEquality().equals(
+                  other.assignChannelSlug,
+                  assignChannelSlug,
+                )) &&
             (identical(other.appSlug, appSlug) ||
                 const DeepCollectionEquality().equals(
                   other.appSlug,
@@ -1302,6 +1310,7 @@ class ApiV1ArtifactsUploadUrlPost$RequestBody {
       const DeepCollectionEquality().hash(fileName) ^
       const DeepCollectionEquality().hash(sizeBytes) ^
       const DeepCollectionEquality().hash(sha256) ^
+      const DeepCollectionEquality().hash(assignChannelSlug) ^
       const DeepCollectionEquality().hash(appSlug) ^
       const DeepCollectionEquality().hash(version) ^
       const DeepCollectionEquality().hash(buildNumber) ^
@@ -1318,6 +1327,7 @@ extension $ApiV1ArtifactsUploadUrlPost$RequestBodyExtension
     String? fileName,
     int? sizeBytes,
     String? sha256,
+    String? assignChannelSlug,
     String? appSlug,
     String? version,
     String? buildNumber,
@@ -1330,6 +1340,7 @@ extension $ApiV1ArtifactsUploadUrlPost$RequestBodyExtension
       fileName: fileName ?? this.fileName,
       sizeBytes: sizeBytes ?? this.sizeBytes,
       sha256: sha256 ?? this.sha256,
+      assignChannelSlug: assignChannelSlug ?? this.assignChannelSlug,
       appSlug: appSlug ?? this.appSlug,
       version: version ?? this.version,
       buildNumber: buildNumber ?? this.buildNumber,
@@ -1344,6 +1355,7 @@ extension $ApiV1ArtifactsUploadUrlPost$RequestBodyExtension
     Wrapped<String>? fileName,
     Wrapped<int?>? sizeBytes,
     Wrapped<String?>? sha256,
+    Wrapped<String?>? assignChannelSlug,
     Wrapped<String>? appSlug,
     Wrapped<String>? version,
     Wrapped<String?>? buildNumber,
@@ -1356,6 +1368,9 @@ extension $ApiV1ArtifactsUploadUrlPost$RequestBodyExtension
       fileName: (fileName != null ? fileName.value : this.fileName),
       sizeBytes: (sizeBytes != null ? sizeBytes.value : this.sizeBytes),
       sha256: (sha256 != null ? sha256.value : this.sha256),
+      assignChannelSlug: (assignChannelSlug != null
+          ? assignChannelSlug.value
+          : this.assignChannelSlug),
       appSlug: (appSlug != null ? appSlug.value : this.appSlug),
       version: (version != null ? version.value : this.version),
       buildNumber: (buildNumber != null ? buildNumber.value : this.buildNumber),
@@ -1373,6 +1388,7 @@ class ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody {
     required this.fileName,
     this.sizeBytes,
     this.sha256,
+    this.assignChannelSlug,
   });
 
   factory ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody.fromJson(
@@ -1412,6 +1428,8 @@ class ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody {
   final int? sizeBytes;
   @JsonKey(name: 'sha256', includeIfNull: false)
   final String? sha256;
+  @JsonKey(name: 'assignChannelSlug', includeIfNull: false)
+  final String? assignChannelSlug;
   static const fromJsonFactory =
       _$ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyFromJson;
 
@@ -1442,7 +1460,12 @@ class ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody {
                   sizeBytes,
                 )) &&
             (identical(other.sha256, sha256) ||
-                const DeepCollectionEquality().equals(other.sha256, sha256)));
+                const DeepCollectionEquality().equals(other.sha256, sha256)) &&
+            (identical(other.assignChannelSlug, assignChannelSlug) ||
+                const DeepCollectionEquality().equals(
+                  other.assignChannelSlug,
+                  assignChannelSlug,
+                )));
   }
 
   @override
@@ -1456,6 +1479,7 @@ class ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody {
       const DeepCollectionEquality().hash(fileName) ^
       const DeepCollectionEquality().hash(sizeBytes) ^
       const DeepCollectionEquality().hash(sha256) ^
+      const DeepCollectionEquality().hash(assignChannelSlug) ^
       runtimeType.hashCode;
 }
 
@@ -1469,6 +1493,7 @@ extension $ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyExtension
     String? fileName,
     int? sizeBytes,
     String? sha256,
+    String? assignChannelSlug,
   }) {
     return ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody(
       platform: platform ?? this.platform,
@@ -1477,6 +1502,7 @@ extension $ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyExtension
       fileName: fileName ?? this.fileName,
       sizeBytes: sizeBytes ?? this.sizeBytes,
       sha256: sha256 ?? this.sha256,
+      assignChannelSlug: assignChannelSlug ?? this.assignChannelSlug,
     );
   }
 
@@ -1493,6 +1519,7 @@ extension $ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyExtension
     Wrapped<String>? fileName,
     Wrapped<int?>? sizeBytes,
     Wrapped<String?>? sha256,
+    Wrapped<String?>? assignChannelSlug,
   }) {
     return ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBody(
       platform: (platform != null ? platform.value : this.platform),
@@ -1501,6 +1528,9 @@ extension $ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyExtension
       fileName: (fileName != null ? fileName.value : this.fileName),
       sizeBytes: (sizeBytes != null ? sizeBytes.value : this.sizeBytes),
       sha256: (sha256 != null ? sha256.value : this.sha256),
+      assignChannelSlug: (assignChannelSlug != null
+          ? assignChannelSlug.value
+          : this.assignChannelSlug),
     );
   }
 }
@@ -12515,245 +12545,232 @@ apiV1DashboardSummaryGet$Response$ActiveAssignments$ItemArchNullableListFromJson
 }
 
 String?
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatformNullableToJson(
-  enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform?
-  apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform,
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatformNullableToJson(
+  enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform?
+  apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform,
 ) {
-  return apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform
-      ?.value;
+  return apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform?.value;
 }
 
-String? apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatformToJson(
-  enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform
-  apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform,
+String? apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatformToJson(
+  enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform
+  apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform,
 ) {
-  return apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform
-      .value;
+  return apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform.value;
 }
 
-enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatformFromJson(
-  Object? apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform, [
-  enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform?
+enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatformFromJson(
+  Object? apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform, [
+  enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform?
   defaultValue,
 ]) {
   return enums
-          .ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform
+          .ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform
           .values
           .firstWhereOrNull(
             (e) =>
                 e.value ==
-                apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform,
+                apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform,
           ) ??
       defaultValue ??
       enums
-          .ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform
+          .ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform
           .swaggerGeneratedUnknown;
 }
 
-enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform?
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatformNullableFromJson(
-  Object? apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform, [
-  enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform?
+enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform?
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatformNullableFromJson(
+  Object? apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform, [
+  enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform?
   defaultValue,
 ]) {
-  if (apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform ==
-      null) {
+  if (apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform == null) {
     return null;
   }
   return enums
-          .ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform
+          .ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform
           .values
           .firstWhereOrNull(
             (e) =>
                 e.value ==
-                apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform,
+                apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform,
           ) ??
       defaultValue;
 }
 
 String
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatformExplodedListToJson(
-  List<enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform>?
-  apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform,
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatformExplodedListToJson(
+  List<enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform>?
+  apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform,
 ) {
-  return apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform
+  return apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform
           ?.map((e) => e.value!)
           .join(',') ??
       '';
 }
 
 List<String>
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatformListToJson(
-  List<enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform>?
-  apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform,
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatformListToJson(
+  List<enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform>?
+  apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform,
 ) {
-  if (apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform ==
-      null) {
+  if (apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform == null) {
     return [];
   }
 
-  return apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform
+  return apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform
       .map((e) => e.value!)
       .toList();
 }
 
-List<enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform>
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatformListFromJson(
-  List? apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform, [
-  List<enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform>?
+List<enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform>
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatformListFromJson(
+  List? apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform, [
+  List<enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform>?
   defaultValue,
 ]) {
-  if (apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform ==
-      null) {
+  if (apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform == null) {
     return defaultValue ?? [];
   }
 
-  return apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform
+  return apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform
       .map(
         (e) =>
-            apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatformFromJson(
+            apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatformFromJson(
               e.toString(),
             ),
       )
       .toList();
 }
 
-List<enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform>?
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatformNullableListFromJson(
-  List? apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform, [
-  List<enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform>?
+List<enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform>?
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatformNullableListFromJson(
+  List? apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform, [
+  List<enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform>?
   defaultValue,
 ]) {
-  if (apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform ==
-      null) {
+  if (apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform == null) {
     return defaultValue;
   }
 
-  return apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform
+  return apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform
       .map(
         (e) =>
-            apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatformFromJson(
+            apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatformFromJson(
               e.toString(),
             ),
       )
       .toList();
 }
 
-String?
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArchNullableToJson(
-  enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch?
-  apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch,
+String? apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArchNullableToJson(
+  enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch?
+  apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch,
 ) {
-  return apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch?.value;
+  return apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch?.value;
 }
 
-String? apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArchToJson(
-  enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch
-  apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch,
+String? apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArchToJson(
+  enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch
+  apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch,
 ) {
-  return apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch.value;
+  return apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch.value;
 }
 
-enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArchFromJson(
-  Object? apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch, [
-  enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch?
-  defaultValue,
+enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArchFromJson(
+  Object? apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch, [
+  enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch? defaultValue,
 ]) {
-  return enums
-          .ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch
-          .values
+  return enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch.values
           .firstWhereOrNull(
             (e) =>
                 e.value ==
-                apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch,
+                apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch,
           ) ??
       defaultValue ??
       enums
-          .ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch
+          .ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch
           .swaggerGeneratedUnknown;
 }
 
-enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch?
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArchNullableFromJson(
-  Object? apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch, [
-  enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch?
-  defaultValue,
+enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch?
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArchNullableFromJson(
+  Object? apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch, [
+  enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch? defaultValue,
 ]) {
-  if (apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch == null) {
+  if (apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch == null) {
     return null;
   }
-  return enums
-          .ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch
-          .values
+  return enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch.values
           .firstWhereOrNull(
             (e) =>
                 e.value ==
-                apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch,
+                apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch,
           ) ??
       defaultValue;
 }
 
 String
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArchExplodedListToJson(
-  List<enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch>?
-  apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch,
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArchExplodedListToJson(
+  List<enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch>?
+  apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch,
 ) {
-  return apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch
+  return apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch
           ?.map((e) => e.value!)
           .join(',') ??
       '';
 }
 
 List<String>
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArchListToJson(
-  List<enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch>?
-  apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch,
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArchListToJson(
+  List<enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch>?
+  apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch,
 ) {
-  if (apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch == null) {
+  if (apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch == null) {
     return [];
   }
 
-  return apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch
+  return apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch
       .map((e) => e.value!)
       .toList();
 }
 
-List<enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch>
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArchListFromJson(
-  List? apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch, [
-  List<enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch>?
+List<enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch>
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArchListFromJson(
+  List? apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch, [
+  List<enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch>?
   defaultValue,
 ]) {
-  if (apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch == null) {
+  if (apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch == null) {
     return defaultValue ?? [];
   }
 
-  return apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch
+  return apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch
       .map(
         (e) =>
-            apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArchFromJson(
+            apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArchFromJson(
               e.toString(),
             ),
       )
       .toList();
 }
 
-List<enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch>?
-apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArchNullableListFromJson(
-  List? apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch, [
-  List<enums.ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch>?
+List<enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch>?
+apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArchNullableListFromJson(
+  List? apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch, [
+  List<enums.ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch>?
   defaultValue,
 ]) {
-  if (apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch == null) {
+  if (apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch == null) {
     return defaultValue;
   }
 
-  return apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch
+  return apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch
       .map(
         (e) =>
-            apiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArchFromJson(
+            apiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArchFromJson(
               e.toString(),
             ),
       )

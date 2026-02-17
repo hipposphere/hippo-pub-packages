@@ -15,7 +15,10 @@ final bloc = AppReleaseClientBloc.create(
   keyValueStore: SharedPreferencesKeyValueStore(),
   appSlug: 'hippo-desktop',
   platform: AppReleasePlatform.macos,
+  // optional
   arch: AppReleaseArch.arm64,
+  // optional: appcast query packageType=dmg&packageType=zip
+  packageTypes: const ['dmg', 'zip'],
   // optional interceptors, e.g. auth headers for /api/v1/apps + /api/v1/channels
   interceptors: const [],
   // optional if you already know it; otherwise resolved via list apps

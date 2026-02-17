@@ -297,6 +297,7 @@ _$ApiV1ArtifactsUploadUrlPost$RequestBodyFromJson(Map<String, dynamic> json) =>
       fileName: json['fileName'] as String,
       sizeBytes: (json['sizeBytes'] as num?)?.toInt(),
       sha256: json['sha256'] as String?,
+      assignChannelSlug: json['assignChannelSlug'] as String?,
       appSlug: json['appSlug'] as String,
       version: json['version'] as String,
       buildNumber: json['buildNumber'] as String?,
@@ -316,6 +317,7 @@ Map<String, dynamic> _$ApiV1ArtifactsUploadUrlPost$RequestBodyToJson(
   'fileName': instance.fileName,
   'sizeBytes': ?instance.sizeBytes,
   'sha256': ?instance.sha256,
+  'assignChannelSlug': ?instance.assignChannelSlug,
   'appSlug': instance.appSlug,
   'version': instance.version,
   'buildNumber': ?instance.buildNumber,
@@ -338,6 +340,7 @@ _$ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyFromJson(
   fileName: json['fileName'] as String,
   sizeBytes: (json['sizeBytes'] as num?)?.toInt(),
   sha256: json['sha256'] as String?,
+  assignChannelSlug: json['assignChannelSlug'] as String?,
 );
 
 Map<String, dynamic>
@@ -356,6 +359,7 @@ _$ApiV1ReleasesReleaseIdArtifactsUploadUrlPost$RequestBodyToJson(
   'fileName': instance.fileName,
   'sizeBytes': ?instance.sizeBytes,
   'sha256': ?instance.sha256,
+  'assignChannelSlug': ?instance.assignChannelSlug,
 };
 
 ApiHealthzGet$Response _$ApiHealthzGet$ResponseFromJson(

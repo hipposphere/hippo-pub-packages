@@ -744,7 +744,7 @@ enum ApiV1DashboardSummaryGet$Response$ActiveAssignments$ItemArch {
   );
 }
 
-enum ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform {
+enum ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform {
   @JsonValue(null)
   swaggerGeneratedUnknown(null),
 
@@ -757,12 +757,12 @@ enum ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform {
 
   final String? value;
 
-  const ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetPlatform(
+  const ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetPlatform(
     this.value,
   );
 }
 
-enum ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch {
+enum ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch {
   @JsonValue(null)
   swaggerGeneratedUnknown(null),
 
@@ -775,9 +775,7 @@ enum ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch {
 
   final String? value;
 
-  const ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch(
-    this.value,
-  );
+  const ApiPublicV1AppcastAppSlugPlatformChannelAppcastXmlGetArch(this.value);
 }
 
 enum ApiV1AppsAppIdDeploymentTargetsPost$RequestBodyKind {

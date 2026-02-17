@@ -16,7 +16,9 @@ class _ExampleApp extends StatelessWidget {
       keyValueStore: MockKeyValueStore(),
       appSlug: 'desktop-app',
       platform: AppReleasePlatform.macos,
+      // optional
       arch: AppReleaseArch.arm64,
+      packageTypes: const ['dmg'],
       defaultChannelSlug: 'stable',
       currentVersion: '1.0.0',
     );

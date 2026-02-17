@@ -18,3 +18,8 @@ This repository uses [Melos](https://melos.invertase.dev/) for managing Dart/Flu
 ---
 
 For more information, see the project README or the documentation for each package in the `packages/` directory.
+
+## Dart Code Generation Guidance
+
+- Prefer `package:code_builder` for generating Dart classes, constructors, members, and initializer lists instead of handwritten source string assembly.
+- Run generated Dart output through `package:dart_style` (`DartFormatter`) before writing files.

@@ -6277,7 +6277,8 @@
               "type": "string",
               "enum": [
                 "x64",
-                "arm64"
+                "arm64",
+                "universal"
               ]
             },
             "required": true

@@ -1,3 +1,6 @@
+import 'package:code_builder/code_builder.dart';
+import 'package:dart_style/dart_style.dart';
+
 import 'contract_model.dart';
 
 enum GeneratedChannelCodec {
@@ -147,44 +150,13 @@ String generateBleClientDart({
   buffer.writeln('      ];');
   buffer.writeln('}');
   buffer.writeln();
-  buffer.writeln('class $aggregateClientClassName {');
-  if (serviceBindings.isEmpty) {
-    buffer.writeln('  $aggregateClientClassName(this.protocolClient);');
-  } else {
-    buffer.writeln('  $aggregateClientClassName(this.protocolClient)');
-    for (var index = 0; index < serviceBindings.length; index += 1) {
-      final service = serviceBindings[index];
-      final terminator = index + 1 == serviceBindings.length ? ';' : ',';
-      buffer.writeln(
-        '    : ${service.instanceFieldName} = '
-        '${service.className}(protocolClient)$terminator',
-      );
-    }
-  }
-  buffer.writeln();
-  buffer.writeln('  factory $aggregateClientClassName.create({');
-  buffer.writeln('    required BleGattClient gattClient,');
-  buffer.writeln('    required String remoteId,');
-  buffer.writeln('    Duration defaultOperationTimeout = const Duration(seconds: 15),');
-  buffer.writeln('    ChunkReassembler? chunkReassembler,');
-  buffer.writeln('  }) {');
-  buffer.writeln('    final protocolClient = BleProtocolClient(');
-  buffer.writeln('      gattClient: gattClient,');
-  buffer.writeln('      remoteId: remoteId,');
-  buffer.writeln('      protocols: $definitionsClassName.protocols,');
-  buffer.writeln('      defaultOperationTimeout: defaultOperationTimeout,');
-  buffer.writeln('      chunkReassembler: chunkReassembler,');
-  buffer.writeln('    );');
-  buffer.writeln('    return $aggregateClientClassName(protocolClient);');
-  buffer.writeln('  }');
-  buffer.writeln();
-  buffer.writeln('  final BleProtocolClient protocolClient;');
-  for (final service in serviceBindings) {
-    buffer.writeln('  final ${service.className} ${service.instanceFieldName};');
-  }
-  buffer.writeln();
-  buffer.writeln('  Future<void> dispose() => protocolClient.dispose();');
-  buffer.writeln('}');
+  buffer.writeln(
+    _buildAggregateClientClassSource(
+      className: aggregateClientClassName,
+      definitionsClassName: definitionsClassName,
+      serviceBindings: serviceBindings,
+    ),
+  );
   buffer.writeln();
 
   for (final service in serviceBindings) {
@@ -337,7 +309,114 @@ String generateBleClientDart({
     buffer.writeln();
   }
 
-  return buffer.toString();
+  final formatter = DartFormatter(
+    languageVersion: DartFormatter.latestLanguageVersion,
+    pageWidth: 100,
+  );
+  return formatter.format(buffer.toString());
+}
+
+String _buildAggregateClientClassSource({
+  required String className,
+  required String definitionsClassName,
+  required List<_ServiceBinding> serviceBindings,
+}) {
+  final classBuilder = ClassBuilder()..name = className;
+  classBuilder.fields.add(
+    Field(
+      (builder) => builder
+        ..name = 'protocolClient'
+        ..modifier = FieldModifier.final$
+        ..type = refer('BleProtocolClient'),
+    ),
+  );
+  for (final service in serviceBindings) {
+    classBuilder.fields.add(
+      Field(
+        (builder) => builder
+          ..name = service.instanceFieldName
+          ..modifier = FieldModifier.final$
+          ..type = refer(service.className),
+      ),
+    );
+  }
+
+  classBuilder.constructors.add(
+    Constructor((builder) {
+      builder.requiredParameters.add(
+        Parameter(
+          (parameterBuilder) => parameterBuilder
+            ..name = 'protocolClient'
+            ..toThis = true,
+        ),
+      );
+      for (final service in serviceBindings) {
+        builder.initializers.add(
+          Code('${service.instanceFieldName} = ${service.className}(protocolClient)'),
+        );
+      }
+    }),
+  );
+
+  classBuilder.constructors.add(
+    Constructor(
+      (builder) => builder
+        ..factory = true
+        ..name = 'create'
+        ..optionalParameters.addAll(<Parameter>[
+          Parameter(
+            (parameterBuilder) => parameterBuilder
+              ..named = true
+              ..required = true
+              ..name = 'gattClient'
+              ..type = refer('BleGattClient'),
+          ),
+          Parameter(
+            (parameterBuilder) => parameterBuilder
+              ..named = true
+              ..required = true
+              ..name = 'remoteId'
+              ..type = refer('String'),
+          ),
+          Parameter(
+            (parameterBuilder) => parameterBuilder
+              ..named = true
+              ..name = 'defaultOperationTimeout'
+              ..type = refer('Duration')
+              ..defaultTo = const Code('const Duration(seconds: 15)'),
+          ),
+          Parameter(
+            (parameterBuilder) => parameterBuilder
+              ..named = true
+              ..name = 'chunkReassembler'
+              ..type = refer('ChunkReassembler?'),
+          ),
+        ])
+        ..body = Code('''
+final protocolClient = BleProtocolClient(
+  gattClient: gattClient,
+  remoteId: remoteId,
+  protocols: $definitionsClassName.protocols,
+  defaultOperationTimeout: defaultOperationTimeout,
+  chunkReassembler: chunkReassembler,
+);
+return $className(protocolClient);
+'''),
+    ),
+  );
+
+  classBuilder.methods.add(
+    Method(
+      (builder) => builder
+        ..name = 'dispose'
+        ..returns = refer('Future<void>')
+        ..lambda = true
+        ..body = const Code('protocolClient.dispose()'),
+    ),
+  );
+
+  final emitter = DartEmitter(orderDirectives: true, useNullSafetySyntax: true);
+  return classBuilder.build().accept(emitter).toString();
 }
 
 List<_ServiceBinding> _buildBindings(

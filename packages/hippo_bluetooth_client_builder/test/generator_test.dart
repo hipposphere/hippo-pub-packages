@@ -55,6 +55,63 @@ void main() {
     expect(output, contains('withoutResponse: true,'));
   });
 
+  test('uses one initializer list colon for aggregate client with multiple services', () {
+    final contract = parseBleContractJsonObject(<String, Object?>{
+      'bleContract': '1.0.0',
+      'info': <String, Object?>{
+        'title': 'Multi Service',
+        'version': '1.0.0',
+        'generatedAt': '2026-02-15T20:00:00.000Z',
+      },
+      'source': <String, Object?>{'kind': 'protocols'},
+      'services': <Object?>[
+        <String, Object?>{
+          'id': 'alpha',
+          'uuid': '1234567812345678123456789abc1001',
+          'advertise': true,
+          'characteristics': <Object?>[
+            <String, Object?>{
+              'id': 'status',
+              'uuid': '1234567812345678123456789abc1002',
+              'properties': <Object?>['read'],
+            },
+          ],
+        },
+        <String, Object?>{
+          'id': 'beta',
+          'uuid': '1234567812345678123456789abc1003',
+          'advertise': true,
+          'characteristics': <Object?>[
+            <String, Object?>{
+              'id': 'status',
+              'uuid': '1234567812345678123456789abc1004',
+              'properties': <Object?>['read'],
+            },
+          ],
+        },
+      ],
+    });
+
+    final output = generateBleClientDart(
+      contract: resolveBleContract(contract),
+      options: const BleClientCodegenOptions(),
+      sourceContractPath: '/tmp/multi-service-contract.json',
+    );
+
+    expect(
+      output,
+      contains(
+        RegExp(
+          r'MultiServiceBleClient\(this\.protocolClient\)\s*:\s*'
+          r'alpha = AlphaBleService\(protocolClient\),\s*'
+          r'beta = BetaBleService\(protocolClient\);',
+          dotAll: true,
+        ),
+      ),
+    );
+    expect(output, isNot(contains(RegExp(r'\n\s*:\s*beta = BetaBleService\(protocolClient\);'))));
+  });
+
   test('fills missing ids for contracts generated from services input', () {
     final contract = parseBleContractJsonObject(<String, Object?>{
       'bleContract': '1.0.0',

@@ -769,7 +769,9 @@ enum ApiPublicV1AppcastAppSlugPlatformArchChannelAppcastXmlGetArch {
   @JsonValue('x64')
   x64('x64'),
   @JsonValue('arm64')
-  arm64('arm64');
+  arm64('arm64'),
+  @JsonValue('universal')
+  universal('universal');
 
   final String? value;
 

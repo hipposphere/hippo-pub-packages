@@ -84,6 +84,13 @@ static FlMethodResponse* paste_into_cursor(FlValue* args) {
         return FL_METHOD_RESPONSE(fl_method_error_response_new("PASTE_FAILED", "Failed to simulate paste", nullptr));
 }
 
+static FlMethodResponse* get_focused_text_field_context(FlValue* /*args*/) {
+    FlValue* context = fl_value_new_map();
+    fl_value_set_string(context, "available", fl_value_new_bool(false));
+    fl_value_set_string(context, "reason", fl_value_new_string("notImplementedOnLinux"));
+    return FL_METHOD_RESPONSE(fl_method_success_response_new(context));
+}
+
 
 static void desktop_autopaste_plugin_handle_method_call(
     DesktopAutopastePlugin* self,
@@ -100,6 +107,8 @@ static void desktop_autopaste_plugin_handle_method_call(
   } else if (strcmp(method, "pasteIntoCursorViaClipboard") == 0) {
        // logic is same if we just set clipboard then paste.
        response = paste_into_cursor(args);
+  } else if (strcmp(method, "getFocusedTextFieldContext") == 0) {
+      response = get_focused_text_field_context(args);
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'desktop_autopaste_platform_interface.dart';
+import 'src/focused_text_field_context.dart';
 
 /// An implementation of [DesktopAutopastePlatform] that uses method channels.
 class MethodChannelDesktopAutopaste extends DesktopAutopastePlatform {
@@ -24,5 +25,23 @@ class MethodChannelDesktopAutopaste extends DesktopAutopastePlatform {
       {'text': text},
     );
     return result ?? false;
+  }
+
+  @override
+  Future<FocusedTextFieldContext> getFocusedTextFieldContext({
+    int maxCharsBefore = 120,
+    int maxCharsAfter = 120,
+  }) async {
+    final result =
+        await methodChannel.invokeMapMethod<String, dynamic>(
+          'getFocusedTextFieldContext',
+          <String, dynamic>{
+            'maxCharsBefore': maxCharsBefore,
+            'maxCharsAfter': maxCharsAfter,
+          },
+        ) ??
+        const <String, dynamic>{'available': false, 'reason': 'noResult'};
+
+    return FocusedTextFieldContext.fromMap(result);
   }
 }

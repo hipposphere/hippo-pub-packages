@@ -1,6 +1,7 @@
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'desktop_autopaste_method_channel.dart';
+import 'src/focused_text_field_context.dart';
 
 abstract class DesktopAutopastePlatform extends PlatformInterface {
   /// Constructs a DesktopAutopastePlatform.
@@ -30,6 +31,15 @@ abstract class DesktopAutopastePlatform extends PlatformInterface {
   Future<bool> pasteIntoCursorViaClipboard(String text) {
     throw UnimplementedError(
       'pasteIntoCursorViaClipboard() has not been implemented.',
+    );
+  }
+
+  Future<FocusedTextFieldContext> getFocusedTextFieldContext({
+    int maxCharsBefore = 120,
+    int maxCharsAfter = 120,
+  }) {
+    throw UnimplementedError(
+      'getFocusedTextFieldContext() has not been implemented.',
     );
   }
 }

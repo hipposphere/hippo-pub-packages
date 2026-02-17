@@ -14,6 +14,7 @@ class DatabaseColumn {
   final int ordinalPosition;
   final String? columnDefault;
   final String? identityGeneration;
+  String? enumTypeOverride;
 
   ForeignKeyRelation? foreignKeyRelation;
 
@@ -64,16 +65,18 @@ class DatabaseColumn {
       return tableName.convertSnakeCaseToCamelCase().toUpperCaseFirst() +
           columnKey.convertSnakeCaseToCamelCase().toUpperCaseFirst();
     }
-    return _getDartType(udtType, isEnum);
+    return _getDartType(resolvedUdtType, isEnum);
   }
 
   String get rawDartType {
-    return _getDartType(udtType, isEnum);
+    return _getDartType(resolvedUdtType, isEnum);
   }
 
   bool get isEnum {
-    return _isEnumType(udtType);
+    return _isEnumType(resolvedUdtType);
   }
+
+  String get resolvedUdtType => enumTypeOverride ?? udtType;
 
   bool get isKeyId {
     return columnKey == 'id' &&

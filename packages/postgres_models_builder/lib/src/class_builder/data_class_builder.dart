@@ -88,7 +88,7 @@ class DataClassBuilder {
     if (requiresUniversalToolsImport) {
       for (final column in table.columns) {
         if (column.isEnum) {
-          final importStatement = "import '../../enums/${column.udtType}.g.dart';";
+          final importStatement = "import '../../enums/${column.resolvedUdtType}.g.dart';";
           if (source.contains(importStatement) == false) {
             source = "$importStatement\n$source";
           }

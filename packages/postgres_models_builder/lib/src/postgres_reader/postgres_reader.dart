@@ -1,4 +1,5 @@
 import 'package:postgres/postgres.dart';
+import 'package:postgres_models_builder/src/models/database_column_enum.dart';
 import 'package:postgres_models_builder/src/models/database_column.dart';
 import 'package:postgres_models_builder/src/models/database_enum.dart';
 import 'package:postgres_models_builder/src/models/database_table.dart';
@@ -7,11 +8,13 @@ import 'package:postgres_models_builder/src/models/foreign_key_relation.dart';
 import '../logger.dart';
 import '../models/database_rpc.dart';
 import '../models/database_rpc_argument.dart';
+import 'check_constraint_parser.dart';
 
 part 'parts/get_enums.dart';
 part 'parts/get_tables.dart';
 part 'parts/get_rpcs.dart';
 part 'parts/get_foreign_key_relations.dart';
+part 'parts/get_check_constraint_enums.dart';
 
 class PostgresReader {
   late final Connection _connection;
@@ -122,6 +125,10 @@ class PostgresReader {
 
   Future<List<DatabaseEnum>> getEnums({String schemaName = 'public'}) {
     return _getEnums(query: query, schemaName: schemaName);
+  }
+
+  Future<List<DatabaseColumnEnum>> getCheckConstraintEnums({String schemaName = 'public'}) {
+    return _getCheckConstraintEnums(query: query, schemaName: schemaName);
   }
 
   Future<void> connect() async {

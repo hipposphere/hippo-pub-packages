@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:postgres_models_builder/src/logger.dart';
+import 'package:postgres_models_builder/src/models/database_column_enum.dart';
 import 'package:postgres_models_builder/src/models/database_enum.dart';
 import 'package:postgres_models_builder/src/models/database_rpc.dart';
 import 'package:postgres_models_builder/src/models/database_table.dart';
@@ -85,6 +86,11 @@ class SchemaConverter {
         ),
     ];
 
+    final inferredColumnEnums = [
+      for (final schema in schemaList) ...await reader.getCheckConstraintEnums(schemaName: schema),
+    ];
+    _applyColumnEnumOverrides(inferredColumnEnums);
+
     Log.trace('calling PostgresReader.getRpcs with omitting $omitRpcNames');
     rpcs = [
       for (final schema in schemaList)
@@ -94,6 +100,74 @@ class SchemaConverter {
 
     Log.trace('disconnecting the database');
     await reader.disconnect();
+  }
+
+  void _applyColumnEnumOverrides(List<DatabaseColumnEnum> inferredColumnEnums) {
+    if (inferredColumnEnums.isEmpty) {
+      return;
+    }
+
+    final enumsByType = <String, DatabaseEnum>{for (final e in enums) e.enumType: e};
+
+    final tablesByName = {
+      for (final table in tables) '${table.schemaName}.${table.tableName}': table,
+    };
+
+    for (final inferredColumnEnum in inferredColumnEnums) {
+      final tableIdentifier = '${inferredColumnEnum.schemaName}.${inferredColumnEnum.tableName}';
+      final table = tablesByName[tableIdentifier];
+      if (table == null) {
+        continue;
+      }
+
+      final column = table.columns
+          .where((element) => element.columnKey == inferredColumnEnum.columnName)
+          .firstOrNull;
+
+      if (column == null || !_isTextColumn(column.udtType)) {
+        continue;
+      }
+
+      final existingEnum = enumsByType[inferredColumnEnum.databaseEnum.enumType];
+
+      if (existingEnum == null) {
+        enums.add(inferredColumnEnum.databaseEnum);
+        enumsByType[inferredColumnEnum.databaseEnum.enumType] = inferredColumnEnum.databaseEnum;
+      } else if (!_hasSameEnumValues(existingEnum.values, inferredColumnEnum.databaseEnum.values)) {
+        Log.trace(
+          'skipping inferred enum for ${inferredColumnEnum.columnIdentifier}: '
+          'enum type name conflict for `${inferredColumnEnum.databaseEnum.enumType}`',
+        );
+        continue;
+      }
+
+      column.enumTypeOverride = inferredColumnEnum.databaseEnum.enumType;
+    }
+  }
+
+  bool _hasSameEnumValues(List<String> first, List<String> second) {
+    if (first.length != second.length) {
+      return false;
+    }
+    for (var index = 0; index < first.length; index++) {
+      if (first[index] != second[index]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _isTextColumn(String udtType) {
+    switch (udtType) {
+      case 'bpchar':
+      case 'char':
+      case 'varchar':
+      case 'text':
+      case 'citext':
+      case 'name':
+        return true;
+    }
+    return false;
   }
 
   Future<void> _addDartSourceToTables() async {

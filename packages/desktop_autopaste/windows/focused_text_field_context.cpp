@@ -1,0 +1,531 @@
+#include "focused_text_field_context.h"
+
+#include <ole2.h>
+#include <uiautomation.h>
+#include <windows.h>
+#include <wrl/client.h>
+
+#include <algorithm>
+#include <cwctype>
+#include <optional>
+#include <string>
+
+namespace desktop_autopaste {
+namespace {
+
+using flutter::EncodableMap;
+using flutter::EncodableValue;
+using Microsoft::WRL::ComPtr;
+
+class ScopedComInit {
+ public:
+  ScopedComInit() : hr_(::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)) {}
+
+  ~ScopedComInit() {
+    if (hr_ == S_OK || hr_ == S_FALSE) {
+      ::CoUninitialize();
+    }
+  }
+
+  bool IsUsable() const {
+    return hr_ == S_OK || hr_ == S_FALSE || hr_ == RPC_E_CHANGED_MODE;
+  }
+
+  HRESULT result() const { return hr_; }
+
+ private:
+  HRESULT hr_;
+};
+
+void Put(EncodableMap& map, const char* key, const EncodableValue& value) {
+  map[EncodableValue(std::string(key))] = value;
+}
+
+std::string WideToUtf8(const std::wstring& wide) {
+  if (wide.empty()) {
+    return std::string();
+  }
+  const int size_needed = ::WideCharToMultiByte(
+      CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
+  if (size_needed <= 0) {
+    return std::string();
+  }
+  std::string utf8(size_needed - 1, '\0');
+  ::WideCharToMultiByte(
+      CP_UTF8, 0, wide.c_str(), -1, utf8.data(), size_needed, nullptr, nullptr);
+  return utf8;
+}
+
+std::wstring BstrToWString(BSTR bstr) {
+  if (bstr == nullptr) {
+    return std::wstring();
+  }
+  return std::wstring(bstr, ::SysStringLen(bstr));
+}
+
+std::wstring GetTextFromRange(IUIAutomationTextRange* range, int max_length) {
+  if (range == nullptr) {
+    return std::wstring();
+  }
+  BSTR text = nullptr;
+  if (FAILED(range->GetText(max_length, &text))) {
+    return std::wstring();
+  }
+  std::wstring out = BstrToWString(text);
+  if (text != nullptr) {
+    ::SysFreeString(text);
+  }
+  return out;
+}
+
+std::string ControlTypeToString(CONTROLTYPEID control_type) {
+  switch (control_type) {
+    case UIA_EditControlTypeId:
+      return "Edit";
+    case UIA_DocumentControlTypeId:
+      return "Document";
+    case UIA_ComboBoxControlTypeId:
+      return "ComboBox";
+    case UIA_ListItemControlTypeId:
+      return "ListItem";
+    case UIA_TextControlTypeId:
+      return "Text";
+    case UIA_CustomControlTypeId:
+      return "Custom";
+    default:
+      return std::to_string(control_type);
+  }
+}
+
+HWND GetFocusedWindowHandle() {
+  GUITHREADINFO thread_info = {};
+  thread_info.cbSize = sizeof(GUITHREADINFO);
+  if (::GetGUIThreadInfo(0, &thread_info) && thread_info.hwndFocus != nullptr) {
+    return thread_info.hwndFocus;
+  }
+  return ::GetForegroundWindow();
+}
+
+std::wstring GetWindowClassName(HWND hwnd) {
+  if (hwnd == nullptr) {
+    return std::wstring();
+  }
+  wchar_t class_name[256] = {0};
+  const int size = ::GetClassNameW(hwnd, class_name, 255);
+  if (size <= 0) {
+    return std::wstring();
+  }
+  return std::wstring(class_name, size);
+}
+
+bool IsLikelyEditControl(const std::wstring& class_name) {
+  if (class_name.empty()) {
+    return false;
+  }
+
+  std::wstring upper = class_name;
+  std::transform(
+      upper.begin(),
+      upper.end(),
+      upper.begin(),
+      [](wchar_t c) { return static_cast<wchar_t>(::towupper(c)); });
+
+  return upper.find(L"EDIT") != std::wstring::npos ||
+         upper.find(L"RICHEDIT") != std::wstring::npos;
+}
+
+std::optional<std::wstring> GetProcessImagePath(DWORD process_id) {
+  if (process_id == 0) {
+    return std::nullopt;
+  }
+
+  HANDLE process = ::OpenProcess(
+      PROCESS_QUERY_LIMITED_INFORMATION,
+      FALSE,
+      process_id);
+  if (process == nullptr) {
+    return std::nullopt;
+  }
+
+  std::wstring path(4096, L'\0');
+  DWORD size = static_cast<DWORD>(path.size());
+  const BOOL ok = ::QueryFullProcessImageNameW(process, 0, path.data(), &size);
+  ::CloseHandle(process);
+  if (!ok || size == 0) {
+    return std::nullopt;
+  }
+  path.resize(size);
+  return path;
+}
+
+std::wstring GetBaseName(const std::wstring& path) {
+  if (path.empty()) {
+    return std::wstring();
+  }
+  const size_t idx = path.find_last_of(L"\\/");
+  if (idx == std::wstring::npos || idx + 1 >= path.size()) {
+    return path;
+  }
+  return path.substr(idx + 1);
+}
+
+bool TryGetSelectionRangeFromTextPattern(
+    IUIAutomationTextPattern* pattern,
+    IUIAutomationTextRange** out_range) {
+  if (out_range == nullptr || pattern == nullptr) {
+    return false;
+  }
+
+  ComPtr<IUIAutomationTextRangeArray> selections;
+  if (FAILED(pattern->GetSelection(&selections)) || !selections) {
+    return false;
+  }
+
+  int length = 0;
+  if (FAILED(selections->get_Length(&length)) || length <= 0) {
+    return false;
+  }
+
+  return SUCCEEDED(selections->GetElement(0, out_range)) && *out_range != nullptr;
+}
+
+bool TryGetCaretRangeFromTextPattern2(
+    IUIAutomationTextPattern2* pattern2,
+    IUIAutomationTextRange** out_range) {
+  if (out_range == nullptr || pattern2 == nullptr) {
+    return false;
+  }
+  BOOL is_active = FALSE;
+  return SUCCEEDED(pattern2->GetCaretRange(&is_active, out_range)) &&
+         is_active == TRUE &&
+         *out_range != nullptr;
+}
+
+bool ExtractContextFromRange(
+    IUIAutomationTextRange* selection_range,
+    int max_chars_before,
+    int max_chars_after,
+    std::wstring* out_before,
+    std::wstring* out_selected,
+    std::wstring* out_after) {
+  if (selection_range == nullptr || out_before == nullptr ||
+      out_selected == nullptr || out_after == nullptr) {
+    return false;
+  }
+
+  *out_selected = GetTextFromRange(selection_range, -1);
+
+  ComPtr<IUIAutomationTextRange> before_range;
+  if (FAILED(selection_range->Clone(&before_range)) || !before_range) {
+    return false;
+  }
+  if (FAILED(before_range->MoveEndpointByRange(
+          TextPatternRangeEndpoint_End,
+          selection_range,
+          TextPatternRangeEndpoint_Start))) {
+    return false;
+  }
+  if (max_chars_before > 0) {
+    int moved = 0;
+    before_range->MoveEndpointByUnit(
+        TextPatternRangeEndpoint_Start,
+        TextUnit_Character,
+        -max_chars_before,
+        &moved);
+  }
+  *out_before = GetTextFromRange(before_range.Get(), -1);
+
+  ComPtr<IUIAutomationTextRange> after_range;
+  if (FAILED(selection_range->Clone(&after_range)) || !after_range) {
+    return false;
+  }
+  if (FAILED(after_range->MoveEndpointByRange(
+          TextPatternRangeEndpoint_Start,
+          selection_range,
+          TextPatternRangeEndpoint_End))) {
+    return false;
+  }
+  if (max_chars_after > 0) {
+    int moved = 0;
+    after_range->MoveEndpointByUnit(
+        TextPatternRangeEndpoint_End,
+        TextUnit_Character,
+        max_chars_after,
+        &moved);
+  }
+  *out_after = GetTextFromRange(after_range.Get(), -1);
+
+  return true;
+}
+
+bool TryExtractFromTextPattern(
+    IUIAutomationElement* element,
+    int max_chars_before,
+    int max_chars_after,
+    std::wstring* out_before,
+    std::wstring* out_selected,
+    std::wstring* out_after) {
+  if (element == nullptr) {
+    return false;
+  }
+
+  ComPtr<IUIAutomationTextRange> selection_range;
+
+  ComPtr<IUIAutomationTextPattern2> text_pattern2;
+  if (SUCCEEDED(element->GetCurrentPatternAs(
+          UIA_TextPattern2Id,
+          IID_PPV_ARGS(&text_pattern2))) &&
+      text_pattern2) {
+    if (!TryGetSelectionRangeFromTextPattern(
+            text_pattern2.Get(),
+            selection_range.ReleaseAndGetAddressOf())) {
+      TryGetCaretRangeFromTextPattern2(
+          text_pattern2.Get(),
+          selection_range.ReleaseAndGetAddressOf());
+    }
+  }
+
+  if (!selection_range) {
+    ComPtr<IUIAutomationTextPattern> text_pattern;
+    if (SUCCEEDED(element->GetCurrentPatternAs(
+            UIA_TextPatternId,
+            IID_PPV_ARGS(&text_pattern))) &&
+        text_pattern) {
+      TryGetSelectionRangeFromTextPattern(
+          text_pattern.Get(),
+          selection_range.ReleaseAndGetAddressOf());
+    }
+  }
+
+  if (!selection_range) {
+    return false;
+  }
+
+  return ExtractContextFromRange(
+      selection_range.Get(),
+      max_chars_before,
+      max_chars_after,
+      out_before,
+      out_selected,
+      out_after);
+}
+
+bool TryExtractFromValuePattern(
+    IUIAutomationElement* element,
+    HWND focused_hwnd,
+    int max_chars_before,
+    int max_chars_after,
+    std::wstring* out_before,
+    std::wstring* out_selected,
+    std::wstring* out_after,
+    std::optional<int>* out_selection_start,
+    std::optional<int>* out_selection_length,
+    std::optional<int>* out_full_text_length) {
+  if (element == nullptr || out_before == nullptr || out_selected == nullptr ||
+      out_after == nullptr || out_selection_start == nullptr ||
+      out_selection_length == nullptr || out_full_text_length == nullptr) {
+    return false;
+  }
+
+  ComPtr<IUIAutomationValuePattern> value_pattern;
+  if (FAILED(element->GetCurrentPatternAs(
+          UIA_ValuePatternId,
+          IID_PPV_ARGS(&value_pattern))) ||
+      !value_pattern) {
+    return false;
+  }
+
+  BSTR value_bstr = nullptr;
+  if (FAILED(value_pattern->get_CurrentValue(&value_bstr))) {
+    return false;
+  }
+  const std::wstring value = BstrToWString(value_bstr);
+  if (value_bstr != nullptr) {
+    ::SysFreeString(value_bstr);
+  }
+
+  *out_full_text_length = static_cast<int>(value.size());
+
+  const std::wstring class_name = GetWindowClassName(focused_hwnd);
+  if (!IsLikelyEditControl(class_name)) {
+    return false;
+  }
+
+  const LRESULT packed = ::SendMessageW(focused_hwnd, EM_GETSEL, 0, 0);
+  int selection_start = static_cast<int>(LOWORD(static_cast<DWORD>(packed)));
+  int selection_end = static_cast<int>(HIWORD(static_cast<DWORD>(packed)));
+
+  selection_start =
+      std::max(0, std::min(selection_start, static_cast<int>(value.size())));
+  selection_end =
+      std::max(selection_start,
+               std::min(selection_end, static_cast<int>(value.size())));
+
+  const int selection_length = selection_end - selection_start;
+  const int before_start = std::max(0, selection_start - max_chars_before);
+  const int after_end =
+      std::min(static_cast<int>(value.size()), selection_end + max_chars_after);
+
+  *out_before = value.substr(before_start, selection_start - before_start);
+  *out_selected = value.substr(selection_start, selection_length);
+  *out_after = value.substr(selection_end, after_end - selection_end);
+
+  *out_selection_start = selection_start;
+  *out_selection_length = selection_length;
+
+  return true;
+}
+
+void PutString(EncodableMap& map, const char* key, const std::wstring& value) {
+  Put(map, key, EncodableValue(WideToUtf8(value)));
+}
+
+void PutString(EncodableMap& map, const char* key, const std::string& value) {
+  Put(map, key, EncodableValue(value));
+}
+
+void PutNull(EncodableMap& map, const char* key) {
+  Put(map, key, EncodableValue());
+}
+
+}  // namespace
+
+EncodableMap GetFocusedTextFieldContext(int max_chars_before, int max_chars_after) {
+  EncodableMap context;
+  Put(context, "available", EncodableValue(false));
+  PutString(context, "reason", "unknown");
+
+  max_chars_before = std::max(0, max_chars_before);
+  max_chars_after = std::max(0, max_chars_after);
+
+  ScopedComInit com;
+  if (!com.IsUsable()) {
+    PutString(context, "reason", "comInitializationFailed");
+    return context;
+  }
+
+  ComPtr<IUIAutomation> automation;
+  const HRESULT automation_hr = ::CoCreateInstance(
+      CLSID_CUIAutomation,
+      nullptr,
+      CLSCTX_INPROC_SERVER,
+      IID_PPV_ARGS(&automation));
+  if (FAILED(automation_hr) || !automation) {
+    PutString(context, "reason", "uiaUnavailable");
+    return context;
+  }
+
+  const HWND focused_hwnd = GetFocusedWindowHandle();
+  if (focused_hwnd == nullptr) {
+    PutString(context, "reason", "focusedWindowUnavailable");
+    return context;
+  }
+
+  ComPtr<IUIAutomationElement> element;
+  if (FAILED(automation->ElementFromHandle(focused_hwnd, &element)) || !element) {
+    if (FAILED(automation->GetFocusedElement(&element)) || !element) {
+      PutString(context, "reason", "focusedElementUnavailable");
+      return context;
+    }
+  }
+
+  int process_id = 0;
+  if (SUCCEEDED(element->get_CurrentProcessId(&process_id)) && process_id > 0) {
+    if (const auto image_path = GetProcessImagePath(static_cast<DWORD>(process_id))) {
+      PutString(context, "appIdentifier", WideToUtf8(*image_path));
+      PutString(context, "appName", WideToUtf8(GetBaseName(*image_path)));
+    }
+  }
+
+  CONTROLTYPEID control_type = 0;
+  if (SUCCEEDED(element->get_CurrentControlType(&control_type))) {
+    PutString(context, "role", ControlTypeToString(control_type));
+  }
+
+  BSTR localized_control_type = nullptr;
+  if (SUCCEEDED(element->get_CurrentLocalizedControlType(&localized_control_type)) &&
+      localized_control_type != nullptr) {
+    PutString(context, "subrole", BstrToWString(localized_control_type));
+    ::SysFreeString(localized_control_type);
+  }
+
+  BOOL is_password = FALSE;
+  if (SUCCEEDED(element->get_CurrentIsPassword(&is_password))) {
+    Put(context, "isSecure", EncodableValue(is_password == TRUE));
+  }
+
+  std::optional<bool> is_editable;
+  ComPtr<IUIAutomationValuePattern> value_pattern_for_meta;
+  if (SUCCEEDED(element->GetCurrentPatternAs(
+          UIA_ValuePatternId,
+          IID_PPV_ARGS(&value_pattern_for_meta))) &&
+      value_pattern_for_meta) {
+    BOOL is_read_only = FALSE;
+    if (SUCCEEDED(value_pattern_for_meta->get_CurrentIsReadOnly(&is_read_only))) {
+      is_editable = (is_read_only == FALSE);
+    }
+  }
+  if (is_editable.has_value()) {
+    Put(context, "isEditable", EncodableValue(*is_editable));
+  }
+
+  std::wstring before_text;
+  std::wstring selected_text;
+  std::wstring after_text;
+  std::optional<int> selection_start;
+  std::optional<int> selection_length;
+  std::optional<int> full_text_length;
+
+  const bool from_text_pattern = TryExtractFromTextPattern(
+      element.Get(),
+      max_chars_before,
+      max_chars_after,
+      &before_text,
+      &selected_text,
+      &after_text);
+
+  bool available = from_text_pattern;
+  if (!from_text_pattern) {
+    available = TryExtractFromValuePattern(
+        element.Get(),
+        focused_hwnd,
+        max_chars_before,
+        max_chars_after,
+        &before_text,
+        &selected_text,
+        &after_text,
+        &selection_start,
+        &selection_length,
+        &full_text_length);
+  } else {
+    selection_length = static_cast<int>(selected_text.size());
+  }
+
+  if (available) {
+    Put(context, "available", EncodableValue(true));
+    PutString(context, "reason", "ok");
+    PutString(context, "textBeforeSelection", before_text);
+    PutString(context, "selectedText", selected_text);
+    PutString(context, "textAfterSelection", after_text);
+    if (selection_start.has_value()) {
+      Put(context, "selectionStart", EncodableValue(*selection_start));
+    } else {
+      PutNull(context, "selectionStart");
+    }
+    if (selection_length.has_value()) {
+      Put(context, "selectionLength", EncodableValue(*selection_length));
+    } else {
+      PutNull(context, "selectionLength");
+    }
+    if (full_text_length.has_value()) {
+      Put(context, "fullTextLength", EncodableValue(*full_text_length));
+    }
+    return context;
+  }
+
+  PutString(context, "reason", "textPatternUnavailable");
+  Put(context, "available", EncodableValue(false));
+  return context;
+}
+
+}  // namespace desktop_autopaste

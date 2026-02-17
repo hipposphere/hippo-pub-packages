@@ -40,6 +40,11 @@ public class DesktopAutopastePlugin: NSObject, FlutterPlugin {
       let ok: Bool = PasteIntoCursorViaClipboard.paste(text)
 
       result(ok)
+    case "getFocusedTextFieldContext":
+      result([
+        "available": false,
+        "reason": "unsupportedOnMacOS",
+      ])
     default:
       result(FlutterMethodNotImplemented)
     }

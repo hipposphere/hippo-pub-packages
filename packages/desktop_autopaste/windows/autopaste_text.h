@@ -5,11 +5,20 @@
 
 namespace desktop_autopaste {
 
-bool AutoPasteText(const std::wstring& text);
+enum class ClipboardPasteShortcut {
+  kCtrlV,
+  kShiftInsert,
+};
+
+bool AutoPasteTextViaWin32Messages(const std::wstring& text);
 
 bool AutoPasteTextViaClipboard(const std::wstring& text);
 
-bool SendShiftEnter();
+bool AutoPasteTextViaClipboardWithShortcut(
+    const std::wstring& text,
+    ClipboardPasteShortcut shortcut);
+
+bool AutoPasteTextViaClipboardAuto(const std::wstring& text);
 
 }  // namespace desktop_autopaste
 

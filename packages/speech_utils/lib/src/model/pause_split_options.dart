@@ -5,7 +5,7 @@ final class PauseSplitOptions {
     this.channelCount = 1,
     this.frameDuration = const Duration(milliseconds: 20),
     this.minSpeechDuration = const Duration(milliseconds: 200),
-    this.minSilenceDuration = const Duration(milliseconds: 700),
+    this.minSilenceDuration = const Duration(milliseconds: 750),
     this.preSpeechPadding = const Duration(milliseconds: 80),
     this.postSpeechPadding = const Duration(milliseconds: 120),
   });

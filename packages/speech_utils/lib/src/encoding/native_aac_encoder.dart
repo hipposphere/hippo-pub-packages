@@ -118,10 +118,16 @@ final class NativeAacEncoder implements AacEncoder {
     }
 
     await _withTempDirectory((tempDir) async {
-      final wavPath = '${tempDir.path}${Platform.pathSeparator}input.wav';
-      await _writePcm16BytesAsWav(
+      final normalized = _normalizePcm16ForWindowsAac(
         pcm16leBytes: pcm16leBytes,
         sampleRateHz: sampleRateHz,
+        channelCount: channelCount,
+        isWindowsPlatform: _platform == NativeAacPlatform.windows,
+      );
+      final wavPath = '${tempDir.path}${Platform.pathSeparator}input.wav';
+      await _writePcm16BytesAsWav(
+        pcm16leBytes: normalized.bytes,
+        sampleRateHz: normalized.sampleRateHz,
         channelCount: channelCount,
         wavOutputPath: wavPath,
       );
@@ -155,13 +161,32 @@ final class NativeAacEncoder implements AacEncoder {
 
     await _withTempDirectory((tempDir) async {
       final wavPath = '${tempDir.path}${Platform.pathSeparator}input.wav';
-      await _writePcm16FileAsWav(
-        inputFile: inputFile,
-        inputPcmByteLength: inputLength,
-        sampleRateHz: sampleRateHz,
-        channelCount: channelCount,
-        wavOutputPath: wavPath,
-      );
+      if (_shouldResampleForWindowsAac(
+        sampleRateHz,
+        isWindowsPlatform: _platform == NativeAacPlatform.windows,
+      )) {
+        final pcm16leBytes = await inputFile.readAsBytes();
+        final normalized = _normalizePcm16ForWindowsAac(
+          pcm16leBytes: pcm16leBytes,
+          sampleRateHz: sampleRateHz,
+          channelCount: channelCount,
+          isWindowsPlatform: _platform == NativeAacPlatform.windows,
+        );
+        await _writePcm16BytesAsWav(
+          pcm16leBytes: normalized.bytes,
+          sampleRateHz: normalized.sampleRateHz,
+          channelCount: channelCount,
+          wavOutputPath: wavPath,
+        );
+      } else {
+        await _writePcm16FileAsWav(
+          inputFile: inputFile,
+          inputPcmByteLength: inputLength,
+          sampleRateHz: sampleRateHz,
+          channelCount: channelCount,
+          wavOutputPath: wavPath,
+        );
+      }
       await encodeAudioFileToAac(
         inputPath: wavPath,
         outputPath: outputPath,
@@ -294,6 +319,79 @@ final class NativeAacEncoder implements AacEncoder {
       }
     }
   }
+}
+
+const _windowsPreferredAacSampleRateHz = 48000;
+
+bool _shouldResampleForWindowsAac(
+  int sampleRateHz, {
+  required bool isWindowsPlatform,
+}) {
+  return isWindowsPlatform && sampleRateHz != _windowsPreferredAacSampleRateHz;
+}
+
+({Uint8List bytes, int sampleRateHz}) _normalizePcm16ForWindowsAac({
+  required Uint8List pcm16leBytes,
+  required int sampleRateHz,
+  required int channelCount,
+  required bool isWindowsPlatform,
+}) {
+  if (
+      !_shouldResampleForWindowsAac(
+        sampleRateHz,
+        isWindowsPlatform: isWindowsPlatform,
+      )) {
+    return (bytes: pcm16leBytes, sampleRateHz: sampleRateHz);
+  }
+  return (
+    bytes: _resamplePcm16leLinear(
+      pcm16leBytes: pcm16leBytes,
+      inSampleRateHz: sampleRateHz,
+      outSampleRateHz: _windowsPreferredAacSampleRateHz,
+      channelCount: channelCount,
+    ),
+    sampleRateHz: _windowsPreferredAacSampleRateHz,
+  );
+}
+
+Uint8List _resamplePcm16leLinear({
+  required Uint8List pcm16leBytes,
+  required int inSampleRateHz,
+  required int outSampleRateHz,
+  required int channelCount,
+}) {
+  if (inSampleRateHz == outSampleRateHz) {
+    return pcm16leBytes;
+  }
+  final input = Int16List.view(
+    pcm16leBytes.buffer,
+    pcm16leBytes.offsetInBytes,
+    pcm16leBytes.lengthInBytes ~/ 2,
+  );
+  final inputFrameCount = input.length ~/ channelCount;
+  if (inputFrameCount <= 1) {
+    return pcm16leBytes;
+  }
+
+  final outputFrameCount = ((inputFrameCount * outSampleRateHz) / inSampleRateHz)
+      .round()
+      .clamp(1, 1 << 30);
+  final output = Int16List(outputFrameCount * channelCount);
+
+  for (var frame = 0; frame < outputFrameCount; frame++) {
+    final sourcePosition = frame * inSampleRateHz / outSampleRateHz;
+    final i0 = sourcePosition.floor().clamp(0, inputFrameCount - 1);
+    final i1 = (i0 + 1).clamp(0, inputFrameCount - 1);
+    final mix = sourcePosition - i0;
+    for (var channel = 0; channel < channelCount; channel++) {
+      final s0 = input[i0 * channelCount + channel];
+      final s1 = input[i1 * channelCount + channel];
+      final sample = (s0 + (s1 - s0) * mix).round().clamp(-32768, 32767);
+      output[frame * channelCount + channel] = sample;
+    }
+  }
+
+  return Uint8List.view(output.buffer);
 }
 
 NativeAacPlatform _detectNativeAacPlatform() {

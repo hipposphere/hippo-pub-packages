@@ -131,6 +131,11 @@ HRESULT ConfigureSourceReader(IMFSourceReader* reader, UINT32* out_sample_rate,
   if (FAILED(hr)) {
     return hr;
   }
+  // Prefer 16-bit PCM for downstream AAC encoder compatibility.
+  hr = pcm_media_type->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+  if (FAILED(hr)) {
+    return hr;
+  }
 
   hr = reader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, nullptr,
                                    pcm_media_type.Get());
@@ -166,17 +171,36 @@ HRESULT ConfigureSourceReader(IMFSourceReader* reader, UINT32* out_sample_rate,
   return S_OK;
 }
 
-HRESULT ConfigureSinkWriter(IMFSinkWriter* writer, UINT32 sample_rate, UINT32 channels,
-                            UINT32 bits_per_sample, UINT32 bitrate_bps,
-                            DWORD* out_stream_index) {
-  if (writer == nullptr || out_stream_index == nullptr || sample_rate == 0 || channels == 0 ||
-      bits_per_sample == 0 || bitrate_bps == 0) {
+bool IsRetryableMediaTypeError(HRESULT hr) {
+  return hr == MF_E_INVALIDMEDIATYPE || hr == MF_E_INVALIDTYPE || hr == MF_E_TOPO_CODEC_NOT_FOUND;
+}
+
+std::vector<UINT32> BuildBitrateCandidates(UINT32 requested_bps) {
+  std::vector<UINT32> candidates;
+  if (requested_bps > 0) {
+    candidates.push_back(requested_bps);
+  }
+
+  // Common AAC bitrates that the Windows encoder usually accepts.
+  const UINT32 defaults[] = {48000, 64000, 96000, 128000, 192000};
+  for (const auto bps : defaults) {
+    candidates.push_back(bps);
+  }
+
+  std::sort(candidates.begin(), candidates.end());
+  candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
+  return candidates;
+}
+
+HRESULT BuildAacOutputMediaType(UINT32 sample_rate, UINT32 channels, UINT32 bitrate_bps,
+                                bool set_payload_type, bool set_profile,
+                                IMFMediaType** out_media_type) {
+  if (out_media_type == nullptr || sample_rate == 0 || channels == 0 || bitrate_bps == 0) {
     return E_INVALIDARG;
   }
 
-  HRESULT hr = S_OK;
   ComPtr<IMFMediaType> output_media_type;
-  hr = MFCreateMediaType(&output_media_type);
+  HRESULT hr = MFCreateMediaType(&output_media_type);
   if (FAILED(hr)) {
     return hr;
   }
@@ -185,10 +209,6 @@ HRESULT ConfigureSinkWriter(IMFSinkWriter* writer, UINT32 sample_rate, UINT32 ch
     return hr;
   }
   hr = output_media_type->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_AAC);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = output_media_type->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
   if (FAILED(hr)) {
     return hr;
   }
@@ -204,19 +224,65 @@ HRESULT ConfigureSinkWriter(IMFSinkWriter* writer, UINT32 sample_rate, UINT32 ch
   if (FAILED(hr)) {
     return hr;
   }
-  hr = output_media_type->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 0);
-  if (FAILED(hr)) {
-    return hr;
+  if (set_payload_type) {
+    hr = output_media_type->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 0);
+    if (FAILED(hr)) {
+      return hr;
+    }
   }
-  hr = output_media_type->SetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, 0x29);
-  if (FAILED(hr)) {
-    return hr;
+  if (set_profile) {
+    hr = output_media_type->SetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, 0x29);
+    if (FAILED(hr)) {
+      return hr;
+    }
   }
 
+  *out_media_type = output_media_type.Detach();
+  return S_OK;
+}
+
+HRESULT ConfigureSinkWriter(IMFSinkWriter* writer, UINT32 sample_rate, UINT32 channels,
+                            UINT32 bits_per_sample, UINT32 bitrate_bps,
+                            DWORD* out_stream_index) {
+  if (writer == nullptr || out_stream_index == nullptr || sample_rate == 0 || channels == 0 ||
+      bits_per_sample == 0 || bitrate_bps == 0) {
+    return E_INVALIDARG;
+  }
+
+  HRESULT hr = S_OK;
   DWORD stream_index = 0;
-  hr = writer->AddStream(output_media_type.Get(), &stream_index);
-  if (FAILED(hr)) {
-    return hr;
+  HRESULT last_add_stream_hr = E_FAIL;
+  const auto bitrate_candidates = BuildBitrateCandidates(bitrate_bps);
+  for (const auto candidate_bps : bitrate_candidates) {
+    for (const bool set_profile : {false, true}) {
+      for (const bool set_payload_type : {true, false}) {
+        ComPtr<IMFMediaType> output_media_type;
+        hr = BuildAacOutputMediaType(sample_rate, channels, candidate_bps, set_payload_type,
+                                     set_profile, &output_media_type);
+        if (FAILED(hr)) {
+          return hr;
+        }
+
+        hr = writer->AddStream(output_media_type.Get(), &stream_index);
+        if (SUCCEEDED(hr)) {
+          last_add_stream_hr = S_OK;
+          break;
+        }
+        last_add_stream_hr = hr;
+        if (!IsRetryableMediaTypeError(hr)) {
+          return hr;
+        }
+      }
+      if (SUCCEEDED(last_add_stream_hr)) {
+        break;
+      }
+    }
+    if (SUCCEEDED(last_add_stream_hr)) {
+      break;
+    }
+  }
+  if (FAILED(last_add_stream_hr)) {
+    return last_add_stream_hr;
   }
 
   ComPtr<IMFMediaType> input_media_type;
@@ -240,12 +306,13 @@ HRESULT ConfigureSinkWriter(IMFSinkWriter* writer, UINT32 sample_rate, UINT32 ch
   if (FAILED(hr)) {
     return hr;
   }
-  hr = input_media_type->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, bits_per_sample);
+  const UINT32 input_bits_per_sample = 16;
+  hr = input_media_type->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, input_bits_per_sample);
   if (FAILED(hr)) {
     return hr;
   }
 
-  const UINT32 bytes_per_sample = bits_per_sample / 8;
+  const UINT32 bytes_per_sample = input_bits_per_sample / 8;
   const UINT32 block_align = channels * bytes_per_sample;
   const UINT32 pcm_bytes_per_second = sample_rate * block_align;
   hr = input_media_type->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, block_align);

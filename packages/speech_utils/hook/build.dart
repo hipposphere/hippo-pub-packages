@@ -131,6 +131,7 @@ Future<void> _buildWindowsAacEncoderDll({
     '/DUNICODE',
     '/D_UNICODE',
     '/DWIN32_LEAN_AND_MEAN',
+    '/DNOMINMAX',
     sourceFile.path,
     '/link',
     '/NOLOGO',
@@ -143,38 +144,55 @@ Future<void> _buildWindowsAacEncoderDll({
   ];
 
   final setupScript = _resolveVisualStudioSetupScript(input);
-  if (setupScript == null) {
-    throw StateError(
-      'Windows C compiler environment is missing. '
-      'This hook requires `BuildInput.config.code.cCompiler.windows.developerCommandPrompt`.',
-    );
+  final setupScriptExists = setupScript != null && File(setupScript.path).existsSync();
+  ProcessResult? setupCompileResult;
+  ProcessResult? configuredCompilerResult;
+
+  if (setupScriptExists) {
+    try {
+      setupCompileResult = await _runClViaVisualStudioSetup(setupScript: setupScript, clArgs: clArgs);
+    } on ProcessException catch (error) {
+      throw StateError(
+        'Failed to start Windows developer command prompt script '
+        '`${setupScript.path}`.\n'
+        'Details: ${error.message}',
+      );
+    }
+
+    if (setupCompileResult.exitCode == 0) {
+      return;
+    }
   }
 
-  if (!File(setupScript.path).existsSync()) {
-    throw StateError(
-      'Configured Windows developer command prompt script does not exist: '
-      '${setupScript.path}',
-    );
+  final cCompiler = input.config.code.cCompiler;
+  final configuredCl = cCompiler?.compiler.toFilePath();
+
+  if (configuredCl != null && File(configuredCl).existsSync()) {
+    configuredCompilerResult = await Process.run(configuredCl, clArgs);
+    if (configuredCompilerResult.exitCode == 0) {
+      return;
+    }
   }
 
-  ProcessResult compileResult;
-  try {
-    compileResult = await _runClViaVisualStudioSetup(setupScript: setupScript, clArgs: clArgs);
-  } on ProcessException catch (error) {
-    throw StateError(
-      'Failed to start Windows developer command prompt script '
-      '`${setupScript.path}`.\n'
-      'Details: ${error.message}',
-    );
+  final pathResult = await _runCommandIfAvailable(command: 'cl', args: clArgs);
+  if (pathResult != null && pathResult.exitCode == 0) {
+    return;
   }
 
-  if (compileResult.exitCode != 0) {
-    final setupArgs = setupScript.arguments.join(' ');
-    throw StateError(
-      'Failed to compile Windows AAC encoder DLL.\n'
-      '${_formatCommandFailure(command: 'call ${setupScript.path} $setupArgs && cl ${clArgs.join(' ')}', exitCode: compileResult.exitCode, stdout: '${compileResult.stdout}', stderr: '${compileResult.stderr}')}',
-    );
-  }
+  final setupDescription = switch ((setupScript, setupScriptExists)) {
+    (null, _) => 'not configured',
+    (_, false) => 'configured but missing',
+    (_, true) => 'configured and executed',
+  };
+  throw StateError(
+    'Failed to compile Windows AAC encoder DLL.\n'
+    'Visual Studio setup script: $setupDescription.\n'
+    '${setupCompileResult == null ? '' : _formatCommandFailure(command: 'cmd.exe /d /c call ""${setupScript?.path ?? ''}"" ${setupScript?.arguments.join(' ') ?? ''} >nul && cl ${clArgs.join(' ')}', exitCode: setupCompileResult.exitCode, stdout: '${setupCompileResult.stdout}', stderr: '${setupCompileResult.stderr}')}\n'
+    'Configured compiler path: ${configuredCl ?? 'not configured'}.\n'
+    '${configuredCompilerResult == null ? '' : _formatCommandFailure(command: '${configuredCl ?? 'cl.exe'} ${clArgs.join(' ')}', exitCode: configuredCompilerResult.exitCode, stdout: '${configuredCompilerResult.stdout}', stderr: '${configuredCompilerResult.stderr}')}\n'
+    'PATH compiler fallback (`cl`): ${pathResult == null ? 'not available' : 'executed (exit code ${pathResult.exitCode})'}.\n'
+    '${pathResult == null ? '' : _formatCommandFailure(command: 'cl ${clArgs.join(' ')}', exitCode: pathResult.exitCode, stdout: '${pathResult.stdout}', stderr: '${pathResult.stderr}')}',
+  );
 }
 
 _VisualStudioSetupScript? _resolveVisualStudioSetupScript(BuildInput input) {
@@ -212,19 +230,44 @@ Future<ProcessResult> _runClViaVisualStudioSetup({
 }) async {
   final setupArgs = setupScript.arguments.map(_quoteForWindowsCmd).join(' ');
   final clCommand = ['cl', ...clArgs.map(_quoteForWindowsCmd)].join(' ');
-  final command = StringBuffer()
-    ..write('call ')
-    ..write(_quoteForWindowsCmd(setupScript.path));
+  final tempDir = await Directory.systemTemp.createTemp('speech_utils_windows_build_');
+  final commandFile = File('${tempDir.path}\\run_cl.cmd');
+  final script = StringBuffer()
+    ..writeln('@echo off')
+    ..write('call "')
+    ..write(setupScript.path)
+    ..write('"');
   if (setupArgs.isNotEmpty) {
-    command
+    script
       ..write(' ')
       ..write(setupArgs);
   }
-  command
-    ..write(' >nul && ')
-    ..write(clCommand);
+  script
+    ..writeln(' >nul')
+    ..writeln('if errorlevel 1 exit /b %errorlevel%')
+    ..write(clCommand)
+    ..writeln()
+    ..writeln('exit /b %errorlevel%');
 
-  return Process.run('cmd.exe', ['/d', '/s', '/c', command.toString()]);
+  await commandFile.writeAsString(script.toString());
+  try {
+    return await Process.run('cmd.exe', ['/d', '/c', commandFile.path]);
+  } finally {
+    try {
+      await tempDir.delete(recursive: true);
+    } catch (_) {}
+  }
+}
+
+Future<ProcessResult?> _runCommandIfAvailable({
+  required String command,
+  required List<String> args,
+}) async {
+  try {
+    return await Process.run(command, args);
+  } on ProcessException {
+    return null;
+  }
 }
 
 String _quoteForWindowsCmd(String value) {

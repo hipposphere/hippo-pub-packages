@@ -44,7 +44,7 @@ Future<void> run(Uint8List pcm16leBytes) async {
   final options = PauseSplitOptions(
     sampleRateHz: 16000,
     channelCount: 1,
-    minSilenceDuration: const Duration(milliseconds: 700),
+    minSilenceDuration: const Duration(milliseconds: 750),
   );
 
   final snippets = SpeechUtils.splitPcm16OnSilence(

@@ -14,7 +14,7 @@ const _splitOptions = PauseSplitOptions(
   channelCount: 1,
   frameDuration: Duration(milliseconds: 16),
   minSpeechDuration: Duration(milliseconds: 140),
-  minSilenceDuration: Duration(milliseconds: 700),
+  minSilenceDuration: Duration(milliseconds: 750),
   preSpeechPadding: Duration(milliseconds: 80),
   postSpeechPadding: Duration(milliseconds: 120),
 );

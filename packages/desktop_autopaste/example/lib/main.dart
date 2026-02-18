@@ -73,7 +73,8 @@ class _HomePageState extends State<_HomePage> {
 
   StreamSubscription<HotkeyStatusType>? _hotkeySubscription;
   bool _isCapturing = false;
-  bool _enableScreenReader = false;
+  bool _enableScreenReader = true;
+  bool _swapOnHotkey = false;
   SemanticsHandle? _semanticsHandle;
   String? _lastError;
 
@@ -84,8 +85,13 @@ class _HomePageState extends State<_HomePage> {
       status,
     ) {
       if (status == HotkeyStatusType.pressed) {
-        print('Hotkey pressed, capturing context...');
-        _captureContext(trigger: 'hotkey');
+        if (_swapOnHotkey) {
+          print('Hotkey pressed, swapping aha/uhu...');
+          _swapAhaUhuInFocusedField();
+        } else {
+          print('Hotkey pressed, capturing context...');
+          _captureContext(trigger: 'hotkey');
+        }
       }
     });
   }
@@ -138,6 +144,88 @@ class _HomePageState extends State<_HomePage> {
           _logEntries.removeRange(200, _logEntries.length);
         }
       });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _lastError = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCapturing = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _swapAhaUhuInFocusedField() async {
+    if (_isCapturing) return;
+    setState(() {
+      _isCapturing = true;
+      _lastError = null;
+    });
+
+    try {
+      final context = await _autopaste.getFocusedTextFieldContext(
+        maxCharsBefore: null,
+        maxCharsAfter: null,
+        enableScreenReader: _enableScreenReader,
+      );
+      if (!context.available) {
+        if (!mounted) return;
+        setState(() {
+          _lastError =
+              'Focused field context unavailable (${context.reason ?? 'unknown'}).';
+        });
+        return;
+      }
+
+      final fullText =
+          (context.textBeforeSelection ?? '') +
+          (context.selectedText ?? '') +
+          (context.textAfterSelection ?? '');
+
+      final operations = <FocusedTextEditOperation>[];
+      int index = 0;
+      while (index < fullText.length) {
+        if (index + 3 <= fullText.length &&
+            fullText.substring(index, index + 3) == 'aha') {
+          operations.add(
+            FocusedTextEditOperation.replaceRange(
+              start: index,
+              end: index + 3,
+              replacement: 'uhu',
+            ),
+          );
+          index += 3;
+          continue;
+        }
+        if (index + 3 <= fullText.length &&
+            fullText.substring(index, index + 3) == 'uhu') {
+          operations.add(
+            FocusedTextEditOperation.replaceRange(
+              start: index,
+              end: index + 3,
+              replacement: 'aha',
+            ),
+          );
+          index += 3;
+          continue;
+        }
+        index += 1;
+      }
+
+      operations.sort((a, b) => b.start.compareTo(a.start));
+      final ok = operations.isEmpty
+          ? true
+          : await _autopaste.editFocusedTextField(operations);
+      if (!mounted) return;
+      if (!ok) {
+        setState(() {
+          _lastError =
+              'Focused field could not be edited (unsupported control or read-only).';
+        });
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -214,7 +302,29 @@ class _HomePageState extends State<_HomePage> {
                           icon: const Icon(Icons.play_arrow),
                           label: const Text('Capture now'),
                         ),
+                        const SizedBox(width: 12),
+                        OutlinedButton.icon(
+                          onPressed: _isCapturing
+                              ? null
+                              : _swapAhaUhuInFocusedField,
+                          icon: const Icon(Icons.edit_note_outlined),
+                          label: const Text('Swap aha/uhu'),
+                        ),
                       ],
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _swapOnHotkey,
+                      title: const Text('Hotkey triggers aha/uhu swap'),
+                      subtitle: const Text(
+                        'If off, hotkey captures context instead.',
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _swapOnHotkey = value;
+                        });
+                      },
                     ),
                     const SizedBox(height: 12),
                     SwitchListTile(

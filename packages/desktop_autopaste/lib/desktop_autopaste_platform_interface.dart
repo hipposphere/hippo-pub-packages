@@ -2,6 +2,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'desktop_autopaste_method_channel.dart';
 import 'src/focused_text_field_context.dart';
+import 'src/focused_text_edit_operation.dart';
 
 abstract class DesktopAutopastePlatform extends PlatformInterface {
   /// Constructs a DesktopAutopastePlatform.
@@ -24,10 +25,6 @@ abstract class DesktopAutopastePlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  Future<bool> pasteIntoCursor(String text) {
-    throw UnimplementedError('pasteIntoCursor() has not been implemented.');
-  }
-
   Future<bool> pasteIntoCursorViaClipboard(String text) {
     throw UnimplementedError(
       'pasteIntoCursorViaClipboard() has not been implemented.',
@@ -41,6 +38,12 @@ abstract class DesktopAutopastePlatform extends PlatformInterface {
   }) {
     throw UnimplementedError(
       'getFocusedTextFieldContext() has not been implemented.',
+    );
+  }
+
+  Future<bool> editFocusedTextField(List<FocusedTextEditOperation> operations) {
+    throw UnimplementedError(
+      'editFocusedTextField() has not been implemented.',
     );
   }
 }

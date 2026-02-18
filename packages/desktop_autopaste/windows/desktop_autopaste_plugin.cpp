@@ -15,6 +15,7 @@
 #include <optional>
 #include <sstream>
 #include <variant>
+#include <vector>
 
 // Helper to convert UTF-8 std::string to UTF-16 std::wstring.
 static std::wstring Utf8ToWide(const std::string &utf8) {
@@ -79,6 +80,53 @@ static bool ReadBoolArg(
   return fallback;
 }
 
+static std::vector<desktop_autopaste::TextEditOperation> ReadEditOperationsArg(
+    const flutter::EncodableMap* args,
+    const char* key) {
+  std::vector<desktop_autopaste::TextEditOperation> operations;
+  if (args == nullptr) {
+    return operations;
+  }
+
+  const auto it = args->find(flutter::EncodableValue(key));
+  if (it == args->end()) {
+    return operations;
+  }
+
+  const auto* operation_list = std::get_if<flutter::EncodableList>(&it->second);
+  if (operation_list == nullptr) {
+    return operations;
+  }
+
+  for (const auto& item : *operation_list) {
+    const auto* operation_map = std::get_if<flutter::EncodableMap>(&item);
+    if (operation_map == nullptr) {
+      continue;
+    }
+
+    const auto start = TryReadIntArg(operation_map, "start");
+    const auto end = TryReadIntArg(operation_map, "end");
+    const auto replacement_it =
+        operation_map->find(flutter::EncodableValue("replacement"));
+    if (!start.has_value() || !end.has_value() ||
+        replacement_it == operation_map->end()) {
+      continue;
+    }
+    const auto* replacement = std::get_if<std::string>(&replacement_it->second);
+    if (replacement == nullptr) {
+      continue;
+    }
+
+    desktop_autopaste::TextEditOperation operation;
+    operation.start = *start;
+    operation.end = *end;
+    operation.replacement = Utf8ToWide(*replacement);
+    operations.push_back(operation);
+  }
+
+  return operations;
+}
+
 namespace desktop_autopaste {
 
 // static
@@ -106,24 +154,7 @@ DesktopAutopastePlugin::~DesktopAutopastePlugin() {}
 void DesktopAutopastePlugin::HandleMethodCall(
     const flutter::MethodCall<flutter::EncodableValue> &method_call,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
-  if (method_call.method_name().compare("pasteIntoCursor") == 0) {
-    const auto *args =
-        std::get_if<flutter::EncodableMap>(method_call.arguments());
-    if (!args) {
-      result->Error("BAD_ARGS", "Missing arguments", nullptr);
-      return;
-    }
-    auto it = args->find(flutter::EncodableValue("text"));
-    if (it == args->end() || !std::holds_alternative<std::string>(it->second)) {
-      result->Error("BAD_ARGS", "Missing text", nullptr);
-      return;
-    }
-    std::string text = std::get<std::string>(it->second);
-    std::wstring wtext = Utf8ToWide(text);
-    
-    bool ok = AutoPasteTextViaClipboardAuto(wtext);
-    result->Success(flutter::EncodableValue(ok));
-  } else if (method_call.method_name().compare("pasteIntoCursorViaClipboard") == 0) {
+  if (method_call.method_name().compare("pasteIntoCursorViaClipboard") == 0) {
    const auto *args =
         std::get_if<flutter::EncodableMap>(method_call.arguments());
     if (!args) {
@@ -172,6 +203,25 @@ void DesktopAutopastePlugin::HandleMethodCall(
     const auto context =
         GetFocusedTextFieldContext(max_chars_before, max_chars_after);
     result->Success(flutter::EncodableValue(context));
+  } else if (method_call.method_name().compare("editFocusedTextField") == 0) {
+    const auto *args =
+        std::get_if<flutter::EncodableMap>(method_call.arguments());
+    if (!args) {
+      result->Error("BAD_ARGS", "Missing arguments", nullptr);
+      return;
+    }
+
+    const auto operations = ReadEditOperationsArg(args, "operations");
+    if (operations.empty()) {
+      result->Error(
+          "BAD_ARGS",
+          "Missing or invalid 'operations' list",
+          nullptr);
+      return;
+    }
+
+    const bool ok = EditFocusedTextField(operations);
+    result->Success(flutter::EncodableValue(ok));
   } else {
     result->NotImplemented();
   }

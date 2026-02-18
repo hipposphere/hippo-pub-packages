@@ -41,19 +41,6 @@ static bool simulate_paste(Display* display) {
 }
 
 static FlMethodResponse* paste_into_cursor(FlValue* args) {
-    // Arg is just text string usually? Or is it unused if we just trigger paste?
-    // platform interface: pasteIntoCursor(String text).
-    // Implementation:
-    // 1. Set Clipboard (DesktopAutopaste usually implies putting text in clipboard then pasting)
-    //    BUT the method name is pasteIntoCursor.
-    //    Usually this means "Typer" or "Paste".
-    //    If the argument is text, we should probably set the clipboard first.
-    //    Let's check implementation of macOS/Windows.
-    //    MacOS implementation usually uses Accessibility API to type or paste.
-    //    If method implies "paste the text provided", we must set clipboard.
-    //    "pasteIntoCursorViaClipboard" is explicit. "pasteIntoCursor" might mean "Type parameters" or "Cmd+V".
-    //    Let's assume we set clipboard then paste.
-    
     const char* text = nullptr;
     if (args && fl_value_get_type(args) == FL_VALUE_TYPE_STRING) {
         text = fl_value_get_string(args);
@@ -102,10 +89,7 @@ static void desktop_autopaste_plugin_handle_method_call(
 
   if (strcmp(method, "getPlatformVersion") == 0) {
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(fl_value_new_string("Linux")));
-  } else if (strcmp(method, "pasteIntoCursor") == 0) {
-      response = paste_into_cursor(args);
   } else if (strcmp(method, "pasteIntoCursorViaClipboard") == 0) {
-       // logic is same if we just set clipboard then paste.
        response = paste_into_cursor(args);
   } else if (strcmp(method, "getFocusedTextFieldContext") == 0) {
       response = get_focused_text_field_context(args);

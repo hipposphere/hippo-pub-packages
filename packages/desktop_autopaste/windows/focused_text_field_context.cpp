@@ -170,6 +170,203 @@ std::wstring GetBaseName(const std::wstring& path) {
   return path.substr(idx + 1);
 }
 
+bool TryGetFocusedElement(
+    IUIAutomation* automation,
+    HWND focused_hwnd,
+    IUIAutomationElement** out_element) {
+  if (automation == nullptr || out_element == nullptr) {
+    return false;
+  }
+
+  if (SUCCEEDED(automation->GetFocusedElement(out_element)) && *out_element) {
+    return true;
+  }
+
+  return focused_hwnd != nullptr &&
+         SUCCEEDED(automation->ElementFromHandle(focused_hwnd, out_element)) &&
+         *out_element != nullptr;
+}
+
+std::optional<std::wstring> ApplyTextEdits(
+    const std::wstring& input,
+    const std::vector<TextEditOperation>& operations) {
+  std::wstring output = input;
+  for (const auto& operation : operations) {
+    if (operation.start < 0 || operation.end < operation.start) {
+      return std::nullopt;
+    }
+    const size_t start = static_cast<size_t>(operation.start);
+    const size_t end = static_cast<size_t>(operation.end);
+    if (end > output.size()) {
+      return std::nullopt;
+    }
+    output.replace(start, end - start, operation.replacement);
+  }
+  return output;
+}
+
+int TransformOffsetAfterEdits(
+    int original_offset,
+    const std::vector<TextEditOperation>& operations) {
+  int transformed = original_offset;
+  for (const auto& operation : operations) {
+    const int replace_start = operation.start;
+    const int replace_end = operation.end;
+    const int replacement_length = static_cast<int>(operation.replacement.size());
+    const int replaced_length = replace_end - replace_start;
+    const int delta = replacement_length - replaced_length;
+
+    if (transformed < replace_start) {
+      continue;
+    }
+    if (transformed >= replace_end) {
+      transformed += delta;
+      continue;
+    }
+
+    // Cursor inside replaced range: place it after replacement text.
+    transformed = replace_start + replacement_length;
+  }
+  return transformed;
+}
+
+bool TryEditViaValuePattern(
+    IUIAutomationElement* element,
+    const std::vector<TextEditOperation>& operations) {
+  if (element == nullptr || operations.empty()) {
+    return false;
+  }
+
+  ComPtr<IUIAutomationValuePattern> value_pattern;
+  if (FAILED(element->GetCurrentPatternAs(
+          UIA_ValuePatternId,
+          IID_PPV_ARGS(&value_pattern))) ||
+      !value_pattern) {
+    return false;
+  }
+
+  BOOL is_read_only = TRUE;
+  if (FAILED(value_pattern->get_CurrentIsReadOnly(&is_read_only)) ||
+      is_read_only == TRUE) {
+    return false;
+  }
+
+  BSTR value_bstr = nullptr;
+  if (FAILED(value_pattern->get_CurrentValue(&value_bstr))) {
+    return false;
+  }
+  const std::wstring current_text = BstrToWString(value_bstr);
+  if (value_bstr != nullptr) {
+    ::SysFreeString(value_bstr);
+  }
+
+  const auto updated_text = ApplyTextEdits(current_text, operations);
+  if (!updated_text.has_value()) {
+    return false;
+  }
+  if (*updated_text == current_text) {
+    return true;
+  }
+
+  BSTR updated_bstr = ::SysAllocStringLen(
+      updated_text->data(),
+      static_cast<UINT>(updated_text->size()));
+  if (updated_bstr == nullptr) {
+    return false;
+  }
+  const HRESULT set_value_hr = value_pattern->SetValue(updated_bstr);
+  ::SysFreeString(updated_bstr);
+  return SUCCEEDED(set_value_hr);
+}
+
+bool TryEditViaWin32Edit(
+    HWND focused_hwnd,
+    const std::vector<TextEditOperation>& operations) {
+  if (focused_hwnd == nullptr || operations.empty()) {
+    return false;
+  }
+  if (!IsLikelyEditControl(GetWindowClassName(focused_hwnd))) {
+    return false;
+  }
+
+  const int text_length = ::GetWindowTextLengthW(focused_hwnd);
+  if (text_length < 0) {
+    return false;
+  }
+
+  DWORD selection_start = 0;
+  DWORD selection_end = 0;
+  ::SendMessageW(
+      focused_hwnd,
+      EM_GETSEL,
+      reinterpret_cast<WPARAM>(&selection_start),
+      reinterpret_cast<LPARAM>(&selection_end));
+
+  std::wstring current_text(static_cast<size_t>(text_length) + 1, L'\0');
+  if (text_length > 0) {
+    const int copied = ::GetWindowTextW(
+        focused_hwnd,
+        current_text.data(),
+        text_length + 1);
+    if (copied <= 0 && text_length > 0) {
+      return false;
+    }
+    current_text.resize(static_cast<size_t>(copied));
+  } else {
+    current_text.clear();
+  }
+
+  const auto updated_text = ApplyTextEdits(current_text, operations);
+  if (!updated_text.has_value()) {
+    return false;
+  }
+  if (*updated_text == current_text) {
+    return true;
+  }
+
+  const bool set_text_ok = ::SendMessageW(
+             focused_hwnd,
+             WM_SETTEXT,
+             0,
+             reinterpret_cast<LPARAM>(updated_text->c_str())) != 0;
+  if (!set_text_ok) {
+    return false;
+  }
+
+  int restored_start = TransformOffsetAfterEdits(
+      static_cast<int>(selection_start),
+      operations);
+  int restored_end = TransformOffsetAfterEdits(
+      static_cast<int>(selection_end),
+      operations);
+  const int updated_length = static_cast<int>(updated_text->size());
+  restored_start = std::max(0, std::min(restored_start, updated_length));
+  restored_end = std::max(0, std::min(restored_end, updated_length));
+  if (restored_end < restored_start) {
+    restored_end = restored_start;
+  }
+
+  ::SendMessageW(
+      focused_hwnd,
+      EM_SETSEL,
+      static_cast<WPARAM>(restored_start),
+      static_cast<LPARAM>(restored_end));
+  return true;
+}
+
+HWND GetNativeWindowHandleFromElement(IUIAutomationElement* element) {
+  if (element == nullptr) {
+    return nullptr;
+  }
+
+  UIA_HWND native_hwnd = 0;
+  if (SUCCEEDED(element->get_CurrentNativeWindowHandle(&native_hwnd)) &&
+      native_hwnd != 0) {
+    return reinterpret_cast<HWND>(native_hwnd);
+  }
+  return nullptr;
+}
+
 bool TryGetSelectionRangeFromTextPattern(
     IUIAutomationTextPattern* pattern,
     IUIAutomationTextRange** out_range) {
@@ -483,13 +680,12 @@ EncodableMap GetFocusedTextFieldContext(int max_chars_before, int max_chars_afte
   }
 
   ComPtr<IUIAutomationElement> element;
-  // Prefer the actual focused accessibility element. Resolving from HWND often
-  // returns a top-level window element that does not expose text patterns.
-  if (FAILED(automation->GetFocusedElement(&element)) || !element) {
-    if (FAILED(automation->ElementFromHandle(focused_hwnd, &element)) || !element) {
-      PutString(context, "reason", "focusedElementUnavailable");
-      return context;
-    }
+  if (!TryGetFocusedElement(
+          automation.Get(),
+          focused_hwnd,
+          element.ReleaseAndGetAddressOf())) {
+    PutString(context, "reason", "focusedElementUnavailable");
+    return context;
   }
 
   int process_id = 0;
@@ -589,6 +785,49 @@ EncodableMap GetFocusedTextFieldContext(int max_chars_before, int max_chars_afte
   PutString(context, "reason", "textPatternUnavailable");
   Put(context, "available", EncodableValue(false));
   return context;
+}
+
+bool EditFocusedTextField(const std::vector<TextEditOperation>& operations) {
+  if (operations.empty()) {
+    return false;
+  }
+
+  ScopedComInit com;
+  if (!com.IsUsable()) {
+    return false;
+  }
+
+  ComPtr<IUIAutomation> automation;
+  const HRESULT automation_hr = ::CoCreateInstance(
+      CLSID_CUIAutomation,
+      nullptr,
+      CLSCTX_INPROC_SERVER,
+      IID_PPV_ARGS(&automation));
+  if (FAILED(automation_hr) || !automation) {
+    return false;
+  }
+
+  const HWND focused_hwnd = GetFocusedWindowHandle();
+  if (TryEditViaWin32Edit(focused_hwnd, operations)) {
+    return true;
+  }
+
+  ComPtr<IUIAutomationElement> element;
+  if (TryGetFocusedElement(
+          automation.Get(),
+          focused_hwnd,
+          element.ReleaseAndGetAddressOf()) &&
+      element) {
+    const HWND native_hwnd = GetNativeWindowHandleFromElement(element.Get());
+    if (TryEditViaWin32Edit(native_hwnd, operations)) {
+      return true;
+    }
+    if (TryEditViaValuePattern(element.Get(), operations)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 }  // namespace desktop_autopaste

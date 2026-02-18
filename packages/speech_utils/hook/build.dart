@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
-import 'package:path/path.dart' as p;
 
 const _tenVadAssetName = 'src/vad/generated/ten_vad_bindings.dart';
 const _tenVadLibraryBaseName = 'speech_utils_ten_vad';
@@ -106,7 +105,7 @@ Future<void> _maybeBuildWindowsAacEncoderAsset(BuildInput input, BuildOutputBuil
   final bundledFile = File.fromUri(bundledLibrary);
   bundledFile.parent.createSync(recursive: true);
 
-  await _buildWindowsAacEncoderDll(sourceFile: source, bundledDll: bundledFile);
+  await _buildWindowsAacEncoderDll(input: input, sourceFile: source, bundledDll: bundledFile);
 
   output.assets.code.add(
     CodeAsset(
@@ -119,6 +118,7 @@ Future<void> _maybeBuildWindowsAacEncoderAsset(BuildInput input, BuildOutputBuil
 }
 
 Future<void> _buildWindowsAacEncoderDll({
+  required BuildInput input,
   required File sourceFile,
   required File bundledDll,
 }) async {
@@ -142,167 +142,68 @@ Future<void> _buildWindowsAacEncoderDll({
     'ole32.lib',
   ];
 
-  final setupScript = await _resolveVisualStudioSetupScript();
-  final hasMsvcEnv = _hasMsvcCompilerEnvironment();
-  if (!hasMsvcEnv && setupScript != null) {
-    final setupResult = await _runClViaVisualStudioSetup(setupScript: setupScript, clArgs: clArgs);
-    if (setupResult.exitCode == 0) {
-      return;
-    }
+  final setupScript = _resolveVisualStudioSetupScript(input);
+  if (setupScript == null) {
     throw StateError(
-      'Failed to compile Windows AAC encoder DLL via `cl` using '
-      '`${setupScript.path}`.\n'
-      'stdout:\n${setupResult.stdout}\n'
-      'stderr:\n${setupResult.stderr}',
+      'Windows C compiler environment is missing. '
+      'This hook requires `BuildInput.config.code.cCompiler.windows.developerCommandPrompt`.',
     );
   }
 
-  ProcessResult directResult;
-  try {
-    directResult = await Process.run('cl', clArgs);
-  } on ProcessException catch (error) {
-    if (setupScript != null) {
-      final setupResult = await _runClViaVisualStudioSetup(
-        setupScript: setupScript,
-        clArgs: clArgs,
-      );
-      if (setupResult.exitCode == 0) {
-        return;
-      }
-      throw StateError(
-        'Failed to start MSVC compiler (`cl`) directly and fallback via '
-        '`${setupScript.path}` also failed.\n'
-        'direct error: ${error.message}\n'
-        'fallback stdout:\n${setupResult.stdout}\n'
-        'fallback stderr:\n${setupResult.stderr}',
-      );
-    }
+  if (!File(setupScript.path).existsSync()) {
     throw StateError(
-      'Failed to start MSVC compiler (`cl`) while building the Windows AAC encoder. '
-      'Ensure Visual Studio Build Tools are installed. '
-      'If your shell is not a Developer Prompt, add Visual Studio C++ tools '
-      'to PATH/INCLUDE/LIB or install `vswhere`.\n'
+      'Configured Windows developer command prompt script does not exist: '
+      '${setupScript.path}',
+    );
+  }
+
+  ProcessResult compileResult;
+  try {
+    compileResult = await _runClViaVisualStudioSetup(setupScript: setupScript, clArgs: clArgs);
+  } on ProcessException catch (error) {
+    throw StateError(
+      'Failed to start Windows developer command prompt script '
+      '`${setupScript.path}`.\n'
       'Details: ${error.message}',
     );
   }
 
-  if (directResult.exitCode == 0) {
-    return;
-  }
-
-  if (setupScript != null) {
-    final setupResult = await _runClViaVisualStudioSetup(setupScript: setupScript, clArgs: clArgs);
-    if (setupResult.exitCode == 0) {
-      return;
-    }
+  if (compileResult.exitCode != 0) {
+    final setupArgs = setupScript.arguments.join(' ');
     throw StateError(
-      'Failed to compile Windows AAC encoder DLL via `cl`.\n'
-      'direct stdout:\n${directResult.stdout}\n'
-      'direct stderr:\n${directResult.stderr}\n'
-      'fallback (${setupScript.path}) stdout:\n${setupResult.stdout}\n'
-      'fallback (${setupScript.path}) stderr:\n${setupResult.stderr}',
+      'Failed to compile Windows AAC encoder DLL.\n'
+      '${_formatCommandFailure(command: 'call ${setupScript.path} $setupArgs && cl ${clArgs.join(' ')}', exitCode: compileResult.exitCode, stdout: '${compileResult.stdout}', stderr: '${compileResult.stderr}')}',
     );
   }
-
-  throw StateError(
-    'Failed to compile Windows AAC encoder DLL via `cl`.\n'
-    'stdout:\n${directResult.stdout}\n'
-    'stderr:\n${directResult.stderr}',
-  );
 }
 
-bool _hasMsvcCompilerEnvironment() {
-  final include = Platform.environment['INCLUDE'];
-  final lib = Platform.environment['LIB'];
-  return include != null && include.trim().isNotEmpty && lib != null && lib.trim().isNotEmpty;
-}
-
-Future<_VisualStudioSetupScript?> _resolveVisualStudioSetupScript() async {
-  final candidates = <_VisualStudioSetupScript>[];
-  final seen = <String>{};
-
-  void addCandidate(_VisualStudioSetupScript candidate) {
-    final normalized = candidate.path.toLowerCase();
-    if (!seen.add(normalized)) {
-      return;
-    }
-    if (!File(candidate.path).existsSync()) {
-      return;
-    }
-    candidates.add(candidate);
-  }
-
-  final env = Platform.environment;
-  final vsInstallDir = env['VSINSTALLDIR'];
-  if (vsInstallDir != null && vsInstallDir.trim().isNotEmpty) {
-    addCandidate(
-      _VisualStudioSetupScript(
-        p.windows.join(vsInstallDir.trim(), 'Common7', 'Tools', 'VsDevCmd.bat'),
-        const ['-arch=x64', '-host_arch=x64'],
-      ),
-    );
-  }
-
-  final vcInstallDir = env['VCINSTALLDIR'];
-  if (vcInstallDir != null && vcInstallDir.trim().isNotEmpty) {
-    addCandidate(
-      _VisualStudioSetupScript(
-        p.windows.join(vcInstallDir.trim(), 'Auxiliary', 'Build', 'vcvars64.bat'),
-        const [],
-      ),
-    );
-  }
-
-  final programFilesX86 = env['ProgramFiles(x86)'];
-  if (programFilesX86 != null && programFilesX86.trim().isNotEmpty) {
-    final vsWherePath = p.windows.join(
-      programFilesX86.trim(),
-      'Microsoft Visual Studio',
-      'Installer',
-      'vswhere.exe',
-    );
-    final vsWhereFile = File(vsWherePath);
-    if (vsWhereFile.existsSync()) {
-      try {
-        final result = await Process.run(vsWhereFile.path, [
-          '-latest',
-          '-products',
-          '*',
-          '-requires',
-          'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
-          '-property',
-          'installationPath',
-        ]);
-        if (result.exitCode == 0) {
-          final installPath = '${result.stdout}'
-              .split(RegExp(r'[\r\n]+'))
-              .map((line) => line.trim())
-              .firstWhere((line) => line.isNotEmpty, orElse: () => '');
-          if (installPath.isNotEmpty) {
-            addCandidate(
-              _VisualStudioSetupScript(
-                p.windows.join(installPath, 'Common7', 'Tools', 'VsDevCmd.bat'),
-                const ['-arch=x64', '-host_arch=x64'],
-              ),
-            );
-            addCandidate(
-              _VisualStudioSetupScript(
-                p.windows.join(installPath, 'VC', 'Auxiliary', 'Build', 'vcvars64.bat'),
-                const [],
-              ),
-            );
-          }
-        }
-      } on ProcessException {
-        // Ignore and continue with environment-based candidates.
-      }
-    }
-  }
-
-  if (candidates.isEmpty) {
+_VisualStudioSetupScript? _resolveVisualStudioSetupScript(BuildInput input) {
+  final cCompiler = input.config.code.cCompiler;
+  if (cCompiler == null) {
     return null;
   }
-  return candidates.first;
+
+  try {
+    final developerPrompt = cCompiler.windows.developerCommandPrompt;
+    if (developerPrompt == null) {
+      return null;
+    }
+    return _VisualStudioSetupScript(developerPrompt.script.toFilePath(), developerPrompt.arguments);
+  } on StateError {
+    return null;
+  }
+}
+
+String _formatCommandFailure({
+  required String command,
+  required int exitCode,
+  required String stdout,
+  required String stderr,
+}) {
+  return 'Command: $command\n'
+      'Exit code: $exitCode\n'
+      'stdout:\n$stdout\n'
+      'stderr:\n$stderr';
 }
 
 Future<ProcessResult> _runClViaVisualStudioSetup({

@@ -35,8 +35,9 @@ abstract class DesktopAutopastePlatform extends PlatformInterface {
   }
 
   Future<FocusedTextFieldContext> getFocusedTextFieldContext({
-    int maxCharsBefore = 120,
-    int maxCharsAfter = 120,
+    int? maxCharsBefore = 120,
+    int? maxCharsAfter = 120,
+    bool enableScreenReader = false,
   }) {
     throw UnimplementedError(
       'getFocusedTextFieldContext() has not been implemented.',

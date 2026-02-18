@@ -4,7 +4,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:desktop_autopaste/desktop_autopaste.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:hotkey_api/hotkey_api.dart';
 
@@ -62,11 +64,17 @@ class _HomePageState extends State<_HomePage> {
   final _logEntries = <_ContextLogEntry>[];
   final _jsonEncoder = const JsonEncoder.withIndent('  ');
   final _hotkeyController = HotkeyStatusController(
-    initialHotkey: Hotkey.single(PhysicalKeyboardKey.metaRight),
+    initialHotkey: Hotkey.single(switch (defaultTargetPlatform) {
+      .macOS => PhysicalKeyboardKey.metaRight,
+      .windows => PhysicalKeyboardKey.controlRight,
+      _ => PhysicalKeyboardKey.f8,
+    }),
   );
 
   StreamSubscription<HotkeyStatusType>? _hotkeySubscription;
   bool _isCapturing = false;
+  bool _enableScreenReader = false;
+  SemanticsHandle? _semanticsHandle;
   String? _lastError;
 
   @override
@@ -84,6 +92,7 @@ class _HomePageState extends State<_HomePage> {
 
   @override
   void dispose() {
+    _semanticsHandle?.dispose();
     _hotkeySubscription?.cancel();
     _hotkeyController.close();
     _beforeCharsController.dispose();
@@ -91,8 +100,10 @@ class _HomePageState extends State<_HomePage> {
     super.dispose();
   }
 
-  int _readLimit(TextEditingController controller, int fallback) {
-    final parsed = int.tryParse(controller.text);
+  int? _readLimit(TextEditingController controller, int fallback) {
+    final raw = controller.text.trim();
+    if (raw.isEmpty) return null;
+    final parsed = int.tryParse(raw);
     if (parsed == null) return fallback;
     return parsed < 0 ? 0 : parsed;
   }
@@ -108,6 +119,7 @@ class _HomePageState extends State<_HomePage> {
       final context = await _autopaste.getFocusedTextFieldContext(
         maxCharsBefore: _readLimit(_beforeCharsController, _defaultBeforeChars),
         maxCharsAfter: _readLimit(_afterCharsController, _defaultAfterChars),
+        enableScreenReader: _enableScreenReader,
       );
 
       print('Captured context: ${context.toMap()}');
@@ -203,6 +215,27 @@ class _HomePageState extends State<_HomePage> {
                           label: const Text('Capture now'),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _enableScreenReader,
+                      title: const Text('Enable screen reader context capture'),
+                      subtitle: const Text(
+                        'Disabled by default. Enable to use accessibility APIs.',
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _enableScreenReader = value;
+                          if (_enableScreenReader) {
+                            _semanticsHandle ??= WidgetsBinding.instance
+                                .ensureSemantics();
+                          } else {
+                            _semanticsHandle?.dispose();
+                            _semanticsHandle = null;
+                          }
+                        });
+                      },
                     ),
                     const SizedBox(height: 12),
                     const TextField(

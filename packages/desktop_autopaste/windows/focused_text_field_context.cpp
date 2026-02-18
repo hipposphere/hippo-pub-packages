@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cwctype>
+#include <limits>
 #include <optional>
 #include <string>
 
@@ -232,6 +233,13 @@ bool ExtractContextFromRange(
         TextUnit_Character,
         -max_chars_before,
         &moved);
+  } else if (max_chars_before < 0) {
+    int moved = 0;
+    before_range->MoveEndpointByUnit(
+        TextPatternRangeEndpoint_Start,
+        TextUnit_Character,
+        std::numeric_limits<int>::min() + 1,
+        &moved);
   }
   *out_before = GetTextFromRange(before_range.Get(), -1);
 
@@ -251,6 +259,13 @@ bool ExtractContextFromRange(
         TextPatternRangeEndpoint_End,
         TextUnit_Character,
         max_chars_after,
+        &moved);
+  } else if (max_chars_after < 0) {
+    int moved = 0;
+    after_range->MoveEndpointByUnit(
+        TextPatternRangeEndpoint_End,
+        TextUnit_Character,
+        std::numeric_limits<int>::max(),
         &moved);
   }
   *out_after = GetTextFromRange(after_range.Get(), -1);
@@ -346,12 +361,45 @@ bool TryExtractFromValuePattern(
 
   *out_full_text_length = static_cast<int>(value.size());
 
-  const std::wstring class_name = GetWindowClassName(focused_hwnd);
-  if (!IsLikelyEditControl(class_name)) {
-    return false;
+  // Reset optional selection metadata; we fill it when we can resolve a caret
+  // or selected range.
+  *out_selection_start = std::nullopt;
+  *out_selection_length = std::nullopt;
+
+  HWND selection_hwnd = nullptr;
+  UIA_HWND native_hwnd = 0;
+  if (SUCCEEDED(element->get_CurrentNativeWindowHandle(&native_hwnd)) &&
+      native_hwnd != 0) {
+    selection_hwnd = reinterpret_cast<HWND>(native_hwnd);
+  } else {
+    selection_hwnd = focused_hwnd;
   }
 
-  const LRESULT packed = ::SendMessageW(focused_hwnd, EM_GETSEL, 0, 0);
+  const std::wstring class_name = GetWindowClassName(selection_hwnd);
+  const bool can_read_win32_selection =
+      selection_hwnd != nullptr && IsLikelyEditControl(class_name);
+  if (!can_read_win32_selection) {
+    // Best effort fallback for UIA providers that expose ValuePattern text but
+    // do not expose Win32-style selection.
+    const int text_len = static_cast<int>(value.size());
+    const int selection_start = text_len;
+    const int selection_end = text_len;
+    const int before_start = max_chars_before < 0
+        ? 0
+        : std::max(0, selection_start - max_chars_before);
+    const int after_end = max_chars_after < 0
+        ? text_len
+        : std::min(text_len, selection_end + max_chars_after);
+
+    *out_before = value.substr(before_start, selection_start - before_start);
+    *out_selected = value.substr(selection_start, selection_end - selection_start);
+    *out_after = value.substr(selection_end, after_end - selection_end);
+    *out_selection_start = selection_start;
+    *out_selection_length = 0;
+    return true;
+  }
+
+  const LRESULT packed = ::SendMessageW(selection_hwnd, EM_GETSEL, 0, 0);
   int selection_start = static_cast<int>(LOWORD(static_cast<DWORD>(packed)));
   int selection_end = static_cast<int>(HIWORD(static_cast<DWORD>(packed)));
 
@@ -362,9 +410,13 @@ bool TryExtractFromValuePattern(
                std::min(selection_end, static_cast<int>(value.size())));
 
   const int selection_length = selection_end - selection_start;
-  const int before_start = std::max(0, selection_start - max_chars_before);
-  const int after_end =
-      std::min(static_cast<int>(value.size()), selection_end + max_chars_after);
+  const int text_len = static_cast<int>(value.size());
+  const int before_start = max_chars_before < 0
+      ? 0
+      : std::max(0, selection_start - max_chars_before);
+  const int after_end = max_chars_after < 0
+      ? text_len
+      : std::min(text_len, selection_end + max_chars_after);
 
   *out_before = value.substr(before_start, selection_start - before_start);
   *out_selected = value.substr(selection_start, selection_length);
@@ -395,8 +447,17 @@ EncodableMap GetFocusedTextFieldContext(int max_chars_before, int max_chars_afte
   Put(context, "available", EncodableValue(false));
   PutString(context, "reason", "unknown");
 
-  max_chars_before = std::max(0, max_chars_before);
-  max_chars_after = std::max(0, max_chars_after);
+  // Negative means unbounded context.
+  if (max_chars_before < 0) {
+    max_chars_before = -1;
+  } else {
+    max_chars_before = std::max(0, max_chars_before);
+  }
+  if (max_chars_after < 0) {
+    max_chars_after = -1;
+  } else {
+    max_chars_after = std::max(0, max_chars_after);
+  }
 
   ScopedComInit com;
   if (!com.IsUsable()) {
@@ -422,8 +483,10 @@ EncodableMap GetFocusedTextFieldContext(int max_chars_before, int max_chars_afte
   }
 
   ComPtr<IUIAutomationElement> element;
-  if (FAILED(automation->ElementFromHandle(focused_hwnd, &element)) || !element) {
-    if (FAILED(automation->GetFocusedElement(&element)) || !element) {
+  // Prefer the actual focused accessibility element. Resolving from HWND often
+  // returns a top-level window element that does not expose text patterns.
+  if (FAILED(automation->GetFocusedElement(&element)) || !element) {
+    if (FAILED(automation->ElementFromHandle(focused_hwnd, &element)) || !element) {
       PutString(context, "reason", "focusedElementUnavailable");
       return context;
     }

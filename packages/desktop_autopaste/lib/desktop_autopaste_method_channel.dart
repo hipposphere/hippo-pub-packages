@@ -29,8 +29,9 @@ class MethodChannelDesktopAutopaste extends DesktopAutopastePlatform {
 
   @override
   Future<FocusedTextFieldContext> getFocusedTextFieldContext({
-    int maxCharsBefore = 120,
-    int maxCharsAfter = 120,
+    int? maxCharsBefore = 120,
+    int? maxCharsAfter = 120,
+    bool enableScreenReader = false,
   }) async {
     final result =
         await methodChannel.invokeMapMethod<String, dynamic>(
@@ -38,6 +39,7 @@ class MethodChannelDesktopAutopaste extends DesktopAutopastePlatform {
           <String, dynamic>{
             'maxCharsBefore': maxCharsBefore,
             'maxCharsAfter': maxCharsAfter,
+            'enableScreenReader': enableScreenReader,
           },
         ) ??
         const <String, dynamic>{'available': false, 'reason': 'noResult'};

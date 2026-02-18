@@ -13,12 +13,14 @@ class DesktopAutopaste {
   }
 
   Future<FocusedTextFieldContext> getFocusedTextFieldContext({
-    int maxCharsBefore = 120,
-    int maxCharsAfter = 120,
+    int? maxCharsBefore = 120,
+    int? maxCharsAfter = 120,
+    bool enableScreenReader = false,
   }) {
     return DesktopAutopastePlatform.instance.getFocusedTextFieldContext(
       maxCharsBefore: maxCharsBefore,
       maxCharsAfter: maxCharsAfter,
+      enableScreenReader: enableScreenReader,
     );
   }
 }

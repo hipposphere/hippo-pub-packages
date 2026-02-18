@@ -5,14 +5,29 @@ import 'package:hotkey_api/src/utils/key_hid_map.dart';
 class PhysicalKeyboardHelper {
   PhysicalKeyboardHelper._();
 
+  // Windows may surface OEM/non-HID keys (for example Fn on some keyboards)
+  // with vkCode 0xFF. This is not mappable to a USB HID keyboard usage.
+  static const Set<int> _ignoredWindowsVirtualKeyCodes = {0xFF};
+
   static PhysicalKeyboardKey? fromPlatformKeyCode(int platformKeyCode) {
     if (Platform.isMacOS) {
       // Convert macOS key code to USB HID usage code
       return kMacOsToPhysicalKey[platformKeyCode];
     } else if (Platform.isWindows) {
+      if (_ignoredWindowsVirtualKeyCodes.contains(platformKeyCode)) {
+        return null;
+      }
+
       // Convert Windows virtual key code to USB HID usage code
       final usbHidCode = kWindowsToUsbHid[platformKeyCode];
-      return PhysicalKeyboardKey.findKeyByCode(usbHidCode!);
+      if (usbHidCode == null) {
+        // ignore: avoid_print
+        print(
+          'Warning: No USB HID code mapping found for Windows virtual key code: $platformKeyCode',
+        );
+        return null;
+      }
+      return PhysicalKeyboardKey.findKeyByCode(usbHidCode);
     } else if (Platform.isLinux) {
       return kLinuxToPhysicalKey[platformKeyCode];
     }

@@ -12,7 +12,9 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <sstream>
+#include <variant>
 
 // Helper to convert UTF-8 std::string to UTF-16 std::wstring.
 static std::wstring Utf8ToWide(const std::string &utf8) {
@@ -28,17 +30,20 @@ static std::wstring Utf8ToWide(const std::string &utf8) {
   return wstr;
 }
 
-static int ReadIntArg(
+static std::optional<int> TryReadIntArg(
     const flutter::EncodableMap* args,
-    const char* key,
-    int fallback) {
+    const char* key) {
   if (args == nullptr) {
-    return fallback;
+    return std::nullopt;
   }
 
   const auto it = args->find(flutter::EncodableValue(key));
   if (it == args->end()) {
-    return fallback;
+    return std::nullopt;
+  }
+
+  if (std::holds_alternative<std::monostate>(it->second)) {
+    return std::nullopt;
   }
 
   if (const auto* value = std::get_if<int32_t>(&it->second)) {
@@ -49,6 +54,26 @@ static int ReadIntArg(
   }
   if (const auto* value = std::get_if<double>(&it->second)) {
     return static_cast<int>(*value);
+  }
+
+  return std::nullopt;
+}
+
+static bool ReadBoolArg(
+    const flutter::EncodableMap* args,
+    const char* key,
+    bool fallback) {
+  if (args == nullptr) {
+    return fallback;
+  }
+
+  const auto it = args->find(flutter::EncodableValue(key));
+  if (it == args->end()) {
+    return fallback;
+  }
+
+  if (const auto* value = std::get_if<bool>(&it->second)) {
+    return *value;
   }
 
   return fallback;
@@ -118,10 +143,31 @@ void DesktopAutopastePlugin::HandleMethodCall(
   } else if (method_call.method_name().compare("getFocusedTextFieldContext") == 0) {
     const auto* args =
         std::get_if<flutter::EncodableMap>(method_call.arguments());
-    const int max_chars_before =
-        std::max(0, ReadIntArg(args, "maxCharsBefore", 120));
-    const int max_chars_after =
-        std::max(0, ReadIntArg(args, "maxCharsAfter", 120));
+    const bool enable_screen_reader =
+        ReadBoolArg(args, "enableScreenReader", false);
+    if (!enable_screen_reader) {
+      flutter::EncodableMap context;
+      context[flutter::EncodableValue("available")] = flutter::EncodableValue(false);
+      context[flutter::EncodableValue("reason")] =
+          flutter::EncodableValue("screenReaderDisabled");
+      result->Success(flutter::EncodableValue(context));
+      return;
+    }
+
+    const bool has_before =
+        args != nullptr && args->find(flutter::EncodableValue("maxCharsBefore")) != args->end();
+    const bool has_after =
+        args != nullptr && args->find(flutter::EncodableValue("maxCharsAfter")) != args->end();
+
+    const auto before = TryReadIntArg(args, "maxCharsBefore");
+    const auto after = TryReadIntArg(args, "maxCharsAfter");
+
+    const int max_chars_before = has_before
+        ? (before.has_value() ? std::max(0, *before) : -1)
+        : 120;
+    const int max_chars_after = has_after
+        ? (after.has_value() ? std::max(0, *after) : -1)
+        : 120;
 
     const auto context =
         GetFocusedTextFieldContext(max_chars_before, max_chars_after);

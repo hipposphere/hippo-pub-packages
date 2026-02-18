@@ -6,11 +6,13 @@ class SpeechRecorderSegmentMetrics {
   final Duration encodingDuration;
   final Duration splitToCallbackLatency;
   final int pcmByteCount;
+  final double? speechProbability;
 
   const SpeechRecorderSegmentMetrics({
     this.encodingDuration = Duration.zero,
     this.splitToCallbackLatency = Duration.zero,
     this.pcmByteCount = 0,
+    this.speechProbability,
   });
 }
 

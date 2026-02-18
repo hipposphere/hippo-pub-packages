@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:hippo_utils/hippo_utils.dart';
@@ -65,6 +66,12 @@ class SpeechRecorderController {
         await _recorder.start(options.recordConfig, path: options.path);
       } else {
         final pcm16Stream = await _recorder.startStream(options.recordConfig);
+        final shouldCapturePcm16 =
+            streamingOptions.encodeFullRecordingOnStop ||
+            streamingOptions.emitStopFallbackSegmentIfEmpty;
+        if (shouldCapturePcm16) {
+          session._enableStreamingPcm16Capture();
+        }
         if (streamingOptions.onSegmentFinished case final callback?) {
           session.onSegmentFinished(callback);
         }
@@ -102,8 +109,35 @@ class SpeechRecorderController {
 
   Future<void> stop(SpeechRecorderSession session) async {
     final path = await _recorder.stop();
-    session._setPathAfterStopping(path);
-    _drainStreamingSegmentation(session);
+    final streamingOptions = session.options.streaming;
+    if (streamingOptions == null) {
+      session._setRecordingOutputAfterStopping(
+        path: path ?? session.options.path,
+        fileExtension: session.options.fileExtension,
+        mimeType: session.options.mimeType,
+      );
+    } else {
+      await _drainStreamingSegmentation(session);
+      final capturedPcm16leBytes = _consumeStreamingCaptureIfEnabled(
+        session: session,
+        streamingOptions: streamingOptions,
+      );
+      if (streamingOptions.emitStopFallbackSegmentIfEmpty) {
+        await _emitStopFallbackSegmentIfEmpty(
+          session: session,
+          streamingOptions: streamingOptions,
+          pcm16leBytes: capturedPcm16leBytes,
+        );
+      }
+      if (streamingOptions.encodeFullRecordingOnStop) {
+        await _encodeStreamingFullRecording(
+          session: session,
+          streamingOptions: streamingOptions,
+          pcm16leBytes: capturedPcm16leBytes,
+        );
+      }
+    }
+    session._disposeSpeechProbabilityEstimator();
     _stopAmplitudeListening(session);
     session._setState(SpeechRecorderSessionState.stopped);
     session.stopwatch.stop();
@@ -115,7 +149,9 @@ class SpeechRecorderController {
   }
 
   Future<void> cancel(SpeechRecorderSession session) async {
-    _cancelStreamingSegmentation(session);
+    await _cancelStreamingSegmentation(session);
+    session._discardStreamingPcm16Capture();
+    session._disposeSpeechProbabilityEstimator();
     await _recorder.cancel();
     _stopAmplitudeListening(session);
     session._setState(SpeechRecorderSessionState.canceled);
@@ -136,6 +172,7 @@ class SpeechRecorderController {
   }
 
   Future<void> dispose() async {
+    sessionSubject.value?._disposeSpeechProbabilityEstimator();
     await _recorder.dispose();
   }
 
@@ -167,11 +204,32 @@ class SpeechRecorderController {
         streamingOptions.vadConfig ??
         session.options.vadConfig ??
         const SpeechVadConfig();
+    if (streamingOptions.includeSpeechProbability) {
+      try {
+        session._enableSpeechProbabilityEstimator(
+          splitOptions: splitOptions,
+          vadConfig: vadConfig,
+        );
+      } on Object catch (error) {
+        debugPrint(
+          'Speech recorder speech probability estimator disabled: $error',
+        );
+      }
+    }
     final encoder = streamingOptions.encoder ?? NativeAacEncoder();
+    final shouldCapturePcm16 =
+        streamingOptions.encodeFullRecordingOnStop ||
+        streamingOptions.emitStopFallbackSegmentIfEmpty;
+    final splitInputStream = shouldCapturePcm16
+        ? pcm16Stream.map((bytes) {
+            session._captureStreamingPcm16Chunk(bytes);
+            return bytes;
+          })
+        : pcm16Stream;
 
     session._streamingSegmentSubscription =
         SpeechUtils.splitPcm16StreamOnSilence(
-              pcm16leStream: pcm16Stream,
+              pcm16leStream: splitInputStream,
               options: splitOptions,
               vadConfig: vadConfig,
             )
@@ -244,6 +302,12 @@ class SpeechRecorderController {
         encodingDuration: encodingStopwatch.elapsed,
         splitToCallbackLatency: splitDetectedStopwatch.elapsed,
         pcmByteCount: pcm16leBytes.lengthInBytes,
+        speechProbability: streamingOptions.includeSpeechProbability
+            ? session._estimateSpeechProbability(
+                snippet: snippet,
+                splitOptions: splitOptions,
+              )
+            : null,
       ),
     );
 
@@ -252,7 +316,9 @@ class SpeechRecorderController {
     }
   }
 
-  void _drainStreamingSegmentation(SpeechRecorderSession session) async {
+  Future<void> _drainStreamingSegmentation(
+    SpeechRecorderSession session,
+  ) async {
     final subscription = session._streamingSegmentSubscription;
     if (subscription == null) {
       return;
@@ -270,13 +336,192 @@ class SpeechRecorderController {
     }
   }
 
-  void _cancelStreamingSegmentation(SpeechRecorderSession session) async {
+  Future<void> _cancelStreamingSegmentation(
+    SpeechRecorderSession session,
+  ) async {
     final subscription = session._streamingSegmentSubscription;
     if (subscription == null) {
       return;
     }
     session._streamingSegmentSubscription = null;
     await subscription.cancel();
+  }
+
+  Uint8List _consumeStreamingCaptureIfEnabled({
+    required SpeechRecorderSession session,
+    required SpeechRecorderStreamingOptions streamingOptions,
+  }) {
+    final shouldCapturePcm16 =
+        streamingOptions.encodeFullRecordingOnStop ||
+        streamingOptions.emitStopFallbackSegmentIfEmpty;
+    if (!shouldCapturePcm16) {
+      session._discardStreamingPcm16Capture();
+      return Uint8List(0);
+    }
+    return session._consumeStreamingPcm16Capture();
+  }
+
+  Future<void> _emitStopFallbackSegmentIfEmpty({
+    required SpeechRecorderSession session,
+    required SpeechRecorderStreamingOptions streamingOptions,
+    required Uint8List pcm16leBytes,
+  }) async {
+    if (session._segmentCount > 0 || pcm16leBytes.isEmpty) {
+      return;
+    }
+
+    final segmentIndex = session._nextSegmentIndex();
+    final outputPath =
+        streamingOptions.segmentPathBuilder?.call(
+          segmentIndex,
+          streamingOptions.fileExtension,
+        ) ??
+        _defaultSegmentPath(
+          sessionPath: session.options.path,
+          segmentIndex: segmentIndex,
+          fileExtension: streamingOptions.fileExtension,
+        );
+    if (outputPath.trim().isEmpty) {
+      throw ArgumentError.value(
+        outputPath,
+        'outputPath',
+        'Segment output path cannot be empty.',
+      );
+    }
+
+    final encodingStopwatch = Stopwatch()..start();
+    final encoder = streamingOptions.encoder ?? NativeAacEncoder();
+    try {
+      await encoder.encodePcm16BytesToAac(
+        pcm16leBytes: pcm16leBytes,
+        sampleRateHz: streamingOptions.pauseSplitOptions.sampleRateHz,
+        channelCount: streamingOptions.pauseSplitOptions.channelCount,
+        outputPath: outputPath,
+        bitrateKbps: streamingOptions.bitrateKbps,
+      );
+      encodingStopwatch.stop();
+    } on Object catch (error) {
+      debugPrint('Speech recorder fallback stop segment encode failed: $error');
+      return;
+    }
+
+    final segment = SpeechRecorderSegmentData(
+      index: segmentIndex,
+      file: XFile(outputPath, mimeType: streamingOptions.mimeType),
+      duration: _pcm16Duration(
+        pcm16ByteCount: pcm16leBytes.lengthInBytes,
+        sampleRateHz: streamingOptions.pauseSplitOptions.sampleRateHz,
+        channelCount: streamingOptions.pauseSplitOptions.channelCount,
+      ),
+      fileExtension: streamingOptions.fileExtension,
+      mimeType: streamingOptions.mimeType,
+      sampleRateHz: streamingOptions.pauseSplitOptions.sampleRateHz,
+      channelCount: streamingOptions.pauseSplitOptions.channelCount,
+      metrics: SpeechRecorderSegmentMetrics(
+        encodingDuration: encodingStopwatch.elapsed,
+        splitToCallbackLatency: Duration.zero,
+        pcmByteCount: pcm16leBytes.lengthInBytes,
+        speechProbability: _estimateSpeechProbabilityFromPcm16(
+          session: session,
+          streamingOptions: streamingOptions,
+          pcm16leBytes: pcm16leBytes,
+        ),
+      ),
+    );
+    for (final callback in session._onSegmentFinishedCallbacks) {
+      await callback(segment);
+    }
+  }
+
+  Future<void> _encodeStreamingFullRecording({
+    required SpeechRecorderSession session,
+    required SpeechRecorderStreamingOptions streamingOptions,
+    required Uint8List pcm16leBytes,
+  }) async {
+    if (pcm16leBytes.isEmpty) {
+      return;
+    }
+
+    final outputPath = _defaultFullRecordingPath(
+      sessionPath: session.options.path,
+      fileExtension: streamingOptions.fileExtension,
+    );
+    if (outputPath.trim().isEmpty) {
+      throw ArgumentError.value(
+        outputPath,
+        'outputPath',
+        'Full recording output path cannot be empty.',
+      );
+    }
+
+    final encoder = streamingOptions.encoder ?? NativeAacEncoder();
+    try {
+      await encoder.encodePcm16BytesToAac(
+        pcm16leBytes: pcm16leBytes,
+        sampleRateHz: streamingOptions.pauseSplitOptions.sampleRateHz,
+        channelCount: streamingOptions.pauseSplitOptions.channelCount,
+        outputPath: outputPath,
+        bitrateKbps: streamingOptions.bitrateKbps,
+      );
+      session._setRecordingOutputAfterStopping(
+        path: outputPath,
+        fileExtension: streamingOptions.fileExtension,
+        mimeType: streamingOptions.mimeType,
+      );
+    } on Object catch (error) {
+      debugPrint('Speech recorder full recording encode failed: $error');
+    }
+  }
+
+  Duration _pcm16Duration({
+    required int pcm16ByteCount,
+    required int sampleRateHz,
+    required int channelCount,
+  }) {
+    if (sampleRateHz <= 0 || channelCount <= 0 || pcm16ByteCount <= 0) {
+      return Duration.zero;
+    }
+    final sampleCount = pcm16ByteCount ~/ 2;
+    final frameCount = sampleCount ~/ channelCount;
+    final micros = (frameCount * Duration.microsecondsPerSecond / sampleRateHz)
+        .round();
+    return Duration(microseconds: micros);
+  }
+
+  double? _estimateSpeechProbabilityFromPcm16({
+    required SpeechRecorderSession session,
+    required SpeechRecorderStreamingOptions streamingOptions,
+    required Uint8List pcm16leBytes,
+  }) {
+    if (!streamingOptions.includeSpeechProbability || pcm16leBytes.isEmpty) {
+      return null;
+    }
+    final snippet = Pcm16Snippet(
+      sourceBuffer: pcm16leBytes.buffer,
+      sourceByteOffset: pcm16leBytes.offsetInBytes,
+      startSampleOffset: 0,
+      endSampleOffsetExclusive: pcm16leBytes.lengthInBytes ~/ 2,
+      sampleRateHz: streamingOptions.pauseSplitOptions.sampleRateHz,
+      channelCount: streamingOptions.pauseSplitOptions.channelCount,
+    );
+    return session._estimateSpeechProbability(
+      snippet: snippet,
+      splitOptions: streamingOptions.pauseSplitOptions,
+    );
+  }
+
+  String _defaultFullRecordingPath({
+    required String sessionPath,
+    required String fileExtension,
+  }) {
+    final normalizedExtension = fileExtension.startsWith('.')
+        ? fileExtension.substring(1)
+        : fileExtension;
+    final dotIndex = sessionPath.lastIndexOf('.');
+    final basePath = dotIndex > 0
+        ? sessionPath.substring(0, dotIndex)
+        : sessionPath;
+    return '$basePath.$normalizedExtension';
   }
 
   String _defaultSegmentPath({

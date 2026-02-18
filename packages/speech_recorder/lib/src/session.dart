@@ -43,28 +43,130 @@ class SpeechRecorderSession {
     stateSubject.add(state);
   }
 
-  void _setPathAfterStopping(String? path) {
-    _pathAfterStopping = path;
+  void _setRecordingOutputAfterStopping({
+    required String path,
+    required String mimeType,
+    required String fileExtension,
+  }) {
+    _recordingOutputAfterStopping = _SpeechRecorderRecordingOutput(
+      path: path,
+      mimeType: mimeType,
+      fileExtension: fileExtension,
+    );
   }
 
-  String? _pathAfterStopping;
+  _SpeechRecorderRecordingOutput? _recordingOutputAfterStopping;
+  BytesBuilder? _streamingPcm16Capture;
+  ResolvedVadBackend? _speechProbabilityBackend;
 
-  XFile getRecordingFile() {
-    if (isStreaming) {
-      throw StateError(
-        'No full recording file is available for streaming sessions. '
-        'Use onSegmentFinished callbacks instead.',
+  void _enableStreamingPcm16Capture() {
+    _streamingPcm16Capture = BytesBuilder();
+  }
+
+  void _captureStreamingPcm16Chunk(Uint8List bytes) {
+    _streamingPcm16Capture?.add(bytes);
+  }
+
+  Uint8List _consumeStreamingPcm16Capture() {
+    final capture = _streamingPcm16Capture;
+    _streamingPcm16Capture = null;
+    return capture?.toBytes() ?? Uint8List(0);
+  }
+
+  void _discardStreamingPcm16Capture() {
+    _streamingPcm16Capture = null;
+  }
+
+  void _enableSpeechProbabilityEstimator({
+    required PauseSplitOptions splitOptions,
+    required SpeechVadConfig vadConfig,
+  }) {
+    _disposeSpeechProbabilityEstimator();
+    _speechProbabilityBackend = resolveSpeechVadBackend(
+      options: splitOptions,
+      config: vadConfig,
+    );
+  }
+
+  void _disposeSpeechProbabilityEstimator() {
+    final backend = _speechProbabilityBackend;
+    if (backend == null) {
+      return;
+    }
+    _speechProbabilityBackend = null;
+    backend.backend.dispose();
+  }
+
+  double? _estimateSpeechProbability({
+    required Pcm16Snippet snippet,
+    required PauseSplitOptions splitOptions,
+  }) {
+    final backend = _speechProbabilityBackend?.backend;
+    if (backend == null) {
+      return null;
+    }
+
+    final samples = snippet.asSamplesView();
+    final frameSampleCount = splitOptions.frameSampleCount;
+    if (frameSampleCount <= 0) {
+      return null;
+    }
+    final totalFrames = samples.length ~/ frameSampleCount;
+    if (totalFrames <= 0) {
+      return null;
+    }
+
+    var speechFrames = 0;
+    for (var frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
+      final startSampleOffset = frameIndex * frameSampleCount;
+      final isSpeech = backend.isSpeechFrame(
+        samples,
+        startSampleOffset: startSampleOffset,
+        sampleCount: frameSampleCount,
+        sampleRateHz: splitOptions.sampleRateHz,
+        channelCount: splitOptions.channelCount,
+      );
+      if (isSpeech) {
+        speechFrames++;
+      }
+    }
+    return speechFrames / totalFrames;
+  }
+
+  _SpeechRecorderRecordingOutput? _resolveRecordingOutput() {
+    final output = _recordingOutputAfterStopping;
+    if (output != null) {
+      return output;
+    }
+    if (!isStreaming) {
+      return _SpeechRecorderRecordingOutput(
+        path: options.path,
+        mimeType: options.mimeType,
+        fileExtension: options.fileExtension,
       );
     }
-    final path = _pathAfterStopping ?? options.path;
-    return XFile(path, mimeType: options.mimeType);
+    return null;
+  }
+
+  XFile getRecordingFile() {
+    final output = _resolveRecordingOutput();
+    if (output == null) {
+      throw StateError(
+        'No full recording file is available for this session. '
+        'For streaming sessions, enable '
+        'streaming.encodeFullRecordingOnStop to access it.',
+      );
+    }
+    return XFile(output.path, mimeType: output.mimeType);
   }
 
   Future<SpeechRecorderData> getRecordingData() async {
-    if (isStreaming) {
+    final output = _resolveRecordingOutput();
+    if (output == null) {
       throw StateError(
-        'No full recording data is available for streaming sessions. '
-        'Use onSegmentFinished callbacks instead.',
+        'No full recording data is available for this session. '
+        'For streaming sessions, enable '
+        'streaming.encodeFullRecordingOnStop to access it.',
       );
     }
     final file = getRecordingFile();
@@ -77,7 +179,7 @@ class SpeechRecorderSession {
     return SpeechRecorderData(
       file: file,
       duration: duration,
-      fileExtension: options.fileExtension,
+      fileExtension: output.fileExtension,
       mimeType: mimeType,
     );
   }
@@ -93,4 +195,16 @@ class SpeechRecorderSession {
   void onSegmentFinished(SpeechRecorderSegmentCallback callback) {
     _onSegmentFinishedCallbacks.add(callback);
   }
+}
+
+class _SpeechRecorderRecordingOutput {
+  final String path;
+  final String mimeType;
+  final String fileExtension;
+
+  const _SpeechRecorderRecordingOutput({
+    required this.path,
+    required this.mimeType,
+    required this.fileExtension,
+  });
 }

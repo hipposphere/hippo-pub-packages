@@ -1,4 +1,5 @@
 #include <media/NdkMediaCodec.h>
+#include <media/NdkMediaExtractor.h>
 #include <media/NdkMediaFormat.h>
 #include <media/NdkMediaMuxer.h>
 
@@ -418,6 +419,104 @@ cleanup:
 
   return result_code;
 }
+
+int32_t ReadAudioMetadata(const char* input_path_utf8, int64_t* out_duration_micros,
+                          int32_t* out_sample_rate_hz, int32_t* out_channel_count,
+                          int32_t* out_bitrate_bps, std::string* error) {
+  if (input_path_utf8 == nullptr || out_duration_micros == nullptr ||
+      out_sample_rate_hz == nullptr || out_channel_count == nullptr ||
+      out_bitrate_bps == nullptr) {
+    if (error != nullptr) {
+      *error = "Invalid arguments for ReadAudioMetadata.";
+    }
+    return -1;
+  }
+
+  *out_duration_micros = -1;
+  *out_sample_rate_hz = -1;
+  *out_channel_count = -1;
+  *out_bitrate_bps = -1;
+
+  AMediaExtractor* extractor = AMediaExtractor_new();
+  if (extractor == nullptr) {
+    if (error != nullptr) {
+      *error = "Failed to create AMediaExtractor.";
+    }
+    return -2;
+  }
+
+  const media_status_t set_data_status = AMediaExtractor_setDataSource(extractor, input_path_utf8);
+  if (set_data_status != AMEDIA_OK) {
+    if (error != nullptr) {
+      std::ostringstream ss;
+      ss << "AMediaExtractor_setDataSource failed: status=" << set_data_status;
+      *error = ss.str();
+    }
+    AMediaExtractor_delete(extractor);
+    return static_cast<int32_t>(set_data_status);
+  }
+
+  const size_t track_count = AMediaExtractor_getTrackCount(extractor);
+  bool found_audio_track = false;
+
+  for (size_t i = 0; i < track_count; ++i) {
+    AMediaFormat* format = AMediaExtractor_getTrackFormat(extractor, i);
+    if (format == nullptr) {
+      continue;
+    }
+
+    const char* mime = nullptr;
+    const bool has_mime = AMediaFormat_getString(format, AMEDIAFORMAT_KEY_MIME, &mime);
+    const bool is_audio = has_mime && mime != nullptr && std::strncmp(mime, "audio/", 6) == 0;
+    if (!is_audio) {
+      AMediaFormat_delete(format);
+      continue;
+    }
+
+    found_audio_track = true;
+
+    int64_t duration_micros = -1;
+    if (!AMediaFormat_getInt64(format, AMEDIAFORMAT_KEY_DURATION, &duration_micros) ||
+        duration_micros < 0) {
+      if (error != nullptr) {
+        *error = "Could not read valid audio duration from media metadata.";
+      }
+      AMediaFormat_delete(format);
+      AMediaExtractor_delete(extractor);
+      return -3;
+    }
+    *out_duration_micros = duration_micros;
+
+    int32_t sample_rate_hz = -1;
+    if (AMediaFormat_getInt32(format, AMEDIAFORMAT_KEY_SAMPLE_RATE, &sample_rate_hz)) {
+      *out_sample_rate_hz = sample_rate_hz;
+    }
+
+    int32_t channel_count = -1;
+    if (AMediaFormat_getInt32(format, AMEDIAFORMAT_KEY_CHANNEL_COUNT, &channel_count)) {
+      *out_channel_count = channel_count;
+    }
+
+    int32_t bitrate_bps = -1;
+    if (AMediaFormat_getInt32(format, AMEDIAFORMAT_KEY_BIT_RATE, &bitrate_bps)) {
+      *out_bitrate_bps = bitrate_bps;
+    }
+
+    AMediaFormat_delete(format);
+    break;
+  }
+
+  AMediaExtractor_delete(extractor);
+
+  if (!found_audio_track) {
+    if (error != nullptr) {
+      *error = "No audio track found in media file.";
+    }
+    return -4;
+  }
+
+  return 0;
+}
 }  // namespace
 
 extern "C" __attribute__((visibility("default"))) int32_t
@@ -459,4 +558,33 @@ speech_utils_android_encode_wav_file_to_aac_m4a(const char* input_path_utf8,
     WriteError(encode_error, error_utf8, error_utf8_capacity);
   }
   return result;
+}
+
+extern "C" __attribute__((visibility("default"))) int32_t
+speech_utils_android_audio_metadata_healthcheck(char* error_utf8, uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+  AMediaExtractor* extractor = AMediaExtractor_new();
+  if (extractor == nullptr) {
+    WriteError("Failed to create Android media extractor.", error_utf8, error_utf8_capacity);
+    return -1;
+  }
+  AMediaExtractor_delete(extractor);
+  return 0;
+}
+
+extern "C" __attribute__((visibility("default"))) int32_t
+speech_utils_android_read_audio_metadata(const char* input_path_utf8, int64_t* out_duration_micros,
+                                         int32_t* out_sample_rate_hz, int32_t* out_channel_count,
+                                         int32_t* out_bitrate_bps, char* error_utf8,
+                                         uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+
+  std::string metadata_error;
+  const int32_t code =
+      ReadAudioMetadata(input_path_utf8, out_duration_micros, out_sample_rate_hz,
+                        out_channel_count, out_bitrate_bps, &metadata_error);
+  if (code != 0 && !metadata_error.empty()) {
+    WriteError(metadata_error, error_utf8, error_utf8_capacity);
+  }
+  return code;
 }

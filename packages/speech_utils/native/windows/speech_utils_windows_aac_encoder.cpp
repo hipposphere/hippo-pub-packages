@@ -4,6 +4,7 @@
 #include <mferror.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
+#include <propvarutil.h>
 #include <wmcodecdsp.h>
 #include <wrl/client.h>
 
@@ -12,6 +13,7 @@
 #include <cstdio>
 #include <cstring>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -364,6 +366,96 @@ HRESULT StartupAndShutdownMediaFoundation() {
   }
   return hr;
 }
+
+int32_t ToInt32OrSentinel(UINT32 value, int32_t sentinel) {
+  if (value > static_cast<UINT32>(std::numeric_limits<int32_t>::max())) {
+    return sentinel;
+  }
+  return static_cast<int32_t>(value);
+}
+
+HRESULT ReadAudioMetadata(const std::wstring& input_path, int64_t* out_duration_micros,
+                          int32_t* out_sample_rate_hz, int32_t* out_channel_count,
+                          int32_t* out_bitrate_bps) {
+  if (out_duration_micros == nullptr || out_sample_rate_hz == nullptr ||
+      out_channel_count == nullptr || out_bitrate_bps == nullptr) {
+    return E_INVALIDARG;
+  }
+
+  *out_duration_micros = -1;
+  *out_sample_rate_hz = -1;
+  *out_channel_count = -1;
+  *out_bitrate_bps = -1;
+
+  HRESULT hr = S_OK;
+  const HRESULT co_init_hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+  const bool should_uninitialize = SUCCEEDED(co_init_hr) || co_init_hr == S_FALSE;
+  if (FAILED(co_init_hr) && co_init_hr != RPC_E_CHANGED_MODE) {
+    return co_init_hr;
+  }
+
+  hr = MFStartup(MF_VERSION, MFSTARTUP_FULL);
+  if (FAILED(hr)) {
+    if (should_uninitialize) {
+      CoUninitialize();
+    }
+    return hr;
+  }
+
+  ComPtr<IMFSourceReader> source_reader;
+  hr = MFCreateSourceReaderFromURL(input_path.c_str(), nullptr, &source_reader);
+  if (SUCCEEDED(hr)) {
+    PROPVARIANT duration_value;
+    PropVariantInit(&duration_value);
+    const HRESULT duration_hr =
+        source_reader->GetPresentationAttribute(MF_SOURCE_READER_MEDIASOURCE, MF_PD_DURATION,
+                                                &duration_value);
+    if (FAILED(duration_hr)) {
+      hr = duration_hr;
+    } else if (duration_value.vt != VT_UI8) {
+      hr = E_FAIL;
+    } else {
+      *out_duration_micros = static_cast<int64_t>(duration_value.uhVal.QuadPart / 10ULL);
+    }
+    PropVariantClear(&duration_value);
+  }
+
+  if (SUCCEEDED(hr)) {
+    ComPtr<IMFMediaType> native_media_type;
+    if (SUCCEEDED(source_reader->GetNativeMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0,
+                                                    &native_media_type))) {
+      UINT32 avg_bytes_per_second = 0;
+      if (SUCCEEDED(native_media_type->GetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND,
+                                                 &avg_bytes_per_second))) {
+        const uint64_t bitrate = static_cast<uint64_t>(avg_bytes_per_second) * 8ULL;
+        if (bitrate <= static_cast<uint64_t>(std::numeric_limits<int32_t>::max())) {
+          *out_bitrate_bps = static_cast<int32_t>(bitrate);
+        }
+      }
+    }
+  }
+
+  if (SUCCEEDED(hr)) {
+    UINT32 sample_rate = 0;
+    UINT32 channels = 0;
+    UINT32 bits_per_sample = 16;
+    hr = ConfigureSourceReader(source_reader.Get(), &sample_rate, &channels, &bits_per_sample);
+    if (SUCCEEDED(hr)) {
+      *out_sample_rate_hz = ToInt32OrSentinel(sample_rate, -1);
+      *out_channel_count = ToInt32OrSentinel(channels, -1);
+    }
+  }
+
+  const HRESULT shutdown_hr = MFShutdown();
+  if (SUCCEEDED(hr) && FAILED(shutdown_hr)) {
+    hr = shutdown_hr;
+  }
+  if (should_uninitialize) {
+    CoUninitialize();
+  }
+
+  return hr;
+}
 }  // namespace
 
 extern "C" __declspec(dllexport) int32_t speech_utils_windows_aac_encoder_healthcheck(
@@ -398,6 +490,45 @@ extern "C" __declspec(dllexport) int32_t speech_utils_windows_encode_audio_file_
   const HRESULT hr = EncodeAudioFileToAac(input_path, output_path, bitrate_bps);
   if (FAILED(hr)) {
     WriteError(HResultMessage(hr, "Windows AAC transcode failed"), error_utf8,
+               error_utf8_capacity);
+  }
+  return static_cast<int32_t>(hr);
+}
+
+extern "C" __declspec(dllexport) int32_t speech_utils_windows_audio_metadata_healthcheck(
+    char* error_utf8, uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+  const HRESULT hr = StartupAndShutdownMediaFoundation();
+  if (FAILED(hr)) {
+    WriteError(HResultMessage(hr, "Windows audio metadata healthcheck failed"), error_utf8,
+               error_utf8_capacity);
+  }
+  return static_cast<int32_t>(hr);
+}
+
+extern "C" __declspec(dllexport) int32_t speech_utils_windows_read_audio_metadata(
+    const char* input_path_utf8, int64_t* out_duration_micros, int32_t* out_sample_rate_hz,
+    int32_t* out_channel_count, int32_t* out_bitrate_bps, char* error_utf8,
+    uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+
+  if (input_path_utf8 == nullptr || out_duration_micros == nullptr || out_sample_rate_hz == nullptr ||
+      out_channel_count == nullptr || out_bitrate_bps == nullptr) {
+    WriteError("Invalid arguments for speech_utils_windows_read_audio_metadata", error_utf8,
+               error_utf8_capacity);
+    return static_cast<int32_t>(E_INVALIDARG);
+  }
+
+  const std::wstring input_path = Utf8ToWide(input_path_utf8);
+  if (input_path.empty()) {
+    WriteError("Failed to decode UTF-8 input path.", error_utf8, error_utf8_capacity);
+    return static_cast<int32_t>(E_INVALIDARG);
+  }
+
+  const HRESULT hr = ReadAudioMetadata(input_path, out_duration_micros, out_sample_rate_hz,
+                                       out_channel_count, out_bitrate_bps);
+  if (FAILED(hr)) {
+    WriteError(HResultMessage(hr, "Windows audio metadata read failed"), error_utf8,
                error_utf8_capacity);
   }
   return static_cast<int32_t>(hr);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
@@ -11,20 +13,36 @@ Future<void> openExampleRecorderPage(BuildContext context) async {
 }
 
 class _Bloc extends BlocBase {
-  final controller = SpeechRecorderController(
-    optionsBuilder: () async {
-      return SpeechRecorderOptions(
-        path: 'example_recording.wav',
-        recordConfig: RecordConfig(),
-        amplitudeInterval: Duration(milliseconds: 50),
-      );
-    },
-  );
+  final latestRecordingSubject = DataSubject<SpeechRecorderData?>.seeded(null);
+  late final SpeechRecorderController controller;
+
+  _Bloc() {
+    controller = SpeechRecorderController(
+      optionsBuilder: () async {
+        return SpeechRecorderOptions(
+          path: 'example_recording.wav',
+          recordConfig: RecordConfig(),
+          amplitudeInterval: Duration(milliseconds: 50),
+        );
+      },
+      onSessionFinished: (session) {
+        session.getRecordingData().then(latestRecordingSubject.add).catchError((
+          error,
+          stackTrace,
+        ) {
+          debugPrint('Could not load recording metadata: $error');
+        });
+      },
+    );
+  }
 
   static _Bloc of(BuildContext context) => BlocProvider.of<_Bloc>(context);
 
   @override
-  void dispose() {}
+  void dispose() {
+    latestRecordingSubject.close();
+    unawaited(controller.dispose());
+  }
 }
 
 class _Page extends StatelessWidget {
@@ -44,6 +62,41 @@ class _Page extends StatelessWidget {
               PaddedSectionHeader(text: 'Controller'),
               Gap(8),
               SpeechRecorderContainer(controller: bloc.controller),
+              Gap(12),
+              DataSubjectBuilder(
+                subject: bloc.latestRecordingSubject,
+                emptyBuilder: (_) => SizedBox.shrink(),
+                builder: (context, data) {
+                  if (data == null) {
+                    return SizedBox.shrink();
+                  }
+                  final seconds = data.duration.inSeconds
+                      .remainder(60)
+                      .toString()
+                      .padLeft(2, '0');
+                  final minutes = data.duration.inMinutes
+                      .remainder(60)
+                      .toString()
+                      .padLeft(2, '0');
+                  final millis = (data.duration.inMilliseconds % 1000)
+                      .toString()
+                      .padLeft(3, '0');
+                  return Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Last recording (metadata): $minutes:$seconds.$millis',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  );
+                },
+              ),
             ],
           ),
           SliverGap(32),

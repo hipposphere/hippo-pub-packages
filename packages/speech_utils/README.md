@@ -1,9 +1,10 @@
 # speech_utils
 
-`speech_utils` provides two focused capabilities for PCM16 speech workflows:
+`speech_utils` provides three focused capabilities for PCM16 speech workflows:
 
 1. Split PCM16 recordings into snippets when silence is detected.
 2. Encode/compress PCM16 snippets into AAC.
+3. Read audio duration and basic metadata through bundled native FFI bridges.
 
 It is designed to avoid unnecessary copying by using typed-data views over the
 original PCM buffers.
@@ -18,6 +19,11 @@ original PCM buffers.
   - PCM16 bytes -> AAC file
   - PCM16 raw file -> AAC file
   - Existing audio file -> AAC file
+- Native audio metadata lookup:
+  - duration
+  - sample rate (if available)
+  - channel count (if available)
+  - bitrate (if available)
 - Zero-copy snippet views (`Int16List.view`, `Uint8List.view`).
 
 ## Install
@@ -134,6 +140,20 @@ const energyOnly = SpeechVadConfig.energyOnly(
 );
 ```
 
+### Native audio metadata
+
+```dart
+final metadataReader = NativeAudioMetadataReader();
+final metadata = await metadataReader.readAudioMetadata(
+  inputPath: '/tmp/recording.m4a',
+);
+
+print('duration: ${metadata.duration.inMilliseconds} ms');
+print('sampleRateHz: ${metadata.sampleRateHz}');
+print('channelCount: ${metadata.channelCount}');
+print('bitrateBps: ${metadata.bitrateBps}');
+```
+
 ## TEN VAD FFI
 
 Use TEN VAD directly (bundled native asset):
@@ -168,6 +188,11 @@ Notes:
   - Android: bundled native NDK encoder via Dart FFI (expects PCM16 WAV input
     when calling `encodeAudioFileToAac`)
   - iOS: bundled native AVFoundation encoder via Dart FFI
+- Audio metadata (`NativeAudioMetadataReader`) via bundled native FFI:
+  - macOS: AVFoundation
+  - Windows: Media Foundation
+  - Android: MediaExtractor
+  - iOS: AVFoundation
 
 ## Maintainers
 

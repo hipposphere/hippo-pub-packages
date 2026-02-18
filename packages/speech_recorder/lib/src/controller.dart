@@ -1,10 +1,16 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:hippo_utils/hippo_utils.dart';
-import 'package:speech_recorder/speech_recorder.dart';
-import 'package:record/record.dart' as record;
 import 'package:cross_file/cross_file.dart';
-import 'utils/media_data_reader.dart';
+import 'package:record/record.dart' as record;
+import 'package:speech_utils/speech_utils.dart';
+
+import 'models/options.dart';
+import 'models/recorder_data.dart';
+import 'models/segment_data.dart';
+import 'models/streaming_options.dart';
+import 'utils/options_validator.dart';
 
 part 'session.dart';
 
@@ -46,11 +52,29 @@ class SpeechRecorderController {
     _isInitializing = true;
     try {
       final options = await optionsBuilder();
-      await _recorder.start(options.recordConfig, path: options.path);
+      validateSpeechRecorderOptions(options);
+
       final session = SpeechRecorderSession.create(
         options: options,
         recorder: _recorder,
+        isStreaming: options.streaming != null,
       );
+
+      final streamingOptions = options.streaming;
+      if (streamingOptions == null) {
+        await _recorder.start(options.recordConfig, path: options.path);
+      } else {
+        final pcm16Stream = await _recorder.startStream(options.recordConfig);
+        if (streamingOptions.onSegmentFinished case final callback?) {
+          session.onSegmentFinished(callback);
+        }
+        _startStreamingSegmentation(
+          session: session,
+          pcm16Stream: pcm16Stream,
+          streamingOptions: streamingOptions,
+        );
+      }
+
       session._setState(SpeechRecorderSessionState.recording);
       _startAmplitudeListening(session, options.amplitudeInterval);
       session.stopwatch.start();
@@ -79,6 +103,7 @@ class SpeechRecorderController {
   Future<void> stop(SpeechRecorderSession session) async {
     final path = await _recorder.stop();
     session._setPathAfterStopping(path);
+    _drainStreamingSegmentation(session);
     _stopAmplitudeListening(session);
     session._setState(SpeechRecorderSessionState.stopped);
     session.stopwatch.stop();
@@ -90,6 +115,7 @@ class SpeechRecorderController {
   }
 
   Future<void> cancel(SpeechRecorderSession session) async {
+    _cancelStreamingSegmentation(session);
     await _recorder.cancel();
     _stopAmplitudeListening(session);
     session._setState(SpeechRecorderSessionState.canceled);
@@ -97,7 +123,7 @@ class SpeechRecorderController {
     sessionSubject.add(null);
   }
 
-  Future<List<InputDevice>> listInputDevices() async {
+  Future<List<record.InputDevice>> listInputDevices() async {
     return _recorder.listInputDevices();
   }
 
@@ -126,8 +152,146 @@ class SpeechRecorderController {
         });
   }
 
-  void _stopAmplitudeListening(SpeechRecorderSession session) {
-    session._amplitudeSubscription?.cancel();
+  void _stopAmplitudeListening(SpeechRecorderSession session) async {
+    unawaited(session._amplitudeSubscription?.cancel());
     session._amplitudeSubscription = null;
+  }
+
+  void _startStreamingSegmentation({
+    required SpeechRecorderSession session,
+    required Stream<Uint8List> pcm16Stream,
+    required SpeechRecorderStreamingOptions streamingOptions,
+  }) {
+    final splitOptions = streamingOptions.pauseSplitOptions;
+    final vadConfig =
+        streamingOptions.vadConfig ??
+        session.options.vadConfig ??
+        const SpeechVadConfig();
+    final encoder = streamingOptions.encoder ?? NativeAacEncoder();
+
+    session._streamingSegmentSubscription =
+        SpeechUtils.splitPcm16StreamOnSilence(
+              pcm16leStream: pcm16Stream,
+              options: splitOptions,
+              vadConfig: vadConfig,
+            )
+            .asyncMap((snippet) async {
+              await _handleStreamingSegment(
+                session: session,
+                splitOptions: splitOptions,
+                streamingOptions: streamingOptions,
+                snippet: snippet,
+                encoder: encoder,
+              );
+            })
+            .listen(
+              (_) {},
+              onError: (Object error, StackTrace stackTrace) {
+                debugPrint('Speech recorder streaming failed: $error');
+              },
+            );
+  }
+
+  Future<void> _handleStreamingSegment({
+    required SpeechRecorderSession session,
+    required PauseSplitOptions splitOptions,
+    required SpeechRecorderStreamingOptions streamingOptions,
+    required Pcm16Snippet snippet,
+    required AacEncoder encoder,
+  }) async {
+    final splitDetectedStopwatch = Stopwatch()..start();
+    final segmentIndex = session._nextSegmentIndex();
+    final pcm16leBytes = snippet.asBytesView();
+    final outputPath =
+        streamingOptions.segmentPathBuilder?.call(
+          segmentIndex,
+          streamingOptions.fileExtension,
+        ) ??
+        _defaultSegmentPath(
+          sessionPath: session.options.path,
+          segmentIndex: segmentIndex,
+          fileExtension: streamingOptions.fileExtension,
+        );
+
+    if (outputPath.trim().isEmpty) {
+      throw ArgumentError.value(
+        outputPath,
+        'outputPath',
+        'Segment output path cannot be empty.',
+      );
+    }
+
+    final encodingStopwatch = Stopwatch()..start();
+    await encoder.encodePcm16BytesToAac(
+      pcm16leBytes: pcm16leBytes,
+      sampleRateHz: splitOptions.sampleRateHz,
+      channelCount: splitOptions.channelCount,
+      outputPath: outputPath,
+      bitrateKbps: streamingOptions.bitrateKbps,
+    );
+    encodingStopwatch.stop();
+    splitDetectedStopwatch.stop();
+
+    final segment = SpeechRecorderSegmentData(
+      index: segmentIndex,
+      file: XFile(outputPath, mimeType: streamingOptions.mimeType),
+      duration: snippet.duration,
+      fileExtension: streamingOptions.fileExtension,
+      mimeType: streamingOptions.mimeType,
+      sampleRateHz: splitOptions.sampleRateHz,
+      channelCount: splitOptions.channelCount,
+      metrics: SpeechRecorderSegmentMetrics(
+        encodingDuration: encodingStopwatch.elapsed,
+        splitToCallbackLatency: splitDetectedStopwatch.elapsed,
+        pcmByteCount: pcm16leBytes.lengthInBytes,
+      ),
+    );
+
+    for (final callback in session._onSegmentFinishedCallbacks) {
+      await callback(segment);
+    }
+  }
+
+  void _drainStreamingSegmentation(SpeechRecorderSession session) async {
+    final subscription = session._streamingSegmentSubscription;
+    if (subscription == null) {
+      return;
+    }
+
+    try {
+      await subscription.asFuture<void>();
+    } on Object catch (error) {
+      debugPrint('Speech recorder streaming drained with error: $error');
+    } finally {
+      await subscription.cancel();
+      if (identical(session._streamingSegmentSubscription, subscription)) {
+        session._streamingSegmentSubscription = null;
+      }
+    }
+  }
+
+  void _cancelStreamingSegmentation(SpeechRecorderSession session) async {
+    final subscription = session._streamingSegmentSubscription;
+    if (subscription == null) {
+      return;
+    }
+    session._streamingSegmentSubscription = null;
+    await subscription.cancel();
+  }
+
+  String _defaultSegmentPath({
+    required String sessionPath,
+    required int segmentIndex,
+    required String fileExtension,
+  }) {
+    final normalizedExtension = fileExtension.startsWith('.')
+        ? fileExtension.substring(1)
+        : fileExtension;
+    final dotIndex = sessionPath.lastIndexOf('.');
+    final basePath = dotIndex > 0
+        ? sessionPath.substring(0, dotIndex)
+        : sessionPath;
+    final suffix = segmentIndex.toString().padLeft(3, '0');
+    return '${basePath}_segment_$suffix.$normalizedExtension';
   }
 }

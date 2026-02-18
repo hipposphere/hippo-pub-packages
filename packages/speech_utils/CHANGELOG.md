@@ -1,3 +1,16 @@
+## 0.1.3
+
+- Add `NativeAudioMetadataReader` for bundled FFI metadata reads:
+  - Duration (microsecond precision)
+  - Sample rate (when available)
+  - Channel count (when available)
+  - Bitrate (when available)
+- Add native metadata bridges for:
+  - macOS (AVFoundation)
+  - Windows (Media Foundation)
+  - Android (MediaExtractor)
+  - iOS (AVFoundation)
+
 ## 0.1.2
 
 - Add `NativeAacEncoder` using native platform tooling:

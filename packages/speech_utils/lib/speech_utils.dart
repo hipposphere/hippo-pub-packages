@@ -1,6 +1,7 @@
 export 'src/encoding/aac_encoder.dart';
 export 'src/encoding/ffmpeg_aac_encoder.dart';
 export 'src/encoding/native_aac_encoder.dart';
+export 'src/metadata/native_audio_metadata_reader.dart';
 export 'src/model/pause_split_options.dart';
 export 'src/model/pcm16_snippet.dart';
 export 'src/splitting/pcm16_stream_pause_splitter.dart';

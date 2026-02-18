@@ -4,11 +4,11 @@ PODS:
   - FlutterMacOS (1.0.0)
   - irondash_engine_context (0.0.1):
     - FlutterMacOS
-  - PostHog (3.35.1)
+  - PostHog (3.41.1)
   - posthog_flutter (0.0.1):
     - Flutter
     - FlutterMacOS
-    - PostHog (< 4.0.0, >= 3.32.0)
+    - PostHog (< 4.0.0, >= 3.40.0)
   - super_native_extensions (0.0.1):
     - FlutterMacOS
 
@@ -39,8 +39,8 @@ SPEC CHECKSUMS:
   file_saver: e35bd97de451dde55ff8c38862ed7ad0f3418d0f
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
   irondash_engine_context: 893c7d96d20ce361d7e996f39d360c4c2f9869ba
-  PostHog: 24a9af5451f9421af38bb93fd0c06624d2f8a55c
-  posthog_flutter: 9535ac2d4ab65ccb9ace3886dcc0b3105198bad5
+  PostHog: f73d82f70ac404567a49d3c62c9e15d2fd6c1aa9
+  posthog_flutter: 074371576a1f82dc8d3c7ca6b0b6c3c930e03ba5
   super_native_extensions: c2795d6d9aedf4a79fae25cb6160b71b50549189
 
 PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009

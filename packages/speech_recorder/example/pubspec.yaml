@@ -12,6 +12,8 @@ dependencies:
     sdk: flutter
   speech_recorder:
     path: ../
+  speech_utils:
+    path: ../../speech_utils
   hippo_components:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.0

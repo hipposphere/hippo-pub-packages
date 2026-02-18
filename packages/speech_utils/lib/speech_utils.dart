@@ -1,0 +1,11 @@
+export 'src/encoding/aac_encoder.dart';
+export 'src/encoding/ffmpeg_aac_encoder.dart';
+export 'src/encoding/native_aac_encoder.dart';
+export 'src/model/pause_split_options.dart';
+export 'src/model/pcm16_snippet.dart';
+export 'src/splitting/pcm16_stream_pause_splitter.dart';
+export 'src/speech_utils.dart';
+export 'src/vad/energy_vad_backend.dart';
+export 'src/vad/speech_vad_config.dart';
+export 'src/vad/ten_vad_ffi_backend.dart';
+export 'src/vad/vad_backend.dart';

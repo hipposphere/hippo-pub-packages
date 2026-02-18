@@ -1,0 +1,18 @@
+## 0.1.2
+
+- Add `NativeAacEncoder` using native platform tooling:
+  - macOS: `afconvert`
+  - Windows: bundled native Media Foundation encoder via Dart FFI
+  - Android: bundled native NDK encoder via Dart FFI
+  - iOS: bundled native AVFoundation encoder via Dart FFI
+- Make `SpeechUtils.splitPcm16AndEncodeAacSnippets` default to `NativeAacEncoder`.
+- Add TEN VAD mobile bundles for Android (`arm64-v8a`, `armeabi-v7a`) and iOS arm64 (device).
+- Update docs/example to use native AAC encoding without `ffmpeg` fallback.
+
+## 0.1.0
+
+- Add PCM16 silence-based splitting with pluggable VAD backends.
+- Add lightweight Dart energy-based VAD backend.
+- Add TEN VAD FFI backend with bundled macOS/Windows native assets.
+- Add hook/code-assets build integration and generated `ffigen` bindings.
+- Add AAC encoding helpers backed by `ffmpeg`.

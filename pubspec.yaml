@@ -34,6 +34,8 @@ workspace:
   - packages/app_permissions/example
   - packages/speech_recorder
   - packages/speech_recorder/example
+  - packages/speech_utils
+  - packages/speech_utils/example
 
 melos:
   ide:

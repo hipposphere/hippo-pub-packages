@@ -1,6 +1,6 @@
 name: speech_recorder
 description: "A useful speech recorder abstraction"
-version: 0.0.15
+version: 0.1.0
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace

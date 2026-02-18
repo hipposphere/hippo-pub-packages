@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -137,7 +138,6 @@ class SpeechRecorderController {
         );
       }
     }
-    session._disposeSpeechProbabilityEstimator();
     _stopAmplitudeListening(session);
     session._setState(SpeechRecorderSessionState.stopped);
     session.stopwatch.stop();
@@ -151,7 +151,6 @@ class SpeechRecorderController {
   Future<void> cancel(SpeechRecorderSession session) async {
     await _cancelStreamingSegmentation(session);
     session._discardStreamingPcm16Capture();
-    session._disposeSpeechProbabilityEstimator();
     await _recorder.cancel();
     _stopAmplitudeListening(session);
     session._setState(SpeechRecorderSessionState.canceled);
@@ -172,7 +171,6 @@ class SpeechRecorderController {
   }
 
   Future<void> dispose() async {
-    sessionSubject.value?._disposeSpeechProbabilityEstimator();
     await _recorder.dispose();
   }
 
@@ -204,18 +202,6 @@ class SpeechRecorderController {
         streamingOptions.vadConfig ??
         session.options.vadConfig ??
         const SpeechVadConfig();
-    if (streamingOptions.includeSpeechProbability) {
-      try {
-        session._enableSpeechProbabilityEstimator(
-          splitOptions: splitOptions,
-          vadConfig: vadConfig,
-        );
-      } on Object catch (error) {
-        debugPrint(
-          'Speech recorder speech probability estimator disabled: $error',
-        );
-      }
-    }
     final encoder = streamingOptions.encoder ?? NativeAacEncoder();
     final shouldCapturePcm16 =
         streamingOptions.encodeFullRecordingOnStop ||
@@ -280,6 +266,7 @@ class SpeechRecorderController {
     }
 
     final encodingStopwatch = Stopwatch()..start();
+    await _ensureOutputParentDirectoryExists(outputPath);
     await encoder.encodePcm16BytesToAac(
       pcm16leBytes: pcm16leBytes,
       sampleRateHz: splitOptions.sampleRateHz,
@@ -302,12 +289,11 @@ class SpeechRecorderController {
         encodingDuration: encodingStopwatch.elapsed,
         splitToCallbackLatency: splitDetectedStopwatch.elapsed,
         pcmByteCount: pcm16leBytes.lengthInBytes,
-        speechProbability: streamingOptions.includeSpeechProbability
-            ? session._estimateSpeechProbability(
-                snippet: snippet,
-                splitOptions: splitOptions,
-              )
-            : null,
+        speechProbability: _resolveSegmentSpeechProbability(
+          includeSpeechProbability: streamingOptions.includeSpeechProbability,
+          speechFrameCount: snippet.speechFrameCount,
+          analyzedFrameCount: snippet.analyzedFrameCount,
+        ),
       ),
     );
 
@@ -392,6 +378,7 @@ class SpeechRecorderController {
     final encodingStopwatch = Stopwatch()..start();
     final encoder = streamingOptions.encoder ?? NativeAacEncoder();
     try {
+      await _ensureOutputParentDirectoryExists(outputPath);
       await encoder.encodePcm16BytesToAac(
         pcm16leBytes: pcm16leBytes,
         sampleRateHz: streamingOptions.pauseSplitOptions.sampleRateHz,
@@ -421,10 +408,10 @@ class SpeechRecorderController {
         encodingDuration: encodingStopwatch.elapsed,
         splitToCallbackLatency: Duration.zero,
         pcmByteCount: pcm16leBytes.lengthInBytes,
-        speechProbability: _estimateSpeechProbabilityFromPcm16(
-          session: session,
-          streamingOptions: streamingOptions,
-          pcm16leBytes: pcm16leBytes,
+        speechProbability: _resolveSegmentSpeechProbability(
+          includeSpeechProbability: streamingOptions.includeSpeechProbability,
+          speechFrameCount: null,
+          analyzedFrameCount: null,
         ),
       ),
     );
@@ -456,6 +443,7 @@ class SpeechRecorderController {
 
     final encoder = streamingOptions.encoder ?? NativeAacEncoder();
     try {
+      await _ensureOutputParentDirectoryExists(outputPath);
       await encoder.encodePcm16BytesToAac(
         pcm16leBytes: pcm16leBytes,
         sampleRateHz: streamingOptions.pauseSplitOptions.sampleRateHz,
@@ -488,26 +476,20 @@ class SpeechRecorderController {
     return Duration(microseconds: micros);
   }
 
-  double? _estimateSpeechProbabilityFromPcm16({
-    required SpeechRecorderSession session,
-    required SpeechRecorderStreamingOptions streamingOptions,
-    required Uint8List pcm16leBytes,
+  double? _resolveSegmentSpeechProbability({
+    required bool includeSpeechProbability,
+    required int? speechFrameCount,
+    required int? analyzedFrameCount,
   }) {
-    if (!streamingOptions.includeSpeechProbability || pcm16leBytes.isEmpty) {
+    if (!includeSpeechProbability) {
       return null;
     }
-    final snippet = Pcm16Snippet(
-      sourceBuffer: pcm16leBytes.buffer,
-      sourceByteOffset: pcm16leBytes.offsetInBytes,
-      startSampleOffset: 0,
-      endSampleOffsetExclusive: pcm16leBytes.lengthInBytes ~/ 2,
-      sampleRateHz: streamingOptions.pauseSplitOptions.sampleRateHz,
-      channelCount: streamingOptions.pauseSplitOptions.channelCount,
-    );
-    return session._estimateSpeechProbability(
-      snippet: snippet,
-      splitOptions: streamingOptions.pauseSplitOptions,
-    );
+    if (speechFrameCount == null ||
+        analyzedFrameCount == null ||
+        analyzedFrameCount <= 0) {
+      return null;
+    }
+    return speechFrameCount / analyzedFrameCount;
   }
 
   String _defaultFullRecordingPath({
@@ -517,11 +499,13 @@ class SpeechRecorderController {
     final normalizedExtension = fileExtension.startsWith('.')
         ? fileExtension.substring(1)
         : fileExtension;
-    final dotIndex = sessionPath.lastIndexOf('.');
-    final basePath = dotIndex > 0
-        ? sessionPath.substring(0, dotIndex)
-        : sessionPath;
-    return '$basePath.$normalizedExtension';
+    final directory = _pathDirectory(sessionPath);
+    final baseName = _pathBaseNameWithoutExtension(sessionPath);
+    final fileName = '$baseName.$normalizedExtension';
+    if (directory.isEmpty) {
+      return fileName;
+    }
+    return _joinPath(directory, fileName);
   }
 
   String _defaultSegmentPath({
@@ -532,11 +516,64 @@ class SpeechRecorderController {
     final normalizedExtension = fileExtension.startsWith('.')
         ? fileExtension.substring(1)
         : fileExtension;
-    final dotIndex = sessionPath.lastIndexOf('.');
-    final basePath = dotIndex > 0
-        ? sessionPath.substring(0, dotIndex)
-        : sessionPath;
+    final directory = _pathDirectory(sessionPath);
+    final baseName = _pathBaseNameWithoutExtension(sessionPath);
+    final segmentsDirectory = directory.isEmpty
+        ? 'segments'
+        : _joinPath(directory, 'segments');
     final suffix = segmentIndex.toString().padLeft(3, '0');
-    return '${basePath}_segment_$suffix.$normalizedExtension';
+    return _joinPath(
+      segmentsDirectory,
+      '${baseName}_segment_$suffix.$normalizedExtension',
+    );
+  }
+
+  Future<void> _ensureOutputParentDirectoryExists(String outputPath) async {
+    final directory = _pathDirectory(outputPath);
+    if (directory.isEmpty) {
+      return;
+    }
+    await Directory(directory).create(recursive: true);
+  }
+
+  String _pathDirectory(String path) {
+    final separatorIndex = _lastPathSeparatorIndex(path);
+    if (separatorIndex < 0) {
+      return '';
+    }
+    return path.substring(0, separatorIndex);
+  }
+
+  String _pathBaseNameWithoutExtension(String path) {
+    final baseName = _pathBaseName(path);
+    final dotIndex = baseName.lastIndexOf('.');
+    if (dotIndex <= 0) {
+      return baseName;
+    }
+    return baseName.substring(0, dotIndex);
+  }
+
+  String _pathBaseName(String path) {
+    final separatorIndex = _lastPathSeparatorIndex(path);
+    if (separatorIndex < 0) {
+      return path;
+    }
+    return path.substring(separatorIndex + 1);
+  }
+
+  int _lastPathSeparatorIndex(String path) {
+    final unixSeparator = path.lastIndexOf('/');
+    final windowsSeparator = path.lastIndexOf(r'\');
+    return unixSeparator > windowsSeparator ? unixSeparator : windowsSeparator;
+  }
+
+  String _joinPath(String left, String right) {
+    if (left.isEmpty) {
+      return right;
+    }
+    if (left.endsWith('/') || left.endsWith(r'\')) {
+      return '$left$right';
+    }
+    return '$left${Platform.pathSeparator}$right';
   }
 }

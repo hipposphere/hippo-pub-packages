@@ -29,7 +29,8 @@ class SpeechRecorderStreamingOptions {
 
   /// Includes a VAD-based probability estimate on each emitted segment.
   ///
-  /// Disabled by default because this adds another per-segment VAD pass.
+  /// Disabled by default. When enabled, this uses statistics produced during
+  /// the splitter's primary VAD pass.
   final bool includeSpeechProbability;
   final String fileExtension;
   final String mimeType;

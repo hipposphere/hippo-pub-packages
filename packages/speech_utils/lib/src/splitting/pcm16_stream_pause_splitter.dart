@@ -163,6 +163,8 @@ final class Pcm16StreamPauseSplitter {
       endSampleOffsetExclusive: bytes.lengthInBytes ~/ 2,
       sampleRateHz: options.sampleRateHz,
       channelCount: options.channelCount,
+      speechFrameCount: _speechFrameCount,
+      analyzedFrameCount: keptFrameCount,
     );
 
     if (!forceFlush) {

@@ -57,7 +57,6 @@ class SpeechRecorderSession {
 
   _SpeechRecorderRecordingOutput? _recordingOutputAfterStopping;
   BytesBuilder? _streamingPcm16Capture;
-  ResolvedVadBackend? _speechProbabilityBackend;
 
   void _enableStreamingPcm16Capture() {
     _streamingPcm16Capture = BytesBuilder();
@@ -75,62 +74,6 @@ class SpeechRecorderSession {
 
   void _discardStreamingPcm16Capture() {
     _streamingPcm16Capture = null;
-  }
-
-  void _enableSpeechProbabilityEstimator({
-    required PauseSplitOptions splitOptions,
-    required SpeechVadConfig vadConfig,
-  }) {
-    _disposeSpeechProbabilityEstimator();
-    _speechProbabilityBackend = resolveSpeechVadBackend(
-      options: splitOptions,
-      config: vadConfig,
-    );
-  }
-
-  void _disposeSpeechProbabilityEstimator() {
-    final backend = _speechProbabilityBackend;
-    if (backend == null) {
-      return;
-    }
-    _speechProbabilityBackend = null;
-    backend.backend.dispose();
-  }
-
-  double? _estimateSpeechProbability({
-    required Pcm16Snippet snippet,
-    required PauseSplitOptions splitOptions,
-  }) {
-    final backend = _speechProbabilityBackend?.backend;
-    if (backend == null) {
-      return null;
-    }
-
-    final samples = snippet.asSamplesView();
-    final frameSampleCount = splitOptions.frameSampleCount;
-    if (frameSampleCount <= 0) {
-      return null;
-    }
-    final totalFrames = samples.length ~/ frameSampleCount;
-    if (totalFrames <= 0) {
-      return null;
-    }
-
-    var speechFrames = 0;
-    for (var frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
-      final startSampleOffset = frameIndex * frameSampleCount;
-      final isSpeech = backend.isSpeechFrame(
-        samples,
-        startSampleOffset: startSampleOffset,
-        sampleCount: frameSampleCount,
-        sampleRateHz: splitOptions.sampleRateHz,
-        channelCount: splitOptions.channelCount,
-      );
-      if (isSpeech) {
-        speechFrames++;
-      }
-    }
-    return speechFrames / totalFrames;
   }
 
   _SpeechRecorderRecordingOutput? _resolveRecordingOutput() {

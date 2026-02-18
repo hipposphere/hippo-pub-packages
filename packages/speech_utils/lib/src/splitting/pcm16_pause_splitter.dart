@@ -153,6 +153,7 @@ final class Pcm16PauseSplitter {
       return;
     }
 
+    final analyzedFrameCount = (endSampleOffsetExclusive - startSampleOffset) ~/ frameSampleCount;
     snippets.add(
       Pcm16Snippet(
         sourceBuffer: samples.buffer,
@@ -161,6 +162,8 @@ final class Pcm16PauseSplitter {
         endSampleOffsetExclusive: endSampleOffsetExclusive,
         sampleRateHz: options.sampleRateHz,
         channelCount: options.channelCount,
+        speechFrameCount: speechFrameCount,
+        analyzedFrameCount: analyzedFrameCount,
       ),
     );
   }

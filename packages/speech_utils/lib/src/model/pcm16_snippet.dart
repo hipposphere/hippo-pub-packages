@@ -13,10 +13,19 @@ final class Pcm16Snippet {
     required this.endSampleOffsetExclusive,
     required this.sampleRateHz,
     required this.channelCount,
+    this.speechFrameCount,
+    this.analyzedFrameCount,
   }) : assert(startSampleOffset >= 0),
        assert(endSampleOffsetExclusive >= startSampleOffset),
        assert(sampleRateHz > 0),
-       assert(channelCount > 0);
+       assert(channelCount > 0),
+       assert(speechFrameCount == null || speechFrameCount >= 0),
+       assert(analyzedFrameCount == null || analyzedFrameCount >= 0),
+       assert(
+         speechFrameCount == null ||
+             analyzedFrameCount == null ||
+             speechFrameCount <= analyzedFrameCount,
+       );
 
   final ByteBuffer sourceBuffer;
   final int sourceByteOffset;
@@ -24,6 +33,8 @@ final class Pcm16Snippet {
   final int endSampleOffsetExclusive;
   final int sampleRateHz;
   final int channelCount;
+  final int? speechFrameCount;
+  final int? analyzedFrameCount;
 
   int get sampleCount => endSampleOffsetExclusive - startSampleOffset;
   int get frameCount => sampleCount ~/ channelCount;
@@ -33,6 +44,17 @@ final class Pcm16Snippet {
   Duration get duration {
     final micros = (frameCount * Duration.microsecondsPerSecond / sampleRateHz).round();
     return Duration(microseconds: micros);
+  }
+
+  /// Probability estimate from the original VAD segmentation pass when
+  /// available, represented as `speechFrames / analyzedFrames`.
+  double? get speechProbability {
+    final speech = speechFrameCount;
+    final analyzed = analyzedFrameCount;
+    if (speech == null || analyzed == null || analyzed <= 0) {
+      return null;
+    }
+    return speech / analyzed;
   }
 
   Int16List asSamplesView() {

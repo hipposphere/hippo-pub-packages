@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
@@ -19,9 +20,13 @@ class _Bloc extends BlocBase {
   _Bloc() {
     controller = SpeechRecorderController(
       optionsBuilder: () async {
+        await Directory('tmp').create(recursive: true);
         return SpeechRecorderOptions(
-          path: 'example_recording.wav',
-          recordConfig: RecordConfig(),
+          path: 'tmp/example_recording.m4a',
+          recordConfig: RecordConfig(
+            encoder: AudioEncoder.aacLc,
+            sampleRate: 16000,
+          ),
           amplitudeInterval: Duration(milliseconds: 50),
         );
       },

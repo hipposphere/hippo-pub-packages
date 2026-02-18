@@ -1,7 +1,7 @@
 name: speech_recorder_example
 description: "A new Flutter project."
 resolution: workspace
-publish_to: 'none'
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
@@ -26,6 +26,12 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
+dependency_overrides:
+  record_windows:
+    git:
+      url: https://github.com/hipposphere/record_fork.git
+      ref: windows-fix-miniaudio-rewrite
+      path: record_windows
 
 flutter:
   uses-material-design: true

@@ -43,7 +43,7 @@ class _Bloc extends BlocBase {
     controller = SpeechRecorderController(
       optionsBuilder: () async {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final path = 'streaming_recording_$timestamp.wav';
+        final path = 'tmp/streaming_recording_$timestamp.m4a';
         final vadConfig = _buildVadConfig();
         return SpeechRecorderOptions(
           path: path,

@@ -396,15 +396,15 @@ class _PerformanceSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final encodeMs = segments
+    final encodeMicros = segments
         .map(
           (segment) =>
-              _durationToMilliseconds(segment.data.metrics.encodingDuration),
+              _durationToMicroseconds(segment.data.metrics.encodingDuration),
         )
         .toList(growable: false);
-    final latencyMs = segments
+    final latencyMicros = segments
         .map(
-          (segment) => _durationToMilliseconds(
+          (segment) => _durationToMicroseconds(
             segment.data.metrics.splitToCallbackLatency,
           ),
         )
@@ -441,11 +441,11 @@ class _PerformanceSummary extends StatelessWidget {
           Text('Performance summary', style: textTheme.labelLarge),
           Gap(4),
           Text(
-            'Encoding avg/max: ${_average(encodeMs).toStringAsFixed(1)} ms / ${_max(encodeMs).toStringAsFixed(1)} ms',
+            'Encoding avg/max: ${_microsecondsToMilliseconds(_average(encodeMicros)).toStringAsFixed(1)} ms / ${_microsecondsToMilliseconds(_max(encodeMicros)).toStringAsFixed(1)} ms',
             style: textTheme.bodySmall,
           ),
           Text(
-            'Latency avg/max: ${_average(latencyMs).toStringAsFixed(1)} ms / ${_max(latencyMs).toStringAsFixed(1)} ms',
+            'Latency avg/max: ${_microsecondsToMilliseconds(_average(latencyMicros)).toStringAsFixed(1)} ms / ${_microsecondsToMilliseconds(_max(latencyMicros)).toStringAsFixed(1)} ms',
             style: textTheme.bodySmall,
           ),
           Text(
@@ -661,7 +661,7 @@ Future<void> _openSegmentMetadataInfoModal({
     'containerFormat': data.containerFormat,
     'codec': data.codec,
     'codecProfile': data.codecProfile,
-    'durationMs': data.duration.inMilliseconds,
+    'durationMicros': data.duration.inMicroseconds,
     'durationPretty': _formatDuration(data.duration),
     'sampleRateHz': data.sampleRateHz,
     'channelCount': data.channelCount,
@@ -672,10 +672,10 @@ Future<void> _openSegmentMetadataInfoModal({
     'createdAt': segment.createdAt.toIso8601String(),
     'fileLastModifiedAt': fileLastModifiedAt?.toIso8601String(),
     'metrics': <String, Object?>{
-      'encodingDurationMs': _durationToMilliseconds(
+      'encodingDurationMicros': _durationToMicroseconds(
         data.metrics.encodingDuration,
       ),
-      'splitToCallbackLatencyMs': _durationToMilliseconds(
+      'splitToCallbackLatencyMicros': _durationToMicroseconds(
         data.metrics.splitToCallbackLatency,
       ),
       'pcmByteCount': data.metrics.pcmByteCount,
@@ -728,11 +728,15 @@ double _normalizeThreshold(double value) {
 }
 
 String _formatMilliseconds(Duration duration) {
-  return '${_durationToMilliseconds(duration).toStringAsFixed(1)} ms';
+  return '${_microsecondsToMilliseconds(_durationToMicroseconds(duration)).toStringAsFixed(1)} ms';
 }
 
-double _durationToMilliseconds(Duration duration) {
-  return duration.inMicroseconds / 1000;
+double _durationToMicroseconds(Duration duration) {
+  return duration.inMicroseconds.toDouble();
+}
+
+double _microsecondsToMilliseconds(double microseconds) {
+  return microseconds / 1000;
 }
 
 double _realTimeFactor({

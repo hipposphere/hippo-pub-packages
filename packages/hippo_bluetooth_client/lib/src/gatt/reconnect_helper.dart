@@ -70,7 +70,7 @@ class BleReconnectHelper {
 
         await Future<void>.delayed(delay);
         final nextDelay = Duration(
-          milliseconds: (delay.inMilliseconds * options.multiplier).round(),
+          microseconds: (delay.inMicroseconds * options.multiplier).round(),
         );
         delay = nextDelay > options.maxDelay ? options.maxDelay : nextDelay;
       }

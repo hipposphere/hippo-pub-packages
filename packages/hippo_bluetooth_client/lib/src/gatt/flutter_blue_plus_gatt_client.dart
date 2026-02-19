@@ -271,8 +271,8 @@ class FlutterBluePlusGattClient implements BleGattClient {
     if (timeout <= Duration.zero) {
       return 1;
     }
-    final milliseconds = timeout.inMilliseconds;
-    return (milliseconds / 1000).ceil();
+    final microseconds = timeout.inMicroseconds;
+    return (microseconds / Duration.microsecondsPerSecond).ceil();
   }
 
   BleConnectionState _mapConnectionState(BluetoothConnectionState input) {

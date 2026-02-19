@@ -46,9 +46,13 @@ class MethodChannelHidDevice extends HidDevice {
   @override
   Future<HidReport> read({Duration? timeout}) async {
     try {
+      final timeoutMicros = timeout?.inMicroseconds;
+      final timeoutMillis = timeoutMicros == null
+          ? null
+          : (timeoutMicros / Duration.microsecondsPerMillisecond).ceil();
       final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
         'read',
-        {'path': path, 'timeout': timeout?.inMilliseconds},
+        {'path': path, 'timeout': timeoutMillis},
       );
 
       if (result == null) {

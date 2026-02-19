@@ -55,6 +55,6 @@ class OperationTimeoutError extends BleClientError {
     super.cause,
     super.stackTrace,
   }) : super(
-         'Operation "$operation" timed out after ${timeout.inMilliseconds}ms',
+         'Operation "$operation" timed out after ${timeout.inMicroseconds}us',
        );
 }

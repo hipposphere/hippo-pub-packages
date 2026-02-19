@@ -151,7 +151,8 @@ final metadata = await metadataReader.readAudioMetadata(
   inputPath: '/tmp/recording.m4a',
 );
 
-print('duration: ${metadata.duration.inMilliseconds} ms');
+print('durationMicros: ${metadata.duration.inMicroseconds}');
+print('durationMs: ${(metadata.duration.inMicroseconds / 1000).toStringAsFixed(1)}');
 print('sampleRateHz: ${metadata.sampleRateHz}');
 print('channelCount: ${metadata.channelCount}');
 print('bitrateBps: ${metadata.bitrateBps}');

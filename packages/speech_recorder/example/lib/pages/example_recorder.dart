@@ -59,15 +59,26 @@ class _Bloc extends BlocBase {
         final extension = RecordingFileType.fileExtensionFromAudioEncoder(
           settings.encoder,
         );
+        final shouldApplyBitrate = !_ignoresBitrate(settings.encoder);
+        final appliedBitrateBps = shouldApplyBitrate
+            ? settings.bitrateBps
+            : null;
+        final recordConfig = appliedBitrateBps == null
+            ? RecordConfig(
+                encoder: settings.encoder,
+                sampleRate: settings.sampleRateHz,
+                numChannels: settings.channelCount,
+              )
+            : RecordConfig(
+                encoder: settings.encoder,
+                sampleRate: settings.sampleRateHz,
+                numChannels: settings.channelCount,
+                bitRate: appliedBitrateBps,
+              );
         await Directory('tmp').create(recursive: true);
         return SpeechRecorderOptions(
           path: 'tmp/example_recording.$extension',
-          recordConfig: RecordConfig(
-            encoder: settings.encoder,
-            sampleRate: settings.sampleRateHz,
-            numChannels: settings.channelCount,
-            bitRate: settings.bitrateBps,
-          ),
+          recordConfig: recordConfig,
           amplitudeInterval: Duration(milliseconds: 50),
         );
       },
@@ -351,6 +362,10 @@ class _RecorderSettingsCard extends StatelessWidget {
                     'Output file: tmp/example_recording.$extension',
                     style: textTheme.bodySmall,
                   ),
+                  Text(
+                    'Bitrate: ${settings.bitrateBps == null ? 'Auto (recommended)' : '${_formatBitrateKbps(settings.bitrateBps!)} kbps (${settings.bitrateBps} bps)'}',
+                    style: textTheme.bodySmall,
+                  ),
                   if (hasActiveSession)
                     Text(
                       'A recording is active. Changes apply to the next recording.',
@@ -444,32 +459,35 @@ class _RecorderSettingsCard extends StatelessWidget {
                           },
                   ),
                   Gap(8),
-                  DropdownButtonFormField<int>(
+                  DropdownButtonFormField<int?>(
                     initialValue: settings.bitrateBps,
                     decoration: InputDecoration(
                       labelText: 'Bitrate',
                       isDense: true,
                     ),
-                    items: _bitrateOptionsBps
-                        .map(
-                          (bitrateBps) => DropdownMenuItem(
-                            value: bitrateBps,
-                            child: Text(
-                              '${_formatBitrateKbps(bitrateBps)} kbps ($bitrateBps bps)',
-                            ),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('Auto (recommended)'),
+                      ),
+                      ..._bitrateOptionsBps.map(
+                        (bitrateBps) => DropdownMenuItem<int?>(
+                          value: bitrateBps,
+                          child: Text(
+                            '${_formatBitrateKbps(bitrateBps)} kbps ($bitrateBps bps)',
                           ),
-                        )
-                        .toList(growable: false),
+                        ),
+                      ),
+                    ],
                     onChanged: hasActiveSession
                         ? null
                         : (bitrateBps) {
-                            if (bitrateBps == null) {
-                              return;
-                            }
-                            bloc.updateSettings(
-                              (current) =>
-                                  current.copyWith(bitrateBps: bitrateBps),
-                            );
+                            bloc.updateSettings((current) {
+                              if (bitrateBps == null) {
+                                return current.copyWith(clearBitrateBps: true);
+                              }
+                              return current.copyWith(bitrateBps: bitrateBps);
+                            });
                           },
                   ),
                 ],
@@ -504,13 +522,13 @@ class _RecorderSettings {
   final AudioEncoder encoder;
   final int sampleRateHz;
   final int channelCount;
-  final int bitrateBps;
+  final int? bitrateBps;
 
   const _RecorderSettings({
     this.encoder = AudioEncoder.aacLc,
     this.sampleRateHz = 16000,
     this.channelCount = 1,
-    this.bitrateBps = 64000,
+    this.bitrateBps,
   });
 
   _RecorderSettings copyWith({
@@ -518,12 +536,13 @@ class _RecorderSettings {
     int? sampleRateHz,
     int? channelCount,
     int? bitrateBps,
+    bool clearBitrateBps = false,
   }) {
     return _RecorderSettings(
       encoder: encoder ?? this.encoder,
       sampleRateHz: sampleRateHz ?? this.sampleRateHz,
       channelCount: channelCount ?? this.channelCount,
-      bitrateBps: bitrateBps ?? this.bitrateBps,
+      bitrateBps: clearBitrateBps ? null : (bitrateBps ?? this.bitrateBps),
     );
   }
 }
@@ -604,7 +623,7 @@ Future<void> _openFullMetadataInfoModal({
     'containerFormat': data.containerFormat,
     'codec': data.codec,
     'codecProfile': data.codecProfile,
-    'durationMs': data.duration.inMilliseconds,
+    'durationMicros': data.duration.inMicroseconds,
     'durationPretty': _formatDuration(data.duration),
     'sampleRateHz': data.sampleRateHz,
     'channelCount': data.channelCount,

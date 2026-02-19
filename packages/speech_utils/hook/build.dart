@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
+import 'package:native_toolchain_c/native_toolchain_c.dart';
 
 const _tenVadAssetName = 'src/vad/generated/ten_vad_bindings.dart';
 const _tenVadLibraryBaseName = 'speech_utils_ten_vad';
@@ -100,191 +101,16 @@ Future<void> _maybeBuildWindowsAacEncoderAsset(BuildInput input, BuildOutputBuil
     throw StateError('Missing Windows AAC encoder source file at ${source.path}.');
   }
 
-  final bundledFileName = input.config.code.targetOS.dylibFileName(_windowsAacLibraryBaseName);
-  final bundledLibrary = input.outputDirectoryShared.resolve('speech_utils/$bundledFileName');
-  final bundledFile = File.fromUri(bundledLibrary);
-  bundledFile.parent.createSync(recursive: true);
-
-  await _buildWindowsAacEncoderDll(input: input, sourceFile: source, bundledDll: bundledFile);
-
-  output.assets.code.add(
-    CodeAsset(
-      package: input.packageName,
-      name: _windowsAacAssetName,
-      linkMode: DynamicLoadingBundled(),
-      file: bundledLibrary,
-    ),
-  );
-}
-
-Future<void> _buildWindowsAacEncoderDll({
-  required BuildInput input,
-  required File sourceFile,
-  required File bundledDll,
-}) async {
-  final clArgs = <String>[
-    '/nologo',
-    '/std:c++17',
-    '/EHsc',
-    '/O2',
-    '/LD',
-    '/DUNICODE',
-    '/D_UNICODE',
-    '/DWIN32_LEAN_AND_MEAN',
-    '/DNOMINMAX',
-    sourceFile.path,
-    '/link',
-    '/NOLOGO',
-    '/OUT:${bundledDll.path}',
-    'mfplat.lib',
-    'mfreadwrite.lib',
-    'mfuuid.lib',
-    'mf.lib',
-    'ole32.lib',
-  ];
-
-  final setupScript = _resolveVisualStudioSetupScript(input);
-  final setupScriptExists = setupScript != null && File(setupScript.path).existsSync();
-  ProcessResult? setupCompileResult;
-  ProcessResult? configuredCompilerResult;
-
-  if (setupScriptExists) {
-    try {
-      setupCompileResult = await _runClViaVisualStudioSetup(setupScript: setupScript, clArgs: clArgs);
-    } on ProcessException catch (error) {
-      throw StateError(
-        'Failed to start Windows developer command prompt script '
-        '`${setupScript.path}`.\n'
-        'Details: ${error.message}',
-      );
-    }
-
-    if (setupCompileResult.exitCode == 0) {
-      return;
-    }
-  }
-
-  final cCompiler = input.config.code.cCompiler;
-  final configuredCl = cCompiler?.compiler.toFilePath();
-
-  if (configuredCl != null && File(configuredCl).existsSync()) {
-    configuredCompilerResult = await Process.run(configuredCl, clArgs);
-    if (configuredCompilerResult.exitCode == 0) {
-      return;
-    }
-  }
-
-  final pathResult = await _runCommandIfAvailable(command: 'cl', args: clArgs);
-  if (pathResult != null && pathResult.exitCode == 0) {
-    return;
-  }
-
-  final setupDescription = switch ((setupScript, setupScriptExists)) {
-    (null, _) => 'not configured',
-    (_, false) => 'configured but missing',
-    (_, true) => 'configured and executed',
-  };
-  throw StateError(
-    'Failed to compile Windows AAC encoder DLL.\n'
-    'Visual Studio setup script: $setupDescription.\n'
-    '${setupCompileResult == null ? '' : _formatCommandFailure(command: 'cmd.exe /d /c call ""${setupScript?.path ?? ''}"" ${setupScript?.arguments.join(' ') ?? ''} >nul && cl ${clArgs.join(' ')}', exitCode: setupCompileResult.exitCode, stdout: '${setupCompileResult.stdout}', stderr: '${setupCompileResult.stderr}')}\n'
-    'Configured compiler path: ${configuredCl ?? 'not configured'}.\n'
-    '${configuredCompilerResult == null ? '' : _formatCommandFailure(command: '${configuredCl ?? 'cl.exe'} ${clArgs.join(' ')}', exitCode: configuredCompilerResult.exitCode, stdout: '${configuredCompilerResult.stdout}', stderr: '${configuredCompilerResult.stderr}')}\n'
-    'PATH compiler fallback (`cl`): ${pathResult == null ? 'not available' : 'executed (exit code ${pathResult.exitCode})'}.\n'
-    '${pathResult == null ? '' : _formatCommandFailure(command: 'cl ${clArgs.join(' ')}', exitCode: pathResult.exitCode, stdout: '${pathResult.stdout}', stderr: '${pathResult.stderr}')}',
-  );
-}
-
-_VisualStudioSetupScript? _resolveVisualStudioSetupScript(BuildInput input) {
-  final cCompiler = input.config.code.cCompiler;
-  if (cCompiler == null) {
-    return null;
-  }
-
-  try {
-    final developerPrompt = cCompiler.windows.developerCommandPrompt;
-    if (developerPrompt == null) {
-      return null;
-    }
-    return _VisualStudioSetupScript(developerPrompt.script.toFilePath(), developerPrompt.arguments);
-  } on StateError {
-    return null;
-  }
-}
-
-String _formatCommandFailure({
-  required String command,
-  required int exitCode,
-  required String stdout,
-  required String stderr,
-}) {
-  return 'Command: $command\n'
-      'Exit code: $exitCode\n'
-      'stdout:\n$stdout\n'
-      'stderr:\n$stderr';
-}
-
-Future<ProcessResult> _runClViaVisualStudioSetup({
-  required _VisualStudioSetupScript setupScript,
-  required List<String> clArgs,
-}) async {
-  final setupArgs = setupScript.arguments.map(_quoteForWindowsCmd).join(' ');
-  final clCommand = ['cl', ...clArgs.map(_quoteForWindowsCmd)].join(' ');
-  final tempDir = await Directory.systemTemp.createTemp('speech_utils_windows_build_');
-  final commandFile = File('${tempDir.path}\\run_cl.cmd');
-  final script = StringBuffer()
-    ..writeln('@echo off')
-    ..write('call "')
-    ..write(setupScript.path)
-    ..write('"');
-  if (setupArgs.isNotEmpty) {
-    script
-      ..write(' ')
-      ..write(setupArgs);
-  }
-  script
-    ..writeln(' >nul')
-    ..writeln('if errorlevel 1 exit /b %errorlevel%')
-    ..write(clCommand)
-    ..writeln()
-    ..writeln('exit /b %errorlevel%');
-
-  await commandFile.writeAsString(script.toString());
-  try {
-    return await Process.run('cmd.exe', ['/d', '/c', commandFile.path]);
-  } finally {
-    try {
-      await tempDir.delete(recursive: true);
-    } catch (_) {}
-  }
-}
-
-Future<ProcessResult?> _runCommandIfAvailable({
-  required String command,
-  required List<String> args,
-}) async {
-  try {
-    return await Process.run(command, args);
-  } on ProcessException {
-    return null;
-  }
-}
-
-String _quoteForWindowsCmd(String value) {
-  if (value.isEmpty) {
-    return '""';
-  }
-  if (!RegExp(r'[\s"&|<>^()]').hasMatch(value)) {
-    return value;
-  }
-  return '"${value.replaceAll('"', '""')}"';
-}
-
-final class _VisualStudioSetupScript {
-  const _VisualStudioSetupScript(this.path, this.arguments);
-
-  final String path;
-  final List<String> arguments;
+  await CBuilder.library(
+    name: _windowsAacLibraryBaseName,
+    assetName: _windowsAacAssetName,
+    language: Language.cpp,
+    sources: ['native/windows/speech_utils_windows_aac_encoder.cpp'],
+    std: 'c++17',
+    flags: ['/EHsc', '/O2'],
+    defines: const {'UNICODE': '1', '_UNICODE': '1', 'WIN32_LEAN_AND_MEAN': '1', 'NOMINMAX': '1'},
+    libraries: ['mfplat', 'mfreadwrite', 'mfuuid', 'mf', 'ole32'],
+  ).run(input: input, output: output);
 }
 
 Future<void> _maybeBuildAndroidAacEncoderAsset(BuildInput input, BuildOutputBuilder output) async {

@@ -10,11 +10,11 @@ environment:
 
 dependencies:
   code_assets: ^1.0.0
-  ffi: ^2.1.4
+  ffi: ^2.2.0
   hooks: ^1.0.1
   path: ^1.9.1
 
 dev_dependencies:
-  ffigen: ^19.0.0
-  lints: ^6.0.0
+  ffigen: ^20.1.1
+  lints: ^6.1.0
   test: ^1.26.0

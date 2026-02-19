@@ -10,6 +10,7 @@ dev_dependencies:
   melos: ^7.4.0
 
 workspace:
+  - packages/analytics_posthog
   - packages/dictation_support
   - packages/dictation_support/example
   - packages/hid_api

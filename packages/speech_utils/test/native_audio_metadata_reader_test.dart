@@ -15,6 +15,9 @@ void main() {
             sampleRateHz: 48000,
             channelCount: 2,
             bitrateBps: 192000,
+            containerFormat: 'wav',
+            codec: 'pcm',
+            codecProfile: 'PCM16',
           );
         },
       );
@@ -24,6 +27,9 @@ void main() {
       expect(metadata.sampleRateHz, 48000);
       expect(metadata.channelCount, 2);
       expect(metadata.bitrateBps, 192000);
+      expect(metadata.containerFormat, 'wav');
+      expect(metadata.codec, 'pcm');
+      expect(metadata.codecProfile, 'PCM16');
       expect(await reader.isAvailable(), isTrue);
     });
 
@@ -41,8 +47,13 @@ void main() {
     test('maps non-positive optional fields to null', () async {
       final reader = NativeAudioMetadataReader(
         platform: NativeAudioMetadataPlatform.iOS,
-        iosReadFn: (_) =>
-            const AudioMetadataNativeResult(resultCode: 0, durationMicros: 1000, bitrateBps: -1),
+        iosReadFn: (_) => const AudioMetadataNativeResult(
+          resultCode: 0,
+          durationMicros: 1000,
+          bitrateBps: -1,
+          containerFormat: '  ',
+          codec: '',
+        ),
         iosAvailabilityFn: () => true,
       );
 
@@ -50,6 +61,9 @@ void main() {
       expect(metadata.sampleRateHz, isNull);
       expect(metadata.channelCount, isNull);
       expect(metadata.bitrateBps, isNull);
+      expect(metadata.containerFormat, isNull);
+      expect(metadata.codec, isNull);
+      expect(metadata.codecProfile, isNull);
     });
 
     test('throws AudioMetadataException on native error', () {

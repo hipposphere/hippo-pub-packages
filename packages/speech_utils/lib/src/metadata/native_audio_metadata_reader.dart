@@ -18,6 +18,9 @@ final class AudioMetadataNativeResult {
     this.sampleRateHz,
     this.channelCount,
     this.bitrateBps,
+    this.containerFormat,
+    this.codec,
+    this.codecProfile,
     this.error,
   });
 
@@ -26,6 +29,9 @@ final class AudioMetadataNativeResult {
   final int? sampleRateHz;
   final int? channelCount;
   final int? bitrateBps;
+  final String? containerFormat;
+  final String? codec;
+  final String? codecProfile;
   final String? error;
 }
 
@@ -37,12 +43,18 @@ final class NativeAudioMetadata {
     this.sampleRateHz,
     this.channelCount,
     this.bitrateBps,
+    this.containerFormat,
+    this.codec,
+    this.codecProfile,
   });
 
   final Duration duration;
   final int? sampleRateHz;
   final int? channelCount;
   final int? bitrateBps;
+  final String? containerFormat;
+  final String? codec;
+  final String? codecProfile;
 }
 
 final class AudioMetadataException implements Exception {
@@ -141,6 +153,9 @@ final class NativeAudioMetadataReader {
       sampleRateHz: _toOptionalPositive(result.sampleRateHz),
       channelCount: _toOptionalPositive(result.channelCount),
       bitrateBps: _toOptionalPositive(result.bitrateBps),
+      containerFormat: _toOptionalText(result.containerFormat),
+      codec: _toOptionalText(result.codec),
+      codecProfile: _toOptionalText(result.codecProfile),
     );
   }
 
@@ -165,6 +180,17 @@ int? _toOptionalPositive(int? value) {
   return value;
 }
 
+String? _toOptionalText(String? value) {
+  if (value == null) {
+    return null;
+  }
+  final normalized = value.trim();
+  if (normalized.isEmpty) {
+    return null;
+  }
+  return normalized;
+}
+
 NativeAudioMetadataPlatform _detectNativeAudioMetadataPlatform() {
   if (Platform.isMacOS) {
     return NativeAudioMetadataPlatform.macOS;
@@ -182,6 +208,7 @@ NativeAudioMetadataPlatform _detectNativeAudioMetadataPlatform() {
 }
 
 const _metadataErrorBufferBytes = 4096;
+const _metadataTextBufferBytes = 256;
 
 bool _isMacosAudioMetadataAvailableViaFfi() {
   final errorPtr = calloc<ffi.Char>(_metadataErrorBufferBytes);
@@ -206,6 +233,9 @@ AudioMetadataNativeResult _readAudioMetadataViaMacosFfi(String inputPath) {
   final outSampleRatePtr = calloc<ffi.Int32>();
   final outChannelCountPtr = calloc<ffi.Int32>();
   final outBitratePtr = calloc<ffi.Int32>();
+  final outContainerFormatPtr = calloc<ffi.Char>(_metadataTextBufferBytes);
+  final outCodecPtr = calloc<ffi.Char>(_metadataTextBufferBytes);
+  final outCodecProfilePtr = calloc<ffi.Char>(_metadataTextBufferBytes);
   final errorPtr = calloc<ffi.Char>(_metadataErrorBufferBytes);
 
   try {
@@ -215,9 +245,18 @@ AudioMetadataNativeResult _readAudioMetadataViaMacosFfi(String inputPath) {
       outSampleRatePtr,
       outChannelCountPtr,
       outBitratePtr,
+      outContainerFormatPtr,
+      _metadataTextBufferBytes,
+      outCodecPtr,
+      _metadataTextBufferBytes,
+      outCodecProfilePtr,
+      _metadataTextBufferBytes,
       errorPtr,
       _metadataErrorBufferBytes,
     );
+    final containerFormat = outContainerFormatPtr.cast<Utf8>().toDartString();
+    final codec = outCodecPtr.cast<Utf8>().toDartString();
+    final codecProfile = outCodecProfilePtr.cast<Utf8>().toDartString();
     final error = errorPtr.cast<Utf8>().toDartString();
     return AudioMetadataNativeResult(
       resultCode: code,
@@ -225,6 +264,9 @@ AudioMetadataNativeResult _readAudioMetadataViaMacosFfi(String inputPath) {
       sampleRateHz: outSampleRatePtr.value,
       channelCount: outChannelCountPtr.value,
       bitrateBps: outBitratePtr.value,
+      containerFormat: containerFormat.isEmpty ? null : containerFormat,
+      codec: codec.isEmpty ? null : codec,
+      codecProfile: codecProfile.isEmpty ? null : codecProfile,
       error: error.isEmpty ? null : error,
     );
   } finally {
@@ -233,6 +275,9 @@ AudioMetadataNativeResult _readAudioMetadataViaMacosFfi(String inputPath) {
     calloc.free(outSampleRatePtr);
     calloc.free(outChannelCountPtr);
     calloc.free(outBitratePtr);
+    calloc.free(outContainerFormatPtr);
+    calloc.free(outCodecPtr);
+    calloc.free(outCodecProfilePtr);
     calloc.free(errorPtr);
   }
 }
@@ -260,6 +305,9 @@ AudioMetadataNativeResult _readAudioMetadataViaWindowsFfi(String inputPath) {
   final outSampleRatePtr = calloc<ffi.Int32>();
   final outChannelCountPtr = calloc<ffi.Int32>();
   final outBitratePtr = calloc<ffi.Int32>();
+  final outContainerFormatPtr = calloc<ffi.Char>(_metadataTextBufferBytes);
+  final outCodecPtr = calloc<ffi.Char>(_metadataTextBufferBytes);
+  final outCodecProfilePtr = calloc<ffi.Char>(_metadataTextBufferBytes);
   final errorPtr = calloc<ffi.Char>(_metadataErrorBufferBytes);
 
   try {
@@ -269,9 +317,18 @@ AudioMetadataNativeResult _readAudioMetadataViaWindowsFfi(String inputPath) {
       outSampleRatePtr,
       outChannelCountPtr,
       outBitratePtr,
+      outContainerFormatPtr,
+      _metadataTextBufferBytes,
+      outCodecPtr,
+      _metadataTextBufferBytes,
+      outCodecProfilePtr,
+      _metadataTextBufferBytes,
       errorPtr,
       _metadataErrorBufferBytes,
     );
+    final containerFormat = outContainerFormatPtr.cast<Utf8>().toDartString();
+    final codec = outCodecPtr.cast<Utf8>().toDartString();
+    final codecProfile = outCodecProfilePtr.cast<Utf8>().toDartString();
     final error = errorPtr.cast<Utf8>().toDartString();
     return AudioMetadataNativeResult(
       resultCode: code,
@@ -279,6 +336,9 @@ AudioMetadataNativeResult _readAudioMetadataViaWindowsFfi(String inputPath) {
       sampleRateHz: outSampleRatePtr.value,
       channelCount: outChannelCountPtr.value,
       bitrateBps: outBitratePtr.value,
+      containerFormat: containerFormat.isEmpty ? null : containerFormat,
+      codec: codec.isEmpty ? null : codec,
+      codecProfile: codecProfile.isEmpty ? null : codecProfile,
       error: error.isEmpty ? null : error,
     );
   } finally {
@@ -287,6 +347,9 @@ AudioMetadataNativeResult _readAudioMetadataViaWindowsFfi(String inputPath) {
     calloc.free(outSampleRatePtr);
     calloc.free(outChannelCountPtr);
     calloc.free(outBitratePtr);
+    calloc.free(outContainerFormatPtr);
+    calloc.free(outCodecPtr);
+    calloc.free(outCodecProfilePtr);
     calloc.free(errorPtr);
   }
 }
@@ -314,6 +377,9 @@ AudioMetadataNativeResult _readAudioMetadataViaAndroidFfi(String inputPath) {
   final outSampleRatePtr = calloc<ffi.Int32>();
   final outChannelCountPtr = calloc<ffi.Int32>();
   final outBitratePtr = calloc<ffi.Int32>();
+  final outContainerFormatPtr = calloc<ffi.Char>(_metadataTextBufferBytes);
+  final outCodecPtr = calloc<ffi.Char>(_metadataTextBufferBytes);
+  final outCodecProfilePtr = calloc<ffi.Char>(_metadataTextBufferBytes);
   final errorPtr = calloc<ffi.Char>(_metadataErrorBufferBytes);
 
   try {
@@ -323,9 +389,18 @@ AudioMetadataNativeResult _readAudioMetadataViaAndroidFfi(String inputPath) {
       outSampleRatePtr,
       outChannelCountPtr,
       outBitratePtr,
+      outContainerFormatPtr,
+      _metadataTextBufferBytes,
+      outCodecPtr,
+      _metadataTextBufferBytes,
+      outCodecProfilePtr,
+      _metadataTextBufferBytes,
       errorPtr,
       _metadataErrorBufferBytes,
     );
+    final containerFormat = outContainerFormatPtr.cast<Utf8>().toDartString();
+    final codec = outCodecPtr.cast<Utf8>().toDartString();
+    final codecProfile = outCodecProfilePtr.cast<Utf8>().toDartString();
     final error = errorPtr.cast<Utf8>().toDartString();
     return AudioMetadataNativeResult(
       resultCode: code,
@@ -333,6 +408,9 @@ AudioMetadataNativeResult _readAudioMetadataViaAndroidFfi(String inputPath) {
       sampleRateHz: outSampleRatePtr.value,
       channelCount: outChannelCountPtr.value,
       bitrateBps: outBitratePtr.value,
+      containerFormat: containerFormat.isEmpty ? null : containerFormat,
+      codec: codec.isEmpty ? null : codec,
+      codecProfile: codecProfile.isEmpty ? null : codecProfile,
       error: error.isEmpty ? null : error,
     );
   } finally {
@@ -341,6 +419,9 @@ AudioMetadataNativeResult _readAudioMetadataViaAndroidFfi(String inputPath) {
     calloc.free(outSampleRatePtr);
     calloc.free(outChannelCountPtr);
     calloc.free(outBitratePtr);
+    calloc.free(outContainerFormatPtr);
+    calloc.free(outCodecPtr);
+    calloc.free(outCodecProfilePtr);
     calloc.free(errorPtr);
   }
 }
@@ -368,6 +449,9 @@ AudioMetadataNativeResult _readAudioMetadataViaIosFfi(String inputPath) {
   final outSampleRatePtr = calloc<ffi.Int32>();
   final outChannelCountPtr = calloc<ffi.Int32>();
   final outBitratePtr = calloc<ffi.Int32>();
+  final outContainerFormatPtr = calloc<ffi.Char>(_metadataTextBufferBytes);
+  final outCodecPtr = calloc<ffi.Char>(_metadataTextBufferBytes);
+  final outCodecProfilePtr = calloc<ffi.Char>(_metadataTextBufferBytes);
   final errorPtr = calloc<ffi.Char>(_metadataErrorBufferBytes);
 
   try {
@@ -377,9 +461,18 @@ AudioMetadataNativeResult _readAudioMetadataViaIosFfi(String inputPath) {
       outSampleRatePtr,
       outChannelCountPtr,
       outBitratePtr,
+      outContainerFormatPtr,
+      _metadataTextBufferBytes,
+      outCodecPtr,
+      _metadataTextBufferBytes,
+      outCodecProfilePtr,
+      _metadataTextBufferBytes,
       errorPtr,
       _metadataErrorBufferBytes,
     );
+    final containerFormat = outContainerFormatPtr.cast<Utf8>().toDartString();
+    final codec = outCodecPtr.cast<Utf8>().toDartString();
+    final codecProfile = outCodecProfilePtr.cast<Utf8>().toDartString();
     final error = errorPtr.cast<Utf8>().toDartString();
     return AudioMetadataNativeResult(
       resultCode: code,
@@ -387,6 +480,9 @@ AudioMetadataNativeResult _readAudioMetadataViaIosFfi(String inputPath) {
       sampleRateHz: outSampleRatePtr.value,
       channelCount: outChannelCountPtr.value,
       bitrateBps: outBitratePtr.value,
+      containerFormat: containerFormat.isEmpty ? null : containerFormat,
+      codec: codec.isEmpty ? null : codec,
+      codecProfile: codecProfile.isEmpty ? null : codecProfile,
       error: error.isEmpty ? null : error,
     );
   } finally {
@@ -395,6 +491,9 @@ AudioMetadataNativeResult _readAudioMetadataViaIosFfi(String inputPath) {
     calloc.free(outSampleRatePtr);
     calloc.free(outChannelCountPtr);
     calloc.free(outBitratePtr);
+    calloc.free(outContainerFormatPtr);
+    calloc.free(outCodecPtr);
+    calloc.free(outCodecProfilePtr);
     calloc.free(errorPtr);
   }
 }

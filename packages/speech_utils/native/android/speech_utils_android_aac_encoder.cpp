@@ -4,6 +4,7 @@
 #include <media/NdkMediaMuxer.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
@@ -23,6 +24,65 @@ void WriteError(const std::string& message, char* out_error_utf8, uint32_t out_e
       std::min<std::size_t>(message.size(), static_cast<std::size_t>(out_error_capacity - 1)));
   std::memcpy(out_error_utf8, message.data(), copy_length);
   out_error_utf8[copy_length] = '\0';
+}
+
+void WriteOutputText(const std::string& value, char* out_utf8, uint32_t out_capacity) {
+  if (out_utf8 == nullptr || out_capacity == 0) {
+    return;
+  }
+  const auto copy_length = static_cast<uint32_t>(
+      std::min<std::size_t>(value.size(), static_cast<std::size_t>(out_capacity - 1)));
+  std::memcpy(out_utf8, value.data(), copy_length);
+  out_utf8[copy_length] = '\0';
+}
+
+std::string AsciiLower(std::string value) {
+  std::transform(value.begin(), value.end(), value.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return value;
+}
+
+std::string ExtractContainerFormatFromPath(const char* input_path_utf8) {
+  if (input_path_utf8 == nullptr) {
+    return {};
+  }
+
+  const std::string path(input_path_utf8);
+  const auto dot_index = path.find_last_of('.');
+  if (dot_index == std::string::npos || dot_index + 1 >= path.size()) {
+    return {};
+  }
+  return AsciiLower(path.substr(dot_index + 1));
+}
+
+std::string AacProfileName(int32_t profile) {
+  switch (profile) {
+    case 1:
+      return "AAC-Main";
+    case 2:
+      return "AAC-LC";
+    case 3:
+      return "AAC-SSR";
+    case 4:
+      return "AAC-LTP";
+    case 5:
+      return "HE-AAC";
+    case 6:
+      return "Scalable-AAC";
+    case 17:
+      return "ER-AAC-LC";
+    case 23:
+      return "AAC-LD";
+    case 29:
+      return "HE-AACv2";
+    case 39:
+      return "AAC-ELD";
+    default: {
+      std::ostringstream ss;
+      ss << "AAC-profile-" << profile;
+      return ss.str();
+    }
+  }
 }
 
 uint16_t ReadLe16(const uint8_t* p) {
@@ -422,10 +482,13 @@ cleanup:
 
 int32_t ReadAudioMetadata(const char* input_path_utf8, int64_t* out_duration_micros,
                           int32_t* out_sample_rate_hz, int32_t* out_channel_count,
-                          int32_t* out_bitrate_bps, std::string* error) {
+                          int32_t* out_bitrate_bps, std::string* out_container_format,
+                          std::string* out_codec, std::string* out_codec_profile,
+                          std::string* error) {
   if (input_path_utf8 == nullptr || out_duration_micros == nullptr ||
       out_sample_rate_hz == nullptr || out_channel_count == nullptr ||
-      out_bitrate_bps == nullptr) {
+      out_bitrate_bps == nullptr || out_container_format == nullptr ||
+      out_codec == nullptr || out_codec_profile == nullptr) {
     if (error != nullptr) {
       *error = "Invalid arguments for ReadAudioMetadata.";
     }
@@ -436,6 +499,11 @@ int32_t ReadAudioMetadata(const char* input_path_utf8, int64_t* out_duration_mic
   *out_sample_rate_hz = -1;
   *out_channel_count = -1;
   *out_bitrate_bps = -1;
+  out_container_format->clear();
+  out_codec->clear();
+  out_codec_profile->clear();
+
+  *out_container_format = ExtractContainerFormatFromPath(input_path_utf8);
 
   AMediaExtractor* extractor = AMediaExtractor_new();
   if (extractor == nullptr) {
@@ -474,6 +542,7 @@ int32_t ReadAudioMetadata(const char* input_path_utf8, int64_t* out_duration_mic
     }
 
     found_audio_track = true;
+    *out_codec = mime;
 
     int64_t duration_micros = -1;
     if (!AMediaFormat_getInt64(format, AMEDIAFORMAT_KEY_DURATION, &duration_micros) ||
@@ -500,6 +569,16 @@ int32_t ReadAudioMetadata(const char* input_path_utf8, int64_t* out_duration_mic
     int32_t bitrate_bps = -1;
     if (AMediaFormat_getInt32(format, AMEDIAFORMAT_KEY_BIT_RATE, &bitrate_bps)) {
       *out_bitrate_bps = bitrate_bps;
+    }
+
+    const std::string codec_lower = AsciiLower(*out_codec);
+    const bool is_aac_codec = codec_lower.find("aac") != std::string::npos ||
+                              codec_lower.find("mp4a") != std::string::npos;
+    int32_t profile_value = -1;
+    if (is_aac_codec &&
+        (AMediaFormat_getInt32(format, AMEDIAFORMAT_KEY_AAC_PROFILE, &profile_value) ||
+         AMediaFormat_getInt32(format, "profile", &profile_value))) {
+      *out_codec_profile = AacProfileName(profile_value);
     }
 
     AMediaFormat_delete(format);
@@ -575,14 +654,40 @@ speech_utils_android_audio_metadata_healthcheck(char* error_utf8, uint32_t error
 extern "C" __attribute__((visibility("default"))) int32_t
 speech_utils_android_read_audio_metadata(const char* input_path_utf8, int64_t* out_duration_micros,
                                          int32_t* out_sample_rate_hz, int32_t* out_channel_count,
-                                         int32_t* out_bitrate_bps, char* error_utf8,
+                                         int32_t* out_bitrate_bps,
+                                         char* out_container_format_utf8,
+                                         uint32_t out_container_format_utf8_capacity,
+                                         char* out_codec_utf8,
+                                         uint32_t out_codec_utf8_capacity,
+                                         char* out_codec_profile_utf8,
+                                         uint32_t out_codec_profile_utf8_capacity,
+                                         char* error_utf8,
                                          uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
+  WriteOutputText("", out_container_format_utf8, out_container_format_utf8_capacity);
+  WriteOutputText("", out_codec_utf8, out_codec_utf8_capacity);
+  WriteOutputText("", out_codec_profile_utf8, out_codec_profile_utf8_capacity);
 
+  if (input_path_utf8 == nullptr || out_duration_micros == nullptr || out_sample_rate_hz == nullptr ||
+      out_channel_count == nullptr || out_bitrate_bps == nullptr ||
+      out_container_format_utf8 == nullptr || out_codec_utf8 == nullptr ||
+      out_codec_profile_utf8 == nullptr) {
+    WriteError("Invalid arguments for speech_utils_android_read_audio_metadata.", error_utf8,
+               error_utf8_capacity);
+    return -1;
+  }
+
+  std::string container_format;
+  std::string codec;
+  std::string codec_profile;
   std::string metadata_error;
   const int32_t code =
       ReadAudioMetadata(input_path_utf8, out_duration_micros, out_sample_rate_hz,
-                        out_channel_count, out_bitrate_bps, &metadata_error);
+                        out_channel_count, out_bitrate_bps, &container_format, &codec,
+                        &codec_profile, &metadata_error);
+  WriteOutputText(container_format, out_container_format_utf8, out_container_format_utf8_capacity);
+  WriteOutputText(codec, out_codec_utf8, out_codec_utf8_capacity);
+  WriteOutputText(codec_profile, out_codec_profile_utf8, out_codec_profile_utf8_capacity);
   if (code != 0 && !metadata_error.empty()) {
     WriteError(metadata_error, error_utf8, error_utf8_capacity);
   }

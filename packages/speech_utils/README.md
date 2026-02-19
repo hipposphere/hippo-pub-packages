@@ -24,6 +24,9 @@ original PCM buffers.
   - sample rate (if available)
   - channel count (if available)
   - bitrate (if available)
+  - container format (if available)
+  - codec (if available)
+  - codec profile (if available)
 - Zero-copy snippet views (`Int16List.view`, `Uint8List.view`).
 
 ## Install
@@ -152,6 +155,9 @@ print('duration: ${metadata.duration.inMilliseconds} ms');
 print('sampleRateHz: ${metadata.sampleRateHz}');
 print('channelCount: ${metadata.channelCount}');
 print('bitrateBps: ${metadata.bitrateBps}');
+print('containerFormat: ${metadata.containerFormat}');
+print('codec: ${metadata.codec}');
+print('codecProfile: ${metadata.codecProfile}');
 ```
 
 ## TEN VAD FFI

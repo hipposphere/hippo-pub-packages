@@ -9,7 +9,6 @@
 */
 // ignore_for_file: avoid_print
 import 'package:flutter/widgets.dart';
-import 'package:posthog_flutter/posthog_flutter.dart';
 
 class Analytics {
   static AnalyticsProvider? _instance;
@@ -84,32 +83,6 @@ class LoggingAnalyticsProvider implements AnalyticsProvider {
     if (enabled) {
       print('Analytics data reset');
     }
-  }
-}
-
-class PosthogAnalyticsProvider implements AnalyticsProvider {
-  final Posthog _client = Posthog();
-
-  PosthogAnalyticsProvider();
-
-  @override
-  void logEvent({required String eventName, Map<String, Object>? parameters}) {
-    _client.capture(eventName: eventName, properties: parameters);
-  }
-
-  @override
-  void identify({required String userId, Map<String, Object>? parameters}) {
-    _client.identify(userId: userId, userProperties: parameters);
-  }
-
-  @override
-  void setCurrentScreen({required String screenName, Map<String, Object>? parameters}) {
-    _client.screen(screenName: screenName, properties: parameters);
-  }
-
-  @override
-  void resetAnalyticsData() {
-    _client.reset();
   }
 }
 

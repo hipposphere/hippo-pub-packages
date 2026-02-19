@@ -33,6 +33,72 @@ void WriteNSError(NSError* error, const char* prefix, char* out_error_utf8,
   WriteError(error_message, out_error_utf8, out_error_capacity);
 }
 
+void WriteOutputText(const std::string& value, char* out_utf8, uint32_t out_capacity) {
+  if (out_utf8 == nullptr || out_capacity == 0) {
+    return;
+  }
+  const auto copy_length = static_cast<uint32_t>(
+      std::min<std::size_t>(value.size(), static_cast<std::size_t>(out_capacity - 1)));
+  std::memcpy(out_utf8, value.data(), copy_length);
+  out_utf8[copy_length] = '\0';
+}
+
+AudioFormatID ResolveAudioFormatId(AVAssetTrack* track) {
+  if (track == nil) {
+    return 0;
+  }
+  for (id format_description in track.formatDescriptions) {
+    CMAudioFormatDescriptionRef audio_desc =
+        (__bridge CMAudioFormatDescriptionRef)format_description;
+    const AudioStreamBasicDescription* asbd =
+        CMAudioFormatDescriptionGetStreamBasicDescription(audio_desc);
+    if (asbd != nullptr && asbd->mFormatID != 0) {
+      return asbd->mFormatID;
+    }
+    const FourCharCode media_subtype = CMFormatDescriptionGetMediaSubType(audio_desc);
+    if (media_subtype != 0) {
+      return media_subtype;
+    }
+  }
+  return 0;
+}
+
+std::string AudioFormatIdToCodec(AudioFormatID format_id) {
+  switch (format_id) {
+    case kAudioFormatLinearPCM:
+      return "pcm";
+    case kAudioFormatMPEGLayer3:
+      return "mp3";
+    case kAudioFormatAppleLossless:
+      return "alac";
+    case kAudioFormatMPEG4AAC:
+    case kAudioFormatMPEG4AAC_HE:
+    case kAudioFormatMPEG4AAC_HE_V2:
+    case kAudioFormatMPEG4AAC_LD:
+    case kAudioFormatMPEG4AAC_ELD:
+      return "aac";
+    default:
+      return "";
+  }
+}
+
+std::string AudioFormatIdToCodecProfile(AudioFormatID format_id) {
+  switch (format_id) {
+    case kAudioFormatMPEG4AAC:
+      return "AAC-LC";
+    case kAudioFormatMPEG4AAC_HE:
+      return "HE-AAC";
+    case kAudioFormatMPEG4AAC_HE_V2:
+      return "HE-AACv2";
+    case kAudioFormatMPEG4AAC_LD:
+      return "AAC-LD";
+    case kAudioFormatMPEG4AAC_ELD:
+      return "AAC-ELD";
+    default:
+      return "";
+  }
+}
+
 bool ResolveAudioParams(AVAssetTrack* track, double* out_sample_rate, int* out_channels) {
   if (track == nil || out_sample_rate == nullptr || out_channels == nullptr) {
     return false;
@@ -91,11 +157,17 @@ bool ResolveAudioTrackMetadata(AVAssetTrack* track, int32_t* out_sample_rate_hz,
 
 int32_t ReadAudioMetadataFromFile(const char* input_path_utf8, int64_t* out_duration_micros,
                                   int32_t* out_sample_rate_hz, int32_t* out_channel_count,
-                                  int32_t* out_bitrate_bps, char* error_utf8,
+                                  int32_t* out_bitrate_bps,
+                                  char* out_container_format_utf8,
+                                  uint32_t out_container_format_utf8_capacity,
+                                  char* out_codec_utf8, uint32_t out_codec_utf8_capacity,
+                                  char* out_codec_profile_utf8,
+                                  uint32_t out_codec_profile_utf8_capacity, char* error_utf8,
                                   uint32_t error_utf8_capacity) {
   if (input_path_utf8 == nullptr || out_duration_micros == nullptr ||
       out_sample_rate_hz == nullptr || out_channel_count == nullptr ||
-      out_bitrate_bps == nullptr) {
+      out_bitrate_bps == nullptr || out_container_format_utf8 == nullptr ||
+      out_codec_utf8 == nullptr || out_codec_profile_utf8 == nullptr) {
     WriteError("Invalid arguments for ReadAudioMetadataFromFile.", error_utf8, error_utf8_capacity);
     return -1;
   }
@@ -104,6 +176,9 @@ int32_t ReadAudioMetadataFromFile(const char* input_path_utf8, int64_t* out_dura
   *out_sample_rate_hz = -1;
   *out_channel_count = -1;
   *out_bitrate_bps = -1;
+  WriteOutputText("", out_container_format_utf8, out_container_format_utf8_capacity);
+  WriteOutputText("", out_codec_utf8, out_codec_utf8_capacity);
+  WriteOutputText("", out_codec_profile_utf8, out_codec_profile_utf8_capacity);
 
   NSString* input_path = [NSString stringWithUTF8String:input_path_utf8];
   if (input_path.length == 0) {
@@ -131,6 +206,28 @@ int32_t ReadAudioMetadataFromFile(const char* input_path_utf8, int64_t* out_dura
                                  out_bitrate_bps)) {
     WriteError("Failed to resolve audio track metadata.", error_utf8, error_utf8_capacity);
     return -5;
+  }
+
+  NSString* container_format_ns = [[input_url pathExtension] lowercaseString];
+  if (container_format_ns.length > 0) {
+    const char* container_format_utf8 = [container_format_ns UTF8String];
+    if (container_format_utf8 != nullptr) {
+      WriteOutputText(container_format_utf8, out_container_format_utf8,
+                      out_container_format_utf8_capacity);
+    }
+  }
+
+  const AudioFormatID format_id = ResolveAudioFormatId(audio_track);
+  if (format_id != 0) {
+    const std::string codec = AudioFormatIdToCodec(format_id);
+    if (!codec.empty()) {
+      WriteOutputText(codec, out_codec_utf8, out_codec_utf8_capacity);
+    }
+    const std::string codec_profile = AudioFormatIdToCodecProfile(format_id);
+    if (!codec_profile.empty()) {
+      WriteOutputText(codec_profile, out_codec_profile_utf8,
+                      out_codec_profile_utf8_capacity);
+    }
   }
 
   return 0;
@@ -325,12 +422,25 @@ speech_utils_ios_audio_metadata_healthcheck(char* error_utf8, uint32_t error_utf
 extern "C" __attribute__((visibility("default"))) int32_t
 speech_utils_ios_read_audio_metadata(const char* input_path_utf8, int64_t* out_duration_micros,
                                      int32_t* out_sample_rate_hz, int32_t* out_channel_count,
-                                     int32_t* out_bitrate_bps, char* error_utf8,
+                                     int32_t* out_bitrate_bps,
+                                     char* out_container_format_utf8,
+                                     uint32_t out_container_format_utf8_capacity,
+                                     char* out_codec_utf8, uint32_t out_codec_utf8_capacity,
+                                     char* out_codec_profile_utf8,
+                                     uint32_t out_codec_profile_utf8_capacity,
+                                     char* error_utf8,
                                      uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
+  WriteOutputText("", out_container_format_utf8, out_container_format_utf8_capacity);
+  WriteOutputText("", out_codec_utf8, out_codec_utf8_capacity);
+  WriteOutputText("", out_codec_profile_utf8, out_codec_profile_utf8_capacity);
   @autoreleasepool {
     return ReadAudioMetadataFromFile(input_path_utf8, out_duration_micros, out_sample_rate_hz,
-                                     out_channel_count, out_bitrate_bps, error_utf8,
+                                     out_channel_count, out_bitrate_bps,
+                                     out_container_format_utf8,
+                                     out_container_format_utf8_capacity, out_codec_utf8,
+                                     out_codec_utf8_capacity, out_codec_profile_utf8,
+                                     out_codec_profile_utf8_capacity, error_utf8,
                                      error_utf8_capacity);
   }
 }

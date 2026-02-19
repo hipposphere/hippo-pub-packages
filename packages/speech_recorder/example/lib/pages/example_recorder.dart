@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
+import 'package:hippo_utils/audioplayers.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'package:speech_recorder/speech_recorder.dart';
 
@@ -14,10 +16,26 @@ Future<void> openExampleRecorderPage(BuildContext context) async {
 }
 
 class _Bloc extends BlocBase {
-  final latestRecordingSubject = DataSubject<SpeechRecorderData?>.seeded(null);
+  final latestRecordingSubject = DataSubject<_RecordingDetails?>.seeded(null);
+  final playbackStateSubject = DataSubject<PlayerState>.seeded(
+    PlayerState.stopped,
+  );
+  final playbackErrorSubject = DataSubject<String?>.seeded(null);
   late final SpeechRecorderController controller;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  StreamSubscription<void>? _playbackCompleteSubscription;
+  StreamSubscription<PlayerState>? _playbackStateSubscription;
+  String? _playingPath;
 
   _Bloc() {
+    _playbackCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {
+      _playingPath = null;
+      playbackStateSubject.add(PlayerState.stopped);
+    });
+    _playbackStateSubscription = _audioPlayer.onPlayerStateChanged.listen(
+      playbackStateSubject.add,
+    );
+
     controller = SpeechRecorderController(
       optionsBuilder: () async {
         await Directory('tmp').create(recursive: true);
@@ -31,21 +49,83 @@ class _Bloc extends BlocBase {
         );
       },
       onSessionFinished: (session) {
-        session.getRecordingData().then(latestRecordingSubject.add).catchError((
-          error,
-          stackTrace,
-        ) {
-          debugPrint('Could not load recording metadata: $error');
-        });
+        unawaited(_onSessionFinished(session));
       },
     );
   }
 
   static _Bloc of(BuildContext context) => BlocProvider.of<_Bloc>(context);
 
+  Future<void> _onSessionFinished(SpeechRecorderSession session) async {
+    try {
+      final recordingData = await session.getRecordingData();
+      await stopPlayback();
+      final recordingFile = File(recordingData.file.path).absolute;
+      final fileExists = await recordingFile.exists();
+      final fileSizeBytes = fileExists ? await recordingFile.length() : null;
+      final fileLastModifiedAt = fileExists
+          ? await recordingFile.lastModified()
+          : null;
+
+      latestRecordingSubject.add(
+        _RecordingDetails(
+          data: recordingData,
+          path: recordingFile.path,
+          fileExists: fileExists,
+          fileSizeBytes: fileSizeBytes,
+          fileLastModifiedAt: fileLastModifiedAt,
+          collectedAt: DateTime.now(),
+        ),
+      );
+      playbackErrorSubject.add(null);
+    } catch (error) {
+      debugPrint('Could not load recording metadata: $error');
+    }
+  }
+
+  bool isPlayingPath(String path) {
+    return playbackStateSubject.value == PlayerState.playing &&
+        _playingPath == File(path).absolute.path;
+  }
+
+  Future<void> togglePlaybackForLatestRecording() async {
+    final latest = latestRecordingSubject.value;
+    if (latest == null) {
+      return;
+    }
+    final path = latest.path;
+    if (isPlayingPath(path)) {
+      await stopPlayback();
+      return;
+    }
+
+    playbackErrorSubject.add(null);
+    try {
+      await _audioPlayer.stop();
+      _playingPath = path;
+      await _audioPlayer.play(DeviceFileSource(path));
+    } catch (error) {
+      _playingPath = null;
+      playbackErrorSubject.add('Could not play recording: $error');
+      debugPrint('Could not play recording: $error');
+    }
+  }
+
+  Future<void> stopPlayback() async {
+    await _audioPlayer.stop();
+    _playingPath = null;
+    playbackStateSubject.add(PlayerState.stopped);
+  }
+
   @override
   void dispose() {
+    unawaited(_playbackCompleteSubscription?.cancel());
+    unawaited(_playbackStateSubscription?.cancel());
+    unawaited(_audioPlayer.stop());
+    unawaited(_audioPlayer.dispose());
     latestRecordingSubject.close();
+    playbackStateSubject.close();
+    playbackErrorSubject.close();
     unawaited(controller.dispose());
   }
 }
@@ -71,21 +151,19 @@ class _Page extends StatelessWidget {
               DataSubjectBuilder(
                 subject: bloc.latestRecordingSubject,
                 emptyBuilder: (_) => SizedBox.shrink(),
-                builder: (context, data) {
-                  if (data == null) {
+                builder: (context, recording) {
+                  if (recording == null) {
                     return SizedBox.shrink();
                   }
-                  final seconds = data.duration.inSeconds
-                      .remainder(60)
-                      .toString()
-                      .padLeft(2, '0');
-                  final minutes = data.duration.inMinutes
-                      .remainder(60)
-                      .toString()
-                      .padLeft(2, '0');
-                  final millis = (data.duration.inMilliseconds % 1000)
-                      .toString()
-                      .padLeft(3, '0');
+                  final data = recording.data;
+                  final durationLabel = _formatDuration(data.duration);
+                  final collectedAt = _formatTimestamp(recording.collectedAt);
+                  final modifiedAt = recording.fileLastModifiedAt == null
+                      ? 'n/a'
+                      : _formatTimestamp(recording.fileLastModifiedAt!);
+                  final fileSize = recording.fileSizeBytes == null
+                      ? 'n/a'
+                      : _formatBytes(recording.fileSizeBytes!);
                   return Container(
                     width: double.infinity,
                     padding: EdgeInsets.all(12),
@@ -95,9 +173,108 @@ class _Page extends StatelessWidget {
                       ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      'Last recording (metadata): $minutes:$seconds.$millis',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Last recording details',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        Gap(8),
+                        Text('Duration: $durationLabel'),
+                        Text('Duration (ms): ${data.duration.inMilliseconds}'),
+                        Text('Mime type: ${data.mimeType}'),
+                        Text('Extension: ${data.fileExtension}'),
+                        Text('Container: ${data.containerFormat ?? 'n/a'}'),
+                        Text('Codec: ${data.codec ?? 'n/a'}'),
+                        Text('Codec profile: ${data.codecProfile ?? 'n/a'}'),
+                        Text(
+                          'Sample rate: ${data.sampleRateHz == null ? 'n/a' : '${data.sampleRateHz} Hz'}',
+                        ),
+                        Text(
+                          'Channels: ${data.channelCount?.toString() ?? 'n/a'}',
+                        ),
+                        Text(
+                          'Bitrate: ${data.bitrateBps == null ? 'n/a' : '${_formatBitrateKbps(data.bitrateBps!)} kbps (${data.bitrateBps} bps)'}',
+                        ),
+                        Text('File exists: ${recording.fileExists}'),
+                        Text('File size: $fileSize'),
+                        Text('Metadata collected: $collectedAt'),
+                        Text('File modified: $modifiedAt'),
+                        Gap(8),
+                        Text(
+                          'Path:',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        SelectableText(recording.path),
+                        Gap(12),
+                        DataSubjectBuilder(
+                          subject: bloc.playbackStateSubject,
+                          builder: (context, playbackState) {
+                            final isPlaying = bloc.isPlayingPath(
+                              recording.path,
+                            );
+                            final isLoading =
+                                playbackState == PlayerState.disposed;
+                            final canPlay = recording.fileExists && !isLoading;
+                            return Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                FilledButton.icon(
+                                  onPressed: canPlay
+                                      ? () {
+                                          unawaited(
+                                            bloc.togglePlaybackForLatestRecording(),
+                                          );
+                                        }
+                                      : null,
+                                  icon: Icon(
+                                    isPlaying ? Icons.stop : Icons.play_arrow,
+                                  ),
+                                  label: Text(
+                                    isPlaying
+                                        ? 'Stop Playback'
+                                        : 'Play Recording',
+                                  ),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    unawaited(
+                                      _openFullMetadataInfoModal(
+                                        context: context,
+                                        recording: recording,
+                                      ),
+                                    );
+                                  },
+                                  icon: Icon(Icons.info_outline),
+                                  label: Text('Full Metadata'),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        DataSubjectBuilder(
+                          subject: bloc.playbackErrorSubject,
+                          builder: (context, error) {
+                            if (error == null) {
+                              return SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: Text(
+                                error,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                    ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -109,4 +286,98 @@ class _Page extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RecordingDetails {
+  final SpeechRecorderData data;
+  final String path;
+  final bool fileExists;
+  final int? fileSizeBytes;
+  final DateTime? fileLastModifiedAt;
+  final DateTime collectedAt;
+
+  const _RecordingDetails({
+    required this.data,
+    required this.path,
+    required this.fileExists,
+    required this.fileSizeBytes,
+    required this.fileLastModifiedAt,
+    required this.collectedAt,
+  });
+}
+
+String _formatDuration(Duration duration) {
+  final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+  final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final millis = (duration.inMilliseconds % 1000).toString().padLeft(3, '0');
+  return '$minutes:$seconds.$millis';
+}
+
+String _formatBytes(int bytes) {
+  if (bytes < 1024) {
+    return '$bytes B';
+  }
+  if (bytes < 1024 * 1024) {
+    return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  }
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+}
+
+String _formatBitrateKbps(int bitrateBps) {
+  return (bitrateBps / 1000).toStringAsFixed(1);
+}
+
+Future<void> _openFullMetadataInfoModal({
+  required BuildContext context,
+  required _RecordingDetails recording,
+}) async {
+  final data = recording.data;
+  final metadata = <String, Object?>{
+    'path': recording.path,
+    'fileExists': recording.fileExists,
+    'fileSizeBytes': recording.fileSizeBytes,
+    'fileSizeHuman': recording.fileSizeBytes == null
+        ? null
+        : _formatBytes(recording.fileSizeBytes!),
+    'mimeType': data.mimeType,
+    'fileExtension': data.fileExtension,
+    'containerFormat': data.containerFormat,
+    'codec': data.codec,
+    'codecProfile': data.codecProfile,
+    'durationMs': data.duration.inMilliseconds,
+    'durationPretty': _formatDuration(data.duration),
+    'sampleRateHz': data.sampleRateHz,
+    'channelCount': data.channelCount,
+    'bitrateBps': data.bitrateBps,
+    'bitrateKbps': data.bitrateBps == null
+        ? null
+        : _formatBitrateKbps(data.bitrateBps!),
+    'metadataCollectedAt': _formatTimestamp(recording.collectedAt),
+    'fileLastModifiedAt': recording.fileLastModifiedAt == null
+        ? null
+        : _formatTimestamp(recording.fileLastModifiedAt!),
+  };
+  final metadataJson = const JsonEncoder.withIndent('  ').convert(metadata);
+
+  await InfoModal(
+    title: 'Recording Metadata',
+    child: SelectableText(
+      metadataJson,
+      style: Theme.of(
+        context,
+      ).textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
+    ),
+  ).open(context);
+}
+
+String _formatTimestamp(DateTime timestamp) {
+  final value = timestamp.toLocal();
+  final year = value.year.toString().padLeft(4, '0');
+  final month = value.month.toString().padLeft(2, '0');
+  final day = value.day.toString().padLeft(2, '0');
+  final hour = value.hour.toString().padLeft(2, '0');
+  final minute = value.minute.toString().padLeft(2, '0');
+  final second = value.second.toString().padLeft(2, '0');
+  final millis = value.millisecond.toString().padLeft(3, '0');
+  return '$year-$month-$day $hour:$minute:$second.$millis';
 }

@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <cwctype>
 #include <iomanip>
 #include <limits>
 #include <sstream>
@@ -30,6 +31,17 @@ void WriteError(const std::string& message, char* out_error_utf8, uint32_t out_e
       std::min<std::size_t>(message.size(), static_cast<std::size_t>(out_error_capacity - 1)));
   std::memcpy(out_error_utf8, message.data(), copy_length);
   out_error_utf8[copy_length] = '\0';
+}
+
+void WriteOutputText(const std::string& value, char* out_utf8, uint32_t out_capacity) {
+  if (out_utf8 == nullptr || out_capacity == 0) {
+    return;
+  }
+
+  const auto copy_length = static_cast<uint32_t>(
+      std::min<std::size_t>(value.size(), static_cast<std::size_t>(out_capacity - 1)));
+  std::memcpy(out_utf8, value.data(), copy_length);
+  out_utf8[copy_length] = '\0';
 }
 
 std::wstring Utf8ToWide(const char* utf8) {
@@ -78,6 +90,65 @@ std::string WideToUtf8(const std::wstring& wide) {
     utf8.pop_back();
   }
   return utf8;
+}
+
+std::string ExtractContainerFormatFromPath(const std::wstring& path) {
+  if (path.empty()) {
+    return {};
+  }
+
+  const auto slash_index = path.find_last_of(L"\\/");
+  const auto dot_index = path.find_last_of(L'.');
+  if (dot_index == std::wstring::npos || dot_index + 1 >= path.size()) {
+    return {};
+  }
+  if (slash_index != std::wstring::npos && dot_index < slash_index) {
+    return {};
+  }
+
+  std::wstring extension = path.substr(dot_index + 1);
+  std::transform(extension.begin(), extension.end(), extension.begin(),
+                 [](wchar_t ch) { return std::towlower(ch); });
+  return WideToUtf8(extension);
+}
+
+std::string GuidToString(const GUID& guid) {
+  wchar_t buffer[64] = {0};
+  const int length =
+      StringFromGUID2(guid, buffer, static_cast<int>(sizeof(buffer) / sizeof(buffer[0])));
+  if (length <= 1) {
+    return {};
+  }
+  return WideToUtf8(std::wstring(buffer, static_cast<std::size_t>(length - 1)));
+}
+
+std::string CodecNameFromSubtype(const GUID& subtype) {
+  if (subtype == MFAudioFormat_AAC) {
+    return "aac";
+  }
+  if (subtype == MFAudioFormat_MP3) {
+    return "mp3";
+  }
+  if (subtype == MFAudioFormat_PCM) {
+    return "pcm";
+  }
+  if (subtype == MFAudioFormat_Float) {
+    return "pcm_float";
+  }
+  return GuidToString(subtype);
+}
+
+std::string AacProfileLevelIndicationToString(UINT32 profile_level_indication) {
+  switch (profile_level_indication) {
+    case 0x29:
+      return "AAC-LC";
+    default: {
+      std::ostringstream ss;
+      ss << "AAC-profile-level-0x" << std::uppercase << std::hex
+         << profile_level_indication;
+      return ss.str();
+    }
+  }
 }
 
 std::string HResultMessage(HRESULT hr, const char* context) {
@@ -443,9 +514,12 @@ int32_t ToInt32OrSentinel(UINT32 value, int32_t sentinel) {
 
 HRESULT ReadAudioMetadata(const std::wstring& input_path, int64_t* out_duration_micros,
                           int32_t* out_sample_rate_hz, int32_t* out_channel_count,
-                          int32_t* out_bitrate_bps) {
+                          int32_t* out_bitrate_bps, std::string* out_container_format,
+                          std::string* out_codec, std::string* out_codec_profile) {
   if (out_duration_micros == nullptr || out_sample_rate_hz == nullptr ||
-      out_channel_count == nullptr || out_bitrate_bps == nullptr) {
+      out_channel_count == nullptr || out_bitrate_bps == nullptr ||
+      out_container_format == nullptr || out_codec == nullptr ||
+      out_codec_profile == nullptr) {
     return E_INVALIDARG;
   }
 
@@ -453,6 +527,10 @@ HRESULT ReadAudioMetadata(const std::wstring& input_path, int64_t* out_duration_
   *out_sample_rate_hz = -1;
   *out_channel_count = -1;
   *out_bitrate_bps = -1;
+  out_container_format->clear();
+  out_codec->clear();
+  out_codec_profile->clear();
+  *out_container_format = ExtractContainerFormatFromPath(input_path);
 
   HRESULT hr = S_OK;
   const HRESULT co_init_hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -471,6 +549,17 @@ HRESULT ReadAudioMetadata(const std::wstring& input_path, int64_t* out_duration_
 
   ComPtr<IMFSourceReader> source_reader;
   hr = MFCreateSourceReaderFromURL(input_path.c_str(), nullptr, &source_reader);
+  if (SUCCEEDED(hr) && out_container_format->empty()) {
+    PROPVARIANT mime_value;
+    PropVariantInit(&mime_value);
+    const HRESULT mime_hr = source_reader->GetPresentationAttribute(
+        MF_SOURCE_READER_MEDIASOURCE, MF_PD_MIME_TYPE, &mime_value);
+    if (SUCCEEDED(mime_hr) && mime_value.vt == VT_LPWSTR && mime_value.pwszVal != nullptr) {
+      *out_container_format = WideToUtf8(mime_value.pwszVal);
+    }
+    PropVariantClear(&mime_value);
+  }
+
   if (SUCCEEDED(hr)) {
     PROPVARIANT duration_value;
     PropVariantInit(&duration_value);
@@ -497,6 +586,18 @@ HRESULT ReadAudioMetadata(const std::wstring& input_path, int64_t* out_duration_
         const uint64_t bitrate = static_cast<uint64_t>(avg_bytes_per_second) * 8ULL;
         if (bitrate <= static_cast<uint64_t>(std::numeric_limits<int32_t>::max())) {
           *out_bitrate_bps = static_cast<int32_t>(bitrate);
+        }
+      }
+      GUID subtype = GUID_NULL;
+      if (SUCCEEDED(native_media_type->GetGUID(MF_MT_SUBTYPE, &subtype))) {
+        *out_codec = CodecNameFromSubtype(subtype);
+      }
+      UINT32 profile_level_indication = 0;
+      if (SUCCEEDED(native_media_type->GetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION,
+                                                 &profile_level_indication))) {
+        *out_codec_profile = AacProfileLevelIndicationToString(profile_level_indication);
+        if (out_codec->empty()) {
+          *out_codec = "aac";
         }
       }
     }
@@ -575,12 +676,20 @@ extern "C" __declspec(dllexport) int32_t speech_utils_windows_audio_metadata_hea
 
 extern "C" __declspec(dllexport) int32_t speech_utils_windows_read_audio_metadata(
     const char* input_path_utf8, int64_t* out_duration_micros, int32_t* out_sample_rate_hz,
-    int32_t* out_channel_count, int32_t* out_bitrate_bps, char* error_utf8,
+    int32_t* out_channel_count, int32_t* out_bitrate_bps, char* out_container_format_utf8,
+    uint32_t out_container_format_utf8_capacity, char* out_codec_utf8,
+    uint32_t out_codec_utf8_capacity, char* out_codec_profile_utf8,
+    uint32_t out_codec_profile_utf8_capacity, char* error_utf8,
     uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
+  WriteOutputText("", out_container_format_utf8, out_container_format_utf8_capacity);
+  WriteOutputText("", out_codec_utf8, out_codec_utf8_capacity);
+  WriteOutputText("", out_codec_profile_utf8, out_codec_profile_utf8_capacity);
 
   if (input_path_utf8 == nullptr || out_duration_micros == nullptr || out_sample_rate_hz == nullptr ||
-      out_channel_count == nullptr || out_bitrate_bps == nullptr) {
+      out_channel_count == nullptr || out_bitrate_bps == nullptr ||
+      out_container_format_utf8 == nullptr || out_codec_utf8 == nullptr ||
+      out_codec_profile_utf8 == nullptr) {
     WriteError("Invalid arguments for speech_utils_windows_read_audio_metadata", error_utf8,
                error_utf8_capacity);
     return static_cast<int32_t>(E_INVALIDARG);
@@ -592,8 +701,16 @@ extern "C" __declspec(dllexport) int32_t speech_utils_windows_read_audio_metadat
     return static_cast<int32_t>(E_INVALIDARG);
   }
 
+  std::string container_format;
+  std::string codec;
+  std::string codec_profile;
   const HRESULT hr = ReadAudioMetadata(input_path, out_duration_micros, out_sample_rate_hz,
-                                       out_channel_count, out_bitrate_bps);
+                                       out_channel_count, out_bitrate_bps,
+                                       &container_format, &codec, &codec_profile);
+  WriteOutputText(container_format, out_container_format_utf8,
+                  out_container_format_utf8_capacity);
+  WriteOutputText(codec, out_codec_utf8, out_codec_utf8_capacity);
+  WriteOutputText(codec_profile, out_codec_profile_utf8, out_codec_profile_utf8_capacity);
   if (FAILED(hr)) {
     WriteError(HResultMessage(hr, "Windows audio metadata read failed"), error_utf8,
                error_utf8_capacity);

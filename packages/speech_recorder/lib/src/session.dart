@@ -113,17 +113,21 @@ class SpeechRecorderSession {
       );
     }
     final file = getRecordingFile();
-    // Stopwatch is not the accurate duration, we need to get the actual duration
-    // from the file metadata or similar.
-    final duration = await _audioMetadataReader.readAudioDuration(
+    final metadata = await _audioMetadataReader.readAudioMetadata(
       inputPath: file.path,
     );
     final mimeType = file.mimeType!;
     return SpeechRecorderData(
       file: file,
-      duration: duration,
+      duration: metadata.duration,
       fileExtension: output.fileExtension,
       mimeType: mimeType,
+      sampleRateHz: metadata.sampleRateHz,
+      channelCount: metadata.channelCount,
+      bitrateBps: metadata.bitrateBps,
+      containerFormat: metadata.containerFormat,
+      codec: metadata.codec,
+      codecProfile: metadata.codecProfile,
     );
   }
 

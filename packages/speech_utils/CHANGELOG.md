@@ -5,6 +5,9 @@
   - Sample rate (when available)
   - Channel count (when available)
   - Bitrate (when available)
+  - Container format (when available)
+  - Codec (when available)
+  - Codec profile (when available)
 - Add native metadata bridges for:
   - macOS (AVFoundation)
   - Windows (Media Foundation)

@@ -17,7 +17,7 @@ dependencies:
     version: ^0.1.0
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.0
+    version: ^0.2.0
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

@@ -13,7 +13,7 @@ dependencies:
     path: ../
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.0
+    version: ^0.2.0
   hippo_components:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.0

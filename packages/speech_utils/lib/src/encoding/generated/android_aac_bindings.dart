@@ -37,6 +37,12 @@ external int speech_utils_android_aac_encoder_healthcheck(
     ffi.Pointer<ffi.Int32>,
     ffi.Pointer<ffi.Char>,
     ffi.Uint32,
+    ffi.Pointer<ffi.Char>,
+    ffi.Uint32,
+    ffi.Pointer<ffi.Char>,
+    ffi.Uint32,
+    ffi.Pointer<ffi.Char>,
+    ffi.Uint32,
   )
 >()
 external int speech_utils_android_read_audio_metadata(
@@ -45,6 +51,12 @@ external int speech_utils_android_read_audio_metadata(
   ffi.Pointer<ffi.Int32> out_sample_rate_hz,
   ffi.Pointer<ffi.Int32> out_channel_count,
   ffi.Pointer<ffi.Int32> out_bitrate_bps,
+  ffi.Pointer<ffi.Char> out_container_format_utf8,
+  int out_container_format_utf8_capacity,
+  ffi.Pointer<ffi.Char> out_codec_utf8,
+  int out_codec_utf8_capacity,
+  ffi.Pointer<ffi.Char> out_codec_profile_utf8,
+  int out_codec_profile_utf8_capacity,
   ffi.Pointer<ffi.Char> error_utf8,
   int error_utf8_capacity,
 );

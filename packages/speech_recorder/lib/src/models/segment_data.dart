@@ -24,6 +24,10 @@ class SpeechRecorderSegmentData {
   final String mimeType;
   final int sampleRateHz;
   final int channelCount;
+  final int? bitrateBps;
+  final String? containerFormat;
+  final String? codec;
+  final String? codecProfile;
   final SpeechRecorderSegmentMetrics metrics;
 
   const SpeechRecorderSegmentData({
@@ -34,6 +38,10 @@ class SpeechRecorderSegmentData {
     required this.mimeType,
     required this.sampleRateHz,
     required this.channelCount,
+    this.bitrateBps,
+    this.containerFormat,
+    this.codec,
+    this.codecProfile,
     this.metrics = const SpeechRecorderSegmentMetrics(),
   });
 

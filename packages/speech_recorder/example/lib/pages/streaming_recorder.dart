@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
@@ -516,10 +518,31 @@ class _SegmentCard extends StatelessWidget {
             style: textTheme.bodySmall,
           ),
           Text(
+            'Container: ${segmentData.containerFormat ?? 'n/a'}, codec: ${segmentData.codec ?? 'n/a'}, profile: ${segmentData.codecProfile ?? 'n/a'}',
+            style: textTheme.bodySmall,
+          ),
+          Text(
+            'Bitrate: ${segmentData.bitrateBps == null ? 'n/a' : '${_formatBitrateKbps(segmentData.bitrateBps!)} kbps (${segmentData.bitrateBps} bps)'}',
+            style: textTheme.bodySmall,
+          ),
+          Text(
             'File: ${segmentData.file.path}',
             style: textTheme.bodySmall,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
+          ),
+          Gap(8),
+          OutlinedButton.icon(
+            onPressed: () {
+              unawaited(
+                _openSegmentMetadataInfoModal(
+                  context: context,
+                  segment: segment,
+                ),
+              );
+            },
+            icon: Icon(Icons.info_outline),
+            label: Text('Metadata'),
           ),
         ],
       ),
@@ -617,6 +640,61 @@ class _SegmentEntry {
   const _SegmentEntry({required this.data, required this.createdAt});
 }
 
+Future<void> _openSegmentMetadataInfoModal({
+  required BuildContext context,
+  required _SegmentEntry segment,
+}) async {
+  final data = segment.data;
+  final file = File(data.file.path).absolute;
+  final fileExists = file.existsSync();
+  final fileSizeBytes = fileExists ? file.lengthSync() : null;
+  final fileLastModifiedAt = fileExists ? file.lastModifiedSync() : null;
+
+  final metadata = <String, Object?>{
+    'index': data.index,
+    'path': file.path,
+    'fileExists': fileExists,
+    'fileSizeBytes': fileSizeBytes,
+    'fileSizeHuman': fileSizeBytes == null ? null : _formatBytes(fileSizeBytes),
+    'mimeType': data.mimeType,
+    'fileExtension': data.fileExtension,
+    'containerFormat': data.containerFormat,
+    'codec': data.codec,
+    'codecProfile': data.codecProfile,
+    'durationMs': data.duration.inMilliseconds,
+    'durationPretty': _formatDuration(data.duration),
+    'sampleRateHz': data.sampleRateHz,
+    'channelCount': data.channelCount,
+    'bitrateBps': data.bitrateBps,
+    'bitrateKbps': data.bitrateBps == null
+        ? null
+        : _formatBitrateKbps(data.bitrateBps!),
+    'createdAt': segment.createdAt.toIso8601String(),
+    'fileLastModifiedAt': fileLastModifiedAt?.toIso8601String(),
+    'metrics': <String, Object?>{
+      'encodingDurationMs': _durationToMilliseconds(
+        data.metrics.encodingDuration,
+      ),
+      'splitToCallbackLatencyMs': _durationToMilliseconds(
+        data.metrics.splitToCallbackLatency,
+      ),
+      'pcmByteCount': data.metrics.pcmByteCount,
+      'speechProbability': data.metrics.speechProbability,
+    },
+  };
+  final metadataJson = const JsonEncoder.withIndent('  ').convert(metadata);
+
+  await InfoModal(
+    title: 'Segment Metadata',
+    child: SelectableText(
+      metadataJson,
+      style: Theme.of(
+        context,
+      ).textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
+    ),
+  ).open(context);
+}
+
 String _formatClock(DateTime dateTime) {
   final hour = dateTime.hour.toString().padLeft(2, '0');
   final minute = dateTime.minute.toString().padLeft(2, '0');
@@ -629,6 +707,20 @@ String _formatDuration(Duration duration) {
   final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
   final millis = (duration.inMilliseconds % 1000).toString().padLeft(3, '0');
   return '$minutes:$seconds.$millis';
+}
+
+String _formatBytes(int bytes) {
+  if (bytes < 1024) {
+    return '$bytes B';
+  }
+  if (bytes < 1024 * 1024) {
+    return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  }
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+}
+
+String _formatBitrateKbps(int bitrateBps) {
+  return (bitrateBps / 1000).toStringAsFixed(1);
 }
 
 double _normalizeThreshold(double value) {

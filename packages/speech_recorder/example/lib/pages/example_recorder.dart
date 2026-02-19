@@ -8,6 +8,20 @@ import 'package:hippo_utils/audioplayers.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'package:speech_recorder/speech_recorder.dart';
 
+const _encoderOptions = <AudioEncoder>[
+  AudioEncoder.aacLc,
+  AudioEncoder.aacHe,
+  AudioEncoder.aacEld,
+  AudioEncoder.opus,
+  AudioEncoder.flac,
+  AudioEncoder.wav,
+  AudioEncoder.pcm16bits,
+];
+
+const _sampleRateOptionsHz = <int>[8000, 16000, 22050, 32000, 44100, 48000];
+const _channelCountOptions = <int>[1, 2];
+const _bitrateOptionsBps = <int>[32000, 48000, 64000, 96000, 128000, 192000];
+
 Future<void> openExampleRecorderPage(BuildContext context) async {
   await Routing.openPage(
     context,
@@ -16,6 +30,9 @@ Future<void> openExampleRecorderPage(BuildContext context) async {
 }
 
 class _Bloc extends BlocBase {
+  final settingsSubject = DataSubject<_RecorderSettings>.seeded(
+    const _RecorderSettings(),
+  );
   final latestRecordingSubject = DataSubject<_RecordingDetails?>.seeded(null);
   final playbackStateSubject = DataSubject<PlayerState>.seeded(
     PlayerState.stopped,
@@ -38,12 +55,18 @@ class _Bloc extends BlocBase {
 
     controller = SpeechRecorderController(
       optionsBuilder: () async {
+        final settings = settingsSubject.value;
+        final extension = RecordingFileType.fileExtensionFromAudioEncoder(
+          settings.encoder,
+        );
         await Directory('tmp').create(recursive: true);
         return SpeechRecorderOptions(
-          path: 'tmp/example_recording.m4a',
+          path: 'tmp/example_recording.$extension',
           recordConfig: RecordConfig(
-            encoder: AudioEncoder.aacLc,
-            sampleRate: 16000,
+            encoder: settings.encoder,
+            sampleRate: settings.sampleRateHz,
+            numChannels: settings.channelCount,
+            bitRate: settings.bitrateBps,
           ),
           amplitudeInterval: Duration(milliseconds: 50),
         );
@@ -55,6 +78,12 @@ class _Bloc extends BlocBase {
   }
 
   static _Bloc of(BuildContext context) => BlocProvider.of<_Bloc>(context);
+
+  void updateSettings(
+    _RecorderSettings Function(_RecorderSettings current) map,
+  ) {
+    settingsSubject.add(map(settingsSubject.value));
+  }
 
   Future<void> _onSessionFinished(SpeechRecorderSession session) async {
     try {
@@ -123,6 +152,7 @@ class _Bloc extends BlocBase {
     unawaited(_playbackStateSubscription?.cancel());
     unawaited(_audioPlayer.stop());
     unawaited(_audioPlayer.dispose());
+    settingsSubject.close();
     latestRecordingSubject.close();
     playbackStateSubject.close();
     playbackErrorSubject.close();
@@ -144,6 +174,10 @@ class _Page extends StatelessWidget {
           SliverGap(32),
           SliverColumn(
             children: [
+              PaddedSectionHeader(text: 'Recording Settings'),
+              Gap(8),
+              _RecorderSettingsCard(bloc: bloc),
+              Gap(20),
               PaddedSectionHeader(text: 'Controller'),
               Gap(8),
               SpeechRecorderContainer(controller: bloc.controller),
@@ -288,6 +322,166 @@ class _Page extends StatelessWidget {
   }
 }
 
+class _RecorderSettingsCard extends StatelessWidget {
+  final _Bloc bloc;
+  const _RecorderSettingsCard({required this.bloc});
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return DataSubjectBuilder(
+      subject: bloc.settingsSubject,
+      builder: (context, settings) {
+        return DataSubjectBuilder(
+          subject: bloc.controller.sessionSubject,
+          builder: (context, session) {
+            final hasActiveSession = session != null;
+            final extension = RecordingFileType.fileExtensionFromAudioEncoder(
+              settings.encoder,
+            );
+            final bitrateLikelyIgnored = _ignoresBitrate(settings.encoder);
+
+            return _CardBox(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Current recording config', style: textTheme.titleSmall),
+                  Gap(8),
+                  Text(
+                    'Output file: tmp/example_recording.$extension',
+                    style: textTheme.bodySmall,
+                  ),
+                  if (hasActiveSession)
+                    Text(
+                      'A recording is active. Changes apply to the next recording.',
+                      style: textTheme.bodySmall,
+                    ),
+                  if (bitrateLikelyIgnored)
+                    Text(
+                      'Bitrate is usually ignored for ${_audioEncoderLabel(settings.encoder)}.',
+                      style: textTheme.bodySmall,
+                    ),
+                  Gap(12),
+                  DropdownButtonFormField<AudioEncoder>(
+                    initialValue: settings.encoder,
+                    decoration: InputDecoration(
+                      labelText: 'Encoder',
+                      isDense: true,
+                    ),
+                    items: _encoderOptions
+                        .map(
+                          (encoder) => DropdownMenuItem(
+                            value: encoder,
+                            child: Text(_audioEncoderLabel(encoder)),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: hasActiveSession
+                        ? null
+                        : (encoder) {
+                            if (encoder == null) {
+                              return;
+                            }
+                            bloc.updateSettings(
+                              (current) => current.copyWith(encoder: encoder),
+                            );
+                          },
+                  ),
+                  Gap(8),
+                  DropdownButtonFormField<int>(
+                    initialValue: settings.sampleRateHz,
+                    decoration: InputDecoration(
+                      labelText: 'Sample rate',
+                      isDense: true,
+                    ),
+                    items: _sampleRateOptionsHz
+                        .map(
+                          (sampleRateHz) => DropdownMenuItem(
+                            value: sampleRateHz,
+                            child: Text('$sampleRateHz Hz'),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: hasActiveSession
+                        ? null
+                        : (sampleRateHz) {
+                            if (sampleRateHz == null) {
+                              return;
+                            }
+                            bloc.updateSettings(
+                              (current) =>
+                                  current.copyWith(sampleRateHz: sampleRateHz),
+                            );
+                          },
+                  ),
+                  Gap(8),
+                  DropdownButtonFormField<int>(
+                    initialValue: settings.channelCount,
+                    decoration: InputDecoration(
+                      labelText: 'Channels',
+                      isDense: true,
+                    ),
+                    items: _channelCountOptions
+                        .map(
+                          (channelCount) => DropdownMenuItem(
+                            value: channelCount,
+                            child: Text(
+                              '$channelCount ${channelCount == 1 ? 'channel' : 'channels'}',
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: hasActiveSession
+                        ? null
+                        : (channelCount) {
+                            if (channelCount == null) {
+                              return;
+                            }
+                            bloc.updateSettings(
+                              (current) =>
+                                  current.copyWith(channelCount: channelCount),
+                            );
+                          },
+                  ),
+                  Gap(8),
+                  DropdownButtonFormField<int>(
+                    initialValue: settings.bitrateBps,
+                    decoration: InputDecoration(
+                      labelText: 'Bitrate',
+                      isDense: true,
+                    ),
+                    items: _bitrateOptionsBps
+                        .map(
+                          (bitrateBps) => DropdownMenuItem(
+                            value: bitrateBps,
+                            child: Text(
+                              '${_formatBitrateKbps(bitrateBps)} kbps ($bitrateBps bps)',
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: hasActiveSession
+                        ? null
+                        : (bitrateBps) {
+                            if (bitrateBps == null) {
+                              return;
+                            }
+                            bloc.updateSettings(
+                              (current) =>
+                                  current.copyWith(bitrateBps: bitrateBps),
+                            );
+                          },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
 class _RecordingDetails {
   final SpeechRecorderData data;
   final String path;
@@ -304,6 +498,72 @@ class _RecordingDetails {
     required this.fileLastModifiedAt,
     required this.collectedAt,
   });
+}
+
+class _RecorderSettings {
+  final AudioEncoder encoder;
+  final int sampleRateHz;
+  final int channelCount;
+  final int bitrateBps;
+
+  const _RecorderSettings({
+    this.encoder = AudioEncoder.aacLc,
+    this.sampleRateHz = 16000,
+    this.channelCount = 1,
+    this.bitrateBps = 64000,
+  });
+
+  _RecorderSettings copyWith({
+    AudioEncoder? encoder,
+    int? sampleRateHz,
+    int? channelCount,
+    int? bitrateBps,
+  }) {
+    return _RecorderSettings(
+      encoder: encoder ?? this.encoder,
+      sampleRateHz: sampleRateHz ?? this.sampleRateHz,
+      channelCount: channelCount ?? this.channelCount,
+      bitrateBps: bitrateBps ?? this.bitrateBps,
+    );
+  }
+}
+
+class _CardBox extends StatelessWidget {
+  final Widget child;
+  const _CardBox({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: child,
+    );
+  }
+}
+
+bool _ignoresBitrate(AudioEncoder encoder) {
+  return switch (encoder) {
+    AudioEncoder.wav || AudioEncoder.pcm16bits => true,
+    _ => false,
+  };
+}
+
+String _audioEncoderLabel(AudioEncoder encoder) {
+  return switch (encoder) {
+    AudioEncoder.aacLc => 'AAC-LC',
+    AudioEncoder.aacHe => 'HE-AAC',
+    AudioEncoder.aacEld => 'AAC-ELD',
+    AudioEncoder.opus => 'Opus',
+    AudioEncoder.flac => 'FLAC',
+    AudioEncoder.wav => 'WAV',
+    AudioEncoder.pcm16bits => 'PCM16',
+    _ => encoder.toString(),
+  };
 }
 
 String _formatDuration(Duration duration) {

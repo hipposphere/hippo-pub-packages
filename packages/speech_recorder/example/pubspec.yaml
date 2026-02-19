@@ -30,7 +30,7 @@ dependency_overrides:
   record_windows:
     git:
       url: https://github.com/hipposphere/record_fork.git
-      ref: windows-fix-miniaudio-rewrite
+      ref: advanced-recorder
       path: record_windows
 
 flutter:

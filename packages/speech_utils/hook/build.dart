@@ -126,40 +126,18 @@ Future<void> _maybeBuildAndroidAacEncoderAsset(BuildInput input, BuildOutputBuil
     throw StateError('Missing Android AAC encoder source file at ${source.path}.');
   }
 
-  final bundledFileName = input.config.code.targetOS.dylibFileName(_androidAacLibraryBaseName);
-  final bundledLibrary = input.outputDirectoryShared.resolve('speech_utils/$bundledFileName');
-  final bundledFile = File.fromUri(bundledLibrary);
-  bundledFile.parent.createSync(recursive: true);
-
   final targetNdkApi = input.config.code.android.targetNdkApi;
   final effectiveNdkApi = targetNdkApi < 26 ? 26 : targetNdkApi;
-  await _buildWithCCompiler(
-    input: input,
-    sourceFile: source,
-    bundledLibrary: bundledFile,
-    args: [
-      '-std=c++17',
-      '-O2',
-      '-fPIC',
-      '-shared',
-      '-D__ANDROID_API__=$effectiveNdkApi',
-      source.path,
-      '-o',
-      bundledFile.path,
-      '-landroid',
-      '-lmediandk',
-      '-llog',
-    ],
-  );
-
-  output.assets.code.add(
-    CodeAsset(
-      package: input.packageName,
-      name: _androidAacAssetName,
-      linkMode: DynamicLoadingBundled(),
-      file: bundledLibrary,
-    ),
-  );
+  await CBuilder.library(
+    name: _androidAacLibraryBaseName,
+    assetName: _androidAacAssetName,
+    language: Language.cpp,
+    sources: ['native/android/speech_utils_android_aac_encoder.cpp'],
+    std: 'c++17',
+    flags: ['-O2'],
+    defines: {'__ANDROID_API__': '$effectiveNdkApi'},
+    libraries: ['android', 'mediandk', 'log'],
+  ).run(input: input, output: output);
 }
 
 Future<void> _maybeBuildIosAacEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
@@ -175,55 +153,21 @@ Future<void> _maybeBuildIosAacEncoderAsset(BuildInput input, BuildOutputBuilder 
     throw StateError('Missing iOS AAC encoder source file at ${source.path}.');
   }
 
-  final bundledFileName = input.config.code.targetOS.dylibFileName(_iosAacLibraryBaseName);
-  final bundledLibrary = input.outputDirectoryShared.resolve('speech_utils/$bundledFileName');
-  final bundledFile = File.fromUri(bundledLibrary);
-  bundledFile.parent.createSync(recursive: true);
-
-  await _buildWithCCompiler(
-    input: input,
-    sourceFile: source,
-    bundledLibrary: bundledFile,
-    args: [
-      '-std=c++17',
-      '-fobjc-arc',
-      '-fPIC',
-      '-dynamiclib',
-      source.path,
-      '-o',
-      bundledFile.path,
-      '-framework',
-      'Foundation',
-      '-framework',
-      'AVFoundation',
-      '-framework',
-      'CoreMedia',
-      '-framework',
-      'AudioToolbox',
-      '-lc++',
-    ],
-  );
-
-  output.assets.code.add(
-    CodeAsset(
-      package: input.packageName,
-      name: _iosAacAssetName,
-      linkMode: DynamicLoadingBundled(),
-      file: bundledLibrary,
-    ),
-  );
+  await CBuilder.library(
+    name: _iosAacLibraryBaseName,
+    assetName: _iosAacAssetName,
+    language: Language.objectiveC,
+    sources: ['native/ios/speech_utils_ios_aac_encoder.mm'],
+    std: 'c++17',
+    flags: ['-fobjc-arc'],
+    frameworks: ['Foundation', 'AVFoundation', 'CoreMedia', 'AudioToolbox'],
+    libraries: ['c++'],
+  ).run(input: input, output: output);
 }
 
 Future<void> _maybeBuildMacosAudioMetadataAsset(BuildInput input, BuildOutputBuilder output) async {
   final os = input.config.code.targetOS;
   if (os != OS.macOS) {
-    return;
-  }
-  if (input.config.code.cCompiler == null) {
-    return;
-  }
-  final sdkPath = await _resolveAppleSdkPath('macosx');
-  if (sdkPath == null) {
     return;
   }
 
@@ -234,101 +178,16 @@ Future<void> _maybeBuildMacosAudioMetadataAsset(BuildInput input, BuildOutputBui
     throw StateError('Missing macOS audio metadata source file at ${source.path}.');
   }
 
-  final bundledFileName = input.config.code.targetOS.dylibFileName(
-    _macosAudioMetadataLibraryBaseName,
-  );
-  final bundledLibrary = input.outputDirectoryShared.resolve('speech_utils/$bundledFileName');
-  final bundledFile = File.fromUri(bundledLibrary);
-  bundledFile.parent.createSync(recursive: true);
-
-  await _buildWithCCompiler(
-    input: input,
-    sourceFile: source,
-    bundledLibrary: bundledFile,
-    args: [
-      '-isysroot',
-      sdkPath,
-      '-std=c++17',
-      '-fobjc-arc',
-      '-fPIC',
-      '-dynamiclib',
-      source.path,
-      '-o',
-      bundledFile.path,
-      '-framework',
-      'Foundation',
-      '-framework',
-      'AVFoundation',
-      '-framework',
-      'CoreMedia',
-      '-framework',
-      'AudioToolbox',
-      '-lc++',
-    ],
-  );
-
-  output.assets.code.add(
-    CodeAsset(
-      package: input.packageName,
-      name: _macosAudioMetadataAssetName,
-      linkMode: DynamicLoadingBundled(),
-      file: bundledLibrary,
-    ),
-  );
-}
-
-Future<String?> _resolveAppleSdkPath(String sdkName) async {
-  ProcessResult result;
-  try {
-    result = await Process.run('xcrun', ['--sdk', sdkName, '--show-sdk-path']);
-  } on ProcessException {
-    return null;
-  }
-  if (result.exitCode != 0) {
-    return null;
-  }
-
-  final sdkPath = '${result.stdout}'.trim();
-  if (sdkPath.isEmpty) {
-    return null;
-  }
-  return sdkPath;
-}
-
-Future<void> _buildWithCCompiler({
-  required BuildInput input,
-  required File sourceFile,
-  required File bundledLibrary,
-  required List<String> args,
-}) async {
-  final cCompiler = input.config.code.cCompiler;
-  if (cCompiler == null) {
-    throw StateError(
-      'No C compiler was provided for target '
-      '${input.config.code.targetOS}/${input.config.code.targetArchitecture}.',
-    );
-  }
-
-  final compilerPath = cCompiler.compiler.toFilePath();
-  ProcessResult result;
-  try {
-    result = await Process.run(compilerPath, args);
-  } on ProcessException catch (error) {
-    throw StateError(
-      'Failed to start C compiler at `$compilerPath` while building '
-      '${sourceFile.path} -> ${bundledLibrary.path}.\n'
-      'Details: ${error.message}',
-    );
-  }
-
-  if (result.exitCode != 0) {
-    throw StateError(
-      'Failed to compile ${sourceFile.path}.\n'
-      'Command: $compilerPath ${args.join(' ')}\n'
-      'stdout:\n${result.stdout}\n'
-      'stderr:\n${result.stderr}',
-    );
-  }
+  await CBuilder.library(
+    name: _macosAudioMetadataLibraryBaseName,
+    assetName: _macosAudioMetadataAssetName,
+    language: Language.objectiveC,
+    sources: ['native/macos/speech_utils_macos_audio_metadata.mm'],
+    std: 'c++17',
+    flags: ['-fobjc-arc'],
+    frameworks: ['Foundation', 'AVFoundation', 'CoreMedia', 'AudioToolbox'],
+    libraries: ['c++'],
+  ).run(input: input, output: output);
 }
 
 Future<void> _copyLibraryForTarget({

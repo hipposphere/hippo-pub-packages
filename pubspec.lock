@@ -1496,8 +1496,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: record_windows
-      ref: windows-fix-miniaudio-rewrite
-      resolved-ref: "76ad6055537f62fc7fa06afbaba5578cd550420b"
+      ref: advanced-recorder
+      resolved-ref: f29b99d14a3110f05f6d3b7b05ad78939a2b06f2
       url: "https://github.com/hipposphere/record_fork.git"
     source: git
     version: "1.1.0-custom-miniaudio"
@@ -1974,10 +1974,10 @@ packages:
     dependency: transitive
     description:
       name: vector_graphics_compiler
-      sha256: "201e876b5d52753626af64b6359cd13ac6011b80728731428fd34bc840f71c9b"
+      sha256: "5a88dd14c0954a5398af544651c7fb51b457a2a556949bfb25369b210ef73a74"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.20"
+    version: "1.2.0"
   vector_math:
     dependency: transitive
     description:

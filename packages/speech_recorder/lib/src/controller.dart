@@ -276,15 +276,23 @@ class SpeechRecorderController {
     );
     encodingStopwatch.stop();
     splitDetectedStopwatch.stop();
+    final metadata = await _tryReadSegmentMetadata(
+      session: session,
+      inputPath: outputPath,
+    );
 
     final segment = SpeechRecorderSegmentData(
       index: segmentIndex,
       file: XFile(outputPath, mimeType: streamingOptions.mimeType),
-      duration: snippet.duration,
+      duration: metadata?.duration ?? snippet.duration,
       fileExtension: streamingOptions.fileExtension,
       mimeType: streamingOptions.mimeType,
-      sampleRateHz: splitOptions.sampleRateHz,
-      channelCount: splitOptions.channelCount,
+      sampleRateHz: metadata?.sampleRateHz ?? splitOptions.sampleRateHz,
+      channelCount: metadata?.channelCount ?? splitOptions.channelCount,
+      bitrateBps: metadata?.bitrateBps,
+      containerFormat: metadata?.containerFormat,
+      codec: metadata?.codec,
+      codecProfile: metadata?.codecProfile,
       metrics: SpeechRecorderSegmentMetrics(
         encodingDuration: encodingStopwatch.elapsed,
         splitToCallbackLatency: splitDetectedStopwatch.elapsed,
@@ -391,19 +399,33 @@ class SpeechRecorderController {
       debugPrint('Speech recorder fallback stop segment encode failed: $error');
       return;
     }
+    final metadata = await _tryReadSegmentMetadata(
+      session: session,
+      inputPath: outputPath,
+    );
 
     final segment = SpeechRecorderSegmentData(
       index: segmentIndex,
       file: XFile(outputPath, mimeType: streamingOptions.mimeType),
-      duration: _pcm16Duration(
-        pcm16ByteCount: pcm16leBytes.lengthInBytes,
-        sampleRateHz: streamingOptions.pauseSplitOptions.sampleRateHz,
-        channelCount: streamingOptions.pauseSplitOptions.channelCount,
-      ),
+      duration:
+          metadata?.duration ??
+          _pcm16Duration(
+            pcm16ByteCount: pcm16leBytes.lengthInBytes,
+            sampleRateHz: streamingOptions.pauseSplitOptions.sampleRateHz,
+            channelCount: streamingOptions.pauseSplitOptions.channelCount,
+          ),
       fileExtension: streamingOptions.fileExtension,
       mimeType: streamingOptions.mimeType,
-      sampleRateHz: streamingOptions.pauseSplitOptions.sampleRateHz,
-      channelCount: streamingOptions.pauseSplitOptions.channelCount,
+      sampleRateHz:
+          metadata?.sampleRateHz ??
+          streamingOptions.pauseSplitOptions.sampleRateHz,
+      channelCount:
+          metadata?.channelCount ??
+          streamingOptions.pauseSplitOptions.channelCount,
+      bitrateBps: metadata?.bitrateBps,
+      containerFormat: metadata?.containerFormat,
+      codec: metadata?.codec,
+      codecProfile: metadata?.codecProfile,
       metrics: SpeechRecorderSegmentMetrics(
         encodingDuration: encodingStopwatch.elapsed,
         splitToCallbackLatency: Duration.zero,
@@ -417,6 +439,22 @@ class SpeechRecorderController {
     );
     for (final callback in session._onSegmentFinishedCallbacks) {
       await callback(segment);
+    }
+  }
+
+  Future<NativeAudioMetadata?> _tryReadSegmentMetadata({
+    required SpeechRecorderSession session,
+    required String inputPath,
+  }) async {
+    try {
+      return await session._audioMetadataReader.readAudioMetadata(
+        inputPath: inputPath,
+      );
+    } on Object catch (error) {
+      debugPrint(
+        'Speech recorder segment metadata read failed for $inputPath: $error',
+      );
+      return null;
     }
   }
 

@@ -133,7 +133,9 @@ rm -rf "$outputDirMsys/include" "$outputDirMsys/lib" "$outputDirMsys/bin"
   --enable-parser=aac,mpegaudio \
   --enable-demuxer=wav,mov,mp3,aac \
   --enable-muxer=ipod,adts \
-  --enable-protocol=file
+  --enable-protocol=file \
+  --disable-iconv \
+  --disable-zlib
 make -j$jobs
 make install
 "@

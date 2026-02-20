@@ -50,7 +50,9 @@ jobs:
             --enable-decoder=mp3,aac \
             --enable-parser=mpegaudio,aac \
             --enable-demuxer=mp3,mov \
-            --enable-protocol=file
+            --enable-protocol=file \
+            --disable-iconv \
+            --disable-zlib
 
       - name: Build
         shell: msys2 {0}
@@ -59,8 +61,72 @@ jobs:
           mingw32-make -j$(nproc)
           mingw32-make install
 
+      - name: Copy required transitive runtime DLLs
+        shell: msys2 {0}
+        run: |
+          cd ffmpeg
+          for dll in libiconv-2.dll libwinpthread-1.dll zlib1.dll; do
+            if [ -f "/mingw64/bin/$dll" ] && [ ! -f "out/bin/$dll" ]; then
+              cp "/mingw64/bin/$dll" "out/bin/$dll"
+            fi
+          done
+
+      - name: Assemble minimal artifact layout
+        shell: msys2 {0}
+        run: |
+          cd ffmpeg
+          rm -rf out-minimal
+          mkdir -p out-minimal/include out-minimal/lib out-minimal/bin
+          cp -a out/include/. out-minimal/include/
+          cp -a out/lib/. out-minimal/lib/
+
+          shopt -s nullglob
+          for pattern in avcodec-*.dll avformat-*.dll avutil-*.dll swresample-*.dll avdevice-*.dll avfilter-*.dll swscale-*.dll; do
+            for dll in out/bin/$pattern; do
+              cp "$dll" out-minimal/bin/
+            done
+          done
+
+          for dll in libiconv-2.dll libwinpthread-1.dll zlib1.dll; do
+            if [ -f "out/bin/$dll" ]; then
+              cp "out/bin/$dll" "out-minimal/bin/$dll"
+            fi
+          done
+
+          cat > out-minimal/BUILD-METADATA.txt <<'EOF'
+          ffmpeg workflow: build_windows_ffmpeg_lib.yml
+          profile: audio-only minimal
+          EOF
+
+      - name: Validate runtime compatibility
+        shell: msys2 {0}
+        run: |
+          cd ffmpeg
+          set -euo pipefail
+
+          avcodec_dll=$(ls out-minimal/bin/avcodec-*.dll | head -n 1)
+          avformat_dll=$(ls out-minimal/bin/avformat-*.dll | head -n 1)
+          avutil_dll=$(ls out-minimal/bin/avutil-*.dll | head -n 1)
+
+          if objdump -p "$avcodec_dll" | grep -qi "DLL Name: libiconv-2.dll"; then
+            test -f out-minimal/bin/libiconv-2.dll
+            objdump -p out-minimal/bin/libiconv-2.dll | grep -qi "libiconv_open"
+            objdump -p out-minimal/bin/libiconv-2.dll | grep -qi "libiconv_close"
+          fi
+
+          if objdump -p "$avformat_dll" | grep -qi "DLL Name: zlib1.dll"; then
+            test -f out-minimal/bin/zlib1.dll
+            objdump -p out-minimal/bin/zlib1.dll | grep -qi "uncompress"
+          fi
+
+          if objdump -p "$avutil_dll" | grep -qi "DLL Name: libwinpthread-1.dll"; then
+            test -f out-minimal/bin/libwinpthread-1.dll
+            objdump -p out-minimal/bin/libwinpthread-1.dll | grep -qi "clock_gettime64"
+            objdump -p out-minimal/bin/libwinpthread-1.dll | grep -qi "nanosleep64"
+          fi
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-minimal-windows-x64
-          path: ffmpeg/out
+          path: ffmpeg/out-minimal

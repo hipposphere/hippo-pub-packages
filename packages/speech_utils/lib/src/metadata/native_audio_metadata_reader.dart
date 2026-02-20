@@ -6,6 +6,7 @@ import 'package:ffi/ffi.dart';
 import '../encoding/generated/android_aac_bindings.dart' as android_bindings;
 import '../encoding/generated/ios_aac_bindings.dart' as ios_bindings;
 import '../encoding/generated/windows_aac_bindings.dart' as windows_bindings;
+import '../model/audio_metadata.dart';
 import 'generated/macos_audio_metadata_bindings.dart' as macos_bindings;
 
 typedef NativeAudioMetadataReadFn = AudioMetadataNativeResult Function(String inputPath);
@@ -36,26 +37,6 @@ final class AudioMetadataNativeResult {
 }
 
 enum NativeAudioMetadataPlatform { macOS, windows, android, iOS, unsupported }
-
-final class NativeAudioMetadata {
-  const NativeAudioMetadata({
-    required this.duration,
-    this.sampleRateHz,
-    this.channelCount,
-    this.bitrateBps,
-    this.containerFormat,
-    this.codec,
-    this.codecProfile,
-  });
-
-  final Duration duration;
-  final int? sampleRateHz;
-  final int? channelCount;
-  final int? bitrateBps;
-  final String? containerFormat;
-  final String? codec;
-  final String? codecProfile;
-}
 
 final class AudioMetadataException implements Exception {
   AudioMetadataException(this.message, {this.errorCode, this.details});
@@ -117,7 +98,7 @@ final class NativeAudioMetadataReader {
     };
   }
 
-  Future<NativeAudioMetadata> readAudioMetadata({required String inputPath}) async {
+  Future<AudioMetadata> readAudioMetadata({required String inputPath}) async {
     _ensureSupportedPlatform();
     if (inputPath.trim().isEmpty) {
       throw ArgumentError.value(inputPath, 'inputPath', 'Must not be empty');
@@ -148,7 +129,7 @@ final class NativeAudioMetadataReader {
       );
     }
 
-    return NativeAudioMetadata(
+    return AudioMetadata(
       duration: Duration(microseconds: result.durationMicros),
       sampleRateHz: _toOptionalPositive(result.sampleRateHz),
       channelCount: _toOptionalPositive(result.channelCount),

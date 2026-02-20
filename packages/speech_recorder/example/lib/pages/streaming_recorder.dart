@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'package:speech_recorder/speech_recorder.dart';
-import 'package:speech_utils/speech_utils.dart';
 
 const _streamingSplitOptions = PauseSplitOptions(
   sampleRateHz: 16000,
@@ -49,10 +48,10 @@ class _Bloc extends BlocBase {
         final vadConfig = _buildVadConfig();
         return SpeechRecorderOptions(
           path: path,
-          recordConfig: RecordConfig(
-            encoder: AudioEncoder.pcm16bits,
-            sampleRate: _streamingSplitOptions.sampleRateHz,
-            numChannels: _streamingSplitOptions.channelCount,
+          recordConfig: AudioRecorderConfig(
+            sampleRateHz: _streamingSplitOptions.sampleRateHz,
+            channelCount: _streamingSplitOptions.channelCount,
+            encoding: const AudioEncodingConfig(encoder: AudioEncoder.aacLc),
           ),
           vadConfig: vadConfig,
           streaming: SpeechRecorderStreamingOptions(

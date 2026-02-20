@@ -1,12 +1,17 @@
+export 'package:cross_file/cross_file.dart' show XFile;
 export 'src/encoding/aac_encoder.dart';
 export 'src/encoding/ffmpeg_aac_encoder.dart';
 export 'src/encoding/native_aac_encoder.dart';
 export 'src/metadata/native_audio_metadata_reader.dart';
+export 'src/model/audio_metadata.dart';
+export 'src/model/audio_segment_metrics.dart';
 export 'src/model/pause_split_options.dart';
 export 'src/models/input_device.dart';
 export 'src/model/pcm16_snippet.dart';
+export 'src/model/voice_activity_metadata.dart';
 export 'src/recording/audio_recorder_config.dart';
 export 'src/recording/native_audio_recorder.dart';
+export 'src/recording/voice_segment.dart';
 export 'src/splitting/pcm16_stream_pause_splitter.dart';
 export 'src/speech_utils.dart';
 export 'src/vad/energy_vad_backend.dart';

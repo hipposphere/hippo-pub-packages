@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:cross_file/cross_file.dart';
+
 /// A zero-copy view over a PCM16 snippet.
 ///
 /// The snippet references the source buffer and only materializes views for
@@ -65,15 +67,15 @@ final class Pcm16Snippet {
     return Uint8List.view(sourceBuffer, byteOffset, byteLength);
   }
 
-  Future<File> writeRawPcm16(String path) async {
+  Future<XFile> writeRawPcm16(String path) async {
     final file = File(path);
     final sink = file.openWrite();
     sink.add(asBytesView());
     await sink.close();
-    return file;
+    return XFile(path);
   }
 
-  Future<File> writeWav(String path) async {
+  Future<XFile> writeWav(String path) async {
     final file = File(path);
     final sink = file.openWrite();
     sink.add(
@@ -85,7 +87,7 @@ final class Pcm16Snippet {
     );
     sink.add(asBytesView());
     await sink.close();
-    return file;
+    return XFile(path, mimeType: 'audio/wav');
   }
 }
 

@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
+#include <cmath>
 #include <cstring>
 #include <deque>
 #include <mutex>
@@ -315,6 +316,8 @@ class WindowsAudioRecorderState {
     sample_rate_hz_ = sample_rate_hz;
     channel_count_ = channel_count;
     data_bytes_written_ = 0;
+    current_amplitude_dbfs_ = -90.0;
+    max_amplitude_dbfs_ = -90.0;
     mode_ = RecorderMode::kFile;
     return 0;
   }
@@ -343,6 +346,8 @@ class WindowsAudioRecorderState {
     stream_sample_limit_ =
         std::max<std::size_t>(sample_rate_hz * channel_count * 5,
                               static_cast<std::size_t>(frames_per_chunk) * channel_count * 16);
+    current_amplitude_dbfs_ = -90.0;
+    max_amplitude_dbfs_ = -90.0;
     mode_ = RecorderMode::kStream;
     return 0;
   }
@@ -404,6 +409,8 @@ class WindowsAudioRecorderState {
     data_bytes_written_ = 0;
     sample_rate_hz_ = 0;
     channel_count_ = 0;
+    current_amplitude_dbfs_ = -90.0;
+    max_amplitude_dbfs_ = -90.0;
     return 0;
   }
 
@@ -419,6 +426,19 @@ class WindowsAudioRecorderState {
     return 0;
   }
 
+  int32_t GetAmplitude(double* out_current_dbfs, double* out_max_dbfs, char* error_utf8,
+                       uint32_t error_utf8_capacity) {
+    if (out_current_dbfs == nullptr || out_max_dbfs == nullptr) {
+      WriteError("Amplitude output pointers must not be null.", error_utf8, error_utf8_capacity);
+      return -1;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    *out_current_dbfs = current_amplitude_dbfs_;
+    *out_max_dbfs = max_amplitude_dbfs_;
+    return 0;
+  }
+
   void OnCapturedSamples(const int16_t* samples, uint32_t frame_count) {
     if (samples == nullptr || frame_count == 0) {
       return;
@@ -430,6 +450,7 @@ class WindowsAudioRecorderState {
     }
 
     const auto sample_count = static_cast<std::size_t>(frame_count) * channel_count_;
+    UpdateAmplitudeLocked(samples, sample_count);
 
     if (mode_ == RecorderMode::kFile && file_ != nullptr) {
       const auto written = std::fwrite(samples, sizeof(int16_t), sample_count, file_);
@@ -449,6 +470,41 @@ class WindowsAudioRecorderState {
   }
 
  private:
+  static double ComputeDbfs(const int16_t* samples, std::size_t sample_count) {
+    if (samples == nullptr || sample_count == 0) {
+      return -90.0;
+    }
+
+    double sum_squares = 0.0;
+    for (std::size_t i = 0; i < sample_count; i++) {
+      const double normalized = static_cast<double>(samples[i]) / 32768.0;
+      sum_squares += normalized * normalized;
+    }
+    if (sum_squares <= 0.0) {
+      return -90.0;
+    }
+
+    const double rms = std::sqrt(sum_squares / static_cast<double>(sample_count));
+    if (!(rms > 0.0)) {
+      return -90.0;
+    }
+
+    const double dbfs = 20.0 * std::log10(rms);
+    if (!std::isfinite(dbfs)) {
+      return -90.0;
+    }
+
+    return std::clamp(dbfs, -90.0, 0.0);
+  }
+
+  void UpdateAmplitudeLocked(const int16_t* samples, std::size_t sample_count) {
+    const double dbfs = ComputeDbfs(samples, sample_count);
+    current_amplitude_dbfs_ = dbfs;
+    if (dbfs > max_amplitude_dbfs_) {
+      max_amplitude_dbfs_ = dbfs;
+    }
+  }
+
   static void DataCallback(ma_device* device, void* output, const void* input,
                            ma_uint32 frame_count) {
     (void)output;
@@ -589,6 +645,8 @@ class WindowsAudioRecorderState {
   uint32_t sample_rate_hz_ = 0;
   uint32_t channel_count_ = 0;
   uint32_t data_bytes_written_ = 0;
+  double current_amplitude_dbfs_ = -90.0;
+  double max_amplitude_dbfs_ = -90.0;
 
   std::deque<int16_t> stream_samples_;
   std::size_t stream_sample_limit_ = 0;
@@ -682,4 +740,13 @@ speech_utils_windows_audio_recorder_is_recording(int32_t* out_is_recording, char
                                                  uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
   return g_recorder.IsRecording(out_is_recording, error_utf8, error_utf8_capacity);
+}
+
+extern "C" __declspec(dllexport) int32_t
+speech_utils_windows_audio_recorder_get_amplitude(double* out_current_dbfs, double* out_max_dbfs,
+                                                  char* error_utf8,
+                                                  uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+  return g_recorder.GetAmplitude(out_current_dbfs, out_max_dbfs, error_utf8,
+                                 error_utf8_capacity);
 }

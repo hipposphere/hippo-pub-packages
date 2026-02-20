@@ -10,16 +10,6 @@ import 'package:speech_utils/speech_utils.dart';
 import 'package:speech_utils_example/widgets/live_waveform.dart';
 import 'package:speech_utils_example/widgets/theme_controls.dart';
 
-const _splitOptions = PauseSplitOptions(
-  sampleRateHz: 16000,
-  channelCount: 1,
-  frameDuration: Duration(milliseconds: 16),
-  minSpeechDuration: Duration(milliseconds: 140),
-  minSilenceDuration: Duration(milliseconds: 750),
-  preSpeechPadding: Duration(milliseconds: 80),
-  postSpeechPadding: Duration(milliseconds: 120),
-);
-
 const _speechHoldDuration = Duration(milliseconds: 320);
 const _waveformLimit = 220;
 
@@ -106,6 +96,21 @@ class _IntegratedVadCompressionPageState
   int? _fullRecordingWavBytes;
   String? _fullRecordingAacPath;
   int? _fullRecordingAacBytes;
+  int? _fullRecordingAacLatencyMs;
+
+  int _sampleRateHz = 16000;
+  int _channelCount = 1;
+  int _bitrateKbps = 48;
+
+  PauseSplitOptions get _splitOptions => PauseSplitOptions(
+    sampleRateHz: _sampleRateHz,
+    channelCount: _channelCount,
+    frameDuration: const Duration(milliseconds: 16),
+    minSpeechDuration: const Duration(milliseconds: 140),
+    minSilenceDuration: const Duration(milliseconds: 750),
+    preSpeechPadding: const Duration(milliseconds: 80),
+    postSpeechPadding: const Duration(milliseconds: 120),
+  );
 
   @override
   void initState() {
@@ -424,32 +429,44 @@ class _IntegratedVadCompressionPageState
 
         final fromBytesPath =
             '${runDir.path}${Platform.pathSeparator}single_from_bytes.m4a';
+        final encodeStopwatch = Stopwatch()..start();
         await encoder.encodePcm16BytesToAac(
           pcm16leBytes: sourceBytes,
           sampleRateHz: _splitOptions.sampleRateHz,
           channelCount: _splitOptions.channelCount,
           outputPath: fromBytesPath,
+          bitrateKbps: _bitrateKbps,
         );
-        _appendLog('encodePcm16BytesToAac -> $fromBytesPath');
+        _appendLog(
+          'encodePcm16BytesToAac -> $fromBytesPath (${encodeStopwatch.elapsedMilliseconds} ms)',
+        );
 
         final fromPcmPath =
             '${runDir.path}${Platform.pathSeparator}single_from_pcm_file.m4a';
+        encodeStopwatch.reset();
         await encoder.encodePcm16FileToAac(
           inputPath: sourcePcmPath,
           sampleRateHz: _splitOptions.sampleRateHz,
           channelCount: _splitOptions.channelCount,
           outputPath: fromPcmPath,
+          bitrateKbps: _bitrateKbps,
         );
-        _appendLog('encodePcm16FileToAac -> $fromPcmPath');
+        _appendLog(
+          'encodePcm16FileToAac -> $fromPcmPath (${encodeStopwatch.elapsedMilliseconds} ms)',
+        );
 
         if (wavFiles.isNotEmpty) {
           final fromWavPath =
               '${runDir.path}${Platform.pathSeparator}single_from_wav_file.m4a';
+          encodeStopwatch.reset();
           await encoder.encodeAudioFileToAac(
             inputPath: wavFiles.first.path,
             outputPath: fromWavPath,
+            bitrateKbps: _bitrateKbps,
           );
-          _appendLog('encodeAudioFileToAac -> $fromWavPath');
+          _appendLog(
+            'encodeAudioFileToAac -> $fromWavPath (${encodeStopwatch.elapsedMilliseconds} ms)',
+          );
         }
       } else {
         _appendLog('No AAC encoder available. Skipped AAC checks.');
@@ -495,8 +512,8 @@ class _IntegratedVadCompressionPageState
     try {
       micStream = await _recorder.startStream(
         config: AudioRecorderConfig(
-          sampleRateHz: 16000,
-          channelCount: 1,
+          sampleRateHz: _sampleRateHz,
+          channelCount: _channelCount,
           framesPerChunk: 1024,
           inputDeviceId: _supportsInputSelection
               ? _selectedInputDevice?.id
@@ -587,6 +604,7 @@ class _IntegratedVadCompressionPageState
       _fullRecordingWavBytes = null;
       _fullRecordingAacPath = null;
       _fullRecordingAacBytes = null;
+      _fullRecordingAacLatencyMs = null;
     });
 
     _streamHealthTimer?.cancel();
@@ -682,6 +700,7 @@ class _IntegratedVadCompressionPageState
       wavBytes: wavBytes,
       aacPath: null,
       aacBytes: null,
+      aacLatencyMs: null,
       conversionInProgress: _autoConvertSnippets && _selectedAacEncoder != null,
     );
 
@@ -703,13 +722,15 @@ class _IntegratedVadCompressionPageState
         '${outputDir.path}${Platform.pathSeparator}snippet_${nextIndex.toString().padLeft(3, '0')}.m4a';
 
     try {
+      final watch = Stopwatch()..start();
       await encoder.encodePcm16BytesToAac(
         pcm16leBytes: snippet.asBytesView(),
         sampleRateHz: _splitOptions.sampleRateHz,
         channelCount: _splitOptions.channelCount,
         outputPath: aacPath,
-        bitrateKbps: 48,
+        bitrateKbps: _bitrateKbps,
       );
+      watch.stop();
 
       final aacBytes = await File(aacPath).length();
       _updateSnippet(
@@ -717,12 +738,13 @@ class _IntegratedVadCompressionPageState
         (item) => item.copyWith(
           aacPath: aacPath,
           aacBytes: aacBytes,
+          aacLatencyMs: watch.elapsedMilliseconds,
           conversionInProgress: false,
         ),
       );
 
       _appendLog(
-        'Snippet #$nextIndex AAC ready (${_formatBytes(aacBytes)}, ${_sizeChangeLabel(original: wavBytes, compressed: aacBytes)}).',
+        'Snippet #$nextIndex AAC ready (${_formatBytes(aacBytes)}, ${_sizeChangeLabel(original: wavBytes, compressed: aacBytes)}, ${watch.elapsedMilliseconds} ms latency).',
       );
     } on Object catch (error) {
       _updateSnippet(
@@ -839,18 +861,21 @@ class _IntegratedVadCompressionPageState
 
     String? aacPath;
     int? aacBytes;
+    int? aacLatencyMs;
 
     final encoder = _selectedAacEncoder;
     if (_convertWholeRecordingWhenStopped && encoder != null) {
       aacPath = '${sessionDir.path}${Platform.pathSeparator}recording_full.m4a';
       try {
+        final watch = Stopwatch()..start();
         await encoder.encodePcm16BytesToAac(
           pcm16leBytes: pcmBytes,
           sampleRateHz: _splitOptions.sampleRateHz,
           channelCount: _splitOptions.channelCount,
           outputPath: aacPath,
-          bitrateKbps: 48,
+          bitrateKbps: _bitrateKbps,
         );
+        aacLatencyMs = watch.elapsedMilliseconds;
         aacBytes = await File(aacPath).length();
       } on Object catch (error) {
         _appendLog('Whole-recording AAC conversion failed: $error');
@@ -868,11 +893,13 @@ class _IntegratedVadCompressionPageState
       _fullRecordingWavBytes = wavBytes;
       _fullRecordingAacPath = aacPath;
       _fullRecordingAacBytes = aacBytes;
+      _fullRecordingAacLatencyMs = aacLatencyMs;
     });
 
     if (aacBytes != null) {
       _appendLog(
-        'Whole recording AAC: ${_formatBytes(wavBytes)} -> ${_formatBytes(aacBytes)} (${_sizeChangeLabel(original: wavBytes, compressed: aacBytes)}).',
+        'Whole recording AAC: ${_formatBytes(wavBytes)} -> ${_formatBytes(aacBytes)} (${_sizeChangeLabel(original: wavBytes, compressed: aacBytes)}'
+        '${aacLatencyMs != null ? ' in ${aacLatencyMs}ms' : ''}).',
       );
     } else {
       _appendLog(
@@ -926,21 +953,58 @@ class _IntegratedVadCompressionPageState
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildStatusCard(theme),
-          const SizedBox(height: 12),
-          _buildOptionsCard(theme),
-          const SizedBox(height: 12),
-          _buildControlButtons(),
-          const SizedBox(height: 12),
-          _buildFullRecordingCard(theme),
-          const SizedBox(height: 12),
-          _buildSnippetListCard(theme),
-          const SizedBox(height: 12),
-          _buildLogCard(theme),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 800;
+
+          final mainContent = [
+            _buildStatusCard(theme),
+            const SizedBox(height: 12),
+            if (!isWide) ...[
+              _buildOptionsCard(theme),
+              const SizedBox(height: 12),
+            ],
+            _buildControlButtons(),
+            const SizedBox(height: 12),
+            _buildFullRecordingCard(theme),
+            const SizedBox(height: 12),
+            _buildSnippetListCard(theme),
+            const SizedBox(height: 12),
+            _buildLogCard(theme),
+          ];
+
+          if (isWide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: mainContent,
+                  ),
+                ),
+                Container(
+                  width: 320,
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(color: theme.colorScheme.outlineVariant),
+                    ),
+                  ),
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [_buildOptionsCard(theme)],
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: mainContent,
+          );
+        },
       ),
     );
   }
@@ -1045,7 +1109,10 @@ class _IntegratedVadCompressionPageState
                     items: <DropdownMenuItem<String?>>[
                       const DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('System default'),
+                        child: Text(
+                          'System default',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       ..._inputDevices.map(
                         (device) => DropdownMenuItem<String?>(
@@ -1054,6 +1121,7 @@ class _IntegratedVadCompressionPageState
                             device.isDefault
                                 ? '${device.label} (Default)'
                                 : device.label,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),
@@ -1114,6 +1182,79 @@ class _IntegratedVadCompressionPageState
                     }
                   : null,
               title: const Text('Convert whole recording on stop'),
+            ),
+            const Divider(height: 24),
+            Text('Audio Config', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              initialValue: _sampleRateHz,
+              decoration: const InputDecoration(
+                labelText: 'Sample Rate',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: const [
+                DropdownMenuItem(value: 8000, child: Text('8000 Hz')),
+                DropdownMenuItem(value: 16000, child: Text('16000 Hz')),
+                DropdownMenuItem(value: 32000, child: Text('32000 Hz')),
+                DropdownMenuItem(value: 44100, child: Text('44100 Hz')),
+                DropdownMenuItem(value: 48000, child: Text('48000 Hz')),
+              ],
+              onChanged: _isLiveStreaming
+                  ? null
+                  : (val) {
+                      if (val != null) {
+                        setState(() {
+                          _sampleRateHz = val;
+                        });
+                      }
+                    },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              initialValue: _channelCount,
+              decoration: const InputDecoration(
+                labelText: 'Channels',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: const [
+                DropdownMenuItem(value: 1, child: Text('1 (Mono)')),
+                DropdownMenuItem(value: 2, child: Text('2 (Stereo)')),
+              ],
+              onChanged: _isLiveStreaming
+                  ? null
+                  : (val) {
+                      if (val != null) {
+                        setState(() {
+                          _channelCount = val;
+                        });
+                      }
+                    },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              initialValue: _bitrateKbps,
+              decoration: const InputDecoration(
+                labelText: 'Bitrate (kbps)',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: const [
+                DropdownMenuItem(value: 32, child: Text('32 kbps')),
+                DropdownMenuItem(value: 48, child: Text('48 kbps')),
+                DropdownMenuItem(value: 64, child: Text('64 kbps')),
+                DropdownMenuItem(value: 128, child: Text('128 kbps')),
+              ],
+              onChanged: _isLiveStreaming
+                  ? null
+                  : (val) {
+                      if (val != null) {
+                        setState(() {
+                          _bitrateKbps = val;
+                        });
+                      }
+                    },
             ),
             const Divider(height: 24),
             Text('VAD tuning', style: theme.textTheme.titleMedium),
@@ -1322,7 +1463,8 @@ class _IntegratedVadCompressionPageState
             Text('WAV: ${_formatBytes(wavBytes)}'),
             if (aacBytes != null)
               Text(
-                'AAC: ${_formatBytes(aacBytes)} (${_sizeChangeLabel(original: wavBytes, compressed: aacBytes)})',
+                'AAC: ${_formatBytes(aacBytes)} (${_sizeChangeLabel(original: wavBytes, compressed: aacBytes)})'
+                '${_fullRecordingAacLatencyMs != null ? ' in ${_fullRecordingAacLatencyMs}ms' : ''}',
               ),
             const SizedBox(height: 8),
             Wrap(
@@ -1373,7 +1515,8 @@ class _IntegratedVadCompressionPageState
                           ? 'AAC: converting...'
                           : 'AAC: not converted')
                     : 'AAC: ${_formatBytes(snippet.aacBytes!)} '
-                          '(${_sizeChangeLabel(original: snippet.wavBytes, compressed: snippet.aacBytes!)})';
+                          '(${_sizeChangeLabel(original: snippet.wavBytes, compressed: snippet.aacBytes!)})'
+                          '${snippet.aacLatencyMs != null ? ' in ${snippet.aacLatencyMs}ms' : ''}';
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1485,6 +1628,7 @@ final class _SnippetArtifact {
     required this.wavBytes,
     required this.aacPath,
     required this.aacBytes,
+    required this.aacLatencyMs,
     required this.conversionInProgress,
   });
 
@@ -1494,11 +1638,13 @@ final class _SnippetArtifact {
   final int wavBytes;
   final String? aacPath;
   final int? aacBytes;
+  final int? aacLatencyMs;
   final bool conversionInProgress;
 
   _SnippetArtifact copyWith({
     String? aacPath,
     int? aacBytes,
+    int? aacLatencyMs,
     bool? conversionInProgress,
   }) {
     return _SnippetArtifact(
@@ -1508,6 +1654,7 @@ final class _SnippetArtifact {
       wavBytes: wavBytes,
       aacPath: aacPath ?? this.aacPath,
       aacBytes: aacBytes ?? this.aacBytes,
+      aacLatencyMs: aacLatencyMs ?? this.aacLatencyMs,
       conversionInProgress: conversionInProgress ?? this.conversionInProgress,
     );
   }

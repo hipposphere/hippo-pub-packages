@@ -23,3 +23,7 @@ For more information, see the project README or the documentation for each packa
 
 - Prefer `package:code_builder` for generating Dart classes, constructors, members, and initializer lists instead of handwritten source string assembly.
 - Run generated Dart output through `package:dart_style` (`DartFormatter`) before writing files.
+
+## Refactorings
+
+- Do not add legacy/manual fallback methods. Embrace Breaking Changes for an improved code basis and cleaner code quality.

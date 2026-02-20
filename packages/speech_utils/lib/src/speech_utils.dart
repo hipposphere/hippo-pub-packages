@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:path/path.dart' as path;
 
 import 'encoding/aac_encoder.dart';
@@ -99,7 +100,7 @@ final class SpeechUtils {
   }
 
   /// Writes speech snippets as WAV files.
-  static Future<List<File>> splitPcm16AndWriteWavSnippets({
+  static Future<List<XFile>> splitPcm16AndWriteWavSnippets({
     required Uint8List pcm16leBytes,
     required PauseSplitOptions options,
     required Directory outputDirectory,
@@ -115,7 +116,7 @@ final class SpeechUtils {
     );
     await outputDirectory.create(recursive: true);
 
-    final files = <File>[];
+    final files = <XFile>[];
     for (var i = 0; i < snippets.length; i++) {
       final outputPath = path.join(
         outputDirectory.path,
@@ -129,7 +130,7 @@ final class SpeechUtils {
   /// Splits PCM16 audio and encodes each snippet to AAC.
   ///
   /// This avoids creating intermediate snippet files in the output directory.
-  static Future<List<File>> splitPcm16AndEncodeAacSnippets({
+  static Future<List<XFile>> splitPcm16AndEncodeAacSnippets({
     required Uint8List pcm16leBytes,
     required PauseSplitOptions options,
     required Directory outputDirectory,
@@ -149,7 +150,7 @@ final class SpeechUtils {
     await outputDirectory.create(recursive: true);
 
     final effectiveEncoder = encoder ?? NativeAacEncoder();
-    final files = <File>[];
+    final files = <XFile>[];
     for (var i = 0; i < snippets.length; i++) {
       final outputPath = path.join(
         outputDirectory.path,
@@ -162,7 +163,7 @@ final class SpeechUtils {
         outputPath: outputPath,
         bitrateKbps: bitrateKbps,
       );
-      files.add(File(outputPath));
+      files.add(XFile(outputPath, mimeType: 'audio/aac'));
     }
     return files;
   }

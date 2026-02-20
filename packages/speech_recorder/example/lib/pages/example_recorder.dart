@@ -12,8 +12,6 @@ const _encoderOptions = <AudioEncoder>[
   AudioEncoder.aacLc,
   AudioEncoder.aacHe,
   AudioEncoder.aacEld,
-  AudioEncoder.opus,
-  AudioEncoder.flac,
   AudioEncoder.wav,
   AudioEncoder.pcm16bits,
 ];
@@ -63,18 +61,14 @@ class _Bloc extends BlocBase {
         final appliedBitrateBps = shouldApplyBitrate
             ? settings.bitrateBps
             : null;
-        final recordConfig = appliedBitrateBps == null
-            ? RecordConfig(
-                encoder: settings.encoder,
-                sampleRate: settings.sampleRateHz,
-                numChannels: settings.channelCount,
-              )
-            : RecordConfig(
-                encoder: settings.encoder,
-                sampleRate: settings.sampleRateHz,
-                numChannels: settings.channelCount,
-                bitRate: appliedBitrateBps,
-              );
+        final recordConfig = AudioRecorderConfig(
+          sampleRateHz: settings.sampleRateHz,
+          channelCount: settings.channelCount,
+          encoding: AudioEncodingConfig(
+            encoder: settings.encoder,
+            bitrateBps: appliedBitrateBps,
+          ),
+        );
         await Directory('tmp').create(recursive: true);
         return SpeechRecorderOptions(
           path: 'tmp/example_recording.$extension',
@@ -581,7 +575,6 @@ String _audioEncoderLabel(AudioEncoder encoder) {
     AudioEncoder.flac => 'FLAC',
     AudioEncoder.wav => 'WAV',
     AudioEncoder.pcm16bits => 'PCM16',
-    _ => encoder.toString(),
   };
 }
 

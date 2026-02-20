@@ -1,4 +1,3 @@
-import 'package:record/record.dart';
 import 'package:speech_utils/speech_utils.dart';
 
 import '../utils/recording_file_type.dart';
@@ -6,7 +5,7 @@ import 'streaming_options.dart';
 
 class SpeechRecorderOptions {
   final String path;
-  final RecordConfig recordConfig;
+  final AudioRecorderConfig recordConfig;
   final SpeechVadConfig? vadConfig;
   final SpeechRecorderStreamingOptions? streaming;
   final Duration amplitudeInterval;
@@ -20,8 +19,9 @@ class SpeechRecorderOptions {
   });
 
   String get mimeType =>
-      RecordingFileType.mimeTypeFromAudioEncoder(recordConfig.encoder);
+      RecordingFileType.mimeTypeFromAudioEncoder(recordConfig.encoding.encoder);
 
-  String get fileExtension =>
-      RecordingFileType.fileExtensionFromAudioEncoder(recordConfig.encoder);
+  String get fileExtension => RecordingFileType.fileExtensionFromAudioEncoder(
+    recordConfig.encoding.encoder,
+  );
 }

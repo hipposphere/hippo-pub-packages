@@ -31,6 +31,7 @@ original PCM buffers.
 - Native audio recorder (`NativeAudioRecorder`) with:
   - start/stop file recording (`.wav` PCM16)
   - start/stop live PCM16 stream recording
+  - live VAD segmentation to file-based `VoiceSegment` outputs (`XFile`)
   - input device listing (`listInputDevices`)
   - input-device routing via `AudioRecorderConfig.inputDeviceId` on platforms that support it
 - No dependency on the legacy `record` package for microphone capture.
@@ -112,12 +113,20 @@ await recorder.start(
   config: const AudioRecorderConfig(
     sampleRateHz: 16000,
     channelCount: 1,
+    encoding: AudioEncodingConfig(
+      encoder: AudioEncoder.wav,
+    ),
   ),
 );
 
 // ... later
 await recorder.stop();
 ```
+
+`start()` output encoding is controlled by `AudioRecorderConfig.encoding` and
+supports `AudioEncoder.wav`, `AudioEncoder.pcm16bits`,
+`AudioEncoder.aacLc`, `AudioEncoder.aacHe`, and `AudioEncoder.aacEld`.
+For AAC outputs, the recorder captures native WAV and finalizes AAC on `stop()`.
 
 Input device discovery/selection:
 
@@ -147,11 +156,61 @@ final pcmStream = await recorder.startStream(
     sampleRateHz: 16000,
     channelCount: 1,
     framesPerChunk: 1024,
+    encoding: AudioEncodingConfig(
+      // Used by higher-level recording helpers such as
+      // startWithVadSegmentation(...).
+      encoder: AudioEncoder.aacLc,
+      bitrateBps: 64000,
+    ),
   ),
 );
 
 await for (final pcmChunk in pcmStream) {
   // PCM16 little-endian bytes.
+}
+```
+
+Amplitude updates (record-style API):
+
+```dart
+final subscription = recorder
+    .onAmplitudeChanged(const Duration(milliseconds: 200))
+    .listen((amplitude) {
+  print('current=${amplitude.current} dBFS, max=${amplitude.max} dBFS');
+});
+
+final latest = await recorder.getAmplitude();
+print('latest=${latest.current} dBFS');
+
+await subscription.cancel();
+```
+
+Live VAD segmentation mode:
+
+```dart
+final recorder = NativeAudioRecorder();
+final segments = await recorder.startWithVadSegmentation(
+  outputDirectory: Directory('/tmp/segments'),
+  splitOptions: const PauseSplitOptions(
+    sampleRateHz: 16000,
+    channelCount: 1,
+    frameDuration: Duration(milliseconds: 20),
+  ),
+  config: const AudioRecorderConfig(
+    sampleRateHz: 16000,
+    channelCount: 1,
+    encoding: AudioEncodingConfig(
+      encoder: AudioEncoder.aacLc,
+      bitrateBps: 64000,
+    ),
+  ),
+  flushOnStop: true,
+);
+
+await for (final segment in segments) {
+  print('segment #${segment.index}: ${segment.file.path}');
+  print('duration: ${segment.metadata.duration}');
+  print('speech probability: ${segment.voiceActivity.speechProbability}');
 }
 ```
 

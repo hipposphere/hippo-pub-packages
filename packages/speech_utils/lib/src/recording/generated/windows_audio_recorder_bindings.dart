@@ -96,6 +96,21 @@ external int speech_utils_windows_audio_recorder_is_recording(
 );
 
 @ffi.Native<
+  ffi.Int32 Function(
+    ffi.Pointer<ffi.Double>,
+    ffi.Pointer<ffi.Double>,
+    ffi.Pointer<ffi.Char>,
+    ffi.Uint32,
+  )
+>()
+external int speech_utils_windows_audio_recorder_get_amplitude(
+  ffi.Pointer<ffi.Double> out_current_dbfs,
+  ffi.Pointer<ffi.Double> out_max_dbfs,
+  ffi.Pointer<ffi.Char> error_utf8,
+  int error_utf8_capacity,
+);
+
+@ffi.Native<
   ffi.Int32 Function(ffi.Pointer<ffi.Char>, ffi.Uint32, ffi.Pointer<ffi.Char>, ffi.Uint32)
 >()
 external int speech_utils_windows_audio_recorder_list_input_devices_json(

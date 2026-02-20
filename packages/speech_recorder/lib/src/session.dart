@@ -15,7 +15,6 @@ class SpeechRecorderSession {
            audioMetadataReader ?? NativeAudioMetadataReader();
 
   factory SpeechRecorderSession.create({
-    required record.AudioRecorder recorder,
     required SpeechRecorderOptions options,
     required bool isStreaming,
   }) {
@@ -28,59 +27,16 @@ class SpeechRecorderSession {
 
   final stopwatch = Stopwatch();
 
-  final amplitudeSubject = DataSubject<List<record.Amplitude>>.seeded([]);
+  final amplitudeSubject = DataSubject<List<Amplitude>>.seeded([]);
 
-  StreamSubscription? _amplitudeSubscription;
+  StreamSubscription<Amplitude>? _amplitudeSubscription;
   StreamSubscription<void>? _streamingSegmentSubscription;
-  int _segmentCount = 0;
-
-  int _nextSegmentIndex() {
-    _segmentCount++;
-    return _segmentCount;
-  }
 
   void _setState(SpeechRecorderSessionState state) {
     stateSubject.add(state);
   }
 
-  void _setRecordingOutputAfterStopping({
-    required String path,
-    required String mimeType,
-    required String fileExtension,
-  }) {
-    _recordingOutputAfterStopping = _SpeechRecorderRecordingOutput(
-      path: path,
-      mimeType: mimeType,
-      fileExtension: fileExtension,
-    );
-  }
-
-  _SpeechRecorderRecordingOutput? _recordingOutputAfterStopping;
-  BytesBuilder? _streamingPcm16Capture;
-
-  void _enableStreamingPcm16Capture() {
-    _streamingPcm16Capture = BytesBuilder();
-  }
-
-  void _captureStreamingPcm16Chunk(Uint8List bytes) {
-    _streamingPcm16Capture?.add(bytes);
-  }
-
-  Uint8List _consumeStreamingPcm16Capture() {
-    final capture = _streamingPcm16Capture;
-    _streamingPcm16Capture = null;
-    return capture?.toBytes() ?? Uint8List(0);
-  }
-
-  void _discardStreamingPcm16Capture() {
-    _streamingPcm16Capture = null;
-  }
-
   _SpeechRecorderRecordingOutput? _resolveRecordingOutput() {
-    final output = _recordingOutputAfterStopping;
-    if (output != null) {
-      return output;
-    }
     if (!isStreaming) {
       return _SpeechRecorderRecordingOutput(
         path: options.path,
@@ -96,8 +52,7 @@ class SpeechRecorderSession {
     if (output == null) {
       throw StateError(
         'No full recording file is available for this session. '
-        'For streaming sessions, enable '
-        'streaming.encodeFullRecordingOnStop to access it.',
+        'Streaming sessions emit segments only.',
       );
     }
     return XFile(output.path, mimeType: output.mimeType);
@@ -108,8 +63,7 @@ class SpeechRecorderSession {
     if (output == null) {
       throw StateError(
         'No full recording data is available for this session. '
-        'For streaming sessions, enable '
-        'streaming.encodeFullRecordingOnStop to access it.',
+        'Streaming sessions emit segments only.',
       );
     }
     final file = getRecordingFile();
@@ -140,6 +94,9 @@ class SpeechRecorderSession {
   final List<SpeechRecorderSegmentCallback> _onSegmentFinishedCallbacks = [];
 
   void onSegmentFinished(SpeechRecorderSegmentCallback callback) {
+    if (_onSegmentFinishedCallbacks.contains(callback)) {
+      return;
+    }
     _onSegmentFinishedCallbacks.add(callback);
   }
 }

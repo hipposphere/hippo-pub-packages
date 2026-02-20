@@ -1,8 +1,23 @@
 ## Unreleased
 
+- Breaking: remove `RecordConfig` and move recorder encoding options into
+  `AudioRecorderConfig.encoding` (`AudioEncodingConfig`).
+- Add `NativeAudioRecorder.startWithVadSegmentation(...)` for live VAD
+  segmentation with file-based `VoiceSegment` output.
+- Add reusable metadata models:
+  - `AudioMetadata`
+  - `VoiceActivityMetadata`
+  - `AudioSegmentMetrics`
+- Breaking: file-based speech utils APIs now use `XFile` instead of `dart:io`
+  `File` (`VoiceSegment.file`, snippet write helpers, and snippet split
+  helpers that return file lists).
+- Breaking: `NativeAudioMetadataReader.readAudioMetadata(...)` now returns
+  `AudioMetadata` (replacing `NativeAudioMetadata`).
 - Add `NativeAudioRecorder` for native FFI microphone capture:
-  - start/stop PCM16 WAV recording to file
+  - start/stop file recording with `AudioRecorderConfig.encoding`
+    (`wav`, `pcm16bits`, `aacLc`, `aacHe`, `aacEld`)
   - start/stop live PCM16 stream recording
+  - `getAmplitude()` / `onAmplitudeChanged(...)` recorder amplitude API
 - Add native recorder bridges for:
   - macOS (AVFoundation)
   - Windows (miniaudio)

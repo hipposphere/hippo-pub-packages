@@ -1,4 +1,4 @@
-import 'package:record/record.dart' as record;
+import 'package:speech_utils/speech_utils.dart';
 
 import '../models/options.dart';
 
@@ -7,57 +7,48 @@ void validateSpeechRecorderOptions(SpeechRecorderOptions options) {
     throw ArgumentError.value(options.path, 'path', 'Cannot be empty.');
   }
 
+  final recordConfig = options.recordConfig;
+  recordConfig.validate();
+
+  final encoder = recordConfig.encoding.encoder;
+  if (encoder == AudioEncoder.flac || encoder == AudioEncoder.opus) {
+    throw ArgumentError.value(
+      encoder,
+      'recordConfig.encoding.encoder',
+      'Native speech recorder currently supports only '
+          'AudioEncoder.aacLc/aacHe/aacEld/wav/pcm16bits.',
+    );
+  }
+
   final streamingOptions = options.streaming;
   if (streamingOptions == null) {
     return;
   }
 
   streamingOptions.pauseSplitOptions.validate();
-
-  if (streamingOptions.bitrateKbps <= 0) {
-    throw ArgumentError.value(
-      streamingOptions.bitrateKbps,
-      'streaming.bitrateKbps',
-      'Must be > 0.',
-    );
-  }
-  if (streamingOptions.fileExtension.trim().isEmpty) {
-    throw ArgumentError.value(
-      streamingOptions.fileExtension,
-      'streaming.fileExtension',
-      'Cannot be empty.',
-    );
-  }
-  if (streamingOptions.mimeType.trim().isEmpty) {
-    throw ArgumentError.value(
-      streamingOptions.mimeType,
-      'streaming.mimeType',
-      'Cannot be empty.',
-    );
-  }
-
-  final recordConfig = options.recordConfig;
-  if (recordConfig.encoder != record.AudioEncoder.pcm16bits) {
-    throw ArgumentError.value(
-      recordConfig.encoder,
-      'recordConfig.encoder',
-      'Streaming mode requires AudioEncoder.pcm16bits.',
-    );
-  }
-  if (recordConfig.sampleRate !=
+  if (recordConfig.sampleRateHz !=
       streamingOptions.pauseSplitOptions.sampleRateHz) {
     throw ArgumentError(
-      'recordConfig.sampleRate (${recordConfig.sampleRate}) must match '
+      'recordConfig.sampleRateHz (${recordConfig.sampleRateHz}) must match '
       'streaming.pauseSplitOptions.sampleRateHz '
       '(${streamingOptions.pauseSplitOptions.sampleRateHz}).',
     );
   }
-  if (recordConfig.numChannels !=
+  if (recordConfig.channelCount !=
       streamingOptions.pauseSplitOptions.channelCount) {
     throw ArgumentError(
-      'recordConfig.numChannels (${recordConfig.numChannels}) must match '
+      'recordConfig.channelCount (${recordConfig.channelCount}) must match '
       'streaming.pauseSplitOptions.channelCount '
       '(${streamingOptions.pauseSplitOptions.channelCount}).',
+    );
+  }
+
+  if (!encoder.supportsVadSegmentationOutput) {
+    throw ArgumentError.value(
+      encoder,
+      'recordConfig.encoding.encoder',
+      'Streaming mode requires an encoder supported by VAD segmentation output '
+          '(AudioEncoder.wav/aacLc/aacHe/aacEld).',
     );
   }
 }

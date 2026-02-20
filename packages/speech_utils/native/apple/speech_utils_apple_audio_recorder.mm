@@ -407,6 +407,8 @@ class AppleAudioRecorderState {
       target_channel_count_ = 1;
       target_format_ = nil;
       wav_file_ = nil;
+      current_amplitude_dbfs_ = -90.0;
+      max_amplitude_dbfs_ = -90.0;
 
       capture_session = capture_session_;
       capture_input = capture_input_;
@@ -454,6 +456,19 @@ class AppleAudioRecorderState {
 
     std::lock_guard<std::mutex> lock(mutex_);
     *out_is_recording = mode_ == RecorderMode::kStopped ? 0 : 1;
+    return 0;
+  }
+
+  int32_t GetAmplitude(double* out_current_dbfs, double* out_max_dbfs, char* error_utf8,
+                       uint32_t error_utf8_capacity) {
+    if (out_current_dbfs == nullptr || out_max_dbfs == nullptr) {
+      WriteError("Amplitude output pointers must not be null.", error_utf8, error_utf8_capacity);
+      return -1;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    *out_current_dbfs = current_amplitude_dbfs_;
+    *out_max_dbfs = max_amplitude_dbfs_;
     return 0;
   }
 
@@ -693,6 +708,8 @@ class AppleAudioRecorderState {
     capture_output_ = capture_output;
     capture_delegate_ = capture_delegate;
     capture_queue_ = capture_queue;
+    current_amplitude_dbfs_ = -90.0;
+    max_amplitude_dbfs_ = -90.0;
 
     mode_ = mode;
     return 0;
@@ -806,6 +823,8 @@ class AppleAudioRecorderState {
       return;
     }
 
+    UpdateAmplitudeLocked(samples, sample_count);
+
     if (mode_ == RecorderMode::kFile && wav_file_ != nil && target_format_ != nil &&
         target_channel_count_ > 0) {
       const auto frame_count = sample_count / target_channel_count_;
@@ -838,6 +857,41 @@ class AppleAudioRecorderState {
     }
   }
 
+  static double ComputeDbfs(const int16_t* samples, std::size_t sample_count) {
+    if (samples == nullptr || sample_count == 0) {
+      return -90.0;
+    }
+
+    double sum_squares = 0.0;
+    for (std::size_t i = 0; i < sample_count; i++) {
+      const double normalized = static_cast<double>(samples[i]) / 32768.0;
+      sum_squares += normalized * normalized;
+    }
+    if (sum_squares <= 0.0) {
+      return -90.0;
+    }
+
+    const double rms = std::sqrt(sum_squares / static_cast<double>(sample_count));
+    if (!(rms > 0.0)) {
+      return -90.0;
+    }
+
+    const double dbfs = 20.0 * std::log10(rms);
+    if (!std::isfinite(dbfs)) {
+      return -90.0;
+    }
+
+    return std::clamp(dbfs, -90.0, 0.0);
+  }
+
+  void UpdateAmplitudeLocked(const int16_t* samples, std::size_t sample_count) {
+    const double dbfs = ComputeDbfs(samples, sample_count);
+    current_amplitude_dbfs_ = dbfs;
+    if (dbfs > max_amplitude_dbfs_) {
+      max_amplitude_dbfs_ = dbfs;
+    }
+  }
+
   std::mutex mutex_;
   RecorderMode mode_ = RecorderMode::kStopped;
   std::deque<int16_t> stream_samples_;
@@ -846,6 +900,8 @@ class AppleAudioRecorderState {
   uint32_t target_channel_count_ = 1;
   AVAudioFormat* target_format_ = nil;
   AVAudioFile* wav_file_ = nil;
+  double current_amplitude_dbfs_ = -90.0;
+  double max_amplitude_dbfs_ = -90.0;
 
   AVCaptureSession* capture_session_ = nil;
   AVCaptureDeviceInput* capture_input_ = nil;
@@ -953,4 +1009,13 @@ SPEECH_UTILS_RECORDER_SYMBOL(is_recording)(int32_t* out_is_recording, char* erro
                                            uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
   return g_recorder.IsRecording(out_is_recording, error_utf8, error_utf8_capacity);
+}
+
+extern "C" __attribute__((visibility("default"))) int32_t
+SPEECH_UTILS_RECORDER_SYMBOL(get_amplitude)(double* out_current_dbfs, double* out_max_dbfs,
+                                            char* error_utf8,
+                                            uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+  return g_recorder.GetAmplitude(out_current_dbfs, out_max_dbfs, error_utf8,
+                                 error_utf8_capacity);
 }

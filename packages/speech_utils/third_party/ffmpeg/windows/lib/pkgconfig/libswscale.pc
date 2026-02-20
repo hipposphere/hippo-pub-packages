@@ -1,0 +1,14 @@
+prefix=/d/a/hippo-pub-packages/hippo-pub-packages/ffmpeg/out-minimal
+exec_prefix=${prefix}
+libdir=/d/a/hippo-pub-packages/hippo-pub-packages/ffmpeg/out-minimal/lib
+includedir=/d/a/hippo-pub-packages/hippo-pub-packages/ffmpeg/out-minimal/include
+
+Name: libswscale
+Description: FFmpeg image rescaling library
+Version: 9.3.100
+Requires: 
+Requires.private: libavutil >= 60.25.100
+Conflicts:
+Libs: -L${libdir}  -lswscale 
+Libs.private: 
+Cflags: -I${includedir}

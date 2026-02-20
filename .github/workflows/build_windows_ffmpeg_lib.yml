@@ -1,4 +1,4 @@
-name: Build Minimal FFmpeg (Windows x64)
+name: Build Minimal FFmpeg (Windows x64, MSVC)
 
 on:
   workflow_dispatch:
@@ -11,69 +11,77 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup MSYS2 (MINGW64)
+      - name: Setup MSVC Environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-make
-            mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-nasm
+            make
+            nasm
             git
+            binutils
 
       - name: Clone FFmpeg
         shell: msys2 {0}
         run: |
           git clone --depth 1 https://github.com/ffmpeg/ffmpeg.git
 
-      - name: Configure (audio-only minimal)
+      - name: Configure (audio-only minimal, MSVC + w32threads)
         shell: msys2 {0}
         run: |
+          set -euo pipefail
           cd ffmpeg
+
+          command -v make
+          command -v cl.exe
+          command -v link.exe
 
           ./configure \
             --arch=x86_64 \
-            --target-os=mingw32 \
-            --prefix=$PWD/out \
+            --target-os=win64 \
+            --toolchain=msvc \
+            --prefix="$PWD/out" \
             --enable-shared \
             --disable-static \
             --disable-programs \
             --disable-doc \
             --disable-debug \
             --disable-everything \
+            --disable-network \
+            --enable-small \
             --enable-avcodec \
             --enable-avformat \
             --enable-avutil \
             --enable-swresample \
-            --enable-decoder=mp3,aac \
+            --enable-encoder=aac \
+            --enable-decoder=pcm_s16le,aac,mp3 \
             --enable-parser=mpegaudio,aac \
-            --enable-demuxer=mp3,mov \
+            --enable-demuxer=wav,mp3,mov,aac \
+            --enable-muxer=ipod,adts \
             --enable-protocol=file \
+            --enable-w32threads \
+            --disable-pthreads \
             --disable-iconv \
             --disable-zlib
 
       - name: Build
         shell: msys2 {0}
         run: |
+          set -euo pipefail
           cd ffmpeg
-          mingw32-make -j$(nproc)
-          mingw32-make install
-
-      - name: Copy required transitive runtime DLLs
-        shell: msys2 {0}
-        run: |
-          cd ffmpeg
-          for dll in libiconv-2.dll libwinpthread-1.dll zlib1.dll; do
-            if [ -f "/mingw64/bin/$dll" ] && [ ! -f "out/bin/$dll" ]; then
-              cp "/mingw64/bin/$dll" "out/bin/$dll"
-            fi
-          done
+          make -j"$(nproc)"
+          make install
 
       - name: Assemble minimal artifact layout
         shell: msys2 {0}
         run: |
+          set -euo pipefail
           cd ffmpeg
           rm -rf out-minimal
           mkdir -p out-minimal/include out-minimal/lib out-minimal/bin
@@ -87,43 +95,31 @@ jobs:
             done
           done
 
-          for dll in libiconv-2.dll libwinpthread-1.dll zlib1.dll; do
-            if [ -f "out/bin/$dll" ]; then
-              cp "out/bin/$dll" "out-minimal/bin/$dll"
-            fi
-          done
-
-          cat > out-minimal/BUILD-METADATA.txt <<'EOF'
+          cat > out-minimal/BUILD-METADATA.txt <<EOF
           ffmpeg workflow: build_windows_ffmpeg_lib.yml
           profile: audio-only minimal
+          toolchain: msvc
+          threads: w32threads
+          ffmpeg_commit: $(git rev-parse HEAD)
           EOF
 
-      - name: Validate runtime compatibility
+      - name: Validate runtime imports (no MinGW transitive deps)
         shell: msys2 {0}
         run: |
-          cd ffmpeg
           set -euo pipefail
+          cd ffmpeg
 
           avcodec_dll=$(ls out-minimal/bin/avcodec-*.dll | head -n 1)
           avformat_dll=$(ls out-minimal/bin/avformat-*.dll | head -n 1)
           avutil_dll=$(ls out-minimal/bin/avutil-*.dll | head -n 1)
 
-          if objdump -p "$avcodec_dll" | grep -qi "DLL Name: libiconv-2.dll"; then
-            test -f out-minimal/bin/libiconv-2.dll
-            objdump -p out-minimal/bin/libiconv-2.dll | grep -qi "libiconv_open"
-            objdump -p out-minimal/bin/libiconv-2.dll | grep -qi "libiconv_close"
-          fi
-
-          if objdump -p "$avformat_dll" | grep -qi "DLL Name: zlib1.dll"; then
-            test -f out-minimal/bin/zlib1.dll
-            objdump -p out-minimal/bin/zlib1.dll | grep -qi "uncompress"
-          fi
-
-          if objdump -p "$avutil_dll" | grep -qi "DLL Name: libwinpthread-1.dll"; then
-            test -f out-minimal/bin/libwinpthread-1.dll
-            objdump -p out-minimal/bin/libwinpthread-1.dll | grep -qi "clock_gettime64"
-            objdump -p out-minimal/bin/libwinpthread-1.dll | grep -qi "nanosleep64"
-          fi
+          for dll in "$avcodec_dll" "$avformat_dll" "$avutil_dll"; do
+            if objdump -p "$dll" | grep -Eqi "DLL Name: (libwinpthread-1\.dll|libiconv-2\.dll|zlib1\.dll)"; then
+              echo "Unexpected MinGW runtime dependency found in $dll"
+              objdump -p "$dll" | grep -Ei "DLL Name: (libwinpthread-1\.dll|libiconv-2\.dll|zlib1\.dll)" || true
+              exit 1
+            fi
+          done
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

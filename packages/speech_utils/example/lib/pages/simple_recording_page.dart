@@ -35,15 +35,16 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
   List<InputDevice> _inputDevices = <InputDevice>[];
   InputDevice? _selectedInputDevice;
 
-  int _sampleRateHz = 16000;
+  int? _sampleRateHz;
   int _channelCount = 1;
-  int _bitrateKbps = 48;
+  int? _bitrateKbps;
 
   final NativeAacEncoder _nativeAacEncoder = NativeAacEncoder();
   final FfmpegAacEncoder _ffmpegAacEncoder = FfmpegAacEncoder();
 
+  bool _isNativeAacAvailable = false;
+  bool _isFfmpegAacAvailable = false;
   AacEncoder? _selectedAacEncoder;
-  String _selectedAacEncoderLabel = 'Not available';
 
   StreamSubscription<Uint8List>? _streamSubscription;
 
@@ -62,9 +63,11 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
 
   String? _latestWavPath;
   int? _latestWavBytes;
+  AudioMetadata? _latestWavMetadata;
   String? _latestAacPath;
   int? _latestAacBytes;
   int? _latestAacLatencyMs;
+  AudioMetadata? _latestAacMetadata;
   String? _playingPath;
 
   final Stopwatch _recordingStopwatch = Stopwatch();
@@ -91,16 +94,18 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
   }
 
   Future<void> _refreshAacEncoders() async {
+    bool nativeAvail = false;
+    bool ffmpegAvail = false;
     AacEncoder? selected;
-    var label = 'Not available';
 
     try {
-      if (await _nativeAacEncoder.isAvailable()) {
+      nativeAvail = await _nativeAacEncoder.isAvailable();
+      ffmpegAvail = await _ffmpegAacEncoder.isAvailable();
+
+      if (nativeAvail) {
         selected = _nativeAacEncoder;
-        label = 'Native AAC (afconvert)';
-      } else if (await _ffmpegAacEncoder.isAvailable()) {
+      } else if (ffmpegAvail) {
         selected = _ffmpegAacEncoder;
-        label = 'ffmpeg AAC';
       }
     } on Object catch (error) {
       _appendLog('AAC encoder detection failed: $error');
@@ -111,8 +116,9 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
     }
 
     setState(() {
+      _isNativeAacAvailable = nativeAvail;
+      _isFfmpegAacAvailable = ffmpegAvail;
       _selectedAacEncoder = selected;
-      _selectedAacEncoderLabel = label;
     });
   }
 
@@ -261,7 +267,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
     try {
       micStream = await _recorder.startStream(
         config: AudioRecorderConfig(
-          sampleRateHz: _sampleRateHz,
+          sampleRateHz: _sampleRateHz ?? 16000,
           channelCount: _channelCount,
           framesPerChunk: 1024,
           inputDeviceId: _supportsInputSelection
@@ -389,7 +395,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
 
     await _writePcm16BytesAsWav(
       pcm16leBytes: bytes,
-      sampleRateHz: _sampleRateHz,
+      sampleRateHz: _sampleRateHz ?? 16000,
       channelCount: _channelCount,
       outputPath: outputPath,
     );
@@ -408,10 +414,10 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
         final watch = Stopwatch()..start();
         await encoder.encodePcm16BytesToAac(
           pcm16leBytes: bytes,
-          sampleRateHz: _sampleRateHz,
+          sampleRateHz: _sampleRateHz ?? 16000,
           channelCount: _channelCount,
           outputPath: aacPath,
-          bitrateKbps: _bitrateKbps,
+          bitrateKbps: _bitrateKbps ?? 48,
         );
         aacLatencyMs = watch.elapsedMilliseconds;
         aacBytes = await File(aacPath).length();
@@ -422,6 +428,12 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
       }
     }
 
+    final wavMetadata = await _readNativeMetadataAsync(outputPath);
+    AudioMetadata? aacMetadata;
+    if (aacPath != null) {
+      aacMetadata = await _readNativeMetadataAsync(aacPath);
+    }
+
     if (!mounted) {
       return;
     }
@@ -429,9 +441,11 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
     setState(() {
       _latestWavPath = outputPath;
       _latestWavBytes = wavBytes;
+      _latestWavMetadata = wavMetadata;
       _latestAacPath = aacPath;
       _latestAacBytes = aacBytes;
       _latestAacLatencyMs = aacLatencyMs;
+      _latestAacMetadata = aacMetadata;
       _playingPath = null;
     });
 
@@ -560,7 +574,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
           children: [
             Text('Audio Config', style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
+            DropdownButtonFormField<int?>(
               initialValue: _sampleRateHz,
               decoration: const InputDecoration(
                 labelText: 'Sample Rate',
@@ -568,6 +582,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
                 isDense: true,
               ),
               items: const [
+                DropdownMenuItem(value: null, child: Text('-- Auto --')),
                 DropdownMenuItem(value: 8000, child: Text('8000 Hz')),
                 DropdownMenuItem(value: 16000, child: Text('16000 Hz')),
                 DropdownMenuItem(value: 32000, child: Text('32000 Hz')),
@@ -577,11 +592,9 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
               onChanged: _isRecording
                   ? null
                   : (val) {
-                      if (val != null) {
-                        setState(() {
-                          _sampleRateHz = val;
-                        });
-                      }
+                      setState(() {
+                        _sampleRateHz = val;
+                      });
                     },
             ),
             const SizedBox(height: 12),
@@ -607,7 +620,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
                     },
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
+            DropdownButtonFormField<int?>(
               initialValue: _bitrateKbps,
               decoration: const InputDecoration(
                 labelText: 'Bitrate (kbps)',
@@ -615,6 +628,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
                 isDense: true,
               ),
               items: const [
+                DropdownMenuItem(value: null, child: Text('-- Auto --')),
                 DropdownMenuItem(value: 32, child: Text('32 kbps')),
                 DropdownMenuItem(value: 48, child: Text('48 kbps')),
                 DropdownMenuItem(value: 64, child: Text('64 kbps')),
@@ -623,17 +637,42 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
               onChanged: _isRecording
                   ? null
                   : (val) {
-                      if (val != null) {
-                        setState(() {
-                          _bitrateKbps = val;
-                        });
-                      }
+                      setState(() {
+                        _bitrateKbps = val;
+                      });
                     },
             ),
             const SizedBox(height: 12),
-            Text(
-              'Encoder: $_selectedAacEncoderLabel',
-              style: theme.textTheme.bodyMedium,
+            DropdownButtonFormField<AacEncoder?>(
+              initialValue: _selectedAacEncoder,
+              decoration: const InputDecoration(
+                labelText: 'AAC Encoder',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: [
+                const DropdownMenuItem(
+                  value: null,
+                  child: Text('None (WAV only)'),
+                ),
+                if (_isNativeAacAvailable)
+                  DropdownMenuItem(
+                    value: _nativeAacEncoder,
+                    child: const Text('Native AAC'),
+                  ),
+                if (_isFfmpegAacAvailable)
+                  DropdownMenuItem(
+                    value: _ffmpegAacEncoder,
+                    child: const Text('ffmpeg AAC'),
+                  ),
+              ],
+              onChanged: _isRecording
+                  ? null
+                  : (val) {
+                      setState(() {
+                        _selectedAacEncoder = val;
+                      });
+                    },
             ),
           ],
         ),
@@ -833,6 +872,129 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
     );
   }
 
+  Future<AudioMetadata?> _readNativeMetadataAsync(String path) async {
+    try {
+      final reader = NativeAudioMetadataReader();
+      if (await reader.isAvailable()) {
+        return await reader.readAudioMetadata(inputPath: path);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  void _showMetadataDialog({
+    required BuildContext context,
+    required String title,
+    required String wavPath,
+    required int wavBytes,
+    required AudioMetadata? wavMetadata,
+    String? aacPath,
+    int? aacBytes,
+    int? aacLatencyMs,
+    AudioMetadata? aacMetadata,
+  }) {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: [
+                const SizedBox(height: 8),
+                Text(
+                  'WAV Format',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  'File: ${wavPath.split(Platform.pathSeparator).last}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                Text(
+                  'Size: ${_formatBytes(wavBytes)}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                _buildMetadataRows(wavMetadata),
+                if (aacPath != null) ...[
+                  const Divider(),
+                  Text(
+                    'AAC Format',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    'File: ${aacPath.split(Platform.pathSeparator).last}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  if (aacBytes != null)
+                    Text(
+                      'Size: ${_formatBytes(aacBytes)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  if (aacLatencyMs != null)
+                    Text(
+                      'Encode Time: ${aacLatencyMs}ms',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  _buildMetadataRows(aacMetadata),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMetadataRows(AudioMetadata? metadata) {
+    if (metadata == null) {
+      return const Text(
+        'Native Metadata: Unavailable\n',
+        style: TextStyle(fontSize: 12),
+      );
+    }
+    final bitrateDesc = metadata.bitrateBps != null
+        ? '${metadata.bitrateBps! ~/ 1000} kbps'
+        : 'Unknown';
+    final sampleRateDesc = metadata.sampleRateHz != null
+        ? '${metadata.sampleRateHz} Hz'
+        : 'Unknown';
+    final channelsDesc = metadata.channelCount != null
+        ? '${metadata.channelCount} ch'
+        : 'Unknown';
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Duration: ${metadata.duration.inMilliseconds} ms',
+            style: const TextStyle(fontSize: 12),
+          ),
+          Text(
+            'Config: $sampleRateDesc, $channelsDesc, $bitrateDesc',
+            style: const TextStyle(fontSize: 12),
+          ),
+          Text(
+            'Engine: ${metadata.codec ?? 'Unknown'} ${metadata.codecProfile ?? ''} (${metadata.containerFormat ?? 'Unknown'})',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLatestRecordingCard(ThemeData theme) {
     final wavPath = _latestWavPath;
     if (wavPath == null) {
@@ -847,7 +1009,33 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Last recording', style: theme.textTheme.titleMedium),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Last recording',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.info_outline),
+                  onPressed: () => _showMetadataDialog(
+                    context: context,
+                    title: 'Recording Metadata',
+                    wavPath: wavPath,
+                    wavBytes: wavBytes,
+                    wavMetadata: _latestWavMetadata,
+                    aacPath: _latestAacPath,
+                    aacBytes: _latestAacBytes,
+                    aacLatencyMs: _latestAacLatencyMs,
+                    aacMetadata: _latestAacMetadata,
+                  ),
+                  tooltip: 'View Metadata',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Text('WAV: ${_formatBytes(wavBytes)}'),
             if (_latestAacBytes != null)

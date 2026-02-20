@@ -286,7 +286,7 @@ Notes:
 - TEN VAD FFI: bundled via `hook/build.dart` for macOS, Windows x64, Android
   (`arm64-v8a`, `armeabi-v7a`), and iOS arm64 (device build).
 - AAC encoding (`NativeAacEncoder`) without `ffmpeg` fallback:
-  - macOS: `afconvert`
+  - macOS: bundled native AVFoundation encoder via Dart FFI
   - Windows: bundled native FFmpeg encoder (`libavcodec`) via Dart FFI
   - Android: bundled native NDK encoder via Dart FFI (expects PCM16 WAV input
     when calling `encodeAudioFileToAac`)

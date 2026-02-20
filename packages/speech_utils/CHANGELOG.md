@@ -46,7 +46,7 @@
 ## 0.1.2
 
 - Add `NativeAacEncoder` using native platform tooling:
-  - macOS: `afconvert`
+  - macOS: AVFoundation
   - Windows: bundled native encoder via Dart FFI
   - Android: bundled native NDK encoder via Dart FFI
   - iOS: bundled native AVFoundation encoder via Dart FFI

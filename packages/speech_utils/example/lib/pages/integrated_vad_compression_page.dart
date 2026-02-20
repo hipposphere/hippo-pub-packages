@@ -94,16 +94,18 @@ class _IntegratedVadCompressionPageState
 
   String? _fullRecordingWavPath;
   int? _fullRecordingWavBytes;
+  AudioMetadata? _fullRecordingWavMetadata;
   String? _fullRecordingAacPath;
   int? _fullRecordingAacBytes;
   int? _fullRecordingAacLatencyMs;
+  AudioMetadata? _fullRecordingAacMetadata;
 
-  int _sampleRateHz = 16000;
+  int? _sampleRateHz;
   int _channelCount = 1;
-  int _bitrateKbps = 48;
+  int? _bitrateKbps;
 
   PauseSplitOptions get _splitOptions => PauseSplitOptions(
-    sampleRateHz: _sampleRateHz,
+    sampleRateHz: _sampleRateHz ?? 16000,
     channelCount: _channelCount,
     frameDuration: const Duration(milliseconds: 16),
     minSpeechDuration: const Duration(milliseconds: 140),
@@ -173,7 +175,7 @@ class _IntegratedVadCompressionPageState
     try {
       if (await _nativeAacEncoder.isAvailable()) {
         selected = _nativeAacEncoder;
-        label = 'Native AAC (afconvert)';
+        label = 'Native AAC (AVFoundation)';
       } else if (await _ffmpegAacEncoder.isAvailable()) {
         selected = _ffmpegAacEncoder;
         label = 'ffmpeg AAC';
@@ -435,7 +437,7 @@ class _IntegratedVadCompressionPageState
           sampleRateHz: _splitOptions.sampleRateHz,
           channelCount: _splitOptions.channelCount,
           outputPath: fromBytesPath,
-          bitrateKbps: _bitrateKbps,
+          bitrateKbps: _bitrateKbps ?? 48,
         );
         _appendLog(
           'encodePcm16BytesToAac -> $fromBytesPath (${encodeStopwatch.elapsedMilliseconds} ms)',
@@ -449,7 +451,7 @@ class _IntegratedVadCompressionPageState
           sampleRateHz: _splitOptions.sampleRateHz,
           channelCount: _splitOptions.channelCount,
           outputPath: fromPcmPath,
-          bitrateKbps: _bitrateKbps,
+          bitrateKbps: _bitrateKbps ?? 48,
         );
         _appendLog(
           'encodePcm16FileToAac -> $fromPcmPath (${encodeStopwatch.elapsedMilliseconds} ms)',
@@ -462,7 +464,7 @@ class _IntegratedVadCompressionPageState
           await encoder.encodeAudioFileToAac(
             inputPath: wavFiles.first.path,
             outputPath: fromWavPath,
-            bitrateKbps: _bitrateKbps,
+            bitrateKbps: _bitrateKbps ?? 48,
           );
           _appendLog(
             'encodeAudioFileToAac -> $fromWavPath (${encodeStopwatch.elapsedMilliseconds} ms)',
@@ -512,12 +514,19 @@ class _IntegratedVadCompressionPageState
     try {
       micStream = await _recorder.startStream(
         config: AudioRecorderConfig(
-          sampleRateHz: _sampleRateHz,
+          sampleRateHz: _sampleRateHz ?? 16000,
           channelCount: _channelCount,
           framesPerChunk: 1024,
           inputDeviceId: _supportsInputSelection
               ? _selectedInputDevice?.id
               : null,
+          encoding: AudioEncodingConfig(
+            encoder: _selectedAacEncoder != null
+                ? AudioEncoder.aacLc
+                : AudioEncoder.wav,
+            aacEncoder: _selectedAacEncoder,
+            bitrateBps: _bitrateKbps != null ? _bitrateKbps! * 1000 : null,
+          ),
         ),
         readSampleCapacity: 4096,
       );
@@ -714,44 +723,61 @@ class _IntegratedVadCompressionPageState
     );
 
     final encoder = _selectedAacEncoder;
-    if (!_autoConvertSnippets || encoder == null) {
-      return;
-    }
+    if (_autoConvertSnippets && encoder != null) {
+      final aacPath =
+          '${outputDir.path}${Platform.pathSeparator}snippet_${nextIndex.toString().padLeft(3, '0')}.m4a';
 
-    final aacPath =
-        '${outputDir.path}${Platform.pathSeparator}snippet_${nextIndex.toString().padLeft(3, '0')}.m4a';
+      try {
+        final watch = Stopwatch()..start();
+        await encoder.encodePcm16BytesToAac(
+          pcm16leBytes: snippet.asBytesView(),
+          sampleRateHz: _splitOptions.sampleRateHz,
+          channelCount: _splitOptions.channelCount,
+          outputPath: aacPath,
+          bitrateKbps: _bitrateKbps ?? 48,
+        );
+        watch.stop();
 
-    try {
-      final watch = Stopwatch()..start();
-      await encoder.encodePcm16BytesToAac(
-        pcm16leBytes: snippet.asBytesView(),
-        sampleRateHz: _splitOptions.sampleRateHz,
-        channelCount: _splitOptions.channelCount,
-        outputPath: aacPath,
-        bitrateKbps: _bitrateKbps,
-      );
-      watch.stop();
+        final aacBytes = await File(aacPath).length();
+        final aacLatencyMs = watch.elapsedMilliseconds;
+        final aacMetadata = await _readNativeMetadataAsync(aacPath);
+        final wavMetadata = await _readNativeMetadataAsync(wavPath);
 
-      final aacBytes = await File(aacPath).length();
+        _updateSnippet(
+          nextIndex,
+          (item) => item.copyWith(
+            aacPath: aacPath,
+            aacBytes: aacBytes,
+            aacLatencyMs: aacLatencyMs,
+            conversionInProgress: false,
+            aacMetadata: aacMetadata,
+            wavMetadata: wavMetadata,
+          ),
+        );
+
+        _appendLog(
+          'Snippet #$nextIndex AAC ready (${_formatBytes(aacBytes)}, ${_sizeChangeLabel(original: wavBytes, compressed: aacBytes)}, ${watch.elapsedMilliseconds} ms latency).',
+        );
+      } on Object catch (error) {
+        final wavMetadata = await _readNativeMetadataAsync(wavPath);
+        _updateSnippet(
+          nextIndex,
+          (item) => item.copyWith(
+            conversionInProgress: false,
+            wavMetadata: wavMetadata,
+          ),
+        );
+        _appendLog('Snippet #$nextIndex AAC conversion failed: $error');
+      }
+    } else {
+      final wavMetadata = await _readNativeMetadataAsync(wavPath);
       _updateSnippet(
         nextIndex,
         (item) => item.copyWith(
-          aacPath: aacPath,
-          aacBytes: aacBytes,
-          aacLatencyMs: watch.elapsedMilliseconds,
           conversionInProgress: false,
+          wavMetadata: wavMetadata,
         ),
       );
-
-      _appendLog(
-        'Snippet #$nextIndex AAC ready (${_formatBytes(aacBytes)}, ${_sizeChangeLabel(original: wavBytes, compressed: aacBytes)}, ${watch.elapsedMilliseconds} ms latency).',
-      );
-    } on Object catch (error) {
-      _updateSnippet(
-        nextIndex,
-        (item) => item.copyWith(conversionInProgress: false),
-      );
-      _appendLog('Snippet #$nextIndex AAC conversion failed: $error');
     }
   }
 
@@ -862,6 +888,8 @@ class _IntegratedVadCompressionPageState
     String? aacPath;
     int? aacBytes;
     int? aacLatencyMs;
+    AudioMetadata? wavMetadata;
+    AudioMetadata? aacMetadata;
 
     final encoder = _selectedAacEncoder;
     if (_convertWholeRecordingWhenStopped && encoder != null) {
@@ -873,7 +901,7 @@ class _IntegratedVadCompressionPageState
           sampleRateHz: _splitOptions.sampleRateHz,
           channelCount: _splitOptions.channelCount,
           outputPath: aacPath,
-          bitrateKbps: _bitrateKbps,
+          bitrateKbps: _bitrateKbps ?? 48,
         );
         aacLatencyMs = watch.elapsedMilliseconds;
         aacBytes = await File(aacPath).length();
@@ -881,29 +909,28 @@ class _IntegratedVadCompressionPageState
         _appendLog('Whole-recording AAC conversion failed: $error');
         aacPath = null;
         aacBytes = null;
+        aacLatencyMs = null;
       }
     }
 
-    if (!mounted) {
-      return;
+    wavMetadata = await _readNativeMetadataAsync(wavPath);
+    if (aacPath != null) {
+      aacMetadata = await _readNativeMetadataAsync(aacPath);
     }
 
-    setState(() {
-      _fullRecordingWavPath = wavPath;
-      _fullRecordingWavBytes = wavBytes;
-      _fullRecordingAacPath = aacPath;
-      _fullRecordingAacBytes = aacBytes;
-      _fullRecordingAacLatencyMs = aacLatencyMs;
-    });
-
-    if (aacBytes != null) {
+    if (mounted) {
+      setState(() {
+        _fullRecordingWavPath = wavPath;
+        _fullRecordingWavBytes = wavBytes;
+        _fullRecordingWavMetadata = wavMetadata;
+        _fullRecordingAacPath = aacPath;
+        _fullRecordingAacBytes = aacBytes;
+        _fullRecordingAacLatencyMs = aacLatencyMs;
+        _fullRecordingAacMetadata = aacMetadata;
+      });
       _appendLog(
-        'Whole recording AAC: ${_formatBytes(wavBytes)} -> ${_formatBytes(aacBytes)} (${_sizeChangeLabel(original: wavBytes, compressed: aacBytes)}'
-        '${aacLatencyMs != null ? ' in ${aacLatencyMs}ms' : ''}).',
-      );
-    } else {
-      _appendLog(
-        'Whole recording WAV saved: $wavPath (${_formatBytes(wavBytes)}).',
+        'Recording saved. WAV: ${_formatBytes(wavBytes)}. '
+        '${aacBytes != null ? 'AAC: ${_formatBytes(aacBytes)} in ${aacLatencyMs}ms' : 'AAC not generated.'}',
       );
     }
   }
@@ -1186,7 +1213,7 @@ class _IntegratedVadCompressionPageState
             const Divider(height: 24),
             Text('Audio Config', style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
+            DropdownButtonFormField<int?>(
               initialValue: _sampleRateHz,
               decoration: const InputDecoration(
                 labelText: 'Sample Rate',
@@ -1194,6 +1221,7 @@ class _IntegratedVadCompressionPageState
                 isDense: true,
               ),
               items: const [
+                DropdownMenuItem(value: null, child: Text('-- Auto --')),
                 DropdownMenuItem(value: 8000, child: Text('8000 Hz')),
                 DropdownMenuItem(value: 16000, child: Text('16000 Hz')),
                 DropdownMenuItem(value: 32000, child: Text('32000 Hz')),
@@ -1203,11 +1231,9 @@ class _IntegratedVadCompressionPageState
               onChanged: _isLiveStreaming
                   ? null
                   : (val) {
-                      if (val != null) {
-                        setState(() {
-                          _sampleRateHz = val;
-                        });
-                      }
+                      setState(() {
+                        _sampleRateHz = val;
+                      });
                     },
             ),
             const SizedBox(height: 12),
@@ -1233,7 +1259,7 @@ class _IntegratedVadCompressionPageState
                     },
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
+            DropdownButtonFormField<int?>(
               initialValue: _bitrateKbps,
               decoration: const InputDecoration(
                 labelText: 'Bitrate (kbps)',
@@ -1241,6 +1267,7 @@ class _IntegratedVadCompressionPageState
                 isDense: true,
               ),
               items: const [
+                DropdownMenuItem(value: null, child: Text('-- Auto --')),
                 DropdownMenuItem(value: 32, child: Text('32 kbps')),
                 DropdownMenuItem(value: 48, child: Text('48 kbps')),
                 DropdownMenuItem(value: 64, child: Text('64 kbps')),
@@ -1249,11 +1276,9 @@ class _IntegratedVadCompressionPageState
               onChanged: _isLiveStreaming
                   ? null
                   : (val) {
-                      if (val != null) {
-                        setState(() {
-                          _bitrateKbps = val;
-                        });
-                      }
+                      setState(() {
+                        _bitrateKbps = val;
+                      });
                     },
             ),
             const Divider(height: 24),
@@ -1442,6 +1467,129 @@ class _IntegratedVadCompressionPageState
     );
   }
 
+  Future<AudioMetadata?> _readNativeMetadataAsync(String path) async {
+    try {
+      final reader = NativeAudioMetadataReader();
+      if (await reader.isAvailable()) {
+        return await reader.readAudioMetadata(inputPath: path);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  void _showMetadataDialog({
+    required BuildContext context,
+    required String title,
+    required String wavPath,
+    required int wavBytes,
+    required AudioMetadata? wavMetadata,
+    String? aacPath,
+    int? aacBytes,
+    int? aacLatencyMs,
+    AudioMetadata? aacMetadata,
+  }) {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: [
+                const SizedBox(height: 8),
+                Text(
+                  'WAV Format',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  'File: ${wavPath.split(Platform.pathSeparator).last}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                Text(
+                  'Size: ${_formatBytes(wavBytes)}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                _buildMetadataRows(wavMetadata),
+                if (aacPath != null) ...[
+                  const Divider(),
+                  Text(
+                    'AAC Format',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    'File: ${aacPath.split(Platform.pathSeparator).last}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  if (aacBytes != null)
+                    Text(
+                      'Size: ${_formatBytes(aacBytes)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  if (aacLatencyMs != null)
+                    Text(
+                      'Encode Time: ${aacLatencyMs}ms',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  _buildMetadataRows(aacMetadata),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMetadataRows(AudioMetadata? metadata) {
+    if (metadata == null) {
+      return const Text(
+        'Native Metadata: Unavailable\n',
+        style: TextStyle(fontSize: 12),
+      );
+    }
+    final bitrateDesc = metadata.bitrateBps != null
+        ? '${metadata.bitrateBps! ~/ 1000} kbps'
+        : 'Unknown';
+    final sampleRateDesc = metadata.sampleRateHz != null
+        ? '${metadata.sampleRateHz} Hz'
+        : 'Unknown';
+    final channelsDesc = metadata.channelCount != null
+        ? '${metadata.channelCount} ch'
+        : 'Unknown';
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Duration: ${metadata.duration.inMilliseconds} ms',
+            style: const TextStyle(fontSize: 12),
+          ),
+          Text(
+            'Config: $sampleRateDesc, $channelsDesc, $bitrateDesc',
+            style: const TextStyle(fontSize: 12),
+          ),
+          Text(
+            'Engine: ${metadata.codec ?? 'Unknown'} ${metadata.codecProfile ?? ''} (${metadata.containerFormat ?? 'Unknown'})',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFullRecordingCard(ThemeData theme) {
     final wavPath = _fullRecordingWavPath;
     if (wavPath == null) {
@@ -1458,7 +1606,33 @@ class _IntegratedVadCompressionPageState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Whole recording', style: theme.textTheme.titleMedium),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Whole recording',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.info_outline),
+                  onPressed: () => _showMetadataDialog(
+                    context: context,
+                    title: 'Whole Recording Metadata',
+                    wavPath: wavPath,
+                    wavBytes: wavBytes,
+                    wavMetadata: _fullRecordingWavMetadata,
+                    aacPath: aacPath,
+                    aacBytes: aacBytes,
+                    aacLatencyMs: _fullRecordingAacLatencyMs,
+                    aacMetadata: _fullRecordingAacMetadata,
+                  ),
+                  tooltip: 'View Metadata',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Text('WAV: ${_formatBytes(wavBytes)}'),
             if (aacBytes != null)
@@ -1530,9 +1704,32 @@ class _IntegratedVadCompressionPageState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Snippet #${snippet.id} • ${snippet.duration.inMilliseconds} ms',
-                            style: theme.textTheme.titleSmall,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Snippet #${snippet.id} • ${snippet.duration.inMilliseconds} ms',
+                                  style: theme.textTheme.titleSmall,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.info_outline),
+                                onPressed: () => _showMetadataDialog(
+                                  context: context,
+                                  title: 'Snippet #${snippet.id} Metadata',
+                                  wavPath: snippet.wavPath,
+                                  wavBytes: snippet.wavBytes,
+                                  wavMetadata: snippet.wavMetadata,
+                                  aacPath: snippet.aacPath,
+                                  aacBytes: snippet.aacBytes,
+                                  aacLatencyMs: snippet.aacLatencyMs,
+                                  aacMetadata: snippet.aacMetadata,
+                                ),
+                                tooltip: 'View Metadata',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 4),
                           Text('WAV: ${_formatBytes(snippet.wavBytes)}'),
@@ -1630,6 +1827,8 @@ final class _SnippetArtifact {
     required this.aacBytes,
     required this.aacLatencyMs,
     required this.conversionInProgress,
+    this.wavMetadata,
+    this.aacMetadata,
   });
 
   final int id;
@@ -1640,12 +1839,16 @@ final class _SnippetArtifact {
   final int? aacBytes;
   final int? aacLatencyMs;
   final bool conversionInProgress;
+  final AudioMetadata? wavMetadata;
+  final AudioMetadata? aacMetadata;
 
   _SnippetArtifact copyWith({
     String? aacPath,
     int? aacBytes,
     int? aacLatencyMs,
     bool? conversionInProgress,
+    AudioMetadata? wavMetadata,
+    AudioMetadata? aacMetadata,
   }) {
     return _SnippetArtifact(
       id: id,
@@ -1656,6 +1859,8 @@ final class _SnippetArtifact {
       aacBytes: aacBytes ?? this.aacBytes,
       aacLatencyMs: aacLatencyMs ?? this.aacLatencyMs,
       conversionInProgress: conversionInProgress ?? this.conversionInProgress,
+      wavMetadata: wavMetadata ?? this.wavMetadata,
+      aacMetadata: aacMetadata ?? this.aacMetadata,
     );
   }
 }

@@ -6,9 +6,10 @@ import 'package:test/test.dart';
 
 void main() {
   group('NativeAacEncoder', () {
-    test('uses afconvert with wav intermediary for pcm bytes', () async {
-      late String usedExecutable;
-      late List<String> usedArguments;
+    test('uses macOS native encoder with wav intermediary for pcm bytes', () async {
+      late String usedInputPath;
+      late String usedOutputPath;
+      late int usedBitrateBps;
       late Uint8List intermediateWavBytes;
 
       final outputDir = await Directory.systemTemp.createTemp('speech_utils_native_aac_test_');
@@ -18,15 +19,13 @@ void main() {
       final outputPath = '${outputDir.path}${Platform.pathSeparator}out.m4a';
 
       final encoder = NativeAacEncoder(
-        executable: 'afconvert-custom',
         platform: NativeAacPlatform.macOS,
-        commandRunner: (executable, arguments) async {
-          usedExecutable = executable;
-          usedArguments = List<String>.from(arguments);
-
-          final inputPath = arguments[arguments.length - 2];
-          intermediateWavBytes = await File(inputPath).readAsBytes();
-          return const NativeAacCommandResult(exitCode: 0, stderr: '');
+        macosAvailabilityFn: () => true,
+        macosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
+          usedInputPath = inputPath;
+          usedOutputPath = outputPath;
+          usedBitrateBps = bitrateBps;
+          intermediateWavBytes = File(inputPath).readAsBytesSync();
         },
       );
 
@@ -39,21 +38,16 @@ void main() {
         bitrateKbps: 56,
       );
 
-      expect(usedExecutable, 'afconvert-custom');
-      expect(usedArguments, containsAllInOrder(<Object>['-f', 'm4af', '-d', 'aac', '-b', '56000']));
-      expect(usedArguments.last, outputPath);
+      expect(usedOutputPath, outputPath);
+      expect(usedBitrateBps, 56000);
+      expect(usedInputPath, isNotEmpty);
       expect(intermediateWavBytes.sublist(0, 4), orderedEquals(<int>[82, 73, 70, 70]));
       expect(intermediateWavBytes.sublist(8, 12), orderedEquals(<int>[87, 65, 86, 69]));
       expect(intermediateWavBytes.sublist(44), orderedEquals(pcm));
     });
 
     test('throws UnsupportedError on unsupported platform', () {
-      final encoder = NativeAacEncoder(
-        platform: NativeAacPlatform.unsupported,
-        commandRunner: (executable, arguments) async {
-          return const NativeAacCommandResult(exitCode: 0, stderr: '');
-        },
-      );
+      final encoder = NativeAacEncoder(platform: NativeAacPlatform.unsupported);
 
       expect(
         () => encoder.encodeAudioFileToAac(inputPath: 'in.wav', outputPath: 'out.m4a'),
@@ -61,11 +55,16 @@ void main() {
       );
     });
 
-    test('throws AacEncodingException on non-zero exit code', () {
+    test('throws AacEncodingException when macOS native encoder fails', () {
       final encoder = NativeAacEncoder(
         platform: NativeAacPlatform.macOS,
-        commandRunner: (executable, arguments) async {
-          return const NativeAacCommandResult(exitCode: 1, stderr: 'boom');
+        macosAvailabilityFn: () => true,
+        macosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
+          throw AacEncodingException(
+            'macOS native AAC encoder failed',
+            exitCode: 1,
+            stderr: 'boom',
+          );
         },
       );
 
@@ -73,6 +72,16 @@ void main() {
         () => encoder.encodeAudioFileToAac(inputPath: 'in.wav', outputPath: 'out.m4a'),
         throwsA(isA<AacEncodingException>()),
       );
+    });
+
+    test('propagates macOS availability probe', () async {
+      final encoder = NativeAacEncoder(
+        platform: NativeAacPlatform.macOS,
+        macosAvailabilityFn: () => true,
+        macosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
+      );
+
+      expect(await encoder.isAvailable(), isTrue);
     });
 
     test('uses windows ffi libavcodec path', () async {

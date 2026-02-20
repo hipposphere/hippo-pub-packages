@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <deque>
 #include <limits>
@@ -165,6 +166,92 @@ bool EnsureAudioInputPermission(int32_t* out_has_permission, bool request_if_nee
 
   *out_has_permission = granted ? 1 : 0;
   return true;
+}
+
+struct WavHeader {
+  char riff[4];
+  uint32_t chunk_size;
+  char wave[4];
+  char fmt[4];
+  uint32_t subchunk1_size;
+  uint16_t audio_format;
+  uint16_t channel_count;
+  uint32_t sample_rate;
+  uint32_t byte_rate;
+  uint16_t block_align;
+  uint16_t bits_per_sample;
+  char data[4];
+  uint32_t data_size;
+};
+
+bool WriteInitialWavHeader(FILE* file, uint32_t sample_rate_hz, uint32_t channel_count) {
+  if (file == nullptr) {
+    return false;
+  }
+
+  WavHeader header{};
+  std::memcpy(header.riff, "RIFF", 4);
+  header.chunk_size = 36;
+  std::memcpy(header.wave, "WAVE", 4);
+  std::memcpy(header.fmt, "fmt ", 4);
+  header.subchunk1_size = 16;
+  header.audio_format = 1;
+  header.channel_count = static_cast<uint16_t>(channel_count);
+  header.sample_rate = sample_rate_hz;
+  header.bits_per_sample = 16;
+  header.block_align = static_cast<uint16_t>(header.channel_count * (header.bits_per_sample / 8));
+  header.byte_rate = header.sample_rate * header.block_align;
+  std::memcpy(header.data, "data", 4);
+  header.data_size = 0;
+
+  return std::fwrite(&header, sizeof(header), 1, file) == 1;
+}
+
+bool FinalizeWavHeader(FILE* file, uint32_t data_bytes_written, uint32_t sample_rate_hz,
+                       uint32_t channel_count) {
+  if (file == nullptr) {
+    return false;
+  }
+
+  WavHeader header{};
+  std::memcpy(header.riff, "RIFF", 4);
+  std::memcpy(header.wave, "WAVE", 4);
+  std::memcpy(header.fmt, "fmt ", 4);
+  std::memcpy(header.data, "data", 4);
+  header.subchunk1_size = 16;
+  header.audio_format = 1;
+  header.channel_count = static_cast<uint16_t>(channel_count);
+  header.sample_rate = sample_rate_hz;
+  header.bits_per_sample = 16;
+  header.block_align = static_cast<uint16_t>(header.channel_count * (header.bits_per_sample / 8));
+  header.byte_rate = header.sample_rate * header.block_align;
+  header.data_size = data_bytes_written;
+  header.chunk_size = 36 + data_bytes_written;
+
+  if (std::fseek(file, 0, SEEK_SET) != 0) {
+    return false;
+  }
+  if (std::fwrite(&header, sizeof(header), 1, file) != 1) {
+    return false;
+  }
+  return true;
+}
+
+bool IsPcm16InterleavedMatchingTarget(AVAudioFormat* input_format, AVAudioFormat* target_format) {
+  if (input_format == nil || target_format == nil) {
+    return false;
+  }
+  if (input_format.commonFormat != AVAudioPCMFormatInt16 ||
+      target_format.commonFormat != AVAudioPCMFormatInt16) {
+    return false;
+  }
+  if (!input_format.isInterleaved || !target_format.isInterleaved) {
+    return false;
+  }
+  if (input_format.channelCount != target_format.channelCount) {
+    return false;
+  }
+  return std::abs(input_format.sampleRate - target_format.sampleRate) < 0.5;
 }
 
 NSArray<AVCaptureDevice*>* ListAudioCaptureDevices() {
@@ -394,6 +481,10 @@ class AppleAudioRecorderState {
     AVCaptureSession* capture_session = nil;
     AVCaptureDeviceInput* capture_input = nil;
     AVCaptureAudioDataOutput* capture_output = nil;
+    FILE* wav_file = nullptr;
+    uint32_t wav_data_bytes_written = 0;
+    uint32_t wav_sample_rate_hz = 0;
+    uint32_t wav_channel_count = 0;
 
     {
       std::lock_guard<std::mutex> lock(mutex_);
@@ -406,7 +497,14 @@ class AppleAudioRecorderState {
       stream_sample_limit_ = 0;
       target_channel_count_ = 1;
       target_format_ = nil;
-      wav_file_ = nil;
+      wav_file = wav_file_;
+      wav_data_bytes_written = wav_data_bytes_written_;
+      wav_sample_rate_hz = wav_sample_rate_hz_;
+      wav_channel_count = wav_channel_count_;
+      wav_file_ = nullptr;
+      wav_data_bytes_written_ = 0;
+      wav_sample_rate_hz_ = 0;
+      wav_channel_count_ = 0;
       current_amplitude_dbfs_ = -90.0;
       max_amplitude_dbfs_ = -90.0;
 
@@ -435,6 +533,24 @@ class AppleAudioRecorderState {
         [capture_session removeInput:capture_input];
       }
       [capture_session commitConfiguration];
+    }
+
+    if (wav_file != nullptr) {
+      uint32_t finalized_data_bytes = wav_data_bytes_written;
+      std::fflush(wav_file);
+      if (std::fseek(wav_file, 0, SEEK_END) == 0) {
+        const long file_size = std::ftell(wav_file);
+        if (file_size > 44) {
+          const auto computed_data_bytes = static_cast<uint64_t>(file_size - 44);
+          finalized_data_bytes = static_cast<uint32_t>(
+              std::min<uint64_t>(computed_data_bytes, std::numeric_limits<uint32_t>::max()));
+        } else {
+          finalized_data_bytes = 0;
+        }
+      }
+      (void)FinalizeWavHeader(wav_file, finalized_data_bytes, wav_sample_rate_hz,
+                              wav_channel_count);
+      std::fclose(wav_file);
     }
 
 #if TARGET_OS_IPHONE
@@ -636,7 +752,7 @@ class AppleAudioRecorderState {
     [capture_session addOutput:capture_output];
     [capture_session commitConfiguration];
 
-    AVAudioFile* wav_file = nil;
+    FILE* wav_file = nullptr;
     if (mode == RecorderMode::kFile) {
       if (output_path == nil || output_path.length == 0) {
         [capture_output setSampleBufferDelegate:nil queue:nil];
@@ -663,19 +779,37 @@ class AppleAudioRecorderState {
         }
       }
 
-      NSURL* output_url = [NSURL fileURLWithPath:output_path];
-      NSError* file_error = nil;
-      wav_file = [[AVAudioFile alloc] initForWriting:output_url
-                                            settings:target_format.settings
-                                               error:&file_error];
-      if (wav_file == nil) {
+      const char* output_path_cstr = [output_path fileSystemRepresentation];
+      if (output_path_cstr == nullptr || output_path_cstr[0] == '\0') {
         [capture_output setSampleBufferDelegate:nil queue:nil];
         [capture_session beginConfiguration];
         [capture_session removeOutput:capture_output];
         [capture_session removeInput:capture_input];
         [capture_session commitConfiguration];
-        WriteNSError(file_error, "Failed to create output WAV file", error_utf8,
-                     error_utf8_capacity);
+        WriteError("Output path cannot be represented as a file-system path.", error_utf8,
+                   error_utf8_capacity);
+        return -22;
+      }
+
+      wav_file = std::fopen(output_path_cstr, "wb");
+      if (wav_file == nullptr) {
+        [capture_output setSampleBufferDelegate:nil queue:nil];
+        [capture_session beginConfiguration];
+        [capture_session removeOutput:capture_output];
+        [capture_session removeInput:capture_input];
+        [capture_session commitConfiguration];
+        WriteError("Failed to create output WAV file.", error_utf8, error_utf8_capacity);
+        return -22;
+      }
+      if (!WriteInitialWavHeader(wav_file, sample_rate_hz, channel_count)) {
+        std::fclose(wav_file);
+        wav_file = nullptr;
+        [capture_output setSampleBufferDelegate:nil queue:nil];
+        [capture_session beginConfiguration];
+        [capture_session removeOutput:capture_output];
+        [capture_session removeInput:capture_input];
+        [capture_session commitConfiguration];
+        WriteError("Failed to write WAV header.", error_utf8, error_utf8_capacity);
         return -22;
       }
     }
@@ -687,6 +821,9 @@ class AppleAudioRecorderState {
       [capture_session removeOutput:capture_output];
       [capture_session removeInput:capture_input];
       [capture_session commitConfiguration];
+      if (wav_file != nullptr) {
+        std::fclose(wav_file);
+      }
 #if TARGET_OS_IPHONE
       [audio_session setActive:NO error:nil];
 #endif
@@ -702,6 +839,9 @@ class AppleAudioRecorderState {
     target_channel_count_ = channel_count;
     target_format_ = target_format;
     wav_file_ = wav_file;
+    wav_data_bytes_written_ = 0;
+    wav_sample_rate_hz_ = sample_rate_hz;
+    wav_channel_count_ = channel_count;
 
     capture_session_ = capture_session;
     capture_input_ = capture_input;
@@ -773,7 +913,7 @@ class AppleAudioRecorderState {
     if (input_buffer == nil || target_format == nil) {
       return nil;
     }
-    if ([input_buffer.format isEqual:target_format]) {
+    if (IsPcm16InterleavedMatchingTarget(input_buffer.format, target_format)) {
       return input_buffer;
     }
 
@@ -825,24 +965,16 @@ class AppleAudioRecorderState {
 
     UpdateAmplitudeLocked(samples, sample_count);
 
-    if (mode_ == RecorderMode::kFile && wav_file_ != nil && target_format_ != nil &&
+    if (mode_ == RecorderMode::kFile && wav_file_ != nullptr && target_format_ != nil &&
         target_channel_count_ > 0) {
-      const auto frame_count = sample_count / target_channel_count_;
-      if (frame_count > 0 && frame_count <= std::numeric_limits<AVAudioFrameCount>::max()) {
-        const auto sample_count_to_write = frame_count * target_channel_count_;
-        AVAudioPCMBuffer* pcm16_buffer = [[AVAudioPCMBuffer alloc]
-            initWithPCMFormat:target_format_
-                frameCapacity:static_cast<AVAudioFrameCount>(frame_count)];
-        if (pcm16_buffer != nil) {
-          pcm16_buffer.frameLength = static_cast<AVAudioFrameCount>(frame_count);
-          int16_t* interleaved = pcm16_buffer.int16ChannelData[0];
-          if (interleaved != nullptr) {
-            std::memcpy(interleaved, samples, sample_count_to_write * sizeof(int16_t));
-            NSError* write_error = nil;
-            if (![wav_file_ writeFromBuffer:pcm16_buffer error:&write_error]) {
-              (void)write_error;
-            }
-          }
+      const auto bytes_to_write = sample_count * sizeof(int16_t);
+      if (bytes_to_write > 0) {
+        const std::size_t bytes_written = std::fwrite(samples, 1, bytes_to_write, wav_file_);
+        if (bytes_written == bytes_to_write) {
+          const auto remaining = std::numeric_limits<uint32_t>::max() - wav_data_bytes_written_;
+          const auto bounded_write = static_cast<uint32_t>(
+              std::min<std::size_t>(bytes_written, static_cast<std::size_t>(remaining)));
+          wav_data_bytes_written_ += bounded_write;
         }
       }
       return;
@@ -899,7 +1031,10 @@ class AppleAudioRecorderState {
 
   uint32_t target_channel_count_ = 1;
   AVAudioFormat* target_format_ = nil;
-  AVAudioFile* wav_file_ = nil;
+  FILE* wav_file_ = nullptr;
+  uint32_t wav_data_bytes_written_ = 0;
+  uint32_t wav_sample_rate_hz_ = 0;
+  uint32_t wav_channel_count_ = 0;
   double current_amplitude_dbfs_ = -90.0;
   double max_amplitude_dbfs_ = -90.0;
 

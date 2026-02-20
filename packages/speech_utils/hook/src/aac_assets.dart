@@ -15,6 +15,8 @@ const _androidAacAssetName = 'src/encoding/generated/android_aac_bindings.dart';
 const _androidAacLibraryBaseName = 'speech_utils_android_aac_encoder';
 const _iosAacAssetName = 'src/encoding/generated/ios_aac_bindings.dart';
 const _iosAacLibraryBaseName = 'speech_utils_ios_aac_encoder';
+const _macosAacAssetName = 'src/encoding/generated/macos_aac_bindings.dart';
+const _macosAacLibraryBaseName = 'speech_utils_macos_aac_encoder';
 
 Future<void> buildWindowsAacEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
   final os = input.config.code.targetOS;
@@ -143,6 +145,31 @@ Future<void> buildIosAacEncoderAsset(BuildInput input, BuildOutputBuilder output
     assetName: _iosAacAssetName,
     language: Language.objectiveC,
     sources: ['native/ios/speech_utils_ios_aac_encoder.mm'],
+    std: 'c++17',
+    flags: ['-fobjc-arc'],
+    frameworks: ['Foundation', 'AVFoundation', 'CoreMedia', 'AudioToolbox'],
+    libraries: ['c++'],
+  ).run(input: input, output: output);
+}
+
+Future<void> buildMacosAacEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
+  final os = input.config.code.targetOS;
+  if (os != OS.macOS) {
+    return;
+  }
+
+  final source = File.fromUri(
+    input.packageRoot.resolve('native/macos/speech_utils_macos_aac_encoder.mm'),
+  );
+  if (!source.existsSync()) {
+    throw StateError('Missing macOS AAC encoder source file at ${source.path}.');
+  }
+
+  await CBuilder.library(
+    name: _macosAacLibraryBaseName,
+    assetName: _macosAacAssetName,
+    language: Language.objectiveC,
+    sources: ['native/macos/speech_utils_macos_aac_encoder.mm'],
     std: 'c++17',
     flags: ['-fobjc-arc'],
     frameworks: ['Foundation', 'AVFoundation', 'CoreMedia', 'AudioToolbox'],

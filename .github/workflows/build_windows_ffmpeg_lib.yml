@@ -1,0 +1,66 @@
+name: Build Minimal FFmpeg (Windows x64)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2 (MINGW64)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-nasm
+            git
+
+      - name: Clone FFmpeg
+        shell: msys2 {0}
+        run: |
+          git clone --depth 1 https://github.com/ffmpeg/ffmpeg.git
+
+      - name: Configure (audio-only minimal)
+        shell: msys2 {0}
+        run: |
+          cd ffmpeg
+
+          ./configure \
+            --arch=x86_64 \
+            --target-os=mingw32 \
+            --prefix=$PWD/out \
+            --enable-shared \
+            --disable-static \
+            --disable-programs \
+            --disable-doc \
+            --disable-debug \
+            --disable-everything \
+            --enable-avcodec \
+            --enable-avformat \
+            --enable-avutil \
+            --enable-swresample \
+            --enable-decoder=mp3,aac \
+            --enable-parser=mpegaudio,aac \
+            --enable-demuxer=mp3,mov \
+            --enable-protocol=file
+
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          cd ffmpeg
+          mingw32-make -j$(nproc)
+          mingw32-make install
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-minimal-windows-x64
+          path: ffmpeg/out

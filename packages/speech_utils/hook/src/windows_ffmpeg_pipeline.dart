@@ -12,6 +12,15 @@ const _requiredLibNames = <String>['avcodec.lib', 'avformat.lib', 'avutil.lib', 
 
 const _requiredRuntimeDllPrefixes = <String>['avcodec', 'avformat', 'avutil', 'swresample'];
 
+final class MissingWindowsFfmpegSdkException implements Exception {
+  MissingWindowsFfmpegSdkException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 final class WindowsFfmpegSdk {
   WindowsFfmpegSdk({
     required this.rootDir,
@@ -77,7 +86,7 @@ Future<void> _maybeAutobuildMinimalWindowsFfmpeg({
 
   final canAttemptAutobuild = Platform.isWindows && (configuredAutobuild || sourceDir.existsSync());
   if (!canAttemptAutobuild) {
-    throw StateError(
+    throw MissingWindowsFfmpegSdkException(
       _missingSdkMessage(
         includeDir: includeDir,
         libDir: libDir,

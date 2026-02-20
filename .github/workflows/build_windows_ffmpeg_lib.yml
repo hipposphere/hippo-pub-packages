@@ -1,216 +1,76 @@
-name: build_windows_ffmpeg_lib
+name: Build Minimal FFmpeg (Windows x64)
 
 on:
+  push:
   workflow_dispatch:
-    inputs:
-      ffmpeg_ref:
-        description: "FFmpeg git ref (tag/branch/commit)"
-        required: true
-        default: "n8.0.1"
-      artifact_name:
-        description: "Artifact name"
-        required: true
-        default: "ffmpeg-windows-x64-minimal"
-      retention_days:
-        description: "Artifact retention days"
-        required: true
-        default: "30"
-
-permissions:
-  contents: read
 
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 45
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable MSVC developer environment
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-
-      - name: Install MSYS2 toolchain
+      - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
-          msystem: UCRT64
+          msystem: MINGW64
           update: true
-          path-type: inherit
-          install: >-
-            make
-            diffutils
-            pkgconf
-            nasm
-            perl
+          install: >
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-yasm
             git
 
-      - name: Build minimal FFmpeg (MSVC toolchain)
+      - name: Clone FFmpeg
         shell: msys2 {0}
         run: |
-          set -euo pipefail
+          git clone --depth 1 https://github.com/ffmpeg/ffmpeg.git
+          cd ffmpeg
 
-          WORKSPACE_UNIX="$(cygpath -u "$GITHUB_WORKSPACE")"
-          SRC_DIR="$WORKSPACE_UNIX/.ci/ffmpeg-src"
-          OUT_DIR="$WORKSPACE_UNIX/.ci/ffmpeg-windows-x64"
-          BUILD_DIR="$OUT_DIR/.build-minimal"
-          LOG_DIR="$WORKSPACE_UNIX/.ci/logs"
-          BUILD_LOG="$LOG_DIR/ffmpeg-build.log"
-          CONFIG_LOG_COPY="$LOG_DIR/config.log"
-          trap 'status=$?; echo "Build step failed at line $LINENO with exit code $status" | tee -a "$BUILD_LOG"; exit $status' ERR
+      - name: Configure FFmpeg (audio only)
+        shell: msys2 {0}
+        run: |
+          cd ffmpeg
 
-          mkdir -p "$WORKSPACE_UNIX/.ci" "$LOG_DIR"
-          rm -rf "$SRC_DIR" "$OUT_DIR"
-          mkdir -p "$BUILD_DIR"
-
-          echo "PATH=$PATH" | tee "$BUILD_LOG"
-          echo "which bash: $(command -v bash)" | tee -a "$BUILD_LOG"
-          echo "which make: $(command -v make)" | tee -a "$BUILD_LOG"
-          echo "which cl.exe: $(command -v cl.exe || true)" | tee -a "$BUILD_LOG"
-          echo "which link.exe: $(command -v link.exe || true)" | tee -a "$BUILD_LOG"
-          echo "where.exe link.exe:" | tee -a "$BUILD_LOG"
-          where.exe link.exe | tee -a "$BUILD_LOG" || true
-          echo "INCLUDE=${INCLUDE:-<unset>}" | tee -a "$BUILD_LOG"
-          echo "LIB=${LIB:-<unset>}" | tee -a "$BUILD_LOG"
-          echo "LIBPATH=${LIBPATH:-<unset>}" | tee -a "$BUILD_LOG"
-
-          if ! command -v make >/dev/null 2>&1; then
-            echo "make not found in PATH" | tee -a "$BUILD_LOG"
-            exit 90
-          fi
-          CL_PATH="$(command -v cl.exe || true)"
-          if [ -z "$CL_PATH" ]; then
-            echo "cl.exe not found in PATH (msvc-dev-cmd not propagated)" | tee -a "$BUILD_LOG"
-            exit 91
-          fi
-          echo "Using MSVC cl.exe: $CL_PATH" | tee -a "$BUILD_LOG"
-
-          git clone --filter=blob:none --no-checkout https://github.com/FFmpeg/FFmpeg.git "$SRC_DIR"
-          git -C "$SRC_DIR" fetch --depth 1 origin "${{ inputs.ffmpeg_ref }}"
-          git -C "$SRC_DIR" checkout --detach FETCH_HEAD
-          FFMPEG_COMMIT="$(git -C "$SRC_DIR" rev-parse HEAD)"
-          echo "FFMPEG_COMMIT=$FFMPEG_COMMIT" | tee -a "$BUILD_LOG"
-
-          cd "$BUILD_DIR"
-          "$SRC_DIR/configure" \
-            --prefix="$OUT_DIR" \
-            --target-os=win64 \
+          ./configure \
             --arch=x86_64 \
-            --toolchain=msvc \
-            --disable-everything \
-            --disable-programs \
-            --disable-doc \
-            --disable-network \
+            --target-os=mingw32 \
+            --prefix=/mingw64/ffmpeg-build \
             --enable-shared \
             --disable-static \
-            --enable-small \
-            --disable-avdevice \
-            --disable-avfilter \
-            --disable-swscale \
+            --disable-programs \
+            --disable-doc \
+            --disable-debug \
+            --disable-everything \
             --enable-avcodec \
             --enable-avformat \
             --enable-avutil \
             --enable-swresample \
-            --enable-encoder=aac \
-            --enable-decoder=pcm_s16le,aac,mp3 \
-            --enable-parser=aac,mpegaudio \
-            --enable-demuxer=wav,mov,mp3,aac \
-            --enable-muxer=ipod,adts \
-            --enable-protocol=file 2>&1 | tee -a "$BUILD_LOG"
+            --enable-decoder=mp3,aac \
+            --enable-parser=mpegaudio,aac \
+            --enable-demuxer=mp3,mov \
+            --enable-protocol=file
 
-          make -j"$(nproc)" 2>&1 | tee -a "$BUILD_LOG"
-          make install-libs install-headers 2>&1 | tee -a "$BUILD_LOG"
-
-          if [ -f "$BUILD_DIR/ffbuild/config.log" ]; then cp "$BUILD_DIR/ffbuild/config.log" "$CONFIG_LOG_COPY"; fi
-
-          # FFmpeg with MSVC may not always install import .lib files into prefix/lib.
-          # Copy them from the build tree when present so downstream linking is stable.
-          mkdir -p "$OUT_DIR/lib"
-          for lib in avcodec avformat avutil swresample; do
-            src_lib="$BUILD_DIR/lib${lib}/${lib}.lib"
-            dst_lib="$OUT_DIR/lib/${lib}.lib"
-            if [ -f "$src_lib" ] && [ ! -f "$dst_lib" ]; then
-              cp "$src_lib" "$dst_lib"
-            fi
-          done
-
-          echo "Installed libs in $OUT_DIR/lib:" | tee -a "$BUILD_LOG"
-          ls -la "$OUT_DIR/lib" | tee -a "$BUILD_LOG" || true
-          echo "Installed dlls in $OUT_DIR/bin:" | tee -a "$BUILD_LOG"
-          ls -la "$OUT_DIR/bin" | tee -a "$BUILD_LOG" || true
-
-          test -f "$OUT_DIR/include/libavcodec/avcodec.h"
-          test -f "$OUT_DIR/lib/avcodec.lib"
-          test -f "$OUT_DIR/lib/avformat.lib"
-          test -f "$OUT_DIR/lib/avutil.lib"
-          test -f "$OUT_DIR/lib/swresample.lib"
-          ls "$OUT_DIR/bin"/avcodec*.dll >/dev/null
-          ls "$OUT_DIR/bin"/avformat*.dll >/dev/null
-          ls "$OUT_DIR/bin"/avutil*.dll >/dev/null
-          ls "$OUT_DIR/bin"/swresample*.dll >/dev/null
-          echo "Build completed successfully for commit $FFMPEG_COMMIT" | tee -a "$BUILD_LOG"
-
-      - name: Capture configure log on failure
-        if: failure()
+      - name: Build
         shell: msys2 {0}
         run: |
-          set -euo pipefail
-          WORKSPACE_UNIX="$(cygpath -u "$GITHUB_WORKSPACE")"
-          BUILD_DIR="$WORKSPACE_UNIX/.ci/ffmpeg-windows-x64/.build-minimal"
-          LOG_DIR="$WORKSPACE_UNIX/.ci/logs"
-          mkdir -p "$LOG_DIR"
-          if [ -f "$BUILD_DIR/ffbuild/config.log" ]; then
-            cp "$BUILD_DIR/ffbuild/config.log" "$LOG_DIR/config.log"
-          fi
+          cd ffmpeg
+          make -j$(nproc)
+          make install
 
-      - name: Package artifact
-        shell: pwsh
+      - name: Collect DLLs
+        shell: powershell
         run: |
-          $artifactRoot = Join-Path $env:RUNNER_TEMP "ffmpeg_windows_x64_minimal"
-          $artifactZip = Join-Path $env:RUNNER_TEMP "${{ inputs.artifact_name }}.zip"
-          $sourceRoot = Join-Path $env:GITHUB_WORKSPACE ".ci\ffmpeg-windows-x64"
-          $sourceRepo = Join-Path $env:GITHUB_WORKSPACE ".ci\ffmpeg-src"
-          $ffmpegCommit = git -C $sourceRepo rev-parse HEAD
+          mkdir output
+          Copy-Item C:\msys64\mingw64\ffmpeg-build\bin\*.dll output\
+          Copy-Item C:\msys64\mingw64\ffmpeg-build\bin\*.lib output\
+          Copy-Item C:\msys64\mingw64\ffmpeg-build\include output\ -Recurse
 
-          Remove-Item -Recurse -Force $artifactRoot -ErrorAction SilentlyContinue
-          Remove-Item -Force $artifactZip -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
-
-          Copy-Item (Join-Path $sourceRoot "include") -Destination $artifactRoot -Recurse
-          Copy-Item (Join-Path $sourceRoot "lib") -Destination $artifactRoot -Recurse
-          Copy-Item (Join-Path $sourceRoot "bin") -Destination $artifactRoot -Recurse
-
-          $metadata = @{
-            target = "windows-x64"
-            ffmpeg_ref = "${{ inputs.ffmpeg_ref }}"
-            ffmpeg_commit = "$ffmpegCommit"
-            profile = "minimal-aac-audio"
-            built_at_utc = (Get-Date).ToUniversalTime().ToString("o")
-            workflow = "$env:GITHUB_WORKFLOW"
-            run_id = "$env:GITHUB_RUN_ID"
-            run_url = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
-          } | ConvertTo-Json -Depth 5
-          $metadata | Out-File -FilePath (Join-Path $artifactRoot "BUILD-METADATA.json") -Encoding utf8
-
-          Compress-Archive -Path (Join-Path $artifactRoot "*") -DestinationPath $artifactZip
-          "ARTIFACT_ZIP=$artifactZip" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Upload FFmpeg library artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.artifact_name }}
-          path: ${{ env.ARTIFACT_ZIP }}
-          retention-days: ${{ fromJSON(inputs.retention_days) }}
-
-      - name: Upload build logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ inputs.artifact_name }}-logs
-          path: |
-            .ci/logs/ffmpeg-build.log
-            .ci/logs/config.log
-          if-no-files-found: ignore
-          retention-days: ${{ fromJSON(inputs.retention_days) }}
+          name: ffmpeg-minimal-windows-x64
+          path: output

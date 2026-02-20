@@ -6,7 +6,7 @@ on:
       ffmpeg_ref:
         description: "FFmpeg git ref (tag/branch/commit)"
         required: true
-        default: "n7.1.1"
+        default: "n8.0.1"
       artifact_name:
         description: "Artifact name"
         required: true

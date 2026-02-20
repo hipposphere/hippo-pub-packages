@@ -6,7 +6,7 @@ This directory is intended to hold a generated minimal FFmpeg SDK used by
 
 Preferred CI build path:
 - Trigger `.github/workflows/build_windows_ffmpeg_lib.yml`
-- Default FFmpeg ref: `n7.1.1` (override via workflow input)
+- Default FFmpeg ref: `n8.0.1` (override via workflow input)
 
 The SDK is auto-built by the build hook when:
 - `SPEECH_UTILS_WINDOWS_FFMPEG_AUTOBUILD=1`

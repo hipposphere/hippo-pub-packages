@@ -93,7 +93,7 @@ jobs:
             --arch=x86_64 \
             --target-os=win64 \
             --toolchain=msvc \
-            --prefix="$PWD/out" \
+            --prefix="$PWD/out-minimal" \
             --enable-shared \
             --disable-static \
             --disable-programs \
@@ -127,28 +127,13 @@ jobs:
           make -j"$(nproc)"
           make install
 
-      - name: Assemble minimal artifact layout
+      - name: Finalize artifact layout
         shell: msys2 {0}
         run: |
           set -euo pipefail
           cd ffmpeg
-          rm -rf out-minimal
           mkdir -p out-minimal/include out-minimal/lib out-minimal/bin
-          cp -a out/include/. out-minimal/include/
-          cp -a out/lib/. out-minimal/lib/
-
-          shopt -s nullglob
-          for source_dir in out/bin libavcodec libavformat libavutil libswresample libavdevice libavfilter libswscale; do
-            for pattern in avcodec-*.dll avcodec.dll avformat-*.dll avformat.dll avutil-*.dll avutil.dll swresample-*.dll swresample.dll avdevice-*.dll avdevice.dll avfilter-*.dll avfilter.dll swscale-*.dll swscale.dll; do
-              for dll in "$source_dir"/$pattern; do
-                cp "$dll" out-minimal/bin/
-              done
-            done
-          done
-
-          echo "Installed DLLs in out/bin:"
-          ls -la out/bin || true
-          echo "Bundled DLLs in out-minimal/bin:"
+          echo "Installed DLLs in out-minimal/bin:"
           ls -la out-minimal/bin || true
 
           cat > out-minimal/BUILD-METADATA.txt <<EOF

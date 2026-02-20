@@ -69,8 +69,12 @@ jobs:
           echo "which bash: $(command -v bash)" | tee -a "$BUILD_LOG"
           echo "which make: $(command -v make)" | tee -a "$BUILD_LOG"
           echo "which cl.exe: $(command -v cl.exe || true)" | tee -a "$BUILD_LOG"
+          echo "which link.exe: $(command -v link.exe || true)" | tee -a "$BUILD_LOG"
           echo "where.exe link.exe:" | tee -a "$BUILD_LOG"
           where.exe link.exe | tee -a "$BUILD_LOG" || true
+          echo "INCLUDE=${INCLUDE:-<unset>}" | tee -a "$BUILD_LOG"
+          echo "LIB=${LIB:-<unset>}" | tee -a "$BUILD_LOG"
+          echo "LIBPATH=${LIBPATH:-<unset>}" | tee -a "$BUILD_LOG"
 
           if ! command -v make >/dev/null 2>&1; then
             echo "make not found in PATH" | tee -a "$BUILD_LOG"
@@ -81,13 +85,7 @@ jobs:
             echo "cl.exe not found in PATH (msvc-dev-cmd not propagated)" | tee -a "$BUILD_LOG"
             exit 91
           fi
-          LINK_PATH="$(dirname "$CL_PATH")/link.exe"
-          if [ ! -f "$LINK_PATH" ]; then
-            echo "MSVC link.exe not found next to cl.exe: $LINK_PATH" | tee -a "$BUILD_LOG"
-            exit 92
-          fi
           echo "Using MSVC cl.exe: $CL_PATH" | tee -a "$BUILD_LOG"
-          echo "Using MSVC link.exe: $LINK_PATH" | tee -a "$BUILD_LOG"
 
           git clone --filter=blob:none --no-checkout https://github.com/FFmpeg/FFmpeg.git "$SRC_DIR"
           git -C "$SRC_DIR" fetch --depth 1 origin "${{ inputs.ffmpeg_ref }}"
@@ -101,8 +99,6 @@ jobs:
             --target-os=win64 \
             --arch=x86_64 \
             --toolchain=msvc \
-            --ld="$LINK_PATH" \
-            --disable-autodetect \
             --disable-everything \
             --disable-programs \
             --disable-doc \
@@ -127,9 +123,7 @@ jobs:
           make -j"$(nproc)" 2>&1 | tee -a "$BUILD_LOG"
           make install-libs install-headers 2>&1 | tee -a "$BUILD_LOG"
 
-          if [ -f "$BUILD_DIR/ffbuild/config.log" ]; then
-            cp "$BUILD_DIR/ffbuild/config.log" "$CONFIG_LOG_COPY"
-          fi
+          if [ -f "$BUILD_DIR/ffbuild/config.log" ]; then cp "$BUILD_DIR/ffbuild/config.log" "$CONFIG_LOG_COPY"; fi
 
           test -f "$OUT_DIR/include/libavcodec/avcodec.h"
           test -f "$OUT_DIR/lib/avcodec.lib"
@@ -141,6 +135,19 @@ jobs:
           ls "$OUT_DIR/bin"/avutil*.dll >/dev/null
           ls "$OUT_DIR/bin"/swresample*.dll >/dev/null
           echo "Build completed successfully for commit $FFMPEG_COMMIT" | tee -a "$BUILD_LOG"
+
+      - name: Capture configure log on failure
+        if: failure()
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          WORKSPACE_UNIX="$(cygpath -u "$GITHUB_WORKSPACE")"
+          BUILD_DIR="$WORKSPACE_UNIX/.ci/ffmpeg-windows-x64/.build-minimal"
+          LOG_DIR="$WORKSPACE_UNIX/.ci/logs"
+          mkdir -p "$LOG_DIR"
+          if [ -f "$BUILD_DIR/ffbuild/config.log" ]; then
+            cp "$BUILD_DIR/ffbuild/config.log" "$LOG_DIR/config.log"
+          fi
 
       - name: Package artifact
         shell: pwsh

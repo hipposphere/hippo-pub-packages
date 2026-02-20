@@ -77,6 +77,18 @@ jobs:
           echo "Using cl.exe:  $cl_path"
           echo "Using link.exe:$link_path"
 
+          clang_cl_path="$(command -v clang-cl.exe || command -v clang-cl || true)"
+          lld_link_path="$(command -v lld-link.exe || command -v lld-link || true)"
+          if [ -n "$clang_cl_path" ] && [ -n "$lld_link_path" ]; then
+            echo "Using clang-cl to avoid MSVC cl.exe ICEs in FFmpeg cbs sources"
+            echo "Using clang-cl: $clang_cl_path"
+            echo "Using lld-link: $lld_link_path"
+            cc_args=(--cc=clang-cl --cxx=clang-cl --ld=lld-link)
+          else
+            echo "clang-cl/lld-link not found, falling back to cl.exe"
+            cc_args=()
+          fi
+
           ./configure \
             --arch=x86_64 \
             --target-os=win64 \
@@ -104,7 +116,8 @@ jobs:
             --enable-w32threads \
             --disable-pthreads \
             --disable-iconv \
-            --disable-zlib
+            --disable-zlib \
+            "${cc_args[@]}"
 
       - name: Build
         shell: msys2 {0}

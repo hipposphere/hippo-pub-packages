@@ -1,27 +1,23 @@
-#include <windows.h>
-
-#include <mfapi.h>
-#include <mferror.h>
-#include <mfidl.h>
-#include <mfreadwrite.h>
-#include <propvarutil.h>
-#include <wmcodecdsp.h>
-#include <wrl/client.h>
-
 #include <algorithm>
+#include <cerrno>
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
-#include <cwctype>
-#include <iomanip>
-#include <limits>
-#include <sstream>
+#include <cstdlib>
+#include <climits>
 #include <string>
-#include <vector>
+
+extern "C" {
+#include "libavcodec/avcodec.h"
+#include "libavformat/avformat.h"
+#include "libavutil/audio_fifo.h"
+#include "libavutil/channel_layout.h"
+#include "libavutil/error.h"
+#include "libavutil/mathematics.h"
+#include "libavutil/samplefmt.h"
+#include "libswresample/swresample.h"
+}
 
 namespace {
-using Microsoft::WRL::ComPtr;
-
 void WriteError(const std::string& message, char* out_error_utf8, uint32_t out_error_capacity) {
   if (out_error_utf8 == nullptr || out_error_capacity == 0) {
     return;
@@ -44,676 +40,753 @@ void WriteOutputText(const std::string& value, char* out_utf8, uint32_t out_capa
   out_utf8[copy_length] = '\0';
 }
 
-std::wstring Utf8ToWide(const char* utf8) {
-  if (utf8 == nullptr) {
-    return {};
+std::string AvErrorToString(int code) {
+  char buffer[AV_ERROR_MAX_STRING_SIZE] = {0};
+  if (av_strerror(code, buffer, sizeof(buffer)) < 0) {
+    return "unknown ffmpeg error";
   }
-
-  const auto required =
-      MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8, -1, nullptr, 0);
-  if (required <= 0) {
-    return {};
-  }
-
-  std::wstring wide(static_cast<std::size_t>(required), L'\0');
-  const auto converted =
-      MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8, -1, wide.data(), required);
-  if (converted <= 0) {
-    return {};
-  }
-
-  if (!wide.empty() && wide.back() == L'\0') {
-    wide.pop_back();
-  }
-  return wide;
+  return std::string(buffer);
 }
 
-std::string WideToUtf8(const std::wstring& wide) {
-  if (wide.empty()) {
+std::string FirstCommaSeparatedToken(const char* text) {
+  if (text == nullptr || text[0] == '\0') {
     return {};
   }
 
-  const auto required =
-      WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
-  if (required <= 0) {
-    return {};
+  const char* end = text;
+  while (*end != '\0' && *end != ',') {
+    end++;
   }
-
-  std::string utf8(static_cast<std::size_t>(required), '\0');
-  const auto converted = WideCharToMultiByte(
-      CP_UTF8, 0, wide.c_str(), -1, utf8.data(), required, nullptr, nullptr);
-  if (converted <= 0) {
-    return {};
-  }
-
-  if (!utf8.empty() && utf8.back() == '\0') {
-    utf8.pop_back();
-  }
-  return utf8;
+  return std::string(text, static_cast<std::size_t>(end - text));
 }
 
-std::string ExtractContainerFormatFromPath(const std::wstring& path) {
-  if (path.empty()) {
-    return {};
+int SelectBestSampleRate(const AVCodec* encoder, int requested_sample_rate) {
+  if (requested_sample_rate <= 0) {
+    requested_sample_rate = 48000;
+  }
+  if (encoder == nullptr || encoder->supported_samplerates == nullptr) {
+    return requested_sample_rate;
   }
 
-  const auto slash_index = path.find_last_of(L"\\/");
-  const auto dot_index = path.find_last_of(L'.');
-  if (dot_index == std::wstring::npos || dot_index + 1 >= path.size()) {
-    return {};
-  }
-  if (slash_index != std::wstring::npos && dot_index < slash_index) {
-    return {};
+  int best = encoder->supported_samplerates[0];
+  int best_distance = std::abs(requested_sample_rate - best);
+  for (const int* sample_rate = encoder->supported_samplerates; *sample_rate != 0; sample_rate++) {
+    if (*sample_rate == requested_sample_rate) {
+      return requested_sample_rate;
+    }
+
+    const int distance = std::abs(requested_sample_rate - *sample_rate);
+    if (distance < best_distance) {
+      best = *sample_rate;
+      best_distance = distance;
+    }
   }
 
-  std::wstring extension = path.substr(dot_index + 1);
-  std::transform(extension.begin(), extension.end(), extension.begin(),
-                 [](wchar_t ch) { return std::towlower(ch); });
-  return WideToUtf8(extension);
+  return best;
 }
 
-std::string GuidToString(const GUID& guid) {
-  wchar_t buffer[64] = {0};
-  const int length =
-      StringFromGUID2(guid, buffer, static_cast<int>(sizeof(buffer) / sizeof(buffer[0])));
-  if (length <= 1) {
-    return {};
+uint64_t SelectBestChannelLayout(const AVCodec* encoder, int requested_channels) {
+  if (requested_channels <= 0) {
+    requested_channels = 1;
   }
-  return WideToUtf8(std::wstring(buffer, static_cast<std::size_t>(length - 1)));
+
+  if (encoder == nullptr || encoder->channel_layouts == nullptr) {
+    return static_cast<uint64_t>(av_get_default_channel_layout(requested_channels));
+  }
+
+  uint64_t best_layout = encoder->channel_layouts[0];
+  for (const uint64_t* layout = encoder->channel_layouts; *layout != 0; layout++) {
+    if (av_get_channel_layout_nb_channels(*layout) == requested_channels) {
+      return *layout;
+    }
+  }
+
+  return best_layout;
 }
 
-std::string CodecNameFromSubtype(const GUID& subtype) {
-  if (subtype == MFAudioFormat_AAC) {
-    return "aac";
-  }
-  if (subtype == MFAudioFormat_MP3) {
-    return "mp3";
-  }
-  if (subtype == MFAudioFormat_PCM) {
-    return "pcm";
-  }
-  if (subtype == MFAudioFormat_Float) {
-    return "pcm_float";
-  }
-  return GuidToString(subtype);
-}
+int DrainEncoderPackets(AVCodecContext* encoder_context, AVFormatContext* output_context,
+                        AVStream* output_stream, AVPacket* packet) {
+  while (true) {
+    const int receive_result = avcodec_receive_packet(encoder_context, packet);
+    if (receive_result == AVERROR(EAGAIN) || receive_result == AVERROR_EOF) {
+      return 0;
+    }
+    if (receive_result < 0) {
+      return receive_result;
+    }
 
-std::string AacProfileLevelIndicationToString(UINT32 profile_level_indication) {
-  switch (profile_level_indication) {
-    case 0x29:
-      return "AAC-LC";
-    default: {
-      std::ostringstream ss;
-      ss << "AAC-profile-level-0x" << std::uppercase << std::hex
-         << profile_level_indication;
-      return ss.str();
+    av_packet_rescale_ts(packet, encoder_context->time_base, output_stream->time_base);
+    packet->stream_index = output_stream->index;
+
+    const int write_result = av_interleaved_write_frame(output_context, packet);
+    av_packet_unref(packet);
+    if (write_result < 0) {
+      return write_result;
     }
   }
 }
 
-std::string HResultMessage(HRESULT hr, const char* context) {
-  wchar_t* system_message = nullptr;
-  const auto flags = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-                     FORMAT_MESSAGE_IGNORE_INSERTS;
-  const auto len =
-      FormatMessageW(flags, nullptr, static_cast<DWORD>(hr), 0,
-                     reinterpret_cast<LPWSTR>(&system_message), 0, nullptr);
-
-  std::wstringstream ws;
-  ws << L"[" << (context == nullptr ? "error" : context) << L"] HRESULT=0x" << std::hex
-     << std::setw(8) << std::setfill(L'0') << static_cast<uint32_t>(hr);
-  if (len > 0 && system_message != nullptr) {
-    ws << L" " << system_message;
+int PushConvertedSamplesToFifo(AVFrame* decoded_frame, AVCodecContext* decoder_context,
+                               AVCodecContext* encoder_context, SwrContext* swr_context,
+                               AVAudioFifo* fifo) {
+  const int dst_sample_count = av_rescale_rnd(
+      swr_get_delay(swr_context, decoder_context->sample_rate) + decoded_frame->nb_samples,
+      encoder_context->sample_rate, decoder_context->sample_rate, AV_ROUND_UP);
+  if (dst_sample_count <= 0) {
+    return AVERROR(EINVAL);
   }
 
-  if (system_message != nullptr) {
-    LocalFree(system_message);
+  uint8_t** converted_data = nullptr;
+  int result = av_samples_alloc_array_and_samples(
+      &converted_data, nullptr, encoder_context->channels, dst_sample_count,
+      encoder_context->sample_fmt, 0);
+  if (result < 0) {
+    return result;
   }
 
-  return WideToUtf8(ws.str());
+  result = swr_convert(swr_context, converted_data, dst_sample_count,
+                       const_cast<const uint8_t**>(decoded_frame->extended_data),
+                       decoded_frame->nb_samples);
+  if (result < 0) {
+    av_freep(&converted_data[0]);
+    av_freep(&converted_data);
+    return result;
+  }
+
+  const int converted_samples = result;
+  result = av_audio_fifo_realloc(fifo, av_audio_fifo_size(fifo) + converted_samples);
+  if (result < 0) {
+    av_freep(&converted_data[0]);
+    av_freep(&converted_data);
+    return result;
+  }
+
+  const int written_samples =
+      av_audio_fifo_write(fifo, reinterpret_cast<void**>(converted_data), converted_samples);
+  av_freep(&converted_data[0]);
+  av_freep(&converted_data);
+
+  if (written_samples < converted_samples) {
+    return AVERROR(EIO);
+  }
+
+  return 0;
 }
 
-HRESULT ConfigureSourceReader(IMFSourceReader* reader, UINT32* out_sample_rate,
-                              UINT32* out_channels, UINT32* out_bits_per_sample) {
-  if (reader == nullptr || out_sample_rate == nullptr || out_channels == nullptr ||
-      out_bits_per_sample == nullptr) {
-    return E_INVALIDARG;
+int EncodeFrameFromFifo(AVAudioFifo* fifo, AVCodecContext* encoder_context,
+                        AVFormatContext* output_context, AVStream* output_stream,
+                        AVPacket* output_packet, int read_samples, int frame_samples,
+                        int64_t* next_pts) {
+  AVFrame* frame = av_frame_alloc();
+  if (frame == nullptr) {
+    return AVERROR(ENOMEM);
   }
 
-  HRESULT hr = reader->SetStreamSelection(MF_SOURCE_READER_ALL_STREAMS, FALSE);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = reader->SetStreamSelection(MF_SOURCE_READER_FIRST_AUDIO_STREAM, TRUE);
-  if (FAILED(hr)) {
-    return hr;
+  frame->nb_samples = frame_samples;
+  frame->channel_layout = encoder_context->channel_layout;
+  frame->format = encoder_context->sample_fmt;
+  frame->sample_rate = encoder_context->sample_rate;
+
+  int result = av_frame_get_buffer(frame, 0);
+  if (result < 0) {
+    av_frame_free(&frame);
+    return result;
   }
 
-  ComPtr<IMFMediaType> pcm_media_type;
-  hr = MFCreateMediaType(&pcm_media_type);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = pcm_media_type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = pcm_media_type->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  // Prefer 16-bit PCM for downstream AAC encoder compatibility.
-  hr = pcm_media_type->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
-  if (FAILED(hr)) {
-    return hr;
-  }
-
-  hr = reader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, nullptr,
-                                   pcm_media_type.Get());
-  if (FAILED(hr)) {
-    return hr;
-  }
-
-  ComPtr<IMFMediaType> actual_media_type;
-  hr = reader->GetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, &actual_media_type);
-  if (FAILED(hr)) {
-    return hr;
-  }
-
-  UINT32 sample_rate = 0;
-  UINT32 channels = 0;
-  UINT32 bits_per_sample = 16;
-  hr = actual_media_type->GetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, &sample_rate);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = actual_media_type->GetUINT32(MF_MT_AUDIO_NUM_CHANNELS, &channels);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = actual_media_type->GetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, &bits_per_sample);
-  if (FAILED(hr)) {
-    bits_per_sample = 16;
-  }
-
-  *out_sample_rate = sample_rate;
-  *out_channels = channels;
-  *out_bits_per_sample = bits_per_sample;
-  return S_OK;
-}
-
-bool IsRetryableMediaTypeError(HRESULT hr) {
-  return hr == MF_E_INVALIDMEDIATYPE || hr == MF_E_INVALIDTYPE || hr == MF_E_TOPO_CODEC_NOT_FOUND;
-}
-
-std::vector<UINT32> BuildBitrateCandidates(UINT32 requested_bps) {
-  std::vector<UINT32> candidates;
-  if (requested_bps > 0) {
-    candidates.push_back(requested_bps);
-  }
-
-  // Common AAC bitrates that the Windows encoder usually accepts.
-  const UINT32 defaults[] = {48000, 64000, 96000, 128000, 192000};
-  for (const auto bps : defaults) {
-    candidates.push_back(bps);
-  }
-
-  std::sort(candidates.begin(), candidates.end());
-  candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
-  return candidates;
-}
-
-HRESULT BuildAacOutputMediaType(UINT32 sample_rate, UINT32 channels, UINT32 bitrate_bps,
-                                bool set_payload_type, bool set_profile,
-                                IMFMediaType** out_media_type) {
-  if (out_media_type == nullptr || sample_rate == 0 || channels == 0 || bitrate_bps == 0) {
-    return E_INVALIDARG;
-  }
-
-  ComPtr<IMFMediaType> output_media_type;
-  HRESULT hr = MFCreateMediaType(&output_media_type);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = output_media_type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = output_media_type->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_AAC);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = output_media_type->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, sample_rate);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = output_media_type->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, channels);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = output_media_type->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, bitrate_bps / 8);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  if (set_payload_type) {
-    hr = output_media_type->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 0);
-    if (FAILED(hr)) {
-      return hr;
-    }
-  }
-  if (set_profile) {
-    hr = output_media_type->SetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, 0x29);
-    if (FAILED(hr)) {
-      return hr;
+  if (frame_samples > read_samples) {
+    result = av_samples_set_silence(frame->data, read_samples, frame_samples - read_samples,
+                                    encoder_context->channels, encoder_context->sample_fmt);
+    if (result < 0) {
+      av_frame_free(&frame);
+      return result;
     }
   }
 
-  *out_media_type = output_media_type.Detach();
-  return S_OK;
-}
-
-HRESULT ConfigureSinkWriter(IMFSinkWriter* writer, UINT32 sample_rate, UINT32 channels,
-                            UINT32 bits_per_sample, UINT32 bitrate_bps,
-                            DWORD* out_stream_index) {
-  if (writer == nullptr || out_stream_index == nullptr || sample_rate == 0 || channels == 0 ||
-      bits_per_sample == 0 || bitrate_bps == 0) {
-    return E_INVALIDARG;
+  const int fifo_read_count =
+      av_audio_fifo_read(fifo, reinterpret_cast<void**>(frame->data), read_samples);
+  if (fifo_read_count < read_samples) {
+    av_frame_free(&frame);
+    return AVERROR(EIO);
   }
 
-  HRESULT hr = S_OK;
-  DWORD stream_index = 0;
-  HRESULT last_add_stream_hr = E_FAIL;
-  const auto bitrate_candidates = BuildBitrateCandidates(bitrate_bps);
-  for (const auto candidate_bps : bitrate_candidates) {
-    for (const bool set_profile : {false, true}) {
-      for (const bool set_payload_type : {true, false}) {
-        ComPtr<IMFMediaType> output_media_type;
-        hr = BuildAacOutputMediaType(sample_rate, channels, candidate_bps, set_payload_type,
-                                     set_profile, &output_media_type);
-        if (FAILED(hr)) {
-          return hr;
-        }
+  frame->pts = *next_pts;
+  *next_pts += frame_samples;
 
-        hr = writer->AddStream(output_media_type.Get(), &stream_index);
-        if (SUCCEEDED(hr)) {
-          last_add_stream_hr = S_OK;
-          break;
-        }
-        last_add_stream_hr = hr;
-        if (!IsRetryableMediaTypeError(hr)) {
-          return hr;
-        }
-      }
-      if (SUCCEEDED(last_add_stream_hr)) {
-        break;
-      }
+  result = avcodec_send_frame(encoder_context, frame);
+  av_frame_free(&frame);
+  if (result < 0) {
+    return result;
+  }
+
+  return DrainEncoderPackets(encoder_context, output_context, output_stream, output_packet);
+}
+
+int EncodeFifoToAac(AVAudioFifo* fifo, AVCodecContext* encoder_context,
+                    AVFormatContext* output_context, AVStream* output_stream,
+                    AVPacket* output_packet, int64_t* next_pts, bool flush) {
+  const bool variable_frame_size =
+      encoder_context->codec != nullptr &&
+      (encoder_context->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE) != 0;
+  const int codec_frame_size = encoder_context->frame_size > 0 ? encoder_context->frame_size : 1024;
+
+  while (av_audio_fifo_size(fifo) >= (encoder_context->frame_size > 0 ? codec_frame_size : 1)) {
+    const int read_samples =
+        encoder_context->frame_size > 0 ? codec_frame_size : av_audio_fifo_size(fifo);
+    const int result =
+        EncodeFrameFromFifo(fifo, encoder_context, output_context, output_stream, output_packet,
+                            read_samples, read_samples, next_pts);
+    if (result < 0) {
+      return result;
     }
-    if (SUCCEEDED(last_add_stream_hr)) {
+  }
+
+  if (flush && av_audio_fifo_size(fifo) > 0) {
+    const int remaining_samples = av_audio_fifo_size(fifo);
+    const bool needs_padding =
+        encoder_context->frame_size > 0 && !variable_frame_size &&
+        remaining_samples < codec_frame_size;
+    const int frame_samples = needs_padding ? codec_frame_size : remaining_samples;
+
+    const int result =
+        EncodeFrameFromFifo(fifo, encoder_context, output_context, output_stream, output_packet,
+                            remaining_samples, frame_samples, next_pts);
+    if (result < 0) {
+      return result;
+    }
+  }
+
+  if (!flush) {
+    return 0;
+  }
+
+  const int send_result = avcodec_send_frame(encoder_context, nullptr);
+  if (send_result < 0 && send_result != AVERROR_EOF) {
+    return send_result;
+  }
+
+  return DrainEncoderPackets(encoder_context, output_context, output_stream, output_packet);
+}
+
+int32_t EncodeAudioFileToAacInternal(const char* input_path_utf8, const char* output_path_utf8,
+                                     uint32_t bitrate_bps, char* error_utf8,
+                                     uint32_t error_utf8_capacity) {
+  if (input_path_utf8 == nullptr || input_path_utf8[0] == '\0') {
+    WriteError("Input path is null or empty.", error_utf8, error_utf8_capacity);
+    return -1;
+  }
+  if (output_path_utf8 == nullptr || output_path_utf8[0] == '\0') {
+    WriteError("Output path is null or empty.", error_utf8, error_utf8_capacity);
+    return -2;
+  }
+  if (bitrate_bps == 0) {
+    WriteError("Bitrate must be > 0.", error_utf8, error_utf8_capacity);
+    return -3;
+  }
+
+  AVFormatContext* input_context = nullptr;
+  AVCodecContext* decoder_context = nullptr;
+  AVFormatContext* output_context = nullptr;
+  AVCodecContext* encoder_context = nullptr;
+  SwrContext* swr_context = nullptr;
+  AVAudioFifo* fifo = nullptr;
+  AVPacket* input_packet = nullptr;
+  AVPacket* output_packet = nullptr;
+  AVFrame* decoded_frame = nullptr;
+
+  int audio_stream_index = -1;
+  int ffmpeg_code = 0;
+  int32_t result_code = 0;
+
+  do {
+    ffmpeg_code = avformat_open_input(&input_context, input_path_utf8, nullptr, nullptr);
+    if (ffmpeg_code < 0) {
+      WriteError("Failed to open input file: " + AvErrorToString(ffmpeg_code), error_utf8,
+                 error_utf8_capacity);
+      result_code = -10;
       break;
     }
-  }
-  if (FAILED(last_add_stream_hr)) {
-    return last_add_stream_hr;
-  }
 
-  ComPtr<IMFMediaType> input_media_type;
-  hr = MFCreateMediaType(&input_media_type);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = input_media_type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = input_media_type->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = input_media_type->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, sample_rate);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = input_media_type->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, channels);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  const UINT32 input_bits_per_sample = 16;
-  hr = input_media_type->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, input_bits_per_sample);
-  if (FAILED(hr)) {
-    return hr;
-  }
-
-  const UINT32 bytes_per_sample = input_bits_per_sample / 8;
-  const UINT32 block_align = channels * bytes_per_sample;
-  const UINT32 pcm_bytes_per_second = sample_rate * block_align;
-  hr = input_media_type->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, block_align);
-  if (FAILED(hr)) {
-    return hr;
-  }
-  hr = input_media_type->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, pcm_bytes_per_second);
-  if (FAILED(hr)) {
-    return hr;
-  }
-
-  hr = writer->SetInputMediaType(stream_index, input_media_type.Get(), nullptr);
-  if (FAILED(hr)) {
-    return hr;
-  }
-
-  *out_stream_index = stream_index;
-  return S_OK;
-}
-
-HRESULT EncodeAudioFileToAac(const std::wstring& input_path, const std::wstring& output_path,
-                             UINT32 bitrate_bps) {
-  HRESULT hr = S_OK;
-  const HRESULT co_init_hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-  const bool should_uninitialize =
-      SUCCEEDED(co_init_hr) || co_init_hr == S_FALSE;
-  if (FAILED(co_init_hr) && co_init_hr != RPC_E_CHANGED_MODE) {
-    return co_init_hr;
-  }
-
-  hr = MFStartup(MF_VERSION, MFSTARTUP_FULL);
-  if (FAILED(hr)) {
-    if (should_uninitialize) {
-      CoUninitialize();
-    }
-    return hr;
-  }
-
-  DeleteFileW(output_path.c_str());
-
-  ComPtr<IMFSourceReader> source_reader;
-  hr = MFCreateSourceReaderFromURL(input_path.c_str(), nullptr, &source_reader);
-  if (SUCCEEDED(hr)) {
-    UINT32 sample_rate = 0;
-    UINT32 channels = 0;
-    UINT32 bits_per_sample = 16;
-    hr = ConfigureSourceReader(source_reader.Get(), &sample_rate, &channels, &bits_per_sample);
-
-    ComPtr<IMFSinkWriter> sink_writer;
-    DWORD sink_stream_index = 0;
-    if (SUCCEEDED(hr)) {
-      hr = MFCreateSinkWriterFromURL(output_path.c_str(), nullptr, nullptr, &sink_writer);
-    }
-    if (SUCCEEDED(hr)) {
-      hr = ConfigureSinkWriter(sink_writer.Get(), sample_rate, channels, bits_per_sample,
-                               bitrate_bps, &sink_stream_index);
-    }
-    if (SUCCEEDED(hr)) {
-      hr = sink_writer->BeginWriting();
+    ffmpeg_code = avformat_find_stream_info(input_context, nullptr);
+    if (ffmpeg_code < 0) {
+      WriteError("Failed to read input stream info: " + AvErrorToString(ffmpeg_code), error_utf8,
+                 error_utf8_capacity);
+      result_code = -11;
+      break;
     }
 
-    while (SUCCEEDED(hr)) {
-      DWORD stream_index = 0;
-      DWORD stream_flags = 0;
-      LONGLONG timestamp = 0;
-      ComPtr<IMFSample> sample;
-      hr = source_reader->ReadSample(MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0, &stream_index,
-                                     &stream_flags, &timestamp, &sample);
-      if (FAILED(hr)) {
+    ffmpeg_code = av_find_best_stream(input_context, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
+    if (ffmpeg_code < 0) {
+      WriteError("No audio stream found in input file.", error_utf8, error_utf8_capacity);
+      result_code = -12;
+      break;
+    }
+    audio_stream_index = ffmpeg_code;
+
+    AVStream* input_stream = input_context->streams[audio_stream_index];
+    const AVCodec* decoder = avcodec_find_decoder(input_stream->codecpar->codec_id);
+    if (decoder == nullptr) {
+      WriteError("No decoder available for input audio stream.", error_utf8, error_utf8_capacity);
+      result_code = -13;
+      break;
+    }
+
+    decoder_context = avcodec_alloc_context3(decoder);
+    if (decoder_context == nullptr) {
+      WriteError("Failed to allocate decoder context.", error_utf8, error_utf8_capacity);
+      result_code = -14;
+      break;
+    }
+
+    ffmpeg_code = avcodec_parameters_to_context(decoder_context, input_stream->codecpar);
+    if (ffmpeg_code < 0) {
+      WriteError("Failed to apply decoder parameters: " + AvErrorToString(ffmpeg_code),
+                 error_utf8, error_utf8_capacity);
+      result_code = -15;
+      break;
+    }
+
+    ffmpeg_code = avcodec_open2(decoder_context, decoder, nullptr);
+    if (ffmpeg_code < 0) {
+      WriteError("Failed to open input decoder: " + AvErrorToString(ffmpeg_code), error_utf8,
+                 error_utf8_capacity);
+      result_code = -16;
+      break;
+    }
+
+    const AVCodec* encoder = avcodec_find_encoder(AV_CODEC_ID_AAC);
+    if (encoder == nullptr) {
+      WriteError("AAC encoder (libavcodec) is not available.", error_utf8, error_utf8_capacity);
+      result_code = -17;
+      break;
+    }
+
+    ffmpeg_code = avformat_alloc_output_context2(&output_context, nullptr, nullptr, output_path_utf8);
+    if (ffmpeg_code < 0 || output_context == nullptr) {
+      WriteError("Failed to create output context: " + AvErrorToString(ffmpeg_code), error_utf8,
+                 error_utf8_capacity);
+      result_code = -18;
+      break;
+    }
+
+    AVStream* output_stream = avformat_new_stream(output_context, nullptr);
+    if (output_stream == nullptr) {
+      WriteError("Failed to create output audio stream.", error_utf8, error_utf8_capacity);
+      result_code = -19;
+      break;
+    }
+
+    encoder_context = avcodec_alloc_context3(encoder);
+    if (encoder_context == nullptr) {
+      WriteError("Failed to allocate encoder context.", error_utf8, error_utf8_capacity);
+      result_code = -20;
+      break;
+    }
+
+    encoder_context->sample_rate =
+        SelectBestSampleRate(encoder, decoder_context->sample_rate);
+    encoder_context->channel_layout = SelectBestChannelLayout(encoder, decoder_context->channels);
+    encoder_context->channels = av_get_channel_layout_nb_channels(encoder_context->channel_layout);
+    if (encoder_context->channels <= 0) {
+      WriteError("Failed to resolve output channel layout.", error_utf8, error_utf8_capacity);
+      result_code = -21;
+      break;
+    }
+
+    encoder_context->sample_fmt =
+        encoder->sample_fmts != nullptr ? encoder->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
+    encoder_context->bit_rate = static_cast<int64_t>(bitrate_bps);
+    encoder_context->time_base = AVRational{1, encoder_context->sample_rate};
+
+    if ((output_context->oformat->flags & AVFMT_GLOBALHEADER) != 0) {
+      encoder_context->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+    }
+
+    ffmpeg_code = avcodec_open2(encoder_context, encoder, nullptr);
+    if (ffmpeg_code < 0) {
+      WriteError("Failed to open AAC encoder: " + AvErrorToString(ffmpeg_code), error_utf8,
+                 error_utf8_capacity);
+      result_code = -22;
+      break;
+    }
+
+    ffmpeg_code = avcodec_parameters_from_context(output_stream->codecpar, encoder_context);
+    if (ffmpeg_code < 0) {
+      WriteError("Failed to apply output stream parameters: " + AvErrorToString(ffmpeg_code),
+                 error_utf8, error_utf8_capacity);
+      result_code = -23;
+      break;
+    }
+    output_stream->time_base = encoder_context->time_base;
+
+    const uint64_t input_channel_layout =
+        decoder_context->channel_layout != 0
+            ? decoder_context->channel_layout
+            : static_cast<uint64_t>(av_get_default_channel_layout(decoder_context->channels));
+
+    swr_context = swr_alloc_set_opts(
+        nullptr, static_cast<int64_t>(encoder_context->channel_layout), encoder_context->sample_fmt,
+        encoder_context->sample_rate, static_cast<int64_t>(input_channel_layout),
+        decoder_context->sample_fmt, decoder_context->sample_rate, 0, nullptr);
+    if (swr_context == nullptr) {
+      WriteError("Failed to allocate sample-rate converter.", error_utf8, error_utf8_capacity);
+      result_code = -24;
+      break;
+    }
+
+    ffmpeg_code = swr_init(swr_context);
+    if (ffmpeg_code < 0) {
+      WriteError("Failed to initialize sample-rate converter: " + AvErrorToString(ffmpeg_code),
+                 error_utf8, error_utf8_capacity);
+      result_code = -25;
+      break;
+    }
+
+    fifo = av_audio_fifo_alloc(encoder_context->sample_fmt, encoder_context->channels, 1);
+    if (fifo == nullptr) {
+      WriteError("Failed to allocate audio FIFO.", error_utf8, error_utf8_capacity);
+      result_code = -26;
+      break;
+    }
+
+    if ((output_context->oformat->flags & AVFMT_NOFILE) == 0) {
+      ffmpeg_code = avio_open(&output_context->pb, output_path_utf8, AVIO_FLAG_WRITE);
+      if (ffmpeg_code < 0) {
+        WriteError("Failed to open output file: " + AvErrorToString(ffmpeg_code), error_utf8,
+                   error_utf8_capacity);
+        result_code = -27;
+        break;
+      }
+    }
+
+    ffmpeg_code = avformat_write_header(output_context, nullptr);
+    if (ffmpeg_code < 0) {
+      WriteError("Failed to write output header: " + AvErrorToString(ffmpeg_code), error_utf8,
+                 error_utf8_capacity);
+      result_code = -28;
+      break;
+    }
+
+    input_packet = av_packet_alloc();
+    output_packet = av_packet_alloc();
+    decoded_frame = av_frame_alloc();
+    if (input_packet == nullptr || output_packet == nullptr || decoded_frame == nullptr) {
+      WriteError("Failed to allocate FFmpeg packet/frame state.", error_utf8, error_utf8_capacity);
+      result_code = -29;
+      break;
+    }
+
+    int64_t next_pts = 0;
+
+    while (true) {
+      ffmpeg_code = av_read_frame(input_context, input_packet);
+      if (ffmpeg_code == AVERROR_EOF) {
+        break;
+      }
+      if (ffmpeg_code < 0) {
+        WriteError("Failed to read input audio frame: " + AvErrorToString(ffmpeg_code),
+                   error_utf8, error_utf8_capacity);
+        result_code = -30;
         break;
       }
 
-      if (sample != nullptr) {
-        hr = sink_writer->WriteSample(sink_stream_index, sample.Get());
+      if (input_packet->stream_index != audio_stream_index) {
+        av_packet_unref(input_packet);
+        continue;
       }
-      if (FAILED(hr)) {
+
+      ffmpeg_code = avcodec_send_packet(decoder_context, input_packet);
+      av_packet_unref(input_packet);
+      if (ffmpeg_code < 0) {
+        WriteError("Failed to send packet to decoder: " + AvErrorToString(ffmpeg_code),
+                   error_utf8, error_utf8_capacity);
+        result_code = -31;
         break;
       }
 
-      if ((stream_flags & MF_SOURCE_READERF_ENDOFSTREAM) != 0) {
+      while (true) {
+        ffmpeg_code = avcodec_receive_frame(decoder_context, decoded_frame);
+        if (ffmpeg_code == AVERROR(EAGAIN) || ffmpeg_code == AVERROR_EOF) {
+          break;
+        }
+        if (ffmpeg_code < 0) {
+          WriteError("Failed to decode audio frame: " + AvErrorToString(ffmpeg_code),
+                     error_utf8, error_utf8_capacity);
+          result_code = -32;
+          break;
+        }
+
+        ffmpeg_code = PushConvertedSamplesToFifo(decoded_frame, decoder_context, encoder_context,
+                                                 swr_context, fifo);
+        av_frame_unref(decoded_frame);
+        if (ffmpeg_code < 0) {
+          WriteError("Failed to convert audio samples: " + AvErrorToString(ffmpeg_code),
+                     error_utf8, error_utf8_capacity);
+          result_code = -33;
+          break;
+        }
+
+        ffmpeg_code = EncodeFifoToAac(fifo, encoder_context, output_context, output_stream,
+                                      output_packet, &next_pts, false);
+        if (ffmpeg_code < 0) {
+          WriteError("Failed to encode AAC frame: " + AvErrorToString(ffmpeg_code), error_utf8,
+                     error_utf8_capacity);
+          result_code = -34;
+          break;
+        }
+      }
+
+      if (result_code != 0) {
         break;
       }
     }
 
-    if (SUCCEEDED(hr)) {
-      hr = sink_writer->Finalize();
+    if (result_code != 0) {
+      break;
     }
-  }
 
-  const HRESULT shutdown_hr = MFShutdown();
-  if (SUCCEEDED(hr) && FAILED(shutdown_hr)) {
-    hr = shutdown_hr;
-  }
-  if (should_uninitialize) {
-    CoUninitialize();
-  }
-  return hr;
-}
-
-HRESULT StartupAndShutdownMediaFoundation() {
-  const HRESULT co_init_hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-  const bool should_uninitialize =
-      SUCCEEDED(co_init_hr) || co_init_hr == S_FALSE;
-  if (FAILED(co_init_hr) && co_init_hr != RPC_E_CHANGED_MODE) {
-    return co_init_hr;
-  }
-
-  HRESULT hr = MFStartup(MF_VERSION, MFSTARTUP_FULL);
-  if (SUCCEEDED(hr)) {
-    const HRESULT shutdown_hr = MFShutdown();
-    if (FAILED(shutdown_hr)) {
-      hr = shutdown_hr;
+    ffmpeg_code = avcodec_send_packet(decoder_context, nullptr);
+    if (ffmpeg_code < 0) {
+      WriteError("Failed to flush decoder: " + AvErrorToString(ffmpeg_code), error_utf8,
+                 error_utf8_capacity);
+      result_code = -35;
+      break;
     }
+
+    while (true) {
+      ffmpeg_code = avcodec_receive_frame(decoder_context, decoded_frame);
+      if (ffmpeg_code == AVERROR(EAGAIN) || ffmpeg_code == AVERROR_EOF) {
+        break;
+      }
+      if (ffmpeg_code < 0) {
+        WriteError("Failed while draining decoder: " + AvErrorToString(ffmpeg_code), error_utf8,
+                   error_utf8_capacity);
+        result_code = -36;
+        break;
+      }
+
+      ffmpeg_code = PushConvertedSamplesToFifo(decoded_frame, decoder_context, encoder_context,
+                                               swr_context, fifo);
+      av_frame_unref(decoded_frame);
+      if (ffmpeg_code < 0) {
+        WriteError("Failed to convert tail audio samples: " + AvErrorToString(ffmpeg_code),
+                   error_utf8, error_utf8_capacity);
+        result_code = -37;
+        break;
+      }
+    }
+
+    if (result_code != 0) {
+      break;
+    }
+
+    ffmpeg_code = EncodeFifoToAac(fifo, encoder_context, output_context, output_stream,
+                                  output_packet, &next_pts, true);
+    if (ffmpeg_code < 0) {
+      WriteError("Failed to flush AAC encoder: " + AvErrorToString(ffmpeg_code), error_utf8,
+                 error_utf8_capacity);
+      result_code = -38;
+      break;
+    }
+
+    ffmpeg_code = av_write_trailer(output_context);
+    if (ffmpeg_code < 0) {
+      WriteError("Failed to write output trailer: " + AvErrorToString(ffmpeg_code), error_utf8,
+                 error_utf8_capacity);
+      result_code = -39;
+      break;
+    }
+  } while (false);
+
+  if (decoded_frame != nullptr) {
+    av_frame_free(&decoded_frame);
+  }
+  if (input_packet != nullptr) {
+    av_packet_free(&input_packet);
+  }
+  if (output_packet != nullptr) {
+    av_packet_free(&output_packet);
+  }
+  if (fifo != nullptr) {
+    av_audio_fifo_free(fifo);
+  }
+  if (swr_context != nullptr) {
+    swr_free(&swr_context);
+  }
+  if (decoder_context != nullptr) {
+    avcodec_free_context(&decoder_context);
+  }
+  if (encoder_context != nullptr) {
+    avcodec_free_context(&encoder_context);
+  }
+  if (input_context != nullptr) {
+    avformat_close_input(&input_context);
+  }
+  if (output_context != nullptr) {
+    if ((output_context->oformat->flags & AVFMT_NOFILE) == 0 && output_context->pb != nullptr) {
+      avio_closep(&output_context->pb);
+    }
+    avformat_free_context(output_context);
   }
 
-  if (should_uninitialize) {
-    CoUninitialize();
-  }
-  return hr;
+  return result_code;
 }
 
-int32_t ToInt32OrSentinel(UINT32 value, int32_t sentinel) {
-  if (value > static_cast<UINT32>(std::numeric_limits<int32_t>::max())) {
-    return sentinel;
+int64_t ResolveDurationMicros(AVFormatContext* format_context, AVStream* audio_stream) {
+  if (audio_stream != nullptr && audio_stream->duration != AV_NOPTS_VALUE) {
+    return av_rescale_q(audio_stream->duration, audio_stream->time_base, AV_TIME_BASE_Q);
   }
-  return static_cast<int32_t>(value);
+  if (format_context != nullptr && format_context->duration != AV_NOPTS_VALUE) {
+    return format_context->duration;
+  }
+  return 0;
 }
 
-HRESULT ReadAudioMetadata(const std::wstring& input_path, int64_t* out_duration_micros,
-                          int32_t* out_sample_rate_hz, int32_t* out_channel_count,
-                          int32_t* out_bitrate_bps, std::string* out_container_format,
-                          std::string* out_codec, std::string* out_codec_profile) {
+int32_t ReadAudioMetadataInternal(const char* input_path_utf8, int64_t* out_duration_micros,
+                                  int32_t* out_sample_rate_hz, int32_t* out_channel_count,
+                                  int32_t* out_bitrate_bps, char* out_container_format_utf8,
+                                  uint32_t out_container_format_utf8_capacity,
+                                  char* out_codec_utf8, uint32_t out_codec_utf8_capacity,
+                                  char* out_codec_profile_utf8,
+                                  uint32_t out_codec_profile_utf8_capacity, char* error_utf8,
+                                  uint32_t error_utf8_capacity) {
+  if (input_path_utf8 == nullptr || input_path_utf8[0] == '\0') {
+    WriteError("Input path is null or empty.", error_utf8, error_utf8_capacity);
+    return -1;
+  }
   if (out_duration_micros == nullptr || out_sample_rate_hz == nullptr ||
-      out_channel_count == nullptr || out_bitrate_bps == nullptr ||
-      out_container_format == nullptr || out_codec == nullptr ||
-      out_codec_profile == nullptr) {
-    return E_INVALIDARG;
-  }
-
-  *out_duration_micros = -1;
-  *out_sample_rate_hz = -1;
-  *out_channel_count = -1;
-  *out_bitrate_bps = -1;
-  out_container_format->clear();
-  out_codec->clear();
-  out_codec_profile->clear();
-  *out_container_format = ExtractContainerFormatFromPath(input_path);
-
-  HRESULT hr = S_OK;
-  const HRESULT co_init_hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-  const bool should_uninitialize = SUCCEEDED(co_init_hr) || co_init_hr == S_FALSE;
-  if (FAILED(co_init_hr) && co_init_hr != RPC_E_CHANGED_MODE) {
-    return co_init_hr;
-  }
-
-  hr = MFStartup(MF_VERSION, MFSTARTUP_FULL);
-  if (FAILED(hr)) {
-    if (should_uninitialize) {
-      CoUninitialize();
-    }
-    return hr;
-  }
-
-  ComPtr<IMFSourceReader> source_reader;
-  hr = MFCreateSourceReaderFromURL(input_path.c_str(), nullptr, &source_reader);
-  if (SUCCEEDED(hr) && out_container_format->empty()) {
-    PROPVARIANT mime_value;
-    PropVariantInit(&mime_value);
-    const HRESULT mime_hr = source_reader->GetPresentationAttribute(
-        MF_SOURCE_READER_MEDIASOURCE, MF_PD_MIME_TYPE, &mime_value);
-    if (SUCCEEDED(mime_hr) && mime_value.vt == VT_LPWSTR && mime_value.pwszVal != nullptr) {
-      *out_container_format = WideToUtf8(mime_value.pwszVal);
-    }
-    PropVariantClear(&mime_value);
-  }
-
-  if (SUCCEEDED(hr)) {
-    PROPVARIANT duration_value;
-    PropVariantInit(&duration_value);
-    const HRESULT duration_hr =
-        source_reader->GetPresentationAttribute(MF_SOURCE_READER_MEDIASOURCE, MF_PD_DURATION,
-                                                &duration_value);
-    if (FAILED(duration_hr)) {
-      hr = duration_hr;
-    } else if (duration_value.vt != VT_UI8) {
-      hr = E_FAIL;
-    } else {
-      *out_duration_micros = static_cast<int64_t>(duration_value.uhVal.QuadPart / 10ULL);
-    }
-    PropVariantClear(&duration_value);
-  }
-
-  if (SUCCEEDED(hr)) {
-    ComPtr<IMFMediaType> native_media_type;
-    if (SUCCEEDED(source_reader->GetNativeMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0,
-                                                    &native_media_type))) {
-      UINT32 avg_bytes_per_second = 0;
-      if (SUCCEEDED(native_media_type->GetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND,
-                                                 &avg_bytes_per_second))) {
-        const uint64_t bitrate = static_cast<uint64_t>(avg_bytes_per_second) * 8ULL;
-        if (bitrate <= static_cast<uint64_t>(std::numeric_limits<int32_t>::max())) {
-          *out_bitrate_bps = static_cast<int32_t>(bitrate);
-        }
-      }
-      GUID subtype = GUID_NULL;
-      if (SUCCEEDED(native_media_type->GetGUID(MF_MT_SUBTYPE, &subtype))) {
-        *out_codec = CodecNameFromSubtype(subtype);
-      }
-      UINT32 profile_level_indication = 0;
-      if (SUCCEEDED(native_media_type->GetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION,
-                                                 &profile_level_indication))) {
-        *out_codec_profile = AacProfileLevelIndicationToString(profile_level_indication);
-        if (out_codec->empty()) {
-          *out_codec = "aac";
-        }
-      }
-    }
-  }
-
-  if (SUCCEEDED(hr)) {
-    UINT32 sample_rate = 0;
-    UINT32 channels = 0;
-    UINT32 bits_per_sample = 16;
-    hr = ConfigureSourceReader(source_reader.Get(), &sample_rate, &channels, &bits_per_sample);
-    if (SUCCEEDED(hr)) {
-      *out_sample_rate_hz = ToInt32OrSentinel(sample_rate, -1);
-      *out_channel_count = ToInt32OrSentinel(channels, -1);
-    }
-  }
-
-  const HRESULT shutdown_hr = MFShutdown();
-  if (SUCCEEDED(hr) && FAILED(shutdown_hr)) {
-    hr = shutdown_hr;
-  }
-  if (should_uninitialize) {
-    CoUninitialize();
-  }
-
-  return hr;
-}
-}  // namespace
-
-extern "C" __declspec(dllexport) int32_t speech_utils_windows_aac_encoder_healthcheck(
-    char* error_utf8, uint32_t error_utf8_capacity) {
-  WriteError("", error_utf8, error_utf8_capacity);
-  const HRESULT hr = StartupAndShutdownMediaFoundation();
-  if (FAILED(hr)) {
-    WriteError(HResultMessage(hr, "Media Foundation healthcheck failed"), error_utf8,
+      out_channel_count == nullptr || out_bitrate_bps == nullptr) {
+    WriteError("Metadata output pointers must not be null.", error_utf8,
                error_utf8_capacity);
-  }
-  return static_cast<int32_t>(hr);
-}
-
-extern "C" __declspec(dllexport) int32_t speech_utils_windows_encode_audio_file_to_aac(
-    const char* input_path_utf8, const char* output_path_utf8, uint32_t bitrate_bps,
-    char* error_utf8, uint32_t error_utf8_capacity) {
-  WriteError("", error_utf8, error_utf8_capacity);
-
-  if (input_path_utf8 == nullptr || output_path_utf8 == nullptr || bitrate_bps == 0) {
-    WriteError("Invalid arguments for speech_utils_windows_encode_audio_file_to_aac", error_utf8,
-               error_utf8_capacity);
-    return static_cast<int32_t>(E_INVALIDARG);
+    return -2;
   }
 
-  const std::wstring input_path = Utf8ToWide(input_path_utf8);
-  const std::wstring output_path = Utf8ToWide(output_path_utf8);
-  if (input_path.empty() || output_path.empty()) {
-    WriteError("Failed to decode UTF-8 path argument(s).", error_utf8, error_utf8_capacity);
-    return static_cast<int32_t>(E_INVALIDARG);
-  }
-
-  const HRESULT hr = EncodeAudioFileToAac(input_path, output_path, bitrate_bps);
-  if (FAILED(hr)) {
-    WriteError(HResultMessage(hr, "Windows AAC transcode failed"), error_utf8,
-               error_utf8_capacity);
-  }
-  return static_cast<int32_t>(hr);
-}
-
-extern "C" __declspec(dllexport) int32_t speech_utils_windows_audio_metadata_healthcheck(
-    char* error_utf8, uint32_t error_utf8_capacity) {
-  WriteError("", error_utf8, error_utf8_capacity);
-  const HRESULT hr = StartupAndShutdownMediaFoundation();
-  if (FAILED(hr)) {
-    WriteError(HResultMessage(hr, "Windows audio metadata healthcheck failed"), error_utf8,
-               error_utf8_capacity);
-  }
-  return static_cast<int32_t>(hr);
-}
-
-extern "C" __declspec(dllexport) int32_t speech_utils_windows_read_audio_metadata(
-    const char* input_path_utf8, int64_t* out_duration_micros, int32_t* out_sample_rate_hz,
-    int32_t* out_channel_count, int32_t* out_bitrate_bps, char* out_container_format_utf8,
-    uint32_t out_container_format_utf8_capacity, char* out_codec_utf8,
-    uint32_t out_codec_utf8_capacity, char* out_codec_profile_utf8,
-    uint32_t out_codec_profile_utf8_capacity, char* error_utf8,
-    uint32_t error_utf8_capacity) {
-  WriteError("", error_utf8, error_utf8_capacity);
+  *out_duration_micros = 0;
+  *out_sample_rate_hz = 0;
+  *out_channel_count = 0;
+  *out_bitrate_bps = 0;
   WriteOutputText("", out_container_format_utf8, out_container_format_utf8_capacity);
   WriteOutputText("", out_codec_utf8, out_codec_utf8_capacity);
   WriteOutputText("", out_codec_profile_utf8, out_codec_profile_utf8_capacity);
 
-  if (input_path_utf8 == nullptr || out_duration_micros == nullptr || out_sample_rate_hz == nullptr ||
-      out_channel_count == nullptr || out_bitrate_bps == nullptr ||
-      out_container_format_utf8 == nullptr || out_codec_utf8 == nullptr ||
-      out_codec_profile_utf8 == nullptr) {
-    WriteError("Invalid arguments for speech_utils_windows_read_audio_metadata", error_utf8,
+  AVFormatContext* format_context = nullptr;
+  int ffmpeg_code = avformat_open_input(&format_context, input_path_utf8, nullptr, nullptr);
+  if (ffmpeg_code < 0) {
+    WriteError("Failed to open input file: " + AvErrorToString(ffmpeg_code), error_utf8,
                error_utf8_capacity);
-    return static_cast<int32_t>(E_INVALIDARG);
+    return -10;
   }
 
-  const std::wstring input_path = Utf8ToWide(input_path_utf8);
-  if (input_path.empty()) {
-    WriteError("Failed to decode UTF-8 input path.", error_utf8, error_utf8_capacity);
-    return static_cast<int32_t>(E_INVALIDARG);
+  ffmpeg_code = avformat_find_stream_info(format_context, nullptr);
+  if (ffmpeg_code < 0) {
+    avformat_close_input(&format_context);
+    WriteError("Failed to read input stream info: " + AvErrorToString(ffmpeg_code), error_utf8,
+               error_utf8_capacity);
+    return -11;
   }
 
-  std::string container_format;
-  std::string codec;
-  std::string codec_profile;
-  const HRESULT hr = ReadAudioMetadata(input_path, out_duration_micros, out_sample_rate_hz,
-                                       out_channel_count, out_bitrate_bps,
-                                       &container_format, &codec, &codec_profile);
-  WriteOutputText(container_format, out_container_format_utf8,
-                  out_container_format_utf8_capacity);
+  ffmpeg_code = av_find_best_stream(format_context, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
+  if (ffmpeg_code < 0) {
+    avformat_close_input(&format_context);
+    WriteError("No audio stream found in input file.", error_utf8, error_utf8_capacity);
+    return -12;
+  }
+
+  AVStream* audio_stream = format_context->streams[ffmpeg_code];
+  const AVCodecParameters* codec_parameters = audio_stream->codecpar;
+
+  int64_t duration_micros = ResolveDurationMicros(format_context, audio_stream);
+  if (duration_micros < 0) {
+    duration_micros = 0;
+  }
+
+  *out_duration_micros = duration_micros;
+  *out_sample_rate_hz = static_cast<int32_t>(codec_parameters->sample_rate);
+  *out_channel_count = static_cast<int32_t>(codec_parameters->channels);
+
+  const int64_t bitrate = codec_parameters->bit_rate > 0 ? codec_parameters->bit_rate
+                                                          : format_context->bit_rate;
+  if (bitrate > 0 && bitrate <= INT32_MAX) {
+    *out_bitrate_bps = static_cast<int32_t>(bitrate);
+  }
+
+  std::string container =
+      format_context->iformat != nullptr
+          ? FirstCommaSeparatedToken(format_context->iformat->name)
+          : std::string();
+  std::string codec = avcodec_get_name(codec_parameters->codec_id);
+  std::string profile;
+  if (codec_parameters->profile != FF_PROFILE_UNKNOWN) {
+    const char* profile_name =
+        avcodec_profile_name(codec_parameters->codec_id, codec_parameters->profile);
+    if (profile_name != nullptr) {
+      profile = profile_name;
+    }
+  }
+
+  WriteOutputText(container, out_container_format_utf8, out_container_format_utf8_capacity);
   WriteOutputText(codec, out_codec_utf8, out_codec_utf8_capacity);
-  WriteOutputText(codec_profile, out_codec_profile_utf8, out_codec_profile_utf8_capacity);
-  if (FAILED(hr)) {
-    WriteError(HResultMessage(hr, "Windows audio metadata read failed"), error_utf8,
-               error_utf8_capacity);
+  WriteOutputText(profile, out_codec_profile_utf8, out_codec_profile_utf8_capacity);
+
+  avformat_close_input(&format_context);
+  return 0;
+}
+}  // namespace
+
+extern "C" __declspec(dllexport) int32_t
+speech_utils_windows_encode_audio_file_to_aac(const char* input_path_utf8,
+                                              const char* output_path_utf8,
+                                              uint32_t bitrate_bps,
+                                              char* error_utf8,
+                                              uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+  return EncodeAudioFileToAacInternal(input_path_utf8, output_path_utf8, bitrate_bps, error_utf8,
+                                      error_utf8_capacity);
+}
+
+extern "C" __declspec(dllexport) int32_t
+speech_utils_windows_aac_encoder_healthcheck(char* error_utf8, uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+
+  const AVCodec* encoder = avcodec_find_encoder(AV_CODEC_ID_AAC);
+  if (encoder == nullptr) {
+    WriteError("AAC encoder (libavcodec) is unavailable.", error_utf8, error_utf8_capacity);
+    return -1;
   }
-  return static_cast<int32_t>(hr);
+
+  return 0;
+}
+
+extern "C" __declspec(dllexport) int32_t
+speech_utils_windows_read_audio_metadata(const char* input_path_utf8,
+                                         int64_t* out_duration_micros,
+                                         int32_t* out_sample_rate_hz,
+                                         int32_t* out_channel_count,
+                                         int32_t* out_bitrate_bps,
+                                         char* out_container_format_utf8,
+                                         uint32_t out_container_format_utf8_capacity,
+                                         char* out_codec_utf8,
+                                         uint32_t out_codec_utf8_capacity,
+                                         char* out_codec_profile_utf8,
+                                         uint32_t out_codec_profile_utf8_capacity,
+                                         char* error_utf8,
+                                         uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+  return ReadAudioMetadataInternal(
+      input_path_utf8, out_duration_micros, out_sample_rate_hz, out_channel_count,
+      out_bitrate_bps, out_container_format_utf8, out_container_format_utf8_capacity,
+      out_codec_utf8, out_codec_utf8_capacity, out_codec_profile_utf8,
+      out_codec_profile_utf8_capacity, error_utf8, error_utf8_capacity);
+}
+
+extern "C" __declspec(dllexport) int32_t
+speech_utils_windows_audio_metadata_healthcheck(char* error_utf8,
+                                                uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+
+  if (avformat_version() == 0 || avcodec_version() == 0) {
+    WriteError("FFmpeg metadata APIs are unavailable.", error_utf8, error_utf8_capacity);
+    return -1;
+  }
+
+  return 0;
 }

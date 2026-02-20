@@ -1,0 +1,44 @@
+FFmpeg Windows Minimal Build Profile
+====================================
+
+This directory is intended to hold a generated minimal FFmpeg SDK used by
+`speech_utils` Windows native bindings.
+
+The SDK is auto-built by the build hook when:
+- `SPEECH_UTILS_WINDOWS_FFMPEG_AUTOBUILD=1`
+- FFmpeg source is available (default path
+  `third_party/ffmpeg/source/ffmpeg`, or override with
+  `SPEECH_UTILS_WINDOWS_FFMPEG_SOURCE_DIR`)
+
+Build profile configured in `hook/src/windows_ffmpeg_pipeline.dart`:
+- `--disable-everything`
+- `--disable-programs`
+- `--disable-doc`
+- `--disable-network`
+- `--enable-shared`
+- `--disable-static`
+- `--enable-small`
+- `--enable-avcodec`
+- `--enable-avformat`
+- `--enable-avutil`
+- `--enable-swresample`
+- `--enable-encoder=aac`
+- `--enable-decoder=pcm_s16le,aac,mp3`
+- `--enable-parser=aac,mpegaudio`
+- `--enable-demuxer=wav,mov,mp3,aac`
+- `--enable-muxer=ipod,adts`
+- `--enable-protocol=file`
+
+Resulting artifacts expected by the hook:
+- `include/libavcodec`
+- `include/libavformat`
+- `include/libavutil`
+- `include/libswresample`
+- `lib/avcodec.lib`
+- `lib/avformat.lib`
+- `lib/avutil.lib`
+- `lib/swresample.lib`
+- `bin/avcodec-*.dll`
+- `bin/avformat-*.dll`
+- `bin/avutil-*.dll`
+- `bin/swresample-*.dll`

@@ -1,3 +1,17 @@
+## Unreleased
+
+- Add `NativeAudioRecorder` for native FFI microphone capture:
+  - start/stop PCM16 WAV recording to file
+  - start/stop live PCM16 stream recording
+- Add native recorder bridges for:
+  - macOS (AVFoundation)
+  - Windows (miniaudio)
+  - iOS (AVFoundation)
+- Switch Windows native AAC/metadata FFI backend to FFmpeg (`libavcodec`/`libavformat`).
+- Bundle Windows FFmpeg runtime DLLs from `third_party/ffmpeg/windows/bin` automatically in hook builds.
+- Add Windows minimal-FFmpeg build-hook pipeline (`SPEECH_UTILS_WINDOWS_FFMPEG_AUTOBUILD=1`)
+  to generate required `include/lib/bin` artifacts from source.
+
 ## 0.1.3
 
 - Add `NativeAudioMetadataReader` for bundled FFI metadata reads:
@@ -10,7 +24,7 @@
   - Codec profile (when available)
 - Add native metadata bridges for:
   - macOS (AVFoundation)
-  - Windows (Media Foundation)
+  - Windows (native backend)
   - Android (MediaExtractor)
   - iOS (AVFoundation)
 
@@ -18,7 +32,7 @@
 
 - Add `NativeAacEncoder` using native platform tooling:
   - macOS: `afconvert`
-  - Windows: bundled native Media Foundation encoder via Dart FFI
+  - Windows: bundled native encoder via Dart FFI
   - Android: bundled native NDK encoder via Dart FFI
   - iOS: bundled native AVFoundation encoder via Dart FFI
 - Make `SpeechUtils.splitPcm16AndEncodeAacSnippets` default to `NativeAacEncoder`.

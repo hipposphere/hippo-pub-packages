@@ -75,7 +75,7 @@ void main() {
       );
     });
 
-    test('uses windows ffi media foundation path', () async {
+    test('uses windows ffi libavcodec path', () async {
       late String usedInputPath;
       late String usedOutputPath;
       late int usedBitrateBps;

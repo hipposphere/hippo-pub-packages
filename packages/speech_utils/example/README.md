@@ -4,14 +4,21 @@ Flutter example app for `speech_utils`.
 
 ## What it demonstrates
 
-- Live microphone streaming with `record`:
-  - `AudioRecorder.startStream(...)`
-  - PCM16 (`AudioEncoder.pcm16bits`) at 16kHz mono
+- Multi-page demo shell:
+  - **Integrated VAD + Compression**
+  - **Simple Recorder + Waveform**
+  - app-wide theme controls (system/light/dark via `hippo_components` app theme)
+- Live microphone streaming with native FFI recorder:
+  - `NativeAudioRecorder.startStream(...)`
+  - `AudioRecorderConfig(sampleRateHz: 16000, channelCount: 1, framesPerChunk: 1024)`
   - `SpeechUtils.splitPcm16StreamOnSilence(...)` emits snippets during active speaking
+- Input routing:
+  - list available native input devices
+  - pass selected device ID via `AudioRecorderConfig.inputDeviceId` where supported
 - Live UI:
   - real-time waveform while recording
-  - speech/silence indicator from VAD frames
-  - chunk counter + RMS level to verify raw mic signal
+  - speech/silence indicator from VAD frames (integrated page) and RMS-threshold detection (simple page)
+  - chunk counter + RMS + dBFS loudness levels
   - snippet list once speech segments finish
   - playback for WAV and AAC snippets
 - Optional compression flow:
@@ -49,10 +56,13 @@ flutter run
 
 Use:
 
-- `Start Live Stream` to capture mic PCM, view waveform/speech state, and generate snippets on silence boundaries.
-- If waveform is flat, check `Chunks` and `RMS` in the status card:
+- Open **Integrated VAD + Compression** for segmentation/compression and synthetic checks.
+- Open **Simple Recorder + Waveform** for focused loudness/waveform recording with manual speech threshold.
+- Recording uses the native recorder backend.
+- Use the `Input device` dropdown (plus refresh) to inspect/select capture routes.
+- If waveform is flat, check `Chunks`, `RMS`, and `dBFS` in the status card:
   - `Chunks` should increase continuously while recording.
-  - `RMS` should rise when speaking.
+  - `RMS` and `dBFS` should rise when speaking.
 - Playback controls on each finished snippet (and whole recording after stop).
 - `AAC options` to enable/disable automatic snippet or whole-recording conversion and compare file-size changes.
 - `VAD tuning` sliders to adjust live speech detection sensitivity.

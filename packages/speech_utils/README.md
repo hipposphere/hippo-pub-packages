@@ -5,6 +5,7 @@
 1. Split PCM16 recordings into snippets when silence is detected.
 2. Encode/compress PCM16 snippets into AAC.
 3. Read audio duration and basic metadata through bundled native FFI bridges.
+4. Record microphone input through bundled native FFI bridges.
 
 It is designed to avoid unnecessary copying by using typed-data views over the
 original PCM buffers.
@@ -27,6 +28,12 @@ original PCM buffers.
   - container format (if available)
   - codec (if available)
   - codec profile (if available)
+- Native audio recorder (`NativeAudioRecorder`) with:
+  - start/stop file recording (`.wav` PCM16)
+  - start/stop live PCM16 stream recording
+  - input device listing (`listInputDevices`)
+  - input-device routing via `AudioRecorderConfig.inputDeviceId` on platforms that support it
+- No dependency on the legacy `record` package for microphone capture.
 - Zero-copy snippet views (`Int16List.view`, `Uint8List.view`).
 
 ## Install
@@ -91,30 +98,60 @@ await for (final snippet in snippets) {
 }
 ```
 
-With `record` (`startStream`) in Flutter:
+### Native recorder (FFI)
 
 ```dart
-final recorder = AudioRecorder();
-final pcmStream = await recorder.startStream(
-  const RecordConfig(
-    encoder: AudioEncoder.pcm16bits,
-    sampleRate: 16000,
-    numChannels: 1,
+final recorder = NativeAudioRecorder();
+final permissionGranted = await recorder.requestPermission();
+if (!permissionGranted) {
+  throw StateError('Microphone permission denied');
+}
+
+await recorder.start(
+  outputPath: '/tmp/recording.wav',
+  config: const AudioRecorderConfig(
+    sampleRateHz: 16000,
+    channelCount: 1,
   ),
 );
 
-await for (final snippet in SpeechUtils.splitPcm16StreamOnSilence(
-  pcm16leStream: pcmStream,
-  options: const PauseSplitOptions(
+// ... later
+await recorder.stop();
+```
+
+Input device discovery/selection:
+
+```dart
+final devices = await recorder.listInputDevices();
+final preferred = devices.where((d) => d.isDefault).toList();
+final target = preferred.isNotEmpty ? preferred.first : (devices.isNotEmpty ? devices.first : null);
+
+if (recorder.supportsInputSelection) {
+  await recorder.start(
+    outputPath: '/tmp/recording.wav',
+    config: AudioRecorderConfig(
+      sampleRateHz: 16000,
+      channelCount: 1,
+      inputDeviceId: target?.id,
+    ),
+  );
+}
+```
+
+Stream mode:
+
+```dart
+final recorder = NativeAudioRecorder();
+final pcmStream = await recorder.startStream(
+  config: const AudioRecorderConfig(
     sampleRateHz: 16000,
     channelCount: 1,
-    frameDuration: Duration(milliseconds: 16),
+    framesPerChunk: 1024,
   ),
-  vadConfig: const SpeechVadConfig.preferTen(
-    ten: TenVadConfig(threshold: 0.45),
-  ),
-)) {
-  // snippet is emitted while recording when silence boundaries are reached.
+);
+
+await for (final pcmChunk in pcmStream) {
+  // PCM16 little-endian bytes.
 }
 ```
 
@@ -191,15 +228,31 @@ Notes:
   (`arm64-v8a`, `armeabi-v7a`), and iOS arm64 (device build).
 - AAC encoding (`NativeAacEncoder`) without `ffmpeg` fallback:
   - macOS: `afconvert`
-  - Windows: bundled native Media Foundation encoder via Dart FFI
+  - Windows: bundled native FFmpeg encoder (`libavcodec`) via Dart FFI
   - Android: bundled native NDK encoder via Dart FFI (expects PCM16 WAV input
     when calling `encodeAudioFileToAac`)
   - iOS: bundled native AVFoundation encoder via Dart FFI
 - Audio metadata (`NativeAudioMetadataReader`) via bundled native FFI:
   - macOS: AVFoundation
-  - Windows: Media Foundation
+  - Windows: FFmpeg (`libavformat`)
   - Android: MediaExtractor
   - iOS: AVFoundation
+- Audio recording (`NativeAudioRecorder`) via bundled native FFI:
+  - macOS: AVFoundation
+  - Windows: miniaudio
+  - iOS: AVFoundation
+
+Windows FFmpeg build notes:
+
+- Windows hook can auto-build a minimal FFmpeg profile when SDK artifacts are
+  missing.
+- Set `SPEECH_UTILS_WINDOWS_FFMPEG_AUTOBUILD=1`.
+- Optionally set `SPEECH_UTILS_WINDOWS_FFMPEG_SOURCE_DIR`; default source path
+  is `third_party/ffmpeg/source/ffmpeg`.
+- Generated/expected SDK layout is
+  `third_party/ffmpeg/windows/{include,lib,bin}` (runtime DLLs in `bin/` are
+  bundled automatically as native assets).
+- See `third_party/ffmpeg/windows/README.md` for full details.
 
 ## Maintainers
 

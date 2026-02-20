@@ -12,11 +12,11 @@ dependencies:
     sdk: flutter
   speech_utils:
     path: ../
+  hippo_components:
+    path: ../../hippo_components
   audioplayers: ^6.5.1
-  record: ^6.2.0
   path_provider: ^2.1.5
   cupertino_icons: ^1.0.8
-  record_linux: ^1.3.0
 
 dev_dependencies:
   flutter_test:

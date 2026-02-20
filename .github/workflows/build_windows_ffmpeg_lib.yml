@@ -20,6 +20,7 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
+          path-type: inherit
           update: true
           install: >
             make
@@ -39,8 +40,42 @@ jobs:
           cd ffmpeg
 
           command -v make
-          command -v cl.exe
-          command -v link.exe
+
+          cl_path="$(command -v cl.exe || command -v cl || true)"
+          if [ -z "$cl_path" ]; then
+            echo "cl.exe not found in PATH inside MSYS2 shell"
+            echo "PATH=$PATH"
+            exit 1
+          fi
+
+          msvc_bin_dir="$(dirname "$cl_path")"
+          export PATH="$msvc_bin_dir:$PATH"
+          hash -r
+
+          link_path="$(command -v link.exe || true)"
+          if [ -z "$link_path" ]; then
+            echo "link.exe not found in PATH inside MSYS2 shell"
+            echo "PATH=$PATH"
+            exit 1
+          fi
+
+          if [ "$link_path" = "/usr/bin/link.exe" ] && [ -x "$msvc_bin_dir/link.exe" ]; then
+            export PATH="$msvc_bin_dir:$PATH"
+            hash -r
+            link_path="$(command -v link.exe || true)"
+          fi
+
+          if [ "$link_path" = "/usr/bin/link.exe" ]; then
+            echo "Detected /usr/bin/link.exe instead of MSVC linker."
+            echo "cl.exe:  $cl_path"
+            echo "link.exe:$link_path"
+            echo "PATH=$PATH"
+            exit 1
+          fi
+
+          echo "Using make:    $(command -v make)"
+          echo "Using cl.exe:  $cl_path"
+          echo "Using link.exe:$link_path"
 
           ./configure \
             --arch=x86_64 \
@@ -89,11 +124,18 @@ jobs:
           cp -a out/lib/. out-minimal/lib/
 
           shopt -s nullglob
-          for pattern in avcodec-*.dll avformat-*.dll avutil-*.dll swresample-*.dll avdevice-*.dll avfilter-*.dll swscale-*.dll; do
-            for dll in out/bin/$pattern; do
-              cp "$dll" out-minimal/bin/
+          for source_dir in out/bin libavcodec libavformat libavutil libswresample libavdevice libavfilter libswscale; do
+            for pattern in avcodec-*.dll avcodec.dll avformat-*.dll avformat.dll avutil-*.dll avutil.dll swresample-*.dll swresample.dll avdevice-*.dll avdevice.dll avfilter-*.dll avfilter.dll swscale-*.dll swscale.dll; do
+              for dll in "$source_dir"/$pattern; do
+                cp "$dll" out-minimal/bin/
+              done
             done
           done
+
+          echo "Installed DLLs in out/bin:"
+          ls -la out/bin || true
+          echo "Bundled DLLs in out-minimal/bin:"
+          ls -la out-minimal/bin || true
 
           cat > out-minimal/BUILD-METADATA.txt <<EOF
           ffmpeg workflow: build_windows_ffmpeg_lib.yml
@@ -109,9 +151,27 @@ jobs:
           set -euo pipefail
           cd ffmpeg
 
-          avcodec_dll=$(ls out-minimal/bin/avcodec-*.dll | head -n 1)
-          avformat_dll=$(ls out-minimal/bin/avformat-*.dll | head -n 1)
-          avutil_dll=$(ls out-minimal/bin/avutil-*.dll | head -n 1)
+          pick_dll() {
+            local prefix="$1"
+            local picked=""
+            shopt -s nullglob
+            local versioned=(out-minimal/bin/${prefix}-*.dll)
+            local plain=(out-minimal/bin/${prefix}.dll)
+            if [ "${#versioned[@]}" -gt 0 ]; then
+              picked="${versioned[0]}"
+            elif [ "${#plain[@]}" -gt 0 ]; then
+              picked="${plain[0]}"
+            else
+              echo "Missing ${prefix} DLL in out-minimal/bin"
+              ls -la out-minimal/bin || true
+              return 1
+            fi
+            echo "$picked"
+          }
+
+          avcodec_dll="$(pick_dll avcodec)"
+          avformat_dll="$(pick_dll avformat)"
+          avutil_dll="$(pick_dll avutil)"
 
           for dll in "$avcodec_dll" "$avformat_dll" "$avutil_dll"; do
             if objdump -p "$dll" | grep -Eqi "DLL Name: (libwinpthread-1\.dll|libiconv-2\.dll|zlib1\.dll)"; then

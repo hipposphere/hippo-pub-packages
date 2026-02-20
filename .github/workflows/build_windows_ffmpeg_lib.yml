@@ -1,7 +1,6 @@
 name: Build Minimal FFmpeg (Windows x64)
 
 on:
-  push:
   workflow_dispatch:
 
 jobs:

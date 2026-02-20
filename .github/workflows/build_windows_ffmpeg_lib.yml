@@ -125,6 +125,22 @@ jobs:
 
           if [ -f "$BUILD_DIR/ffbuild/config.log" ]; then cp "$BUILD_DIR/ffbuild/config.log" "$CONFIG_LOG_COPY"; fi
 
+          # FFmpeg with MSVC may not always install import .lib files into prefix/lib.
+          # Copy them from the build tree when present so downstream linking is stable.
+          mkdir -p "$OUT_DIR/lib"
+          for lib in avcodec avformat avutil swresample; do
+            src_lib="$BUILD_DIR/lib${lib}/${lib}.lib"
+            dst_lib="$OUT_DIR/lib/${lib}.lib"
+            if [ -f "$src_lib" ] && [ ! -f "$dst_lib" ]; then
+              cp "$src_lib" "$dst_lib"
+            fi
+          done
+
+          echo "Installed libs in $OUT_DIR/lib:" | tee -a "$BUILD_LOG"
+          ls -la "$OUT_DIR/lib" | tee -a "$BUILD_LOG" || true
+          echo "Installed dlls in $OUT_DIR/bin:" | tee -a "$BUILD_LOG"
+          ls -la "$OUT_DIR/bin" | tee -a "$BUILD_LOG" || true
+
           test -f "$OUT_DIR/include/libavcodec/avcodec.h"
           test -f "$OUT_DIR/lib/avcodec.lib"
           test -f "$OUT_DIR/lib/avformat.lib"

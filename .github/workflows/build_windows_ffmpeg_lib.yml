@@ -11,7 +11,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup MSYS2
+      - name: Setup MSYS2 (MINGW64)
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -36,7 +36,7 @@ jobs:
           ./configure \
             --arch=x86_64 \
             --target-os=mingw32 \
-            --prefix=/mingw64/ffmpeg-build \
+            --prefix=$PWD/out \
             --enable-shared \
             --disable-static \
             --disable-programs \
@@ -59,16 +59,8 @@ jobs:
           mingw32-make -j$(nproc)
           mingw32-make install
 
-      - name: Collect artifacts
-        shell: powershell
-        run: |
-          mkdir output
-          Copy-Item C:\msys64\mingw64\ffmpeg-build\bin\*.dll output\
-          Copy-Item C:\msys64\mingw64\ffmpeg-build\bin\*.lib output\
-          Copy-Item C:\msys64\mingw64\ffmpeg-build\include output\ -Recurse
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-minimal-windows-x64
-          path: output
+          path: ffmpeg/out

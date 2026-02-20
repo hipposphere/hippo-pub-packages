@@ -20,16 +20,15 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-make
             mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-yasm
+            mingw-w64-x86_64-nasm
             git
 
       - name: Clone FFmpeg
         shell: msys2 {0}
         run: |
           git clone --depth 1 https://github.com/ffmpeg/ffmpeg.git
-          cd ffmpeg
 
-      - name: Configure FFmpeg (audio only)
+      - name: Configure FFmpeg (audio-only minimal)
         shell: msys2 {0}
         run: |
           cd ffmpeg
@@ -60,7 +59,7 @@ jobs:
           make -j$(nproc)
           make install
 
-      - name: Collect DLLs
+      - name: Collect artifacts
         shell: powershell
         run: |
           mkdir output
@@ -68,7 +67,7 @@ jobs:
           Copy-Item C:\msys64\mingw64\ffmpeg-build\bin\*.lib output\
           Copy-Item C:\msys64\mingw64\ffmpeg-build\include output\ -Recurse
 
-      - name: Upload Artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-minimal-windows-x64

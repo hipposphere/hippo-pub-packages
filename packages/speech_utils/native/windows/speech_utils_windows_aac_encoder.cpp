@@ -409,6 +409,7 @@ int32_t EncodeAudioFileToAacInternal(const char* input_path_utf8, const char* ou
         encoder->sample_fmts != nullptr ? encoder->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
     encoder_context->bit_rate = static_cast<int64_t>(bitrate_bps);
     encoder_context->time_base = AVRational{1, encoder_context->sample_rate};
+    encoder_context->profile = AV_PROFILE_AAC_LOW;
 
     if ((output_context->oformat->flags & AVFMT_GLOBALHEADER) != 0) {
       encoder_context->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;

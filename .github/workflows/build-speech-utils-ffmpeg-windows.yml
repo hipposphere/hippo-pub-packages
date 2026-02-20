@@ -76,6 +76,18 @@ jobs:
             -SourceDir "$env:FFMPEG_SOURCE_DIR" `
             -OutputDir "$env:FFMPEG_OUTPUT_DIR"
 
+      - name: Upload FFmpeg build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}-logs
+          path: |
+            packages/speech_utils/third_party/ffmpeg/windows/.build-minimal/ffmpeg-build.log
+            packages/speech_utils/third_party/ffmpeg/windows/.build-minimal/config.log
+            packages/speech_utils/third_party/ffmpeg/windows/.build-minimal/ffbuild/config.log
+          if-no-files-found: ignore
+          retention-days: ${{ fromJSON(inputs.retention_days) }}
+
       - name: Package SDK artifact
         run: |
           $artifactName = "${{ inputs.artifact_name }}"

@@ -73,10 +73,27 @@ $sourceDirMsys = Convert-ToMsysPath -Path $SourceDir
 $outputDirMsys = Convert-ToMsysPath -Path $OutputDir
 $buildDirMsys = Convert-ToMsysPath -Path $buildDir
 $jobs = [Math]::Max([Environment]::ProcessorCount, 1)
+$buildLogPath = Join-Path $buildDir "ffmpeg-build.log"
 
 $script = @"
 set -euo pipefail
 cd "$buildDirMsys"
+echo "Using bash: $(command -v bash || true)"
+echo "Using make: $(command -v make || true)"
+echo "Using cl.exe: $(command -v cl.exe || true)"
+echo "Using link.exe: $(command -v link.exe || true)"
+if ! command -v make >/dev/null 2>&1; then
+  echo "make not found in PATH inside bash" >&2
+  exit 90
+fi
+if ! command -v cl.exe >/dev/null 2>&1; then
+  echo "cl.exe not found in PATH inside bash" >&2
+  exit 91
+fi
+if ! command -v link.exe >/dev/null 2>&1; then
+  echo "link.exe not found in PATH inside bash" >&2
+  exit 92
+fi
 rm -rf "$outputDirMsys/include" "$outputDirMsys/lib" "$outputDirMsys/bin"
 "$sourceDirMsys/configure" \
   --prefix="$outputDirMsys" \
@@ -107,9 +124,21 @@ make install
 $previousArgConv = $env:MSYS2_ARG_CONV_EXCL
 $env:MSYS2_ARG_CONV_EXCL = "*"
 try {
-  & $bashPath -lc $script
-  if ($LASTEXITCODE -ne 0) {
-    throw "FFmpeg build failed with exit code $LASTEXITCODE."
+  & $bashPath -lc $script 2>&1 | Tee-Object -FilePath $buildLogPath
+  $bashExitCode = $LASTEXITCODE
+  if ($bashExitCode -ne 0) {
+    $configLogCandidates = @(
+      (Join-Path $buildDir "ffbuild/config.log"),
+      (Join-Path $buildDir "config.log")
+    )
+    foreach ($candidate in $configLogCandidates) {
+      if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+        Write-Host "---- BEGIN $candidate (tail 200 lines) ----"
+        Get-Content -Path $candidate -Tail 200
+        Write-Host "---- END $candidate ----"
+      }
+    }
+    throw "FFmpeg build failed with exit code ${bashExitCode}. See log: $buildLogPath"
   }
 }
 finally {

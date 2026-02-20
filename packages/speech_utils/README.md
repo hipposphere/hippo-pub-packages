@@ -255,7 +255,7 @@ Windows FFmpeg build notes:
 - Set `SPEECH_UTILS_WINDOWS_FFMPEG_REQUIRED=1` to make missing FFmpeg SDK a
   hard build error.
 - CI prebuild workflow:
-  `.github/workflows/build-speech-utils-ffmpeg-windows.yml` (manual trigger,
+  `.github/workflows/build_windows_ffmpeg_lib.yml` (manual trigger,
   uploads zipped `include/lib/bin` SDK artifact).
 - Generated/expected SDK layout is
   `third_party/ffmpeg/windows/{include,lib,bin}` (runtime DLLs in `bin/` are

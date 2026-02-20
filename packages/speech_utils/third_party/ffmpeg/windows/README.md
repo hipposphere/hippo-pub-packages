@@ -18,7 +18,7 @@ Environment variables:
   - By default, missing SDK skips Windows AAC/metadata native asset build.
 
 CI prebuild workflow:
-- `.github/workflows/build-speech-utils-ffmpeg-windows.yml`
+- `.github/workflows/build_windows_ffmpeg_lib.yml`
   - Manually trigger with `workflow_dispatch`.
   - Builds a pinned FFmpeg ref on `windows-latest`.
   - Uploads a zip artifact with:

@@ -5,7 +5,7 @@ This directory is intended to hold a generated minimal FFmpeg SDK used by
 `speech_utils` Windows native bindings.
 
 Preferred CI build path:
-- Trigger `.github/workflows/build-speech-utils-ffmpeg-windows.yml`
+- Trigger `.github/workflows/build_windows_ffmpeg_lib.yml`
 - Default FFmpeg ref: `n7.1.1` (override via workflow input)
 
 The SDK is auto-built by the build hook when:

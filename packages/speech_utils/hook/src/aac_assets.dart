@@ -10,7 +10,6 @@ import 'windows_ffmpeg_pipeline.dart';
 const _windowsAacAssetName = 'src/encoding/generated/windows_aac_bindings.dart';
 const _windowsAacLibraryBaseName = 'speech_utils_windows_aac_encoder';
 const _windowsFfmpegRuntimeAssetNamePrefix = 'src/encoding/generated/windows_ffmpeg_runtime';
-const _windowsFfmpegRequiredEnv = 'SPEECH_UTILS_WINDOWS_FFMPEG_REQUIRED';
 const _androidAacAssetName = 'src/encoding/generated/android_aac_bindings.dart';
 const _androidAacLibraryBaseName = 'speech_utils_android_aac_encoder';
 const _iosAacAssetName = 'src/encoding/generated/ios_aac_bindings.dart';
@@ -32,25 +31,11 @@ Future<void> buildWindowsAacEncoderAsset(BuildInput input, BuildOutputBuilder ou
     throw StateError('Missing Windows AAC encoder source file at ${source.path}.');
   }
 
-  final WindowsFfmpegSdk ffmpegSdk;
-  try {
-    ffmpegSdk = await ensureWindowsFfmpegSdk(input);
-  } on MissingWindowsFfmpegSdkException catch (error) {
-    if (_isTruthy(Platform.environment[_windowsFfmpegRequiredEnv])) {
-      rethrow;
-    }
-    stderr.writeln(
-      'speech_utils: Skipping Windows native AAC/metadata asset build '
-      'because FFmpeg SDK is not configured.',
-    );
-    stderr.writeln('speech_utils: $error');
-    stderr.writeln(
-      'speech_utils: Set $_windowsFfmpegRequiredEnv=1 to fail the build '
-      'when FFmpeg is missing.',
-    );
-    return;
-  }
-  final runtimeDlls = collectWindowsFfmpegRuntimeDlls(ffmpegSdk);
+  final ffmpegSdk = await loadWindowsFfmpegSdk(input);
+  final runtimeDlls = ffmpegSdk.runtimeDlls;
+  final importLibDirectories = ffmpegSdk.importLibDirectories
+      .map((directory) => directory.path)
+      .toList(growable: false);
 
   await CBuilder.library(
     name: _windowsAacLibraryBaseName,
@@ -62,10 +47,39 @@ Future<void> buildWindowsAacEncoderAsset(BuildInput input, BuildOutputBuilder ou
     flags: ['/EHsc', '/O2'],
     defines: const {'UNICODE': '1', '_UNICODE': '1', 'WIN32_LEAN_AND_MEAN': '1', 'NOMINMAX': '1'},
     libraries: ['avformat', 'avcodec', 'avutil', 'swresample', 'bcrypt', 'ws2_32', 'secur32'],
-    libraryDirectories: [ffmpegSdk.libDir.path],
+    libraryDirectories: importLibDirectories,
   ).run(input: input, output: output);
 
+  _copyWindowsRuntimeDllsNextToAacLibrary(input: input, runtimeDlls: runtimeDlls);
   _bundleWindowsFfmpegRuntimeDlls(input: input, output: output, runtimeDlls: runtimeDlls);
+}
+
+void _copyWindowsRuntimeDllsNextToAacLibrary({
+  required BuildInput input,
+  required List<File> runtimeDlls,
+}) {
+  final sharedOutputDir = Directory.fromUri(input.outputDirectoryShared);
+  if (!sharedOutputDir.existsSync()) {
+    return;
+  }
+
+  final aacFileName = input.config.code.targetOS.dylibFileName(_windowsAacLibraryBaseName);
+  final builtAacLibraries = sharedOutputDir
+      .listSync(recursive: true, followLinks: false)
+      .whereType<File>()
+      .where((file) => p.basename(file.path).toLowerCase() == aacFileName.toLowerCase())
+      .toList(growable: false);
+
+  for (final aacLibrary in builtAacLibraries) {
+    final targetDir = aacLibrary.parent;
+    for (final sourceDll in runtimeDlls) {
+      final fileName = p.basename(sourceDll.path);
+      final destination = File(p.join(targetDir.path, fileName));
+      if (!destination.existsSync()) {
+        sourceDll.copySync(destination.path);
+      }
+    }
+  }
 }
 
 void _bundleWindowsFfmpegRuntimeDlls({
@@ -117,14 +131,6 @@ Future<void> buildAndroidAacEncoderAsset(BuildInput input, BuildOutputBuilder ou
     defines: {'__ANDROID_API__': '$effectiveNdkApi'},
     libraries: ['android', 'mediandk', 'log'],
   ).run(input: input, output: output);
-}
-
-bool _isTruthy(String? value) {
-  if (value == null) {
-    return false;
-  }
-  final normalized = value.trim().toLowerCase();
-  return normalized == '1' || normalized == 'true' || normalized == 'yes' || normalized == 'on';
 }
 
 Future<void> buildIosAacEncoderAsset(BuildInput input, BuildOutputBuilder output) async {

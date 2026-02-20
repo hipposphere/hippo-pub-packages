@@ -85,23 +85,31 @@ int SelectBestSampleRate(const AVCodec* encoder, int requested_sample_rate) {
   return best;
 }
 
-uint64_t SelectBestChannelLayout(const AVCodec* encoder, int requested_channels) {
+int SelectBestChannelLayout(const AVCodec* encoder, int requested_channels,
+                            AVChannelLayout* out_layout) {
+  if (out_layout == nullptr) {
+    return AVERROR(EINVAL);
+  }
+
+  av_channel_layout_uninit(out_layout);
   if (requested_channels <= 0) {
     requested_channels = 1;
   }
 
-  if (encoder == nullptr || encoder->channel_layouts == nullptr) {
-    return static_cast<uint64_t>(av_get_default_channel_layout(requested_channels));
+  if (encoder == nullptr || encoder->ch_layouts == nullptr || encoder->ch_layouts->nb_channels == 0) {
+    av_channel_layout_default(out_layout, requested_channels);
+    return 0;
   }
 
-  uint64_t best_layout = encoder->channel_layouts[0];
-  for (const uint64_t* layout = encoder->channel_layouts; *layout != 0; layout++) {
-    if (av_get_channel_layout_nb_channels(*layout) == requested_channels) {
-      return *layout;
+  const AVChannelLayout* best_layout = encoder->ch_layouts;
+  for (const AVChannelLayout* layout = encoder->ch_layouts; layout->nb_channels != 0; layout++) {
+    if (layout->nb_channels == requested_channels) {
+      best_layout = layout;
+      break;
     }
   }
 
-  return best_layout;
+  return av_channel_layout_copy(out_layout, best_layout);
 }
 
 int DrainEncoderPackets(AVCodecContext* encoder_context, AVFormatContext* output_context,
@@ -138,7 +146,7 @@ int PushConvertedSamplesToFifo(AVFrame* decoded_frame, AVCodecContext* decoder_c
 
   uint8_t** converted_data = nullptr;
   int result = av_samples_alloc_array_and_samples(
-      &converted_data, nullptr, encoder_context->channels, dst_sample_count,
+      &converted_data, nullptr, encoder_context->ch_layout.nb_channels, dst_sample_count,
       encoder_context->sample_fmt, 0);
   if (result < 0) {
     return result;
@@ -183,11 +191,15 @@ int EncodeFrameFromFifo(AVAudioFifo* fifo, AVCodecContext* encoder_context,
   }
 
   frame->nb_samples = frame_samples;
-  frame->channel_layout = encoder_context->channel_layout;
+  int result = av_channel_layout_copy(&frame->ch_layout, &encoder_context->ch_layout);
+  if (result < 0) {
+    av_frame_free(&frame);
+    return result;
+  }
   frame->format = encoder_context->sample_fmt;
   frame->sample_rate = encoder_context->sample_rate;
 
-  int result = av_frame_get_buffer(frame, 0);
+  result = av_frame_get_buffer(frame, 0);
   if (result < 0) {
     av_frame_free(&frame);
     return result;
@@ -195,7 +207,7 @@ int EncodeFrameFromFifo(AVAudioFifo* fifo, AVCodecContext* encoder_context,
 
   if (frame_samples > read_samples) {
     result = av_samples_set_silence(frame->data, read_samples, frame_samples - read_samples,
-                                    encoder_context->channels, encoder_context->sample_fmt);
+                                    encoder_context->ch_layout.nb_channels, encoder_context->sample_fmt);
     if (result < 0) {
       av_frame_free(&frame);
       return result;
@@ -384,9 +396,10 @@ int32_t EncodeAudioFileToAacInternal(const char* input_path_utf8, const char* ou
 
     encoder_context->sample_rate =
         SelectBestSampleRate(encoder, decoder_context->sample_rate);
-    encoder_context->channel_layout = SelectBestChannelLayout(encoder, decoder_context->channels);
-    encoder_context->channels = av_get_channel_layout_nb_channels(encoder_context->channel_layout);
-    if (encoder_context->channels <= 0) {
+    const int requested_channels =
+        decoder_context->ch_layout.nb_channels > 0 ? decoder_context->ch_layout.nb_channels : 1;
+    ffmpeg_code = SelectBestChannelLayout(encoder, requested_channels, &encoder_context->ch_layout);
+    if (ffmpeg_code < 0 || encoder_context->ch_layout.nb_channels <= 0) {
       WriteError("Failed to resolve output channel layout.", error_utf8, error_utf8_capacity);
       result_code = -21;
       break;
@@ -418,16 +431,25 @@ int32_t EncodeAudioFileToAacInternal(const char* input_path_utf8, const char* ou
     }
     output_stream->time_base = encoder_context->time_base;
 
-    const uint64_t input_channel_layout =
-        decoder_context->channel_layout != 0
-            ? decoder_context->channel_layout
-            : static_cast<uint64_t>(av_get_default_channel_layout(decoder_context->channels));
+    AVChannelLayout input_channel_layout = {};
+    if (decoder_context->ch_layout.nb_channels > 0) {
+      ffmpeg_code = av_channel_layout_copy(&input_channel_layout, &decoder_context->ch_layout);
+      if (ffmpeg_code < 0) {
+        WriteError("Failed to resolve input channel layout: " + AvErrorToString(ffmpeg_code),
+                   error_utf8, error_utf8_capacity);
+        result_code = -24;
+        break;
+      }
+    } else {
+      av_channel_layout_default(&input_channel_layout, 1);
+    }
 
-    swr_context = swr_alloc_set_opts(
-        nullptr, static_cast<int64_t>(encoder_context->channel_layout), encoder_context->sample_fmt,
-        encoder_context->sample_rate, static_cast<int64_t>(input_channel_layout),
-        decoder_context->sample_fmt, decoder_context->sample_rate, 0, nullptr);
-    if (swr_context == nullptr) {
+    ffmpeg_code = swr_alloc_set_opts2(
+        &swr_context, &encoder_context->ch_layout, encoder_context->sample_fmt,
+        encoder_context->sample_rate, &input_channel_layout, decoder_context->sample_fmt,
+        decoder_context->sample_rate, 0, nullptr);
+    av_channel_layout_uninit(&input_channel_layout);
+    if (ffmpeg_code < 0 || swr_context == nullptr) {
       WriteError("Failed to allocate sample-rate converter.", error_utf8, error_utf8_capacity);
       result_code = -24;
       break;
@@ -441,7 +463,7 @@ int32_t EncodeAudioFileToAacInternal(const char* input_path_utf8, const char* ou
       break;
     }
 
-    fifo = av_audio_fifo_alloc(encoder_context->sample_fmt, encoder_context->channels, 1);
+    fifo = av_audio_fifo_alloc(encoder_context->sample_fmt, encoder_context->ch_layout.nb_channels, 1);
     if (fifo == nullptr) {
       WriteError("Failed to allocate audio FIFO.", error_utf8, error_utf8_capacity);
       result_code = -26;
@@ -701,7 +723,7 @@ int32_t ReadAudioMetadataInternal(const char* input_path_utf8, int64_t* out_dura
 
   *out_duration_micros = duration_micros;
   *out_sample_rate_hz = static_cast<int32_t>(codec_parameters->sample_rate);
-  *out_channel_count = static_cast<int32_t>(codec_parameters->channels);
+  *out_channel_count = static_cast<int32_t>(codec_parameters->ch_layout.nb_channels);
 
   const int64_t bitrate = codec_parameters->bit_rate > 0 ? codec_parameters->bit_rate
                                                           : format_context->bit_rate;
@@ -715,7 +737,7 @@ int32_t ReadAudioMetadataInternal(const char* input_path_utf8, int64_t* out_dura
           : std::string();
   std::string codec = avcodec_get_name(codec_parameters->codec_id);
   std::string profile;
-  if (codec_parameters->profile != FF_PROFILE_UNKNOWN) {
+  if (codec_parameters->profile != AV_PROFILE_UNKNOWN) {
     const char* profile_name =
         avcodec_profile_name(codec_parameters->codec_id, codec_parameters->profile);
     if (profile_name != nullptr) {

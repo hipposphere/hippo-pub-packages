@@ -1,25 +1,17 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:hooks/hooks.dart';
 import 'package:path/path.dart' as p;
 
-const _ffmpegAutobuildEnv = 'SPEECH_UTILS_WINDOWS_FFMPEG_AUTOBUILD';
-const _ffmpegSourceDirEnv = 'SPEECH_UTILS_WINDOWS_FFMPEG_SOURCE_DIR';
-const _ffmpegBuildDirName = '.build-minimal';
-const _defaultFfmpegSourceRelativePath = 'third_party/ffmpeg/source/ffmpeg';
-
-const _requiredLibNames = <String>['avcodec.lib', 'avformat.lib', 'avutil.lib', 'swresample.lib'];
-
+const _requiredImportLibPrefixes = <String>['avcodec', 'avformat', 'avutil', 'swresample'];
 const _requiredRuntimeDllPrefixes = <String>['avcodec', 'avformat', 'avutil', 'swresample'];
-
-final class MissingWindowsFfmpegSdkException implements Exception {
-  MissingWindowsFfmpegSdkException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
-}
+const _optionalRuntimeDllPrefixes = <String>['avdevice', 'avfilter', 'swscale'];
+const _optionalTransitiveRuntimeDllNames = <String>[
+  'libiconv-2.dll',
+  'libwinpthread-1.dll',
+  'zlib1.dll',
+];
 
 final class WindowsFfmpegSdk {
   WindowsFfmpegSdk({
@@ -27,6 +19,7 @@ final class WindowsFfmpegSdk {
     required this.includeDir,
     required this.libDir,
     required this.binDir,
+    required this.importLibDirectories,
     required this.runtimeDlls,
   });
 
@@ -34,235 +27,216 @@ final class WindowsFfmpegSdk {
   final Directory includeDir;
   final Directory libDir;
   final Directory binDir;
+  final List<Directory> importLibDirectories;
   final List<File> runtimeDlls;
 }
 
-Future<WindowsFfmpegSdk> ensureWindowsFfmpegSdk(BuildInput input) async {
+Future<WindowsFfmpegSdk> loadWindowsFfmpegSdk(BuildInput input) async {
   final rootDir = Directory.fromUri(input.packageRoot.resolve('third_party/ffmpeg/windows'));
   final includeDir = Directory(p.join(rootDir.path, 'include'));
   final libDir = Directory(p.join(rootDir.path, 'lib'));
   final binDir = Directory(p.join(rootDir.path, 'bin'));
 
-  if (!_hasRequiredHeadersAndImportLibs(includeDir: includeDir, libDir: libDir) ||
-      _collectRuntimeDlls(binDir).isEmpty) {
-    await _maybeAutobuildMinimalWindowsFfmpeg(
-      input: input,
-      rootDir: rootDir,
-      includeDir: includeDir,
-      libDir: libDir,
-      binDir: binDir,
-    );
-  }
-
-  _validateRequiredHeadersAndImportLibs(includeDir: includeDir, libDir: libDir);
-  final runtimeDlls = _collectRuntimeDlls(binDir);
+  _validateRequiredHeaders(includeDir);
+  final resolvedImportLibs = _resolveRequiredImportLibs(libDir: libDir, binDir: binDir);
+  final importLibDirectories = _uniqueDirectoriesInOrder(
+    resolvedImportLibs.values
+        .map((file) => Directory(p.dirname(file.path)))
+        .toList(growable: false),
+  );
+  final runtimeDlls = _resolveBundledRuntimeDlls(binDir);
   _validateRequiredRuntimeDllPrefixes(runtimeDlls, binDir.path);
+  _validateTransitiveRuntimeDllCompatibility(runtimeDlls, binDir.path);
 
   return WindowsFfmpegSdk(
     rootDir: rootDir,
     includeDir: includeDir,
     libDir: libDir,
     binDir: binDir,
+    importLibDirectories: importLibDirectories,
     runtimeDlls: runtimeDlls,
   );
 }
 
-List<File> collectWindowsFfmpegRuntimeDlls(WindowsFfmpegSdk sdk) {
-  final runtimeDlls = _collectRuntimeDlls(sdk.binDir);
-  _validateRequiredRuntimeDllPrefixes(runtimeDlls, sdk.binDir.path);
-  return runtimeDlls;
-}
-
-Future<void> _maybeAutobuildMinimalWindowsFfmpeg({
-  required BuildInput input,
-  required Directory rootDir,
-  required Directory includeDir,
-  required Directory libDir,
-  required Directory binDir,
-}) async {
-  final configuredAutobuildValue = Platform.environment[_ffmpegAutobuildEnv];
-  final configuredAutobuild = _isTruthy(configuredAutobuildValue);
-  final sourceDir = _resolveWindowsFfmpegSourceDir(input);
-
-  final canAttemptAutobuild = Platform.isWindows && (configuredAutobuild || sourceDir.existsSync());
-  if (!canAttemptAutobuild) {
-    throw MissingWindowsFfmpegSdkException(
-      _missingSdkMessage(
-        includeDir: includeDir,
-        libDir: libDir,
-        binDir: binDir,
-        sourceDir: sourceDir,
-        configuredAutobuildValue: configuredAutobuildValue,
-      ),
-    );
-  }
-
-  await _autobuildMinimalWindowsFfmpeg(rootDir: rootDir, sourceDir: sourceDir);
-
-  if (!_hasRequiredHeadersAndImportLibs(includeDir: includeDir, libDir: libDir)) {
-    throw StateError(
-      'FFmpeg auto-build finished, but required headers/import libs are still missing in '
-      '${rootDir.path}.',
-    );
-  }
-  if (_collectRuntimeDlls(binDir).isEmpty) {
-    throw StateError(
-      'FFmpeg auto-build finished, but no runtime DLLs were found in ${binDir.path}.',
-    );
-  }
-}
-
-Future<void> _autobuildMinimalWindowsFfmpeg({
-  required Directory rootDir,
-  required Directory sourceDir,
-}) async {
-  if (!sourceDir.existsSync()) {
-    throw StateError(
-      'FFmpeg source directory does not exist: ${sourceDir.path}\n'
-      'Set $_ffmpegSourceDirEnv to your FFmpeg source checkout path.',
-    );
-  }
-
-  final configureFile = File(p.join(sourceDir.path, 'configure'));
-  if (!configureFile.existsSync()) {
-    throw StateError(
-      'FFmpeg source directory does not contain configure script: ${configureFile.path}',
-    );
-  }
-
-  final buildDir = Directory(p.join(rootDir.path, _ffmpegBuildDirName));
-  buildDir.createSync(recursive: true);
-  rootDir.createSync(recursive: true);
-
-  final sourceDirMsys = _toMsysPath(sourceDir.path);
-  final buildDirMsys = _toMsysPath(buildDir.path);
-  final installDirMsys = _toMsysPath(rootDir.path);
-  final jobs = Platform.numberOfProcessors > 1 ? Platform.numberOfProcessors : 1;
-
-  final script =
-      '''
-set -euo pipefail
-cd "$buildDirMsys"
-rm -rf "$installDirMsys/include" "$installDirMsys/lib" "$installDirMsys/bin"
-"$sourceDirMsys/configure" \\
-  --prefix="$installDirMsys" \\
-  --target-os=win64 \\
-  --arch=x86_64 \\
-  --toolchain=msvc \\
-  --disable-everything \\
-  --disable-programs \\
-  --disable-doc \\
-  --disable-network \\
-  --enable-shared \\
-  --disable-static \\
-  --enable-small \\
-  --enable-avcodec \\
-  --enable-avformat \\
-  --enable-avutil \\
-  --enable-swresample \\
-  --enable-encoder=aac \\
-  --enable-decoder=pcm_s16le,aac,mp3 \\
-  --enable-parser=aac,mpegaudio \\
-  --enable-demuxer=wav,mov,mp3,aac \\
-  --enable-muxer=ipod,adts \\
-  --enable-protocol=file
-make -j$jobs
-make install
-''';
-
-  final result = await Process.run(
-    'bash',
-    ['-lc', script],
-    environment: {...Platform.environment, 'MSYS2_ARG_CONV_EXCL': '*'},
-    runInShell: true,
-  );
-
-  if (result.exitCode != 0) {
-    final stdoutText = '${result.stdout}'.trim();
-    final stderrText = '${result.stderr}'.trim();
-    throw StateError(
-      'Failed to auto-build minimal Windows FFmpeg SDK.\n'
-      'Source: ${sourceDir.path}\n'
-      'Exit code: ${result.exitCode}\n'
-      'stdout:\n$stdoutText\n'
-      'stderr:\n$stderrText',
-    );
-  }
-}
-
-Directory _resolveWindowsFfmpegSourceDir(BuildInput input) {
-  final sourceDirFromEnv = Platform.environment[_ffmpegSourceDirEnv];
-  if (sourceDirFromEnv != null && sourceDirFromEnv.trim().isNotEmpty) {
-    return Directory(sourceDirFromEnv.trim());
-  }
-  return Directory.fromUri(input.packageRoot.resolve(_defaultFfmpegSourceRelativePath));
-}
-
-bool _hasRequiredHeadersAndImportLibs({required Directory includeDir, required Directory libDir}) {
-  if (!includeDir.existsSync() || !libDir.existsSync()) {
-    return false;
-  }
-
-  final requiredHeader = File(p.join(includeDir.path, 'libavcodec', 'avcodec.h'));
-  if (!requiredHeader.existsSync()) {
-    return false;
-  }
-
-  for (final requiredLibName in _requiredLibNames) {
-    final libFile = File(p.join(libDir.path, requiredLibName));
-    if (!libFile.existsSync()) {
-      return false;
-    }
-  }
-  return true;
-}
-
-void _validateRequiredHeadersAndImportLibs({
-  required Directory includeDir,
-  required Directory libDir,
-}) {
+void _validateRequiredHeaders(Directory includeDir) {
   if (!includeDir.existsSync()) {
     throw StateError('Missing FFmpeg headers directory at ${includeDir.path}.');
   }
-  if (!libDir.existsSync()) {
-    throw StateError('Missing FFmpeg import libraries directory at ${libDir.path}.');
-  }
 
-  final requiredHeader = File(p.join(includeDir.path, 'libavcodec', 'avcodec.h'));
-  if (!requiredHeader.existsSync()) {
-    throw StateError('Missing FFmpeg header at ${requiredHeader.path}.');
-  }
+  const requiredHeaders = <String>[
+    'libavcodec/avcodec.h',
+    'libavformat/avformat.h',
+    'libavutil/avutil.h',
+    'libswresample/swresample.h',
+  ];
 
-  for (final requiredLibName in _requiredLibNames) {
-    final libFile = File(p.join(libDir.path, requiredLibName));
-    if (!libFile.existsSync()) {
-      throw StateError('Missing FFmpeg import library at ${libFile.path}.');
+  for (final relativeHeaderPath in requiredHeaders) {
+    final header = File(p.join(includeDir.path, relativeHeaderPath));
+    if (!header.existsSync()) {
+      throw StateError('Missing FFmpeg header at ${header.path}.');
     }
   }
 }
 
-List<File> _collectRuntimeDlls(Directory ffmpegBinDir) {
-  if (!ffmpegBinDir.existsSync()) {
-    return const <File>[];
+Map<String, File> _resolveRequiredImportLibs({
+  required Directory libDir,
+  required Directory binDir,
+}) {
+  final resolved = <String, File>{};
+  for (final prefix in _requiredImportLibPrefixes) {
+    final fromLibDir = _findImportLibByPrefix(libDir, prefix);
+    if (fromLibDir != null) {
+      resolved[prefix] = fromLibDir;
+      continue;
+    }
+    final fromBinDir = _findImportLibByPrefix(binDir, prefix);
+    if (fromBinDir != null) {
+      resolved[prefix] = fromBinDir;
+    }
   }
 
-  final runtimeDlls =
-      ffmpegBinDir
-          .listSync(followLinks: false)
-          .whereType<File>()
-          .where((file) => p.extension(file.path).toLowerCase() == '.dll')
-          .toList()
-        ..sort(
-          (left, right) =>
-              p.basename(left.path).toLowerCase().compareTo(p.basename(right.path).toLowerCase()),
-        );
+  final missingPrefixes = _requiredImportLibPrefixes
+      .where((prefix) => !resolved.containsKey(prefix))
+      .toList(growable: false);
+  if (missingPrefixes.isNotEmpty) {
+    final missingNames = missingPrefixes.map((prefix) => '$prefix.lib').join(', ');
+    throw StateError(
+      'Missing FFmpeg import libraries ($missingNames). '
+      'Searched in ${libDir.path} and ${binDir.path}.',
+    );
+  }
+
+  return resolved;
+}
+
+File? _findImportLibByPrefix(Directory directory, String prefix) {
+  if (!directory.existsSync()) {
+    return null;
+  }
+
+  final exactName = '$prefix.lib';
+  final exactMatch = File(p.join(directory.path, exactName));
+  if (exactMatch.existsSync()) {
+    return exactMatch;
+  }
+
+  final versionedMatches = <File>[];
+  for (final entity in directory.listSync(followLinks: false)) {
+    if (entity is! File) {
+      continue;
+    }
+    final fileName = p.basename(entity.path).toLowerCase();
+    if (fileName.startsWith('$prefix-') && fileName.endsWith('.lib')) {
+      versionedMatches.add(entity);
+    }
+  }
+
+  if (versionedMatches.isEmpty) {
+    return null;
+  }
+
+  versionedMatches.sort(
+    (left, right) =>
+        p.basename(left.path).toLowerCase().compareTo(p.basename(right.path).toLowerCase()),
+  );
+  return versionedMatches.last;
+}
+
+List<File> _resolveBundledRuntimeDlls(Directory binDir) {
+  if (!binDir.existsSync()) {
+    throw StateError('Missing FFmpeg runtime directory at ${binDir.path}.');
+  }
+
+  final allDllsByLowerName = <String, File>{};
+  for (final entity in binDir.listSync(followLinks: false)) {
+    if (entity is! File) {
+      continue;
+    }
+    if (p.extension(entity.path).toLowerCase() != '.dll') {
+      continue;
+    }
+    allDllsByLowerName[p.basename(entity.path).toLowerCase()] = entity;
+  }
+
+  final selected = <String, File>{};
+  for (final prefix in [..._requiredRuntimeDllPrefixes, ..._optionalRuntimeDllPrefixes]) {
+    final dll = _pickLatestRuntimeDllForPrefix(allDllsByLowerName, prefix);
+    if (dll != null) {
+      selected[p.basename(dll.path).toLowerCase()] = dll;
+    }
+  }
+
+  for (final dllName in _optionalTransitiveRuntimeDllNames) {
+    final dll = allDllsByLowerName[dllName];
+    if (dll != null) {
+      selected[dllName] = dll;
+    }
+  }
+
+  final runtimeDlls = selected.values.toList(growable: false)
+    ..sort(
+      (left, right) =>
+          p.basename(left.path).toLowerCase().compareTo(p.basename(right.path).toLowerCase()),
+    );
   return runtimeDlls;
+}
+
+File? _pickLatestRuntimeDllForPrefix(Map<String, File> allDllsByLowerName, String prefix) {
+  final matches = allDllsByLowerName.values
+      .where((file) {
+        final fileName = p.basename(file.path).toLowerCase();
+        return fileName == '$prefix.dll' ||
+            (fileName.startsWith('$prefix-') && fileName.endsWith('.dll'));
+      })
+      .toList(growable: false);
+
+  if (matches.isEmpty) {
+    return null;
+  }
+
+  final sorted = matches.toList(growable: false)
+    ..sort(
+      (left, right) => _compareRuntimeDllNames(
+        p.basename(left.path).toLowerCase(),
+        p.basename(right.path).toLowerCase(),
+      ),
+    );
+  return sorted.last;
+}
+
+int _compareRuntimeDllNames(String leftName, String rightName) {
+  int parseMajorVersion(String fileName) {
+    final match = RegExp(r'-(\d+)').firstMatch(fileName);
+    if (match == null) {
+      return -1;
+    }
+    return int.tryParse(match.group(1)!) ?? -1;
+  }
+
+  final leftMajor = parseMajorVersion(leftName);
+  final rightMajor = parseMajorVersion(rightName);
+  if (leftMajor != rightMajor) {
+    return leftMajor.compareTo(rightMajor);
+  }
+  return leftName.compareTo(rightName);
+}
+
+List<Directory> _uniqueDirectoriesInOrder(List<Directory> directories) {
+  final unique = <Directory>[];
+  final seenPaths = <String>{};
+  for (final directory in directories) {
+    final normalized = p.normalize(directory.path).toLowerCase();
+    if (seenPaths.add(normalized)) {
+      unique.add(directory);
+    }
+  }
+  return unique;
 }
 
 void _validateRequiredRuntimeDllPrefixes(List<File> runtimeDlls, String ffmpegBinPath) {
   if (runtimeDlls.isEmpty) {
     throw StateError(
-      'No FFmpeg runtime DLLs found in $ffmpegBinPath. '
+      'No FFmpeg runtime DLLs selected from $ffmpegBinPath. '
       'Expected at least avcodec/avformat/avutil/swresample DLLs.',
     );
   }
@@ -270,7 +244,6 @@ void _validateRequiredRuntimeDllPrefixes(List<File> runtimeDlls, String ffmpegBi
   final runtimeDllNames = runtimeDlls
       .map((file) => p.basename(file.path).toLowerCase())
       .toList(growable: false);
-
   for (final requiredPrefix in _requiredRuntimeDllPrefixes) {
     final hasPrefix = runtimeDllNames.any((name) => name.startsWith(requiredPrefix));
     if (!hasPrefix) {
@@ -281,42 +254,86 @@ void _validateRequiredRuntimeDllPrefixes(List<File> runtimeDlls, String ffmpegBi
   }
 }
 
-String _missingSdkMessage({
-  required Directory includeDir,
-  required Directory libDir,
-  required Directory binDir,
-  required Directory sourceDir,
-  required String? configuredAutobuildValue,
-}) {
-  return 'Windows FFmpeg SDK is missing or incomplete.\n'
-      'Expected:\n'
-      '- include: ${includeDir.path}\n'
-      '- lib: ${libDir.path}\n'
-      '- bin: ${binDir.path}\n'
-      '\n'
-      'To auto-build a minimal FFmpeg SDK via build hook on Windows:\n'
-      '1) Ensure FFmpeg source exists at "${sourceDir.path}" '
-      'or set $_ffmpegSourceDirEnv.\n'
-      '2) Set $_ffmpegAutobuildEnv=1 in your environment.\n'
-      '\n'
-      'Current $_ffmpegAutobuildEnv value: ${configuredAutobuildValue ?? '(unset)'}';
+void _validateTransitiveRuntimeDllCompatibility(List<File> runtimeDlls, String ffmpegBinPath) {
+  File? findRuntimeByPrefix(String prefix) {
+    for (final dll in runtimeDlls) {
+      final name = p.basename(dll.path).toLowerCase();
+      if (name.startsWith(prefix)) {
+        return dll;
+      }
+    }
+    return null;
+  }
+
+  File? findRuntimeByExactName(String fileNameLower) {
+    for (final dll in runtimeDlls) {
+      if (p.basename(dll.path).toLowerCase() == fileNameLower) {
+        return dll;
+      }
+    }
+    return null;
+  }
+
+  final issues = <String>[];
+
+  void validateDependency({
+    required String importerPrefix,
+    required String dependencyFileNameLower,
+    required List<String> requiredSymbols,
+  }) {
+    final importer = findRuntimeByPrefix(importerPrefix);
+    if (importer == null) {
+      return;
+    }
+
+    if (!_binaryContainsToken(importer, dependencyFileNameLower)) {
+      return;
+    }
+
+    final dependency = findRuntimeByExactName(dependencyFileNameLower);
+    if (dependency == null) {
+      issues.add('Missing $dependencyFileNameLower required by ${p.basename(importer.path)}.');
+      return;
+    }
+
+    for (final symbol in requiredSymbols) {
+      if (!_binaryContainsToken(dependency, symbol)) {
+        issues.add(
+          'Incompatible ${p.basename(dependency.path)}: missing symbol "$symbol" '
+          'required by ${p.basename(importer.path)}.',
+        );
+      }
+    }
+  }
+
+  validateDependency(
+    importerPrefix: 'avcodec',
+    dependencyFileNameLower: 'libiconv-2.dll',
+    requiredSymbols: const ['libiconv', 'libiconv_open', 'libiconv_close'],
+  );
+  validateDependency(
+    importerPrefix: 'avutil',
+    dependencyFileNameLower: 'libwinpthread-1.dll',
+    requiredSymbols: const ['clock_gettime64', 'nanosleep64'],
+  );
+  validateDependency(
+    importerPrefix: 'avformat',
+    dependencyFileNameLower: 'zlib1.dll',
+    requiredSymbols: const ['uncompress'],
+  );
+
+  if (issues.isNotEmpty) {
+    final message = [
+      'Incompatible FFmpeg runtime bundle in $ffmpegBinPath.',
+      ...issues,
+      'Ensure all transitive runtime DLLs come from the same CI FFmpeg artifact.',
+    ].join('\n');
+    throw StateError(message);
+  }
 }
 
-bool _isTruthy(String? value) {
-  if (value == null) {
-    return false;
-  }
-  final normalized = value.trim().toLowerCase();
-  return normalized == '1' || normalized == 'true' || normalized == 'yes' || normalized == 'on';
-}
-
-String _toMsysPath(String path) {
-  final normalized = path.replaceAll('\\', '/');
-  final driveMatch = RegExp(r'^([A-Za-z]):/(.*)$').firstMatch(normalized);
-  if (driveMatch == null) {
-    return normalized;
-  }
-  final drive = driveMatch.group(1)!.toLowerCase();
-  final rest = driveMatch.group(2)!;
-  return '/$drive/$rest';
+bool _binaryContainsToken(File file, String tokenLowerCase) {
+  final bytes = file.readAsBytesSync();
+  final text = latin1.decode(bytes, allowInvalid: true).toLowerCase();
+  return text.contains(tokenLowerCase.toLowerCase());
 }

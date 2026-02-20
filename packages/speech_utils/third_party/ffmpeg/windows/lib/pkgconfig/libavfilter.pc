@@ -1,0 +1,14 @@
+prefix=/d/a/hippo-pub-packages/hippo-pub-packages/ffmpeg/out-minimal
+exec_prefix=${prefix}
+libdir=/d/a/hippo-pub-packages/hippo-pub-packages/ffmpeg/out-minimal/lib
+includedir=/d/a/hippo-pub-packages/hippo-pub-packages/ffmpeg/out-minimal/include
+
+Name: libavfilter
+Description: FFmpeg audio/video filtering library
+Version: 11.12.100
+Requires: 
+Requires.private: libavutil >= 60.25.100
+Conflicts:
+Libs: -L${libdir}  -lavfilter 
+Libs.private: 
+Cflags: -I${includedir}

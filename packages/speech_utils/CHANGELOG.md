@@ -24,8 +24,8 @@
   - iOS (AVFoundation)
 - Switch Windows native AAC/metadata FFI backend to FFmpeg (`libavcodec`/`libavformat`).
 - Bundle Windows FFmpeg runtime DLLs from `third_party/ffmpeg/windows/bin` automatically in hook builds.
-- Add Windows minimal-FFmpeg build-hook pipeline (`SPEECH_UTILS_WINDOWS_FFMPEG_AUTOBUILD=1`)
-  to generate required `include/lib/bin` artifacts from source.
+- Add Windows minimal-FFmpeg CI pipeline to generate required `include/lib/bin`
+  artifacts from source.
 
 ## 0.1.3
 

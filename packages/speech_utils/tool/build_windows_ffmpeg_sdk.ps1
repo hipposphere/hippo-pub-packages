@@ -123,6 +123,7 @@ rm -rf "$outputDirMsys/include" "$outputDirMsys/lib" "$outputDirMsys/bin"
   --disable-network \
   --enable-shared \
   --disable-static \
+  --disable-optimizations \
   --enable-small \
   --enable-avcodec \
   --enable-avformat \
@@ -133,7 +134,9 @@ rm -rf "$outputDirMsys/include" "$outputDirMsys/lib" "$outputDirMsys/bin"
   --enable-parser=aac,mpegaudio \
   --enable-demuxer=wav,mov,mp3,aac \
   --enable-muxer=ipod,adts \
-  --enable-protocol=file
+  --enable-protocol=file \
+  --disable-iconv \
+  --disable-zlib
 make -j$jobs
 make install
 "@

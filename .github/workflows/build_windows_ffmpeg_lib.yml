@@ -1,4 +1,4 @@
-name: Build Minimal FFmpeg (Windows x64)
+name: Build Minimal FFmpeg (Windows x64, MSVC)
 
 on:
   workflow_dispatch:
@@ -11,56 +11,177 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup MSYS2 (MINGW64)
+      - name: Setup MSVC Environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
+          path-type: inherit
           update: true
           install: >
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-make
-            mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-nasm
+            make
+            nasm
             git
+            binutils
 
       - name: Clone FFmpeg
         shell: msys2 {0}
         run: |
           git clone --depth 1 https://github.com/ffmpeg/ffmpeg.git
 
-      - name: Configure (audio-only minimal)
+      - name: Configure (audio-only minimal, MSVC + w32threads)
         shell: msys2 {0}
         run: |
+          set -euo pipefail
           cd ffmpeg
+
+          command -v make
+
+          cl_path="$(command -v cl.exe || command -v cl || true)"
+          if [ -z "$cl_path" ]; then
+            echo "cl.exe not found in PATH inside MSYS2 shell"
+            echo "PATH=$PATH"
+            exit 1
+          fi
+
+          msvc_bin_dir="$(dirname "$cl_path")"
+          export PATH="$msvc_bin_dir:$PATH"
+          hash -r
+
+          link_path="$(command -v link.exe || true)"
+          if [ -z "$link_path" ]; then
+            echo "link.exe not found in PATH inside MSYS2 shell"
+            echo "PATH=$PATH"
+            exit 1
+          fi
+
+          if [ "$link_path" = "/usr/bin/link.exe" ] && [ -x "$msvc_bin_dir/link.exe" ]; then
+            export PATH="$msvc_bin_dir:$PATH"
+            hash -r
+            link_path="$(command -v link.exe || true)"
+          fi
+
+          if [ "$link_path" = "/usr/bin/link.exe" ]; then
+            echo "Detected /usr/bin/link.exe instead of MSVC linker."
+            echo "cl.exe:  $cl_path"
+            echo "link.exe:$link_path"
+            echo "PATH=$PATH"
+            exit 1
+          fi
+
+          echo "Using make:    $(command -v make)"
+          echo "Using cl.exe:  $cl_path"
+          echo "Using link.exe:$link_path"
+
+          clang_cl_path="$(command -v clang-cl.exe || command -v clang-cl || true)"
+          lld_link_path="$(command -v lld-link.exe || command -v lld-link || true)"
+          if [ -n "$clang_cl_path" ] && [ -n "$lld_link_path" ]; then
+            echo "Using clang-cl to avoid MSVC cl.exe ICEs in FFmpeg cbs sources"
+            echo "Using clang-cl: $clang_cl_path"
+            echo "Using lld-link: $lld_link_path"
+            cc_args=(--cc=clang-cl --cxx=clang-cl --ld=lld-link)
+          else
+            echo "clang-cl/lld-link not found, falling back to cl.exe"
+            cc_args=()
+          fi
 
           ./configure \
             --arch=x86_64 \
-            --target-os=mingw32 \
-            --prefix=$PWD/out \
+            --target-os=win64 \
+            --toolchain=msvc \
+            --prefix="$PWD/out-minimal" \
             --enable-shared \
             --disable-static \
             --disable-programs \
             --disable-doc \
             --disable-debug \
+            --disable-optimizations \
             --disable-everything \
+            --disable-network \
+            --enable-small \
             --enable-avcodec \
             --enable-avformat \
             --enable-avutil \
             --enable-swresample \
-            --enable-decoder=mp3,aac \
+            --enable-encoder=aac \
+            --enable-decoder=pcm_s16le,aac,mp3 \
             --enable-parser=mpegaudio,aac \
-            --enable-demuxer=mp3,mov \
-            --enable-protocol=file
+            --enable-demuxer=wav,mp3,mov,aac \
+            --enable-muxer=ipod,adts \
+            --enable-protocol=file \
+            --enable-w32threads \
+            --disable-pthreads \
+            --disable-iconv \
+            --disable-zlib \
+            "${cc_args[@]}"
 
       - name: Build
         shell: msys2 {0}
         run: |
+          set -euo pipefail
           cd ffmpeg
-          mingw32-make -j$(nproc)
-          mingw32-make install
+          make -j"$(nproc)"
+          make install
+
+      - name: Finalize artifact layout
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          cd ffmpeg
+          mkdir -p out-minimal/include out-minimal/lib out-minimal/bin
+          echo "Installed DLLs in out-minimal/bin:"
+          ls -la out-minimal/bin || true
+
+          cat > out-minimal/BUILD-METADATA.txt <<EOF
+          ffmpeg workflow: build_windows_ffmpeg_lib.yml
+          profile: audio-only minimal
+          toolchain: msvc
+          threads: w32threads
+          ffmpeg_commit: $(git rev-parse HEAD)
+          EOF
+
+      - name: Validate runtime imports (no MinGW transitive deps)
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          cd ffmpeg
+
+          pick_dll() {
+            local prefix="$1"
+            local picked=""
+            shopt -s nullglob
+            local versioned=(out-minimal/bin/${prefix}-*.dll)
+            local plain=(out-minimal/bin/${prefix}.dll)
+            if [ "${#versioned[@]}" -gt 0 ]; then
+              picked="${versioned[0]}"
+            elif [ "${#plain[@]}" -gt 0 ]; then
+              picked="${plain[0]}"
+            else
+              echo "Missing ${prefix} DLL in out-minimal/bin"
+              ls -la out-minimal/bin || true
+              return 1
+            fi
+            echo "$picked"
+          }
+
+          avcodec_dll="$(pick_dll avcodec)"
+          avformat_dll="$(pick_dll avformat)"
+          avutil_dll="$(pick_dll avutil)"
+
+          for dll in "$avcodec_dll" "$avformat_dll" "$avutil_dll"; do
+            if objdump -p "$dll" | grep -Eqi "DLL Name: (libwinpthread-1\.dll|libiconv-2\.dll|zlib1\.dll)"; then
+              echo "Unexpected MinGW runtime dependency found in $dll"
+              objdump -p "$dll" | grep -Ei "DLL Name: (libwinpthread-1\.dll|libiconv-2\.dll|zlib1\.dll)" || true
+              exit 1
+            fi
+          done
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-minimal-windows-x64
-          path: ffmpeg/out
+          path: ffmpeg/out-minimal

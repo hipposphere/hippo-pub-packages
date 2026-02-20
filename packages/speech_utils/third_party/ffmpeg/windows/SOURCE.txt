@@ -8,16 +8,14 @@ Preferred CI build path:
 - Trigger `.github/workflows/build_windows_ffmpeg_lib.yml`
 - Default FFmpeg ref: `n8.0.1` (override via workflow input)
 
-The SDK is auto-built by the build hook when:
-- `SPEECH_UTILS_WINDOWS_FFMPEG_AUTOBUILD=1`
-- FFmpeg source is available (default path
-  `third_party/ffmpeg/source/ffmpeg`, or override with
-  `SPEECH_UTILS_WINDOWS_FFMPEG_SOURCE_DIR`)
+The SDK is expected to be produced by CI and then copied into
+`third_party/ffmpeg/windows`.
 
 Build profile configured in `hook/src/windows_ffmpeg_pipeline.dart`:
 - `--disable-everything`
 - `--disable-programs`
 - `--disable-doc`
+- `--disable-optimizations`
 - `--disable-network`
 - `--enable-shared`
 - `--disable-static`

@@ -303,22 +303,13 @@ Notes:
 
 Windows FFmpeg build notes:
 
-- If `third_party/ffmpeg/windows/{include,lib,bin}` is missing and auto-build
-  is not configured, Windows AAC/metadata native assets are skipped instead of
-  failing the whole app build.
-- Windows hook can auto-build a minimal FFmpeg profile when SDK artifacts are
-  missing.
-- Set `SPEECH_UTILS_WINDOWS_FFMPEG_AUTOBUILD=1`.
-- Optionally set `SPEECH_UTILS_WINDOWS_FFMPEG_SOURCE_DIR`; default source path
-  is `third_party/ffmpeg/source/ffmpeg`.
-- Set `SPEECH_UTILS_WINDOWS_FFMPEG_REQUIRED=1` to make missing FFmpeg SDK a
-  hard build error.
+- The hook expects a prebuilt SDK in
+  `third_party/ffmpeg/windows/{include,lib,bin}`.
+- Missing FFmpeg SDK now fails Windows AAC/metadata native asset build.
 - CI prebuild workflow:
   `.github/workflows/build_windows_ffmpeg_lib.yml` (manual trigger,
   uploads zipped `include/lib/bin` SDK artifact).
-- Generated/expected SDK layout is
-  `third_party/ffmpeg/windows/{include,lib,bin}` (runtime DLLs in `bin/` are
-  bundled automatically as native assets).
+- Runtime DLLs in `bin/` are bundled automatically as native assets.
 - See `third_party/ffmpeg/windows/README.md` for full details.
 
 ## Maintainers

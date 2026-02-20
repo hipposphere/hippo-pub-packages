@@ -87,6 +87,7 @@ jobs:
             --disable-programs \
             --disable-doc \
             --disable-debug \
+            --disable-optimizations \
             --disable-everything \
             --disable-network \
             --enable-small \

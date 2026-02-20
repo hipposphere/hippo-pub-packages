@@ -15,6 +15,7 @@ Build profile configured in `hook/src/windows_ffmpeg_pipeline.dart`:
 - `--disable-everything`
 - `--disable-programs`
 - `--disable-doc`
+- `--disable-optimizations`
 - `--disable-network`
 - `--enable-shared`
 - `--disable-static`

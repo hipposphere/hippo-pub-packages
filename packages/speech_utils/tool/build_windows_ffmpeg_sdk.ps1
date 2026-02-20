@@ -123,6 +123,7 @@ rm -rf "$outputDirMsys/include" "$outputDirMsys/lib" "$outputDirMsys/bin"
   --disable-network \
   --enable-shared \
   --disable-static \
+  --disable-optimizations \
   --enable-small \
   --enable-avcodec \
   --enable-avformat \

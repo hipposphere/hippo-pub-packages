@@ -42,6 +42,20 @@ function Assert-DirectoryExists {
   }
 }
 
+function Get-AbsolutePath {
+  param([Parameter(Mandatory = $true)][string]$Path)
+
+  if ([string]::IsNullOrWhiteSpace($Path)) {
+    throw "Path cannot be empty."
+  }
+
+  if ([System.IO.Path]::IsPathRooted($Path)) {
+    return [System.IO.Path]::GetFullPath($Path)
+  }
+
+  return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Path))
+}
+
 $packageRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
 if ([string]::IsNullOrWhiteSpace($SourceDir)) {
@@ -50,6 +64,9 @@ if ([string]::IsNullOrWhiteSpace($SourceDir)) {
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
   $OutputDir = Join-Path $packageRoot "third_party/ffmpeg/windows"
 }
+
+$SourceDir = Get-AbsolutePath -Path $SourceDir
+$OutputDir = Get-AbsolutePath -Path $OutputDir
 
 Assert-DirectoryExists -Path $SourceDir -Message "FFmpeg source directory does not exist: $SourceDir"
 Assert-FileExists `

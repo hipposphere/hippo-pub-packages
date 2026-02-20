@@ -10,6 +10,7 @@ import 'windows_ffmpeg_pipeline.dart';
 const _windowsAacAssetName = 'src/encoding/generated/windows_aac_bindings.dart';
 const _windowsAacLibraryBaseName = 'speech_utils_windows_aac_encoder';
 const _windowsFfmpegRuntimeAssetNamePrefix = 'src/encoding/generated/windows_ffmpeg_runtime';
+const _windowsFfmpegRequiredEnv = 'SPEECH_UTILS_WINDOWS_FFMPEG_REQUIRED';
 const _androidAacAssetName = 'src/encoding/generated/android_aac_bindings.dart';
 const _androidAacLibraryBaseName = 'speech_utils_android_aac_encoder';
 const _iosAacAssetName = 'src/encoding/generated/ios_aac_bindings.dart';
@@ -29,7 +30,24 @@ Future<void> buildWindowsAacEncoderAsset(BuildInput input, BuildOutputBuilder ou
     throw StateError('Missing Windows AAC encoder source file at ${source.path}.');
   }
 
-  final ffmpegSdk = await ensureWindowsFfmpegSdk(input);
+  final WindowsFfmpegSdk ffmpegSdk;
+  try {
+    ffmpegSdk = await ensureWindowsFfmpegSdk(input);
+  } on MissingWindowsFfmpegSdkException catch (error) {
+    if (_isTruthy(Platform.environment[_windowsFfmpegRequiredEnv])) {
+      rethrow;
+    }
+    stderr.writeln(
+      'speech_utils: Skipping Windows native AAC/metadata asset build '
+      'because FFmpeg SDK is not configured.',
+    );
+    stderr.writeln('speech_utils: $error');
+    stderr.writeln(
+      'speech_utils: Set $_windowsFfmpegRequiredEnv=1 to fail the build '
+      'when FFmpeg is missing.',
+    );
+    return;
+  }
   final runtimeDlls = collectWindowsFfmpegRuntimeDlls(ffmpegSdk);
 
   await CBuilder.library(
@@ -97,6 +115,14 @@ Future<void> buildAndroidAacEncoderAsset(BuildInput input, BuildOutputBuilder ou
     defines: {'__ANDROID_API__': '$effectiveNdkApi'},
     libraries: ['android', 'mediandk', 'log'],
   ).run(input: input, output: output);
+}
+
+bool _isTruthy(String? value) {
+  if (value == null) {
+    return false;
+  }
+  final normalized = value.trim().toLowerCase();
+  return normalized == '1' || normalized == 'true' || normalized == 'yes' || normalized == 'on';
 }
 
 Future<void> buildIosAacEncoderAsset(BuildInput input, BuildOutputBuilder output) async {

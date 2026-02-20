@@ -254,8 +254,12 @@ final class NativeAudioRecorder {
     _activeOutputPath = outputPath;
     _activeRecordingConfig = config;
     String nativeOutputPath = outputPath;
+    final useMacosDirectAacStart = _shouldUseNativeMacosDirectAacStart(
+      outputPath: outputPath,
+      config: config,
+    );
 
-    if (!config.encoding.encoder.supportsNativeStartFile) {
+    if (!config.encoding.encoder.supportsNativeStartFile && !useMacosDirectAacStart) {
       final tempDirectory = await Directory.systemTemp.createTemp('speech_utils_recorder_');
       _activeTempDirectory = tempDirectory;
       nativeOutputPath = path.join(tempDirectory.path, 'capture.wav');
@@ -517,6 +521,28 @@ final class NativeAudioRecorder {
     }
   }
 
+  bool _shouldUseNativeMacosDirectAacStart({
+    required String outputPath,
+    required AudioRecorderConfig config,
+  }) {
+    final isMacosAac =
+        _platform == NativeAudioRecorderPlatform.macOS && config.encoding.encoder.isAac;
+    if (!isMacosAac) {
+      return false;
+    }
+
+    final extension = path.extension(outputPath).toLowerCase();
+    if (extension != '.m4a') {
+      throw ArgumentError.value(
+        outputPath,
+        'outputPath',
+        'macOS direct AAC recording requires an .m4a output path.',
+      );
+    }
+
+    return true;
+  }
+
   void _validateVadSegmentationConfig({
     required AudioRecorderConfig config,
     required PauseSplitOptions splitOptions,
@@ -674,7 +700,9 @@ final class NativeAudioRecorder {
     }
 
     try {
-      if (!config.encoding.encoder.supportsNativeStartFile) {
+      final useMacosDirectAacStart =
+          _platform == NativeAudioRecorderPlatform.macOS && config.encoding.encoder.isAac;
+      if (!config.encoding.encoder.supportsNativeStartFile && !useMacosDirectAacStart) {
         if (tempWavPath == null) {
           throw StateError('Missing temporary WAV recording for encoded output.');
         }

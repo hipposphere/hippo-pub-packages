@@ -55,6 +55,54 @@ typedef void (*SpeechUtilsSampleBufferCallback)(void* context, CMSampleBufferRef
 
 @end
 
+#if !TARGET_OS_IPHONE
+@interface SpeechUtilsCaptureFileOutputDelegate : NSObject <AVCaptureFileOutputRecordingDelegate>
+- (instancetype)initWithDoneSemaphore:(dispatch_semaphore_t)done_semaphore;
+@property(nonatomic, strong, nullable) NSError* recordingError;
+@property(nonatomic, readonly) dispatch_semaphore_t doneSemaphore;
+@end
+
+@implementation SpeechUtilsCaptureFileOutputDelegate {
+  dispatch_semaphore_t done_semaphore_;
+}
+
+- (instancetype)initWithDoneSemaphore:(dispatch_semaphore_t)done_semaphore {
+  self = [super init];
+  if (self != nil) {
+    done_semaphore_ = done_semaphore;
+    _recordingError = nil;
+  }
+  return self;
+}
+
+- (dispatch_semaphore_t)doneSemaphore {
+  return done_semaphore_;
+}
+
+- (void)captureOutput:(AVCaptureFileOutput*)output
+    didStartRecordingToOutputFileAtURL:(NSURL*)fileURL
+                       fromConnections:(NSArray<AVCaptureConnection*>*)connections {
+  (void)output;
+  (void)fileURL;
+  (void)connections;
+}
+
+- (void)captureOutput:(AVCaptureFileOutput*)output
+    didFinishRecordingToOutputFileAtURL:(NSURL*)outputFileURL
+                         fromConnections:(NSArray<AVCaptureConnection*>*)connections
+                                   error:(NSError*)error {
+  (void)output;
+  (void)outputFileURL;
+  (void)connections;
+  _recordingError = error;
+  if (done_semaphore_ != nil) {
+    dispatch_semaphore_signal(done_semaphore_);
+  }
+}
+
+@end
+#endif
+
 namespace {
 void WriteError(const std::string& message, char* out_error_utf8, uint32_t out_error_capacity) {
   if (out_error_utf8 == nullptr || out_error_capacity == 0) {
@@ -436,6 +484,14 @@ class AppleAudioRecorderState {
       return -3;
     }
 
+#if !TARGET_OS_IPHONE
+    const NSString* output_extension = [[output_path pathExtension] lowercaseString];
+    if (output_extension.length > 0 && [output_extension isEqualToString:@"m4a"]) {
+      return StartMacosAacFile(output_path, sample_rate_hz, channel_count, input_device_id_utf8,
+                               error_utf8, error_utf8_capacity);
+    }
+#endif
+
     return StartInternal(sample_rate_hz, channel_count, 1024, RecorderMode::kFile, output_path,
                          input_device_id_utf8, error_utf8, error_utf8_capacity);
   }
@@ -481,10 +537,17 @@ class AppleAudioRecorderState {
     AVCaptureSession* capture_session = nil;
     AVCaptureDeviceInput* capture_input = nil;
     AVCaptureAudioDataOutput* capture_output = nil;
+#if !TARGET_OS_IPHONE
+    AVCaptureAudioFileOutput* capture_file_output = nil;
+    SpeechUtilsCaptureFileOutputDelegate* capture_file_delegate = nil;
+    dispatch_semaphore_t capture_file_done_semaphore = nil;
+#endif
     FILE* wav_file = nullptr;
     uint32_t wav_data_bytes_written = 0;
     uint32_t wav_sample_rate_hz = 0;
     uint32_t wav_channel_count = 0;
+    int32_t deferred_error_code = 0;
+    std::string deferred_error;
 
     {
       std::lock_guard<std::mutex> lock(mutex_);
@@ -511,17 +574,47 @@ class AppleAudioRecorderState {
       capture_session = capture_session_;
       capture_input = capture_input_;
       capture_output = capture_output_;
+#if !TARGET_OS_IPHONE
+      capture_file_output = capture_file_output_;
+      capture_file_delegate = capture_file_delegate_;
+      capture_file_done_semaphore = capture_file_done_semaphore_;
+#endif
 
       capture_session_ = nil;
       capture_input_ = nil;
       capture_output_ = nil;
       capture_delegate_ = nil;
       capture_queue_ = nil;
+#if !TARGET_OS_IPHONE
+      capture_file_output_ = nil;
+      capture_file_delegate_ = nil;
+      capture_file_done_semaphore_ = nil;
+#endif
     }
 
     if (capture_output != nil) {
       [capture_output setSampleBufferDelegate:nil queue:nil];
     }
+
+#if !TARGET_OS_IPHONE
+    if (capture_file_output != nil && [capture_file_output isRecording]) {
+      [capture_file_output stopRecording];
+      if (capture_file_done_semaphore != nil) {
+        const auto wait_result = dispatch_semaphore_wait(
+            capture_file_done_semaphore, dispatch_time(DISPATCH_TIME_NOW, 30LL * NSEC_PER_SEC));
+        if (wait_result != 0 && deferred_error_code == 0) {
+          deferred_error_code = -24;
+          deferred_error = "Timed out while finalizing direct AAC recording.";
+        }
+      }
+      if (capture_file_delegate != nil && capture_file_delegate.recordingError != nil &&
+          deferred_error_code == 0) {
+        deferred_error_code = -25;
+        deferred_error = std::string("Direct AAC recording failed: ") +
+                         [[capture_file_delegate.recordingError localizedDescription] UTF8String];
+      }
+    }
+#endif
 
     if (capture_session != nil) {
       [capture_session stopRunning];
@@ -529,6 +622,12 @@ class AppleAudioRecorderState {
       if (capture_output != nil && [capture_session.outputs containsObject:capture_output]) {
         [capture_session removeOutput:capture_output];
       }
+#if !TARGET_OS_IPHONE
+      if (capture_file_output != nil &&
+          [capture_session.outputs containsObject:capture_file_output]) {
+        [capture_session removeOutput:capture_file_output];
+      }
+#endif
       if (capture_input != nil && [capture_session.inputs containsObject:capture_input]) {
         [capture_session removeInput:capture_input];
       }
@@ -558,8 +657,10 @@ class AppleAudioRecorderState {
     [audio_session setActive:NO error:nil];
 #endif
 
-    (void)error_utf8;
-    (void)error_utf8_capacity;
+    if (deferred_error_code != 0) {
+      WriteError(deferred_error, error_utf8, error_utf8_capacity);
+      return deferred_error_code;
+    }
     return 0;
   }
 
@@ -589,6 +690,146 @@ class AppleAudioRecorderState {
   }
 
  private:
+#if !TARGET_OS_IPHONE
+  int32_t StartMacosAacFile(NSString* output_path, uint32_t sample_rate_hz, uint32_t channel_count,
+                            const char* input_device_id_utf8, char* error_utf8,
+                            uint32_t error_utf8_capacity) {
+    int32_t has_permission = 0;
+    if (!EnsureAudioInputPermission(&has_permission, false, error_utf8, error_utf8_capacity)) {
+      return -4;
+    }
+    if (has_permission == 0) {
+      WriteError("Microphone permission not granted.", error_utf8, error_utf8_capacity);
+      return -5;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (mode_ != RecorderMode::kStopped) {
+      WriteError("Recorder is already running.", error_utf8, error_utf8_capacity);
+      return -6;
+    }
+
+    const std::string effective_input_device_id = TrimAscii(input_device_id_utf8);
+    AVCaptureDevice* capture_device = nil;
+    if (!effective_input_device_id.empty()) {
+      NSString* requested_uid = [NSString stringWithUTF8String:effective_input_device_id.c_str()];
+      if (requested_uid == nil || requested_uid.length == 0) {
+        WriteError("Input device id UTF-8 decoding failed.", error_utf8, error_utf8_capacity);
+        return -13;
+      }
+      capture_device = FindAudioCaptureDeviceByUniqueId(requested_uid);
+      if (capture_device == nil) {
+        WriteError("Selected macOS input device is not available.", error_utf8,
+                   error_utf8_capacity);
+        return -14;
+      }
+    }
+
+    if (capture_device == nil) {
+      capture_device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
+    }
+    if (capture_device == nil) {
+      WriteError("Audio capture device is unavailable.", error_utf8, error_utf8_capacity);
+      return -15;
+    }
+
+    NSError* input_error = nil;
+    AVCaptureDeviceInput* capture_input =
+        [AVCaptureDeviceInput deviceInputWithDevice:capture_device error:&input_error];
+    if (capture_input == nil) {
+      WriteNSError(input_error, "Failed to create AVCaptureDeviceInput", error_utf8,
+                   error_utf8_capacity);
+      return -16;
+    }
+
+    AVCaptureSession* capture_session = [[AVCaptureSession alloc] init];
+    AVCaptureAudioFileOutput* capture_file_output = [[AVCaptureAudioFileOutput alloc] init];
+    if (capture_session == nil || capture_file_output == nil) {
+      WriteError("Failed to initialize AVCaptureSession objects.", error_utf8,
+                 error_utf8_capacity);
+      return -17;
+    }
+
+    NSFileManager* file_manager = [NSFileManager defaultManager];
+    if ([file_manager fileExistsAtPath:output_path]) {
+      NSError* remove_error = nil;
+      if (![file_manager removeItemAtPath:output_path error:&remove_error]) {
+        WriteNSError(remove_error, "Failed to remove existing output file", error_utf8,
+                     error_utf8_capacity);
+        return -21;
+      }
+    }
+
+    NSDictionary<NSString*, id>* audio_settings = @{
+      AVFormatIDKey : @(kAudioFormatMPEG4AAC),
+      AVSampleRateKey : @(static_cast<double>(sample_rate_hz)),
+      AVNumberOfChannelsKey : @(channel_count),
+      AVEncoderBitRateKey : @64000,
+    };
+    capture_file_output.audioSettings = audio_settings;
+
+    dispatch_semaphore_t done_semaphore = dispatch_semaphore_create(0);
+    SpeechUtilsCaptureFileOutputDelegate* file_delegate =
+        [[SpeechUtilsCaptureFileOutputDelegate alloc] initWithDoneSemaphore:done_semaphore];
+
+    [capture_session beginConfiguration];
+    if (![capture_session canAddInput:capture_input]) {
+      [capture_session commitConfiguration];
+      WriteError("Failed to add audio input to AVCaptureSession.", error_utf8,
+                 error_utf8_capacity);
+      return -18;
+    }
+    [capture_session addInput:capture_input];
+
+    if (![capture_session canAddOutput:capture_file_output]) {
+      [capture_session removeInput:capture_input];
+      [capture_session commitConfiguration];
+      WriteError("Failed to add audio file output to AVCaptureSession.", error_utf8,
+                 error_utf8_capacity);
+      return -19;
+    }
+    [capture_session addOutput:capture_file_output];
+    [capture_session commitConfiguration];
+
+    [capture_session startRunning];
+    if (![capture_session isRunning]) {
+      [capture_session beginConfiguration];
+      [capture_session removeOutput:capture_file_output];
+      [capture_session removeInput:capture_input];
+      [capture_session commitConfiguration];
+      WriteError("Failed to start AVCaptureSession.", error_utf8, error_utf8_capacity);
+      return -23;
+    }
+
+    NSURL* output_url = [NSURL fileURLWithPath:output_path];
+    [capture_file_output startRecordingToOutputFileURL:output_url
+                                        outputFileType:AVFileTypeAppleM4A
+                                       recordingDelegate:file_delegate];
+
+    stream_samples_.clear();
+    stream_sample_limit_ = std::max<std::size_t>(sample_rate_hz * channel_count * 5, 1024 * channel_count * 16);
+    target_channel_count_ = 0;
+    target_format_ = nil;
+    wav_file_ = nullptr;
+    wav_data_bytes_written_ = 0;
+    wav_sample_rate_hz_ = 0;
+    wav_channel_count_ = 0;
+
+    capture_session_ = capture_session;
+    capture_input_ = capture_input;
+    capture_output_ = nil;
+    capture_delegate_ = nil;
+    capture_queue_ = nil;
+    capture_file_output_ = capture_file_output;
+    capture_file_delegate_ = file_delegate;
+    capture_file_done_semaphore_ = done_semaphore;
+    current_amplitude_dbfs_ = -90.0;
+    max_amplitude_dbfs_ = -90.0;
+    mode_ = RecorderMode::kFile;
+    return 0;
+  }
+#endif
+
   int32_t StartInternal(uint32_t sample_rate_hz, uint32_t channel_count, uint32_t frames_per_chunk,
                         RecorderMode mode, NSString* output_path, const char* input_device_id_utf8,
                         char* error_utf8, uint32_t error_utf8_capacity) {
@@ -848,6 +1089,11 @@ class AppleAudioRecorderState {
     capture_output_ = capture_output;
     capture_delegate_ = capture_delegate;
     capture_queue_ = capture_queue;
+#if !TARGET_OS_IPHONE
+    capture_file_output_ = nil;
+    capture_file_delegate_ = nil;
+    capture_file_done_semaphore_ = nil;
+#endif
     current_amplitude_dbfs_ = -90.0;
     max_amplitude_dbfs_ = -90.0;
 
@@ -1043,6 +1289,11 @@ class AppleAudioRecorderState {
   AVCaptureAudioDataOutput* capture_output_ = nil;
   SpeechUtilsCaptureOutputDelegate* capture_delegate_ = nil;
   dispatch_queue_t capture_queue_ = nil;
+#if !TARGET_OS_IPHONE
+  AVCaptureAudioFileOutput* capture_file_output_ = nil;
+  SpeechUtilsCaptureFileOutputDelegate* capture_file_delegate_ = nil;
+  dispatch_semaphore_t capture_file_done_semaphore_ = nil;
+#endif
 };
 
 AppleAudioRecorderState g_recorder;

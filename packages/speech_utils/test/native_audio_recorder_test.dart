@@ -267,7 +267,7 @@ void main() {
       );
     });
 
-    test('start supports AAC encoding by transcoding temp WAV on stop', () async {
+    test('start uses direct macOS AAC file output for m4a', () async {
       final fakeAacEncoder = _FakeAacEncoder();
       late String nativeOutputPath;
       var stopCalls = 0;
@@ -315,13 +315,48 @@ void main() {
         ),
       );
 
-      expect(nativeOutputPath, isNot('/tmp/recording.m4a'));
-      expect(nativeOutputPath.endsWith('.wav'), isTrue);
+      expect(nativeOutputPath, '/tmp/recording.m4a');
       await recorder.stop();
 
       expect(stopCalls, 1);
-      expect(fakeAacEncoder.encodeAudioFileToAacCalls, 1);
-      expect(fakeAacEncoder.lastEncodeAudioOutputPath, '/tmp/recording.m4a');
+      expect(fakeAacEncoder.encodeAudioFileToAacCalls, 0);
+    });
+
+    test('start rejects non-m4a output for direct macOS AAC recording', () {
+      final recorder = NativeAudioRecorder(
+        platform: NativeAudioRecorderPlatform.macOS,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readStreamFn: ({required maxSamples}) => Uint8List(0),
+        stopFn: () {},
+        isRecordingFn: () => true,
+      );
+
+      expect(
+        () => recorder.start(
+          outputPath: '/tmp/recording.wav',
+          config: const AudioRecorderConfig(
+            encoding: AudioEncodingConfig(encoder: AudioEncoder.aacLc),
+          ),
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
     });
 
     test('onAmplitudeChanged emits native amplitude updates', () async {

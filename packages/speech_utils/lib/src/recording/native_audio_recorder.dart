@@ -326,6 +326,8 @@ final class NativeAudioRecorder {
     _streamTimer = Timer.periodic(pollInterval, (_) {
       _drainNativeStream();
     });
+    // Avoid waiting for the first timer tick before attempting to surface data.
+    _drainNativeStream();
 
     return controller.stream;
   }

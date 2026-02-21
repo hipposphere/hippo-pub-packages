@@ -67,3 +67,40 @@ Use:
 - `AAC options` to enable/disable automatic snippet or whole-recording conversion and compare file-size changes.
 - `VAD tuning` sliders to adjust live speech detection sensitivity.
 - `Run Synthetic API Checks` to test all package functions.
+
+## Integration Test: Mic Latency + VAD/AAC Pipeline
+
+This repository includes a desktop integration test at:
+
+- `integration_test/mic_pipeline_integration_test.dart`
+
+What it validates:
+
+- first non-empty microphone PCM chunk capture latency from `NativeAudioRecorder.startStream(...)`
+- end-to-end `startWithVadSegmentation(...)` pipeline with VAD + native AAC encoding
+- encoded segment metadata through `NativeAudioMetadataReader`
+
+Run on macOS:
+
+```bash
+cd packages/speech_utils/example
+flutter test integration_test/mic_pipeline_integration_test.dart -d macos
+```
+
+Run on Windows:
+
+```bash
+cd packages/speech_utils/example
+flutter test integration_test/mic_pipeline_integration_test.dart -d windows
+```
+
+Optional latency threshold tuning (milliseconds):
+
+```bash
+flutter test integration_test/mic_pipeline_integration_test.dart -d macos --dart-define=SPEECH_UTILS_MAX_FIRST_AUDIO_LATENCY_MS=800
+```
+
+Notes:
+
+- The test requires an available microphone and granted microphone permission.
+- The VAD pipeline test uses permissive Energy VAD thresholds so it still validates end-to-end flow in quiet environments.

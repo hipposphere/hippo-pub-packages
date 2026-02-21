@@ -49,11 +49,20 @@ Future<void> buildIosAudioRecorderAsset(BuildInput input, BuildOutputBuilder out
     label: 'iOS audio recorder',
   );
 
+  requireSourceFile(
+    input,
+    relativePath: 'native/apple/recorder/speech_utils_apple_audio_recorder_impl.mm',
+    label: 'iOS audio recorder',
+  );
+
   await CBuilder.library(
     name: _iosAudioRecorderLibraryBaseName,
     assetName: _iosAudioRecorderAssetName,
     language: Language.objectiveC,
-    sources: ['native/apple/speech_utils_apple_audio_recorder.mm'],
+    sources: [
+      'native/apple/speech_utils_apple_audio_recorder.mm',
+      'native/apple/recorder/speech_utils_apple_audio_recorder_impl.mm',
+    ],
     std: 'c++17',
     flags: appleObjectiveCArcFlags,
     defines: const {'SPEECH_UTILS_AUDIO_RECORDER_TARGET_IOS': '1'},
@@ -73,11 +82,20 @@ Future<void> buildMacosAudioRecorderAsset(BuildInput input, BuildOutputBuilder o
     label: 'macOS audio recorder',
   );
 
+  requireSourceFile(
+    input,
+    relativePath: 'native/apple/recorder/speech_utils_apple_audio_recorder_impl.mm',
+    label: 'macOS audio recorder',
+  );
+
   await CBuilder.library(
     name: _macosAudioRecorderLibraryBaseName,
     assetName: _macosAudioRecorderAssetName,
     language: Language.objectiveC,
-    sources: ['native/apple/speech_utils_apple_audio_recorder.mm'],
+    sources: [
+      'native/apple/speech_utils_apple_audio_recorder.mm',
+      'native/apple/recorder/speech_utils_apple_audio_recorder_impl.mm',
+    ],
     std: 'c++17',
     flags: appleObjectiveCArcFlags,
     defines: const {'SPEECH_UTILS_AUDIO_RECORDER_TARGET_MACOS': '1'},

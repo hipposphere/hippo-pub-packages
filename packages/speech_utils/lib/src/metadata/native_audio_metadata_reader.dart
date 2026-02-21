@@ -4,10 +4,9 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 
 import '../encoding/generated/android_aac_bindings.dart' as android_bindings;
-import '../encoding/generated/ios_aac_bindings.dart' as ios_bindings;
+import '../metadata/generated/apple_audio_metadata_bindings.dart' as apple_metadata_bindings;
 import '../encoding/generated/windows_aac_bindings.dart' as windows_bindings;
 import '../model/audio_metadata.dart';
-import 'generated/macos_audio_metadata_bindings.dart' as macos_bindings;
 
 typedef NativeAudioMetadataReadFn = AudioMetadataNativeResult Function(String inputPath);
 typedef NativeAudioMetadataAvailabilityFn = bool Function();
@@ -70,13 +69,13 @@ final class NativeAudioMetadataReader {
     NativeAudioMetadataAvailabilityFn? iosAvailabilityFn,
   }) : _platform = platform ?? _detectNativeAudioMetadataPlatform(),
        _macosReadFn = macosReadFn ?? _readAudioMetadataViaMacosFfi,
-       _macosAvailabilityFn = macosAvailabilityFn ?? _isMacosAudioMetadataAvailableViaFfi,
+       _macosAvailabilityFn = macosAvailabilityFn ?? _isAppleAudioMetadataAvailableViaFfi,
        _windowsReadFn = windowsReadFn ?? _readAudioMetadataViaWindowsFfi,
        _windowsAvailabilityFn = windowsAvailabilityFn ?? _isWindowsAudioMetadataAvailableViaFfi,
        _androidReadFn = androidReadFn ?? _readAudioMetadataViaAndroidFfi,
        _androidAvailabilityFn = androidAvailabilityFn ?? _isAndroidAudioMetadataAvailableViaFfi,
        _iosReadFn = iosReadFn ?? _readAudioMetadataViaIosFfi,
-       _iosAvailabilityFn = iosAvailabilityFn ?? _isIosAudioMetadataAvailableViaFfi;
+       _iosAvailabilityFn = iosAvailabilityFn ?? _isAppleAudioMetadataAvailableViaFfi;
 
   final NativeAudioMetadataPlatform _platform;
   final NativeAudioMetadataReadFn _macosReadFn;
@@ -191,24 +190,44 @@ NativeAudioMetadataPlatform _detectNativeAudioMetadataPlatform() {
 const _metadataErrorBufferBytes = 4096;
 const _metadataTextBufferBytes = 256;
 
-bool _isMacosAudioMetadataAvailableViaFfi() {
-  final errorPtr = calloc<ffi.Char>(_metadataErrorBufferBytes);
-  try {
-    try {
-      final code = macos_bindings.speech_utils_macos_audio_metadata_healthcheck(
-        errorPtr,
-        _metadataErrorBufferBytes,
-      );
-      return code == 0;
-    } on Object {
-      return false;
-    }
-  } finally {
-    calloc.free(errorPtr);
-  }
+bool _isAppleAudioMetadataAvailableViaFfi() {
+  return true;
 }
 
 AudioMetadataNativeResult _readAudioMetadataViaMacosFfi(String inputPath) {
+  return _readAudioMetadataViaAppleFfi(
+    inputPath: inputPath,
+    function: apple_metadata_bindings.speech_utils_macos_read_audio_metadata,
+  );
+}
+
+AudioMetadataNativeResult _readAudioMetadataViaIosFfi(String inputPath) {
+  return _readAudioMetadataViaAppleFfi(
+    inputPath: inputPath,
+    function: apple_metadata_bindings.speech_utils_ios_read_audio_metadata,
+  );
+}
+
+typedef _AppleAudioMetadataFfi = int Function(
+  ffi.Pointer<ffi.Char> inputPathUtf8,
+  ffi.Pointer<ffi.Int64> outDurationMicros,
+  ffi.Pointer<ffi.Int32> outSampleRateHz,
+  ffi.Pointer<ffi.Int32> outChannelCount,
+  ffi.Pointer<ffi.Int32> outBitrateBps,
+  ffi.Pointer<ffi.Char> outContainerFormatUtf8,
+  int outContainerFormatUtf8Capacity,
+  ffi.Pointer<ffi.Char> outCodecUtf8,
+  int outCodecUtf8Capacity,
+  ffi.Pointer<ffi.Char> outCodecProfileUtf8,
+  int outCodecProfileUtf8Capacity,
+  ffi.Pointer<ffi.Char> errorUtf8,
+  int errorUtf8Capacity,
+);
+
+AudioMetadataNativeResult _readAudioMetadataViaAppleFfi({
+  required String inputPath,
+  required _AppleAudioMetadataFfi function,
+}) {
   final inputPathPtr = inputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
   final outDurationPtr = calloc<ffi.Int64>();
   final outSampleRatePtr = calloc<ffi.Int32>();
@@ -220,7 +239,7 @@ AudioMetadataNativeResult _readAudioMetadataViaMacosFfi(String inputPath) {
   final errorPtr = calloc<ffi.Char>(_metadataErrorBufferBytes);
 
   try {
-    final code = macos_bindings.speech_utils_macos_read_audio_metadata(
+    final code = function(
       inputPathPtr,
       outDurationPtr,
       outSampleRatePtr,
@@ -365,78 +384,6 @@ AudioMetadataNativeResult _readAudioMetadataViaAndroidFfi(String inputPath) {
 
   try {
     final code = android_bindings.speech_utils_android_read_audio_metadata(
-      inputPathPtr,
-      outDurationPtr,
-      outSampleRatePtr,
-      outChannelCountPtr,
-      outBitratePtr,
-      outContainerFormatPtr,
-      _metadataTextBufferBytes,
-      outCodecPtr,
-      _metadataTextBufferBytes,
-      outCodecProfilePtr,
-      _metadataTextBufferBytes,
-      errorPtr,
-      _metadataErrorBufferBytes,
-    );
-    final containerFormat = outContainerFormatPtr.cast<Utf8>().toDartString();
-    final codec = outCodecPtr.cast<Utf8>().toDartString();
-    final codecProfile = outCodecProfilePtr.cast<Utf8>().toDartString();
-    final error = errorPtr.cast<Utf8>().toDartString();
-    return AudioMetadataNativeResult(
-      resultCode: code,
-      durationMicros: outDurationPtr.value,
-      sampleRateHz: outSampleRatePtr.value,
-      channelCount: outChannelCountPtr.value,
-      bitrateBps: outBitratePtr.value,
-      containerFormat: containerFormat.isEmpty ? null : containerFormat,
-      codec: codec.isEmpty ? null : codec,
-      codecProfile: codecProfile.isEmpty ? null : codecProfile,
-      error: error.isEmpty ? null : error,
-    );
-  } finally {
-    calloc.free(inputPathPtr);
-    calloc.free(outDurationPtr);
-    calloc.free(outSampleRatePtr);
-    calloc.free(outChannelCountPtr);
-    calloc.free(outBitratePtr);
-    calloc.free(outContainerFormatPtr);
-    calloc.free(outCodecPtr);
-    calloc.free(outCodecProfilePtr);
-    calloc.free(errorPtr);
-  }
-}
-
-bool _isIosAudioMetadataAvailableViaFfi() {
-  final errorPtr = calloc<ffi.Char>(_metadataErrorBufferBytes);
-  try {
-    try {
-      final code = ios_bindings.speech_utils_ios_audio_metadata_healthcheck(
-        errorPtr,
-        _metadataErrorBufferBytes,
-      );
-      return code == 0;
-    } on Object {
-      return false;
-    }
-  } finally {
-    calloc.free(errorPtr);
-  }
-}
-
-AudioMetadataNativeResult _readAudioMetadataViaIosFfi(String inputPath) {
-  final inputPathPtr = inputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-  final outDurationPtr = calloc<ffi.Int64>();
-  final outSampleRatePtr = calloc<ffi.Int32>();
-  final outChannelCountPtr = calloc<ffi.Int32>();
-  final outBitratePtr = calloc<ffi.Int32>();
-  final outContainerFormatPtr = calloc<ffi.Char>(_metadataTextBufferBytes);
-  final outCodecPtr = calloc<ffi.Char>(_metadataTextBufferBytes);
-  final outCodecProfilePtr = calloc<ffi.Char>(_metadataTextBufferBytes);
-  final errorPtr = calloc<ffi.Char>(_metadataErrorBufferBytes);
-
-  try {
-    final code = ios_bindings.speech_utils_ios_read_audio_metadata(
       inputPathPtr,
       outDurationPtr,
       outSampleRatePtr,

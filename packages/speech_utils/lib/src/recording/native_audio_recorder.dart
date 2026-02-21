@@ -254,12 +254,12 @@ final class NativeAudioRecorder {
     _activeOutputPath = outputPath;
     _activeRecordingConfig = config;
     String nativeOutputPath = outputPath;
-    final useMacosDirectAacStart = _shouldUseNativeMacosDirectAacStart(
+    final useAppleDirectAacStart = _shouldUseNativeAppleDirectAacStart(
       outputPath: outputPath,
       config: config,
     );
 
-    if (!config.encoding.encoder.supportsNativeStartFile && !useMacosDirectAacStart) {
+    if (!config.encoding.encoder.supportsNativeStartFile && !useAppleDirectAacStart) {
       final tempDirectory = await Directory.systemTemp.createTemp('speech_utils_recorder_');
       _activeTempDirectory = tempDirectory;
       nativeOutputPath = path.join(tempDirectory.path, 'capture.wav');
@@ -521,13 +521,14 @@ final class NativeAudioRecorder {
     }
   }
 
-  bool _shouldUseNativeMacosDirectAacStart({
+  bool _shouldUseNativeAppleDirectAacStart({
     required String outputPath,
     required AudioRecorderConfig config,
   }) {
-    final isMacosAac =
-        _platform == NativeAudioRecorderPlatform.macOS && config.encoding.encoder.isAac;
-    if (!isMacosAac) {
+    final isAppleAac = (_platform == NativeAudioRecorderPlatform.macOS ||
+            _platform == NativeAudioRecorderPlatform.iOS) &&
+        config.encoding.encoder.isAac;
+    if (!isAppleAac) {
       return false;
     }
 
@@ -536,7 +537,7 @@ final class NativeAudioRecorder {
       throw ArgumentError.value(
         outputPath,
         'outputPath',
-        'macOS direct AAC recording requires an .m4a output path.',
+        'Apple direct AAC recording requires an .m4a output path.',
       );
     }
 
@@ -700,9 +701,11 @@ final class NativeAudioRecorder {
     }
 
     try {
-      final useMacosDirectAacStart =
-          _platform == NativeAudioRecorderPlatform.macOS && config.encoding.encoder.isAac;
-      if (!config.encoding.encoder.supportsNativeStartFile && !useMacosDirectAacStart) {
+      final useAppleDirectAacStart = _shouldUseNativeAppleDirectAacStart(
+        outputPath: outputPath,
+        config: config,
+      );
+      if (!config.encoding.encoder.supportsNativeStartFile && !useAppleDirectAacStart) {
         if (tempWavPath == null) {
           throw StateError('Missing temporary WAV recording for encoded output.');
         }
@@ -935,9 +938,9 @@ NativeAudioRecorderPlatform _detectNativeAudioRecorderPlatform() {
 
 NativeAudioRecorderAvailabilityFn _resolveAvailabilityFn(NativeAudioRecorderPlatform platform) {
   return switch (platform) {
-    NativeAudioRecorderPlatform.macOS => _isMacosAudioRecorderAvailableViaFfi,
+    NativeAudioRecorderPlatform.macOS => () => true,
     NativeAudioRecorderPlatform.windows => _isWindowsAudioRecorderAvailableViaFfi,
-    NativeAudioRecorderPlatform.iOS => _isIosAudioRecorderAvailableViaFfi,
+    NativeAudioRecorderPlatform.iOS => () => true,
     NativeAudioRecorderPlatform.unsupported => () => false,
   };
 }
@@ -1285,10 +1288,6 @@ void _throwRecorderExceptionIfNeeded({
   );
 }
 
-bool _isMacosAudioRecorderAvailableViaFfi() {
-  return _runRecorderHealthcheck(macos_bindings.speech_utils_macos_audio_recorder_healthcheck);
-}
-
 bool _hasMacosMicrophonePermissionViaFfi() {
   return _runRecorderBoolCall(
     macos_bindings.speech_utils_macos_audio_recorder_has_permission,
@@ -1455,10 +1454,6 @@ Amplitude _getWindowsAudioRecorderAmplitudeViaFfi() {
     windows_bindings.speech_utils_windows_audio_recorder_get_amplitude,
     operation: 'Windows recorder amplitude read',
   );
-}
-
-bool _isIosAudioRecorderAvailableViaFfi() {
-  return _runRecorderHealthcheck(ios_bindings.speech_utils_ios_audio_recorder_healthcheck);
 }
 
 bool _hasIosMicrophonePermissionViaFfi() {

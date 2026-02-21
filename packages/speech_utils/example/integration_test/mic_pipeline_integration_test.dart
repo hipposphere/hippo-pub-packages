@@ -159,6 +159,13 @@ void main() {
           contains('aac'),
           reason: 'Encoded VAD segment must be AAC.',
         );
+        if (Platform.isWindows) {
+          expect(
+            metadata.codecProfile?.trim().isNotEmpty ?? false,
+            isTrue,
+            reason: 'Windows FFmpeg metadata should expose AAC codecProfile.',
+          );
+        }
       } finally {
         await recorder.stop();
         await recorder.dispose();

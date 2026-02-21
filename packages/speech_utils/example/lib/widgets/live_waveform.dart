@@ -23,34 +23,36 @@ class LiveWaveformPanel extends StatelessWidget {
         ? colorScheme.primary
         : colorScheme.secondary;
 
-    return SizedBox(
-      height: height,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              colorScheme.surfaceContainerHigh.withValues(alpha: 0.95),
-              colorScheme.surfaceContainerLow.withValues(alpha: 0.75),
-            ],
-          ),
-          border: Border.all(
-            color: colorScheme.outlineVariant.withValues(
-              alpha: isActive ? 0.9 : 0.65,
+    return ExcludeSemantics(
+      child: SizedBox(
+        height: height,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                colorScheme.surfaceContainerHigh.withValues(alpha: 0.95),
+                colorScheme.surfaceContainerLow.withValues(alpha: 0.75),
+              ],
+            ),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(
+                alpha: isActive ? 0.9 : 0.65,
+              ),
             ),
           ),
-        ),
-        child: CustomPaint(
-          painter: _LiveWaveformPainter(
-            samples: samples,
-            waveformColor: waveformColor,
-            baselineColor: colorScheme.outlineVariant,
-            gridColor: colorScheme.outlineVariant.withValues(alpha: 0.3),
-            isActive: isActive,
+          child: CustomPaint(
+            painter: _LiveWaveformPainter(
+              samples: samples,
+              waveformColor: waveformColor,
+              baselineColor: colorScheme.outlineVariant,
+              gridColor: colorScheme.outlineVariant.withValues(alpha: 0.3),
+              isActive: isActive,
+            ),
+            child: const SizedBox.expand(),
           ),
-          child: const SizedBox.expand(),
         ),
       ),
     );

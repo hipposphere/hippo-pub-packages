@@ -7,6 +7,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:speech_utils/speech_utils.dart';
+import 'package:speech_utils_example/widgets/example_dropdown_form_field.dart';
 import 'package:speech_utils_example/widgets/live_waveform.dart';
 import 'package:speech_utils_example/widgets/theme_controls.dart';
 
@@ -1134,30 +1135,24 @@ class _IntegratedVadCompressionPageState
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String?>(
+                  child: ExampleDropdownFormField<String?>(
                     initialValue: selectedDeviceId,
                     decoration: const InputDecoration(
                       labelText: 'Input device',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    items: <DropdownMenuItem<String?>>[
-                      const DropdownMenuItem<String?>(
+                    options: <ExampleDropdownOption<String?>>[
+                      const ExampleDropdownOption<String?>(
                         value: null,
-                        child: Text(
-                          'System default',
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        label: 'System default',
                       ),
                       ..._inputDevices.map(
-                        (device) => DropdownMenuItem<String?>(
+                        (device) => ExampleDropdownOption<String?>(
                           value: device.id,
-                          child: Text(
-                            device.isDefault
-                                ? '${device.label} (Default)'
-                                : device.label,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          label: device.isDefault
+                              ? '${device.label} (Default)'
+                              : device.label,
                         ),
                       ),
                     ],
@@ -1221,20 +1216,20 @@ class _IntegratedVadCompressionPageState
             const Divider(height: 24),
             Text('Audio Config', style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int?>(
+            ExampleDropdownFormField<int?>(
               initialValue: _sampleRateHz,
               decoration: const InputDecoration(
                 labelText: 'Sample Rate',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              items: const [
-                DropdownMenuItem(value: null, child: Text('-- Auto --')),
-                DropdownMenuItem(value: 8000, child: Text('8000 Hz')),
-                DropdownMenuItem(value: 16000, child: Text('16000 Hz')),
-                DropdownMenuItem(value: 32000, child: Text('32000 Hz')),
-                DropdownMenuItem(value: 44100, child: Text('44100 Hz')),
-                DropdownMenuItem(value: 48000, child: Text('48000 Hz')),
+              options: const [
+                ExampleDropdownOption(value: null, label: '-- Auto --'),
+                ExampleDropdownOption(value: 8000, label: '8000 Hz'),
+                ExampleDropdownOption(value: 16000, label: '16000 Hz'),
+                ExampleDropdownOption(value: 32000, label: '32000 Hz'),
+                ExampleDropdownOption(value: 44100, label: '44100 Hz'),
+                ExampleDropdownOption(value: 48000, label: '48000 Hz'),
               ],
               onChanged: _isLiveStreaming
                   ? null
@@ -1245,16 +1240,16 @@ class _IntegratedVadCompressionPageState
                     },
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
+            ExampleDropdownFormField<int>(
               initialValue: _channelCount,
               decoration: const InputDecoration(
                 labelText: 'Channels',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              items: const [
-                DropdownMenuItem(value: 1, child: Text('1 (Mono)')),
-                DropdownMenuItem(value: 2, child: Text('2 (Stereo)')),
+              options: const [
+                ExampleDropdownOption(value: 1, label: '1 (Mono)'),
+                ExampleDropdownOption(value: 2, label: '2 (Stereo)'),
               ],
               onChanged: _isLiveStreaming
                   ? null
@@ -1267,19 +1262,19 @@ class _IntegratedVadCompressionPageState
                     },
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int?>(
+            ExampleDropdownFormField<int?>(
               initialValue: _bitrateKbps,
               decoration: const InputDecoration(
                 labelText: 'Bitrate (kbps)',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              items: const [
-                DropdownMenuItem(value: null, child: Text('-- Auto --')),
-                DropdownMenuItem(value: 32, child: Text('32 kbps')),
-                DropdownMenuItem(value: 48, child: Text('48 kbps')),
-                DropdownMenuItem(value: 64, child: Text('64 kbps')),
-                DropdownMenuItem(value: 128, child: Text('128 kbps')),
+              options: const [
+                ExampleDropdownOption(value: null, label: '-- Auto --'),
+                ExampleDropdownOption(value: 32, label: '32 kbps'),
+                ExampleDropdownOption(value: 48, label: '48 kbps'),
+                ExampleDropdownOption(value: 64, label: '64 kbps'),
+                ExampleDropdownOption(value: 128, label: '128 kbps'),
               ],
               onChanged: _isLiveStreaming
                   ? null
@@ -1318,18 +1313,18 @@ class _IntegratedVadCompressionPageState
             if (_preferTenVadForLive)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: DropdownButtonFormField<_TenVadPreset>(
+                child: ExampleDropdownFormField<_TenVadPreset>(
                   initialValue: _tenVadPreset,
                   decoration: const InputDecoration(
                     labelText: 'TEN preset',
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  items: _TenVadPreset.values
+                  options: _TenVadPreset.values
                       .map(
-                        (preset) => DropdownMenuItem<_TenVadPreset>(
+                        (preset) => ExampleDropdownOption<_TenVadPreset>(
                           value: preset,
-                          child: Text(_tenVadPresetLabel(preset)),
+                          label: _tenVadPresetLabel(preset),
                         ),
                       )
                       .toList(growable: false),

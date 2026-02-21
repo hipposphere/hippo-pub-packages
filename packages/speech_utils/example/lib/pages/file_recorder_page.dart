@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:speech_utils/speech_utils.dart';
+import 'package:speech_utils_example/widgets/example_dropdown_form_field.dart';
 import 'package:speech_utils_example/widgets/live_waveform.dart';
 import 'package:speech_utils_example/widgets/theme_controls.dart';
 
@@ -160,7 +161,9 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
 
       if (logResult) {
         final selectedLabel = selected?.label ?? 'System default';
-        _appendLog('Detected ${devices.length} input device(s). Active: $selectedLabel.');
+        _appendLog(
+          'Detected ${devices.length} input device(s). Active: $selectedLabel.',
+        );
       }
     } on Object catch (error) {
       if (!mounted) {
@@ -281,11 +284,13 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
       _waveformSamples.clear();
     });
     _startAmplitudeMonitoring();
-    final activeInputLabel =
-        _supportsInputSelection
-            ? (_selectedInputDevice?.label ?? 'System default')
-            : (_inputDevices.where((device) => device.isDefault).firstOrNull?.label ??
-                'System default');
+    final activeInputLabel = _supportsInputSelection
+        ? (_selectedInputDevice?.label ?? 'System default')
+        : (_inputDevices
+                  .where((device) => device.isDefault)
+                  .firstOrNull
+                  ?.label ??
+              'System default');
     _appendLog('Recording started using "$activeInputLabel".');
     _appendLog(
       'Output: $_selectedEncoder (${_sampleRateHz ?? 'auto'} Hz, $_channelCount ch).',
@@ -365,33 +370,36 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
 
   void _startAmplitudeMonitoring() {
     _amplitudeSubscription?.cancel();
-    _amplitudeSubscription = _recorder.onAmplitudeChanged(const Duration(milliseconds: 80)).listen(
-      (Amplitude amplitude) {
-        if (!mounted || !_isRecording) {
-          return;
-        }
-        final normalizedAmplitude = SpeechAmplitudeUtils.normalizeDbfsForWaveform(
-          amplitude.current,
-          sensitivity: SpeechAmplitudeUtils.defaultSensitivity,
+    _amplitudeSubscription = _recorder
+        .onAmplitudeChanged(const Duration(milliseconds: 80))
+        .listen(
+          (Amplitude amplitude) {
+            if (!mounted || !_isRecording) {
+              return;
+            }
+            final normalizedAmplitude =
+                SpeechAmplitudeUtils.normalizeDbfsForWaveform(
+                  amplitude.current,
+                  sensitivity: SpeechAmplitudeUtils.defaultSensitivity,
+                );
+            setState(() {
+              _currentDbfs = amplitude.current;
+              if (amplitude.max > _peakDbfs) {
+                _peakDbfs = amplitude.max;
+              }
+              _waveformSamples.add(normalizedAmplitude);
+              if (_waveformSamples.length > _waveformSampleLimit) {
+                _waveformSamples.removeRange(
+                  0,
+                  _waveformSamples.length - _waveformSampleLimit,
+                );
+              }
+            });
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            _appendLog('Amplitude stream error: $error');
+          },
         );
-        setState(() {
-          _currentDbfs = amplitude.current;
-          if (amplitude.max > _peakDbfs) {
-            _peakDbfs = amplitude.max;
-          }
-          _waveformSamples.add(normalizedAmplitude);
-          if (_waveformSamples.length > _waveformSampleLimit) {
-            _waveformSamples.removeRange(
-              0,
-              _waveformSamples.length - _waveformSampleLimit,
-            );
-          }
-        });
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        _appendLog('Amplitude stream error: $error');
-      },
-    );
   }
 
   Future<void> _togglePlayback(String path) async {
@@ -497,10 +505,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                 ),
               ],
             )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: cards,
-            ),
+          : ListView(padding: const EdgeInsets.all(16), children: cards),
     );
   }
 
@@ -515,8 +520,9 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
               children: [
                 Icon(
                   _isRecording ? Icons.mic : Icons.mic_none,
-                  color:
-                      _isRecording ? Colors.redAccent : theme.colorScheme.outline,
+                  color: _isRecording
+                      ? Colors.redAccent
+                      : theme.colorScheme.outline,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -627,27 +633,24 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String?>(
+                  child: ExampleDropdownFormField<String?>(
                     initialValue: selectedDeviceId,
                     decoration: const InputDecoration(
                       labelText: 'Input device',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    items: <DropdownMenuItem<String?>>[
-                      const DropdownMenuItem<String?>(
+                    options: <ExampleDropdownOption<String?>>[
+                      const ExampleDropdownOption<String?>(
                         value: null,
-                        child: Text('System default'),
+                        label: 'System default',
                       ),
                       ..._inputDevices.map(
-                        (device) => DropdownMenuItem<String?>(
+                        (device) => ExampleDropdownOption<String?>(
                           value: device.id,
-                          child: Text(
-                            device.isDefault
-                                ? '${device.label} (Default)'
-                                : device.label,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          label: device.isDefault
+                              ? '${device.label} (Default)'
+                              : device.label,
                         ),
                       ),
                     ],
@@ -692,33 +695,33 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
           children: [
             Text('Audio Config', style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
-            DropdownButtonFormField<AudioEncoder>(
+            ExampleDropdownFormField<AudioEncoder>(
               initialValue: _selectedEncoder,
               decoration: const InputDecoration(
                 labelText: 'Output codec',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              items: const [
-                DropdownMenuItem(
+              options: const [
+                ExampleDropdownOption(
                   value: AudioEncoder.wav,
-                  child: Text('WAV (PCM16 in container)'),
+                  label: 'WAV (PCM16 in container)',
                 ),
-                DropdownMenuItem(
+                ExampleDropdownOption(
                   value: AudioEncoder.pcm16bits,
-                  child: Text('PCM16 (raw)'),
+                  label: 'PCM16 (raw)',
                 ),
-                DropdownMenuItem(
+                ExampleDropdownOption(
                   value: AudioEncoder.aacLc,
-                  child: Text('AAC-LC'),
+                  label: 'AAC-LC',
                 ),
-                DropdownMenuItem(
+                ExampleDropdownOption(
                   value: AudioEncoder.aacHe,
-                  child: Text('AAC-HE'),
+                  label: 'AAC-HE',
                 ),
-                DropdownMenuItem(
+                ExampleDropdownOption(
                   value: AudioEncoder.aacEld,
-                  child: Text('AAC-ELD'),
+                  label: 'AAC-ELD',
                 ),
               ],
               onChanged: _isRecording
@@ -733,20 +736,20 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                     },
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int?>(
+            ExampleDropdownFormField<int?>(
               initialValue: _sampleRateHz,
               decoration: const InputDecoration(
                 labelText: 'Sample rate',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              items: const [
-                DropdownMenuItem(value: null, child: Text('Auto')),
-                DropdownMenuItem(value: 8000, child: Text('8000 Hz')),
-                DropdownMenuItem(value: 16000, child: Text('16000 Hz')),
-                DropdownMenuItem(value: 32000, child: Text('32000 Hz')),
-                DropdownMenuItem(value: 44100, child: Text('44100 Hz')),
-                DropdownMenuItem(value: 48000, child: Text('48000 Hz')),
+              options: const [
+                ExampleDropdownOption(value: null, label: 'Auto'),
+                ExampleDropdownOption(value: 8000, label: '8000 Hz'),
+                ExampleDropdownOption(value: 16000, label: '16000 Hz'),
+                ExampleDropdownOption(value: 32000, label: '32000 Hz'),
+                ExampleDropdownOption(value: 44100, label: '44100 Hz'),
+                ExampleDropdownOption(value: 48000, label: '48000 Hz'),
               ],
               onChanged: _isRecording
                   ? null
@@ -757,16 +760,16 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                     },
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
+            ExampleDropdownFormField<int>(
               initialValue: _channelCount,
               decoration: const InputDecoration(
                 labelText: 'Channels',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              items: const [
-                DropdownMenuItem(value: 1, child: Text('1 (Mono)')),
-                DropdownMenuItem(value: 2, child: Text('2 (Stereo)')),
+              options: const [
+                ExampleDropdownOption(value: 1, label: '1 (Mono)'),
+                ExampleDropdownOption(value: 2, label: '2 (Stereo)'),
               ],
               onChanged: _isRecording
                   ? null
@@ -779,19 +782,19 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                     },
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int?>(
+            ExampleDropdownFormField<int?>(
               initialValue: _bitrateKbps,
               decoration: const InputDecoration(
                 labelText: 'Bitrate (kbps)',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              items: const [
-                DropdownMenuItem(value: null, child: Text('Auto')),
-                DropdownMenuItem(value: 32, child: Text('32 kbps')),
-                DropdownMenuItem(value: 48, child: Text('48 kbps')),
-                DropdownMenuItem(value: 64, child: Text('64 kbps')),
-                DropdownMenuItem(value: 128, child: Text('128 kbps')),
+              options: const [
+                ExampleDropdownOption(value: null, label: 'Auto'),
+                ExampleDropdownOption(value: 32, label: '32 kbps'),
+                ExampleDropdownOption(value: 48, label: '48 kbps'),
+                ExampleDropdownOption(value: 64, label: '64 kbps'),
+                ExampleDropdownOption(value: 128, label: '128 kbps'),
               ],
               onChanged: _selectedEncoder.isAac && !_isRecording
                   ? (value) {
@@ -828,7 +831,10 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
             Row(
               children: [
                 Expanded(
-                  child: Text('Latest recording', style: theme.textTheme.titleMedium),
+                  child: Text(
+                    'Latest recording',
+                    style: theme.textTheme.titleMedium,
+                  ),
                 ),
                 if (_latestMetadata != null)
                   IconButton(
@@ -875,7 +881,11 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     );
   }
 
-  void _showMetadataSheet(BuildContext context, String path, AudioMetadata metadata) {
+  void _showMetadataSheet(
+    BuildContext context,
+    String path,
+    AudioMetadata metadata,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       builder: (context) {
@@ -886,7 +896,10 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Recording metadata', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Recording metadata',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 8),
                 Text('Path: ${path.split(Platform.pathSeparator).last}'),
                 const SizedBox(height: 8),
@@ -992,6 +1005,9 @@ String _formatBytes(int bytes) {
 String _formatDuration(Duration duration) {
   final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
   final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
-  final millis = (duration.inMilliseconds.remainder(1000) / 10).round().toString().padLeft(2, '0');
+  final millis = (duration.inMilliseconds.remainder(1000) / 10)
+      .round()
+      .toString()
+      .padLeft(2, '0');
   return '$minutes:$seconds.$millis';
 }

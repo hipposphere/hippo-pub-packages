@@ -16,6 +16,8 @@ part 'session.dart';
 typedef SpeechRecorderCallback = void Function(SpeechRecorderSession session);
 
 class SpeechRecorderController {
+  static const _streamingSegmentDrainTimeout = Duration(seconds: 2);
+
   final Future<SpeechRecorderOptions> Function() optionsBuilder;
   final SpeechRecorderCallback? _onSessionStarted;
   final SpeechRecorderCallback? _onSessionFinished;
@@ -290,9 +292,9 @@ class SpeechRecorderController {
     }
 
     try {
-      await subscription.asFuture<void>();
+      await subscription.asFuture<void>().timeout(_streamingSegmentDrainTimeout);
     } on Object catch (error) {
-      debugPrint('Speech recorder streaming drained with error: $error');
+      debugPrint('Speech recorder streaming drain failed: $error');
     } finally {
       await subscription.cancel();
       if (identical(session._streamingSegmentSubscription, subscription)) {

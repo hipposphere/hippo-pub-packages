@@ -5,12 +5,6 @@ library;
 
 import 'dart:ffi' as ffi;
 
-@ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Char>, ffi.Uint32)>()
-external int speech_utils_macos_audio_recorder_healthcheck(
-  ffi.Pointer<ffi.Char> error_utf8,
-  int error_utf8_capacity,
-);
-
 @ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Int32>, ffi.Pointer<ffi.Char>, ffi.Uint32)>()
 external int speech_utils_macos_audio_recorder_has_permission(
   ffi.Pointer<ffi.Int32> out_has_permission,

@@ -6,8 +6,7 @@ import 'package:ffi/ffi.dart';
 
 import 'aac_encoder.dart';
 import 'generated/android_aac_bindings.dart' as android_bindings;
-import 'generated/ios_aac_bindings.dart' as ios_bindings;
-import 'generated/macos_aac_bindings.dart' as macos_bindings;
+import 'generated/apple_aac_bindings.dart' as apple_bindings;
 import 'generated/windows_aac_bindings.dart' as windows_bindings;
 
 typedef WindowsNativeAacEncodeFn =
@@ -52,13 +51,13 @@ final class NativeAacEncoder implements AacEncoder {
     IosNativeAacAvailabilityFn? iosAvailabilityFn,
   }) : _platform = platform ?? _detectNativeAacPlatform(),
        _macosEncodeFn = macosEncodeFn ?? _encodeAudioFileToAacViaMacosFfi,
-       _macosAvailabilityFn = macosAvailabilityFn ?? _isMacosNativeAacAvailableViaFfi,
+       _macosAvailabilityFn = macosAvailabilityFn ?? _isAppleNativeAacAvailableViaFfi,
        _windowsEncodeFn = windowsEncodeFn ?? _encodeAudioFileToAacViaWindowsFfi,
        _windowsAvailabilityFn = windowsAvailabilityFn ?? _isWindowsNativeAacAvailableViaFfi,
        _androidEncodeFn = androidEncodeFn ?? _encodeAudioFileToAacViaAndroidFfi,
        _androidAvailabilityFn = androidAvailabilityFn ?? _isAndroidNativeAacAvailableViaFfi,
        _iosEncodeFn = iosEncodeFn ?? _encodeAudioFileToAacViaIosFfi,
-       _iosAvailabilityFn = iosAvailabilityFn ?? _isIosNativeAacAvailableViaFfi;
+       _iosAvailabilityFn = iosAvailabilityFn ?? _isAppleNativeAacAvailableViaFfi;
 
   final NativeAacPlatform _platform;
   final MacosNativeAacEncodeFn _macosEncodeFn;
@@ -367,19 +366,8 @@ bool _isWindowsNativeAacAvailableViaFfi() {
   }
 }
 
-bool _isMacosNativeAacAvailableViaFfi() {
-  final errorPtr = calloc<ffi.Char>(_nativeErrorBufferBytes);
-  try {
-    final code = macos_bindings.speech_utils_macos_aac_encoder_healthcheck(
-      errorPtr,
-      _nativeErrorBufferBytes,
-    );
-    return code == 0;
-  } on Object {
-    return false;
-  } finally {
-    calloc.free(errorPtr);
-  }
+bool _isAppleNativeAacAvailableViaFfi() {
+  return true;
 }
 
 void _encodeAudioFileToAacViaMacosFfi({
@@ -387,33 +375,48 @@ void _encodeAudioFileToAacViaMacosFfi({
   required String outputPath,
   required int bitrateBps,
 }) {
+  _encodeAudioFileToAacViaApplePlatformFfi(
+    inputPath: inputPath,
+    outputPath: outputPath,
+    bitrateBps: bitrateBps,
+    platform: 'macOS',
+    function: apple_bindings.speech_utils_macos_encode_audio_file_to_aac,
+  );
+}
+
+void _encodeAudioFileToAacViaIosFfi({
+  required String inputPath,
+  required String outputPath,
+  required int bitrateBps,
+}) {
+  _encodeAudioFileToAacViaApplePlatformFfi(
+    inputPath: inputPath,
+    outputPath: outputPath,
+    bitrateBps: bitrateBps,
+    platform: 'iOS',
+    function: apple_bindings.speech_utils_ios_encode_audio_file_to_aac,
+  );
+}
+
+void _encodeAudioFileToAacViaApplePlatformFfi({
+  required String inputPath,
+  required String outputPath,
+  required int bitrateBps,
+  required String platform,
+  required _AppleAacEncoderFfi function,
+}) {
   final inputPathPtr = inputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
   final outputPathPtr = outputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
   final errorPtr = calloc<ffi.Char>(_nativeErrorBufferBytes);
 
-  try {
-    final code = macos_bindings.speech_utils_macos_encode_audio_file_to_aac(
-      inputPathPtr,
-      outputPathPtr,
-      bitrateBps,
-      errorPtr,
-      _nativeErrorBufferBytes,
-    );
-    if (code == 0) {
-      return;
-    }
-
-    final stderr = errorPtr.cast<Utf8>().toDartString();
-    throw AacEncodingException(
-      'macOS native AAC encoder failed',
-      exitCode: code,
-      stderr: stderr.isEmpty ? null : stderr,
-    );
-  } finally {
-    calloc.free(inputPathPtr);
-    calloc.free(outputPathPtr);
-    calloc.free(errorPtr);
-  }
+  _encodeAudioFileToAacViaAppleFfi(
+    function: function,
+    platform: platform,
+    inputPathPtr: inputPathPtr,
+    outputPathPtr: outputPathPtr,
+    bitrateBps: bitrateBps,
+    errorPtr: errorPtr,
+  );
 }
 
 void _encodeAudioFileToAacViaWindowsFfi({
@@ -497,30 +500,24 @@ void _encodeAudioFileToAacViaAndroidFfi({
   }
 }
 
-bool _isIosNativeAacAvailableViaFfi() {
-  final errorPtr = calloc<ffi.Char>(_nativeErrorBufferBytes);
-  try {
-    final code = ios_bindings.speech_utils_ios_aac_encoder_healthcheck(
-      errorPtr,
-      _nativeErrorBufferBytes,
-    );
-    return code == 0;
-  } finally {
-    calloc.free(errorPtr);
-  }
-}
+typedef _AppleAacEncoderFfi = int Function(
+  ffi.Pointer<ffi.Char> inputPathUtf8,
+  ffi.Pointer<ffi.Char> outputPathUtf8,
+  int bitrateBps,
+  ffi.Pointer<ffi.Char> errorUtf8,
+  int errorUtf8Capacity,
+);
 
-void _encodeAudioFileToAacViaIosFfi({
-  required String inputPath,
-  required String outputPath,
+void _encodeAudioFileToAacViaAppleFfi({
+  required _AppleAacEncoderFfi function,
+  required String platform,
+  required ffi.Pointer<ffi.Char> inputPathPtr,
+  required ffi.Pointer<ffi.Char> outputPathPtr,
   required int bitrateBps,
+  required ffi.Pointer<ffi.Char> errorPtr,
 }) {
-  final inputPathPtr = inputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-  final outputPathPtr = outputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-  final errorPtr = calloc<ffi.Char>(_nativeErrorBufferBytes);
-
   try {
-    final code = ios_bindings.speech_utils_ios_encode_audio_file_to_aac(
+    final code = function(
       inputPathPtr,
       outputPathPtr,
       bitrateBps,
@@ -533,7 +530,7 @@ void _encodeAudioFileToAacViaIosFfi({
 
     final stderr = errorPtr.cast<Utf8>().toDartString();
     throw AacEncodingException(
-      'iOS native AAC encoder failed',
+      '$platform native AAC encoder failed',
       exitCode: code,
       stderr: stderr.isEmpty ? null : stderr,
     );

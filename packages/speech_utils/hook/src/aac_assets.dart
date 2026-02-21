@@ -19,9 +19,13 @@ const _windowsAacSources = <String>[
 ];
 const _androidAacAssetName = 'src/encoding/generated/android_aac_bindings.dart';
 const _androidAacLibraryBaseName = 'speech_utils_android_aac_encoder';
-const _iosAacAssetName = 'src/encoding/generated/ios_aac_bindings.dart';
+const _appleAacAssetName = 'src/encoding/generated/apple_aac_bindings.dart';
+const _appleAacBindingsSource = 'native/apple/speech_utils_apple_aac_codec_bindings.mm';
+const _appleAacSharedSources = <String>[
+  'native/apple/speech_utils_apple_aac_codec_bindings.mm',
+  'native/apple/speech_utils_apple_aac_codec.mm',
+];
 const _iosAacLibraryBaseName = 'speech_utils_ios_aac_encoder';
-const _macosAacAssetName = 'src/encoding/generated/macos_aac_bindings.dart';
 const _macosAacLibraryBaseName = 'speech_utils_macos_aac_encoder';
 
 Future<void> buildWindowsAacEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
@@ -135,17 +139,23 @@ Future<void> buildIosAacEncoderAsset(BuildInput input, BuildOutputBuilder output
 
   requireSourceFile(
     input,
-    relativePath: 'native/ios/speech_utils_ios_aac_encoder.mm',
+    relativePath: _appleAacBindingsSource,
+    label: 'iOS AAC encoder',
+  );
+  requireSourceFile(
+    input,
+    relativePath: 'native/apple/speech_utils_apple_aac_codec.mm',
     label: 'iOS AAC encoder',
   );
 
   await CBuilder.library(
     name: _iosAacLibraryBaseName,
-    assetName: _iosAacAssetName,
+    assetName: _appleAacAssetName,
     language: Language.objectiveC,
-    sources: ['native/ios/speech_utils_ios_aac_encoder.mm'],
+    sources: _appleAacSharedSources,
     std: 'c++17',
     flags: appleObjectiveCArcFlags,
+    defines: const {'SPEECH_UTILS_APPLE_AAC_TARGET_IOS': '1'},
     frameworks: appleCommonFrameworks,
     libraries: appleCommonLibraries,
   ).run(input: input, output: output);
@@ -158,17 +168,23 @@ Future<void> buildMacosAacEncoderAsset(BuildInput input, BuildOutputBuilder outp
 
   requireSourceFile(
     input,
-    relativePath: 'native/macos/speech_utils_macos_aac_encoder.mm',
+    relativePath: _appleAacBindingsSource,
+    label: 'macOS AAC encoder',
+  );
+  requireSourceFile(
+    input,
+    relativePath: 'native/apple/speech_utils_apple_aac_codec.mm',
     label: 'macOS AAC encoder',
   );
 
   await CBuilder.library(
     name: _macosAacLibraryBaseName,
-    assetName: _macosAacAssetName,
+    assetName: _appleAacAssetName,
     language: Language.objectiveC,
-    sources: ['native/macos/speech_utils_macos_aac_encoder.mm'],
+    sources: _appleAacSharedSources,
     std: 'c++17',
     flags: appleObjectiveCArcFlags,
+    defines: const {'SPEECH_UTILS_APPLE_AAC_TARGET_MACOS': '1'},
     frameworks: appleCommonFrameworks,
     libraries: appleCommonLibraries,
   ).run(input: input, output: output);

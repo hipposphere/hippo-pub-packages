@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 
+import 'hook_helpers.dart';
+
 const _tenVadAssetName = 'src/vad/generated/ten_vad_bindings.dart';
 const _tenVadLibraryBaseName = 'speech_utils_ten_vad';
 
@@ -21,16 +23,13 @@ Future<void> bundleTenVadAsset(BuildInput input, BuildOutputBuilder output) asyn
   final bundledLibrary = input.outputDirectoryShared.resolve('speech_utils/$bundledFileName');
 
   final bundledFile = File.fromUri(bundledLibrary);
-  bundledFile.parent.createSync(recursive: true);
   await _copyLibraryForTarget(input: input, sourceFile: sourceFile, bundledFile: bundledFile);
 
-  output.assets.code.add(
-    CodeAsset(
-      package: input.packageName,
-      name: _tenVadAssetName,
-      linkMode: DynamicLoadingBundled(),
-      file: bundledLibrary,
-    ),
+  addBundledDynamicAsset(
+    input: input,
+    output: output,
+    assetName: _tenVadAssetName,
+    fileUri: bundledLibrary,
   );
 }
 
@@ -71,10 +70,11 @@ Future<void> _copyLibraryForTarget({
 }) async {
   final os = input.config.code.targetOS;
   if (os != OS.macOS) {
-    sourceFile.copySync(bundledFile.path);
+    copyIfMissing(sourceFile, bundledFile);
     return;
   }
 
+  bundledFile.parent.createSync(recursive: true);
   final thinArch = switch (input.config.code.targetArchitecture) {
     Architecture.arm64 => 'arm64',
     Architecture.x64 => 'x86_64',

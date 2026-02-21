@@ -1,55 +1,53 @@
-import 'dart:io';
-
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 import 'package:native_toolchain_c/native_toolchain_c.dart';
 
+import 'hook_helpers.dart';
+
 const _windowsAudioRecorderAssetName =
     'src/recording/generated/windows_audio_recorder_bindings.dart';
 const _windowsAudioRecorderLibraryBaseName = 'speech_utils_windows_audio_recorder';
+const _windowsAudioRecorderSources = <String>[
+  'native/windows/speech_utils_windows_audio_recorder.cpp',
+  'native/windows/recorder/windows_audio_recorder_api.cpp',
+  'native/windows/recorder/miniaudio_implementation.cpp',
+];
 const _iosAudioRecorderAssetName = 'src/recording/generated/ios_audio_recorder_bindings.dart';
 const _iosAudioRecorderLibraryBaseName = 'speech_utils_ios_audio_recorder';
 const _macosAudioRecorderAssetName = 'src/recording/generated/macos_audio_recorder_bindings.dart';
 const _macosAudioRecorderLibraryBaseName = 'speech_utils_macos_audio_recorder';
 
 Future<void> buildWindowsAudioRecorderAsset(BuildInput input, BuildOutputBuilder output) async {
-  final os = input.config.code.targetOS;
-  final arch = input.config.code.targetArchitecture;
-  if (os != OS.windows || arch != Architecture.x64) {
+  if (!matchesTarget(input, os: OS.windows, arch: Architecture.x64)) {
     return;
   }
 
-  final source = File.fromUri(
-    input.packageRoot.resolve('native/windows/speech_utils_windows_audio_recorder.cpp'),
-  );
-  if (!source.existsSync()) {
-    throw StateError('Missing Windows audio recorder source file at ${source.path}.');
+  for (final source in _windowsAudioRecorderSources) {
+    requireSourceFile(input, relativePath: source, label: 'Windows audio recorder');
   }
 
   await CBuilder.library(
     name: _windowsAudioRecorderLibraryBaseName,
     assetName: _windowsAudioRecorderAssetName,
     language: Language.cpp,
-    sources: ['native/windows/speech_utils_windows_audio_recorder.cpp'],
+    sources: _windowsAudioRecorderSources,
     std: 'c++17',
-    flags: ['/EHsc', '/O2'],
-    defines: const {'UNICODE': '1', '_UNICODE': '1', 'WIN32_LEAN_AND_MEAN': '1', 'NOMINMAX': '1'},
+    flags: windowsCommonCppFlags,
+    defines: windowsCommonDefines,
     libraries: ['ole32', 'avrt', 'winmm', 'uuid'],
   ).run(input: input, output: output);
 }
 
 Future<void> buildIosAudioRecorderAsset(BuildInput input, BuildOutputBuilder output) async {
-  final os = input.config.code.targetOS;
-  if (os != OS.iOS) {
+  if (!matchesTarget(input, os: OS.iOS)) {
     return;
   }
 
-  final source = File.fromUri(
-    input.packageRoot.resolve('native/apple/speech_utils_apple_audio_recorder.mm'),
+  requireSourceFile(
+    input,
+    relativePath: 'native/apple/speech_utils_apple_audio_recorder.mm',
+    label: 'iOS audio recorder',
   );
-  if (!source.existsSync()) {
-    throw StateError('Missing iOS audio recorder source file at ${source.path}.');
-  }
 
   await CBuilder.library(
     name: _iosAudioRecorderLibraryBaseName,
@@ -57,25 +55,23 @@ Future<void> buildIosAudioRecorderAsset(BuildInput input, BuildOutputBuilder out
     language: Language.objectiveC,
     sources: ['native/apple/speech_utils_apple_audio_recorder.mm'],
     std: 'c++17',
-    flags: ['-fobjc-arc'],
+    flags: appleObjectiveCArcFlags,
     defines: const {'SPEECH_UTILS_AUDIO_RECORDER_TARGET_IOS': '1'},
-    frameworks: ['Foundation', 'AVFoundation', 'CoreMedia', 'AudioToolbox'],
-    libraries: ['c++'],
+    frameworks: appleCommonFrameworks,
+    libraries: appleCommonLibraries,
   ).run(input: input, output: output);
 }
 
 Future<void> buildMacosAudioRecorderAsset(BuildInput input, BuildOutputBuilder output) async {
-  final os = input.config.code.targetOS;
-  if (os != OS.macOS) {
+  if (!matchesTarget(input, os: OS.macOS)) {
     return;
   }
 
-  final source = File.fromUri(
-    input.packageRoot.resolve('native/apple/speech_utils_apple_audio_recorder.mm'),
+  requireSourceFile(
+    input,
+    relativePath: 'native/apple/speech_utils_apple_audio_recorder.mm',
+    label: 'macOS audio recorder',
   );
-  if (!source.existsSync()) {
-    throw StateError('Missing macOS audio recorder source file at ${source.path}.');
-  }
 
   await CBuilder.library(
     name: _macosAudioRecorderLibraryBaseName,
@@ -83,9 +79,9 @@ Future<void> buildMacosAudioRecorderAsset(BuildInput input, BuildOutputBuilder o
     language: Language.objectiveC,
     sources: ['native/apple/speech_utils_apple_audio_recorder.mm'],
     std: 'c++17',
-    flags: ['-fobjc-arc'],
+    flags: appleObjectiveCArcFlags,
     defines: const {'SPEECH_UTILS_AUDIO_RECORDER_TARGET_MACOS': '1'},
-    frameworks: ['Foundation', 'AVFoundation', 'CoreMedia', 'AudioToolbox'],
-    libraries: ['c++'],
+    frameworks: appleCommonFrameworks,
+    libraries: appleCommonLibraries,
   ).run(input: input, output: output);
 }

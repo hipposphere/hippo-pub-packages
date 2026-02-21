@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'dart:ffi' as ffi;
+import 'dart:io';
 
 import 'package:ffi/ffi.dart';
+import 'package:objective_c/objective_c.dart' as objc;
 
 import '../focused_text_edit_operation.dart';
 import '../focused_text_field_context.dart';
 import 'desktop_autopaste_client.dart';
 import 'generated/desktop_autopaste_bindings.dart' as bindings;
+import 'generated/desktop_autopaste_macos_swiftgen_bindings.dart'
+    as macos_swiftgen;
 
 const _errorBufferBytes = 2048;
 const _contextBufferBytes = 65536;
@@ -16,6 +20,13 @@ final class NativeFfiDesktopAutopasteClient implements DesktopAutopasteClient {
 
   @override
   Future<bool> pasteIntoCursorViaClipboard(String text) async {
+    if (Platform.isMacOS) {
+      final swiftgenResult = _tryPasteViaMacosSwiftgen(text);
+      if (swiftgenResult != null) {
+        return swiftgenResult;
+      }
+    }
+
     final textPtr = text.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
     final errorPtr = calloc<ffi.Char>(_errorBufferBytes);
 
@@ -29,6 +40,18 @@ final class NativeFfiDesktopAutopasteClient implements DesktopAutopasteClient {
     } finally {
       calloc.free(textPtr);
       calloc.free(errorPtr);
+    }
+  }
+
+  bool? _tryPasteViaMacosSwiftgen(String text) {
+    try {
+      return objc.autoReleasePool(() {
+        final nsString = text.toNSString();
+        return macos_swiftgen
+            .DesktopAutopasteMacosBridge.pasteIntoCursorViaClipboard(nsString);
+      });
+    } on Object {
+      return null;
     }
   }
 

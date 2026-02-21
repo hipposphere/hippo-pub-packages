@@ -58,6 +58,7 @@ class SpeechRecorderContainer extends StatelessWidget {
           amplitudeHistory: SpeechRecorderAmplitudeHistoryContainer(
             height: 20,
             session: session,
+            sensitivity: 3.0,
           ),
           details: SizedBox(),
           duration: SpeedRecorderStopwatchChip(stopwatch: session.stopwatch),

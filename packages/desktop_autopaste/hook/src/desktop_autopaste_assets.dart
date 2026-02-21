@@ -1,4 +1,6 @@
 import 'package:code_assets/code_assets.dart';
+import 'dart:io';
+
 import 'package:hooks/hooks.dart';
 import 'package:native_toolchain_c/native_toolchain_c.dart';
 
@@ -14,7 +16,9 @@ const _windowsSources = <String>[
   'native/windows/focused_text_field_context.cpp',
 ];
 
-const _macosSources = <String>['native/apple/desktop_autopaste_macos_ffi.mm'];
+const _macosSources = <String>[
+  'native/macos/desktop_autopaste_macos_ffi.swift',
+];
 
 Future<void> buildDesktopAutopasteWindowsAsset(
   BuildInput input,
@@ -58,6 +62,11 @@ Future<void> buildDesktopAutopasteMacosAsset(
     return;
   }
 
+  requireSourceFile(
+    input,
+    relativePath: 'native/include/desktop_autopaste_ffi.h',
+    label: 'desktop_autopaste ffi header',
+  );
   for (final source in _macosSources) {
     requireSourceFile(
       input,
@@ -65,21 +74,58 @@ Future<void> buildDesktopAutopasteMacosAsset(
       label: 'desktop_autopaste macOS',
     );
   }
-  requireSourceFile(
-    input,
-    relativePath: 'native/include/desktop_autopaste_ffi.h',
-    label: 'desktop_autopaste ffi header',
-  );
 
-  await CBuilder.library(
-    name: _macosLibraryBaseName,
+  final archFlag = switch (input.config.code.targetArchitecture) {
+    Architecture.arm64 => 'arm64',
+    Architecture.x64 => 'x86_64',
+    _ => null,
+  };
+
+  final outputFileName = input.config.code.targetOS.dylibFileName(
+    _macosLibraryBaseName,
+  );
+  final outputUri = input.outputDirectoryShared.resolve(
+    'desktop_autopaste/$outputFileName',
+  );
+  final outputFile = File.fromUri(outputUri);
+  outputFile.parent.createSync(recursive: true);
+
+  final args = <String>[
+    '--sdk',
+    'macosx',
+    'swiftc',
+    '-emit-library',
+    '-module-name',
+    'desktop_autopaste',
+    '-o',
+    outputFile.path,
+    ..._macosSources.map(
+      (source) => File.fromUri(input.packageRoot.resolve(source)).path,
+    ),
+    '-framework',
+    'AppKit',
+    '-framework',
+    'ApplicationServices',
+    '-framework',
+    'Foundation',
+  ];
+  if (archFlag != null) {
+    args.addAll(<String>['-target', '$archFlag-apple-macosx10.15']);
+  }
+
+  final result = await Process.run('xcrun', args);
+  if (result.exitCode != 0) {
+    throw StateError(
+      'Failed to compile macOS swift desktop_autopaste library.\\n'
+      'stdout:\\n${result.stdout}\\n'
+      'stderr:\\n${result.stderr}',
+    );
+  }
+
+  addBundledDynamicAsset(
+    input: input,
+    output: output,
     assetName: _assetName,
-    language: Language.objectiveC,
-    sources: _macosSources,
-    includes: ['native/include'],
-    std: 'c++17',
-    flags: appleObjectiveCArcFlags,
-    frameworks: appleFrameworks,
-    libraries: appleLibraries,
-  ).run(input: input, output: output);
+    fileUri: outputUri,
+  );
 }

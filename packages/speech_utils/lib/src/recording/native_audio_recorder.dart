@@ -754,7 +754,7 @@ final class NativeAudioRecorder {
     _nativeAmplitudeTimer?.cancel();
     _nativeAmplitudeTimer = null;
 
-    if (_mode != _RecorderMode.file) {
+    if (_mode == _RecorderMode.stopped) {
       return;
     }
 
@@ -773,7 +773,7 @@ final class NativeAudioRecorder {
   }
 
   Future<void> _pollNativeAmplitudeAndEmit() async {
-    if (_mode != _RecorderMode.file || _nativeAmplitudePollInFlight) {
+    if (_mode == _RecorderMode.stopped || _nativeAmplitudePollInFlight) {
       return;
     }
 
@@ -805,16 +805,21 @@ final class NativeAudioRecorder {
       _maxAmplitudeDbfs = dbfs;
     }
 
-    if (_mode != _RecorderMode.stream) {
-      return;
-    }
-
     final interval = _amplitudeInterval;
     final amplitudeController = _amplitudeController;
     if (interval == null ||
         amplitudeController == null ||
         amplitudeController.isClosed ||
-        !amplitudeController.hasListener) {
+        !amplitudeController.hasListener ||
+        _mode == _RecorderMode.stopped) {
+      return;
+    }
+
+    if (_mode == _RecorderMode.stream &&
+        _nativeAmplitudeTimer != null &&
+        _amplitudeInterval != null) {
+      // Stream-based recordings now emit via native polling so we avoid
+      // duplicate updates when the timer is already driving emissions.
       return;
     }
 

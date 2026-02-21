@@ -16,8 +16,11 @@ class SpeechRecorderAmplitudeHistoryContainer extends StatelessWidget {
   final Color inactiveColor;
   final double gap;
   final double minLevel;
+  final double sensitivity;
   final Duration animationDuration;
   final Curve animationCurve;
+
+  static const double defaultSensitivity = 3.0;
 
   const SpeechRecorderAmplitudeHistoryContainer({
     super.key,
@@ -30,6 +33,7 @@ class SpeechRecorderAmplitudeHistoryContainer extends StatelessWidget {
     this.inactiveColor = const Color(0xFFE0E0E0),
     this.gap = 2,
     this.minLevel = 0.1,
+    this.sensitivity = defaultSensitivity,
     this.animationDuration = const Duration(milliseconds: 100),
     this.animationCurve = Curves.linear,
   });
@@ -53,7 +57,7 @@ class SpeechRecorderAmplitudeHistoryContainer extends StatelessWidget {
               .map(
                 (amplitude) => SpeechAmplitudeUtils.normalizeDbfsForWaveform(
                   amplitude.current,
-                  sensitivity: SpeechAmplitudeUtils.defaultSensitivity,
+                  sensitivity: sensitivity,
                 ).clamp(minLevel, 1.0),
               )
               .toList(growable: false);

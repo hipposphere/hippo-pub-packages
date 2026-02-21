@@ -1,0 +1,322 @@
+import AppKit
+import ApplicationServices
+import Foundation
+
+private func writeUtf8(
+  _ buffer: UnsafeMutablePointer<CChar>?,
+  _ capacity: UInt32,
+  _ message: String
+) {
+  guard let buffer, capacity > 0 else {
+    return
+  }
+
+  let bytes = Array(message.utf8)
+  let maxCopy = Int(capacity) - 1
+  let copyCount = min(bytes.count, maxCopy)
+
+  if copyCount > 0 {
+    for i in 0..<copyCount {
+      buffer[i] = CChar(bitPattern: bytes[i])
+    }
+  }
+  buffer[copyCount] = 0
+}
+
+private struct SavedPasteboardItem {
+  var data: [NSPasteboard.PasteboardType: Data]
+  var promised: [NSPasteboard.PasteboardType]
+  var typeOrder: [NSPasteboard.PasteboardType]
+}
+
+private final class SavedProvider: NSObject, NSPasteboardItemDataProvider {
+  let payload: [NSPasteboard.PasteboardType: Data]
+
+  init(payload: [NSPasteboard.PasteboardType: Data]) {
+    self.payload = payload
+  }
+
+  func pasteboard(
+    _ pasteboard: NSPasteboard?,
+    item: NSPasteboardItem,
+    provideDataForType type: NSPasteboard.PasteboardType
+  ) {
+    if let data = payload[type] {
+      _ = item.setData(data, forType: type)
+    }
+  }
+}
+
+enum PasteResult {
+  case ok
+  case error(code: Int32, message: String)
+}
+
+func desktopAutopasteMacosPasteIntoCursorViaClipboardResult(_ text: String) -> PasteResult {
+  let runPaste: () -> PasteResult = {
+    guard !text.isEmpty else {
+      return .ok
+    }
+
+    let pasteboard = NSPasteboard.general
+    let savedItems = copyPasteboardItemsData(from: pasteboard)
+
+    let changeBeforeWrite = pasteboard.changeCount
+    pasteboard.clearContents()
+    guard pasteboard.setString(text, forType: .string) else {
+      restorePasteboardFromData(savedItems, pasteboard: pasteboard)
+      return .error(code: 1, message: "Failed to write to pasteboard")
+    }
+
+    guard preflightPublish(
+      pasteboard: pasteboard,
+      previousChangeCount: changeBeforeWrite,
+      expectedString: text,
+      timeout: 0.6
+    ) else {
+      restorePasteboardFromData(savedItems, pasteboard: pasteboard)
+      return .error(code: 1, message: "Pasteboard publish preflight failed")
+    }
+
+    guard emulateCommandV() else {
+      restorePasteboardFromData(savedItems, pasteboard: pasteboard)
+      return .error(code: 1, message: "Failed to emulate Command+V")
+    }
+    // Do not synchronously wait for a post-paste signal here. Flutter text
+    // fields often consume Cmd+V asynchronously on the app event loop, and
+    // waiting inline can race/delay delivery.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+      restorePasteboardFromData(savedItems, pasteboard: pasteboard)
+    }
+
+    return .ok
+  }
+
+  if Thread.isMainThread {
+    return runPaste()
+  }
+  return DispatchQueue.main.sync(execute: runPaste)
+}
+
+func desktopAutopasteMacosPasteIntoCursorViaClipboard(_ text: String) -> Bool {
+  switch desktopAutopasteMacosPasteIntoCursorViaClipboardResult(text) {
+  case .ok:
+    return true
+  case .error:
+    return false
+  }
+}
+
+@objcMembers
+public final class DesktopAutopasteMacosBridge: NSObject {
+  public static func pasteIntoCursorViaClipboard(_ text: String) -> Bool {
+    desktopAutopasteMacosPasteIntoCursorViaClipboard(text)
+  }
+}
+
+@_cdecl("desktop_autopaste_paste_into_cursor_via_clipboard")
+public func desktop_autopaste_paste_into_cursor_via_clipboard(
+  _ textUtf8: UnsafePointer<CChar>?,
+  _ errorUtf8: UnsafeMutablePointer<CChar>?,
+  _ errorUtf8Capacity: UInt32
+) -> Int32 {
+  guard let textUtf8 else {
+    writeUtf8(errorUtf8, errorUtf8Capacity, "Missing text")
+    return 2
+  }
+
+  guard let text = String(validatingUTF8: textUtf8) else {
+    writeUtf8(errorUtf8, errorUtf8Capacity, "Invalid UTF-8 text")
+    return 2
+  }
+  let result = desktopAutopasteMacosPasteIntoCursorViaClipboardResult(text)
+
+  switch result {
+  case .ok:
+    writeUtf8(errorUtf8, errorUtf8Capacity, "")
+    return 0
+  case let .error(code, message):
+    writeUtf8(errorUtf8, errorUtf8Capacity, message)
+    return code
+  }
+}
+
+@_cdecl("desktop_autopaste_get_focused_text_field_context_json")
+public func desktop_autopaste_get_focused_text_field_context_json(
+  _ maxCharsBefore: Int32,
+  _ maxCharsAfter: Int32,
+  _ enableScreenReader: Int32,
+  _ contextJsonUtf8: UnsafeMutablePointer<CChar>?,
+  _ contextJsonUtf8Capacity: UInt32,
+  _ errorUtf8: UnsafeMutablePointer<CChar>?,
+  _ errorUtf8Capacity: UInt32
+) -> Int32 {
+  _ = maxCharsBefore
+  _ = maxCharsAfter
+  _ = enableScreenReader
+
+  guard contextJsonUtf8 != nil, contextJsonUtf8Capacity > 0 else {
+    writeUtf8(errorUtf8, errorUtf8Capacity, "Missing output buffer")
+    return 2
+  }
+
+  writeUtf8(
+    contextJsonUtf8,
+    contextJsonUtf8Capacity,
+    "{\"available\":false,\"reason\":\"unsupportedOnMacOS\"}"
+  )
+  writeUtf8(errorUtf8, errorUtf8Capacity, "")
+  return 0
+}
+
+@_cdecl("desktop_autopaste_edit_focused_text_field")
+public func desktop_autopaste_edit_focused_text_field(
+  _ operations: UnsafeRawPointer?,
+  _ operationCount: UInt32,
+  _ errorUtf8: UnsafeMutablePointer<CChar>?,
+  _ errorUtf8Capacity: UInt32
+) -> Int32 {
+  _ = operations
+  _ = operationCount
+  writeUtf8(errorUtf8, errorUtf8Capacity, "unsupportedOnMacOS")
+  return 3
+}
+
+private func emulateCommandV() -> Bool {
+  guard let source = CGEventSource(stateID: .hidSystemState) else {
+    return false
+  }
+
+  guard
+    let keyDownEvent = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true),
+    let keyUpEvent = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
+  else {
+    return false
+  }
+
+  keyDownEvent.flags = .maskCommand
+  keyUpEvent.flags = .maskCommand
+  keyDownEvent.post(tap: .cghidEventTap)
+  keyUpEvent.post(tap: .cghidEventTap)
+  return true
+}
+
+private func preflightPublish(
+  pasteboard: NSPasteboard,
+  previousChangeCount: Int,
+  expectedString: String,
+  timeout: TimeInterval
+) -> Bool {
+  let deadline = CFAbsoluteTimeGetCurrent() + timeout
+
+  func ok() -> Bool {
+    guard pasteboard.changeCount > previousChangeCount else {
+      return false
+    }
+    return pasteboard.string(forType: .string) == expectedString
+  }
+
+  if ok() {
+    return true
+  }
+
+  while CFAbsoluteTimeGetCurrent() < deadline {
+    CFRunLoopRunInMode(.defaultMode, 1.0 / 240.0, true)
+    if ok() {
+      return true
+    }
+  }
+
+  return false
+}
+
+private func waitForPostPasteSignal(
+  pasteboard: NSPasteboard,
+  baselineChangeCount: Int,
+  timeout: TimeInterval
+) -> Bool {
+  if pasteboard.changeCount > baselineChangeCount {
+    return true
+  }
+
+  let deadline = CFAbsoluteTimeGetCurrent() + timeout
+  while CFAbsoluteTimeGetCurrent() < deadline {
+    CFRunLoopRunInMode(.defaultMode, 1.0 / 240.0, true)
+    if pasteboard.changeCount > baselineChangeCount {
+      return true
+    }
+  }
+
+  return false
+}
+
+private func copyPasteboardItemsData(from pasteboard: NSPasteboard) -> [SavedPasteboardItem] {
+  guard let items = pasteboard.pasteboardItems else {
+    return []
+  }
+
+  var saved: [SavedPasteboardItem] = []
+  saved.reserveCapacity(items.count)
+
+  for item in items {
+    var dataByType: [NSPasteboard.PasteboardType: Data] = [:]
+    var promised: [NSPasteboard.PasteboardType] = []
+    var typeOrder: [NSPasteboard.PasteboardType] = []
+
+    for type in item.types {
+      let rawType = type.rawValue
+      if rawType.contains("0x") || rawType.contains(".pid.") ||
+        rawType.hasPrefix("com.microsoft.ole.source.")
+      {
+        continue
+      }
+
+      if let data = item.data(forType: type), !data.isEmpty {
+        dataByType[type] = data
+        typeOrder.append(type)
+      } else {
+        promised.append(type)
+      }
+    }
+
+    saved.append(
+      SavedPasteboardItem(data: dataByType, promised: promised, typeOrder: typeOrder)
+    )
+  }
+
+  return saved
+}
+
+private func restorePasteboardFromData(_ savedItems: [SavedPasteboardItem], pasteboard: NSPasteboard) {
+  guard !savedItems.isEmpty else {
+    return
+  }
+
+  var newItems: [NSPasteboardItem] = []
+  newItems.reserveCapacity(savedItems.count)
+
+  for saved in savedItems {
+    let item = NSPasteboardItem()
+
+    for type in saved.typeOrder {
+      guard let data = saved.data[type] else {
+        continue
+      }
+      if type == .string, let text = String(data: data, encoding: .utf8) {
+        _ = item.setString(text, forType: .string)
+      } else {
+        _ = item.setData(data, forType: type)
+      }
+    }
+
+    if !saved.promised.isEmpty {
+      let provider = SavedProvider(payload: saved.data)
+      item.setDataProvider(provider, forTypes: saved.promised)
+    }
+
+    newItems.append(item)
+  }
+
+  pasteboard.clearContents()
+  _ = pasteboard.writeObjects(newItems)
+}

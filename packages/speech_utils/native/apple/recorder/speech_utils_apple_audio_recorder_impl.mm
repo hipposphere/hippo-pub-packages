@@ -778,7 +778,6 @@ class AppleAudioRecorderState {
       return -17;
     }
 
-#if !TARGET_OS_IPHONE
     NSDictionary<NSString*, id>* data_output_settings = @{
       AVFormatIDKey : @(kAudioFormatLinearPCM),
       AVSampleRateKey : @(static_cast<double>(sample_rate_hz)),
@@ -789,7 +788,6 @@ class AppleAudioRecorderState {
       AVLinearPCMIsNonInterleaved : @NO,
     };
     capture_output.audioSettings = data_output_settings;
-#endif
 
     dispatch_queue_t capture_queue =
         dispatch_queue_create("org.hippolabs.speech_utils.audio_recorder.capture",

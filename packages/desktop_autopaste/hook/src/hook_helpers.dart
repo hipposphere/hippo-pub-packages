@@ -32,3 +32,19 @@ File requireSourceFile(
   }
   return file;
 }
+
+void addBundledDynamicAsset({
+  required BuildInput input,
+  required BuildOutputBuilder output,
+  required String assetName,
+  required Uri fileUri,
+}) {
+  output.assets.code.add(
+    CodeAsset(
+      package: input.packageName,
+      name: assetName,
+      linkMode: DynamicLoadingBundled(),
+      file: fileUri,
+    ),
+  );
+}

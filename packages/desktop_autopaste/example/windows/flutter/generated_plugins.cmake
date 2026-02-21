@@ -5,7 +5,6 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   audioplayers_windows
-  desktop_autopaste
   file_saver
   file_selector_windows
   flutter_secure_storage_windows

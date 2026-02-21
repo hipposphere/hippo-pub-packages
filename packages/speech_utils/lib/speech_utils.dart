@@ -12,6 +12,7 @@ export 'src/model/voice_activity_metadata.dart';
 export 'src/recording/audio_recorder_config.dart';
 export 'src/recording/native_audio_recorder.dart';
 export 'src/recording/voice_segment.dart';
+export 'src/utils/amplitude_waveform_utils.dart';
 export 'src/splitting/pcm16_stream_pause_splitter.dart';
 export 'src/speech_utils.dart';
 export 'src/vad/energy_vad_backend.dart';

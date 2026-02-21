@@ -1,4 +1,4 @@
-import 'desktop_autopaste_platform_interface.dart';
+import 'src/ffi/desktop_autopaste_ffi.dart';
 import 'src/focused_text_edit_operation.dart';
 import 'src/focused_text_field_context.dart';
 
@@ -7,7 +7,7 @@ export 'src/focused_text_edit_operation.dart';
 
 class DesktopAutopaste {
   Future<bool> pasteIntoCursorViaClipboard(String text) {
-    return DesktopAutopastePlatform.instance.pasteIntoCursorViaClipboard(text);
+    return DesktopAutopasteFfi.instance.pasteIntoCursorViaClipboard(text);
   }
 
   Future<FocusedTextFieldContext> getFocusedTextFieldContext({
@@ -15,7 +15,7 @@ class DesktopAutopaste {
     int? maxCharsAfter = 120,
     bool enableScreenReader = false,
   }) {
-    return DesktopAutopastePlatform.instance.getFocusedTextFieldContext(
+    return DesktopAutopasteFfi.instance.getFocusedTextFieldContext(
       maxCharsBefore: maxCharsBefore,
       maxCharsAfter: maxCharsAfter,
       enableScreenReader: enableScreenReader,
@@ -23,7 +23,7 @@ class DesktopAutopaste {
   }
 
   Future<bool> editFocusedTextField(List<FocusedTextEditOperation> operations) {
-    return DesktopAutopastePlatform.instance.editFocusedTextField(operations);
+    return DesktopAutopasteFfi.instance.editFocusedTextField(operations);
   }
 
   Future<bool> replaceRangeInFocusedTextField({

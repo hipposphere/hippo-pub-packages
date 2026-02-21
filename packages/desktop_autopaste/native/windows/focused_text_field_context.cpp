@@ -13,9 +13,6 @@
 
 namespace desktop_autopaste {
 namespace {
-
-using flutter::EncodableMap;
-using flutter::EncodableValue;
 using Microsoft::WRL::ComPtr;
 
 class ScopedComInit {
@@ -37,10 +34,6 @@ class ScopedComInit {
  private:
   HRESULT hr_;
 };
-
-void Put(EncodableMap& map, const char* key, const EncodableValue& value) {
-  map[EncodableValue(std::string(key))] = value;
-}
 
 std::string WideToUtf8(const std::wstring& wide) {
   if (wide.empty()) {
@@ -625,24 +618,14 @@ bool TryExtractFromValuePattern(
   return true;
 }
 
-void PutString(EncodableMap& map, const char* key, const std::wstring& value) {
-  Put(map, key, EncodableValue(WideToUtf8(value)));
-}
-
-void PutString(EncodableMap& map, const char* key, const std::string& value) {
-  Put(map, key, EncodableValue(value));
-}
-
-void PutNull(EncodableMap& map, const char* key) {
-  Put(map, key, EncodableValue());
-}
-
 }  // namespace
 
-EncodableMap GetFocusedTextFieldContext(int max_chars_before, int max_chars_after) {
-  EncodableMap context;
-  Put(context, "available", EncodableValue(false));
-  PutString(context, "reason", "unknown");
+FocusedTextFieldContextData GetFocusedTextFieldContext(
+    int max_chars_before,
+    int max_chars_after) {
+  FocusedTextFieldContextData context;
+  context.available = false;
+  context.reason = "unknown";
 
   // Negative means unbounded context.
   if (max_chars_before < 0) {
@@ -658,7 +641,7 @@ EncodableMap GetFocusedTextFieldContext(int max_chars_before, int max_chars_afte
 
   ScopedComInit com;
   if (!com.IsUsable()) {
-    PutString(context, "reason", "comInitializationFailed");
+    context.reason = "comInitializationFailed";
     return context;
   }
 
@@ -669,13 +652,13 @@ EncodableMap GetFocusedTextFieldContext(int max_chars_before, int max_chars_afte
       CLSCTX_INPROC_SERVER,
       IID_PPV_ARGS(&automation));
   if (FAILED(automation_hr) || !automation) {
-    PutString(context, "reason", "uiaUnavailable");
+    context.reason = "uiaUnavailable";
     return context;
   }
 
   const HWND focused_hwnd = GetFocusedWindowHandle();
   if (focused_hwnd == nullptr) {
-    PutString(context, "reason", "focusedWindowUnavailable");
+    context.reason = "focusedWindowUnavailable";
     return context;
   }
 
@@ -684,33 +667,33 @@ EncodableMap GetFocusedTextFieldContext(int max_chars_before, int max_chars_afte
           automation.Get(),
           focused_hwnd,
           element.ReleaseAndGetAddressOf())) {
-    PutString(context, "reason", "focusedElementUnavailable");
+    context.reason = "focusedElementUnavailable";
     return context;
   }
 
   int process_id = 0;
   if (SUCCEEDED(element->get_CurrentProcessId(&process_id)) && process_id > 0) {
     if (const auto image_path = GetProcessImagePath(static_cast<DWORD>(process_id))) {
-      PutString(context, "appIdentifier", WideToUtf8(*image_path));
-      PutString(context, "appName", WideToUtf8(GetBaseName(*image_path)));
+      context.app_identifier = WideToUtf8(*image_path);
+      context.app_name = WideToUtf8(GetBaseName(*image_path));
     }
   }
 
   CONTROLTYPEID control_type = 0;
   if (SUCCEEDED(element->get_CurrentControlType(&control_type))) {
-    PutString(context, "role", ControlTypeToString(control_type));
+    context.role = ControlTypeToString(control_type);
   }
 
   BSTR localized_control_type = nullptr;
   if (SUCCEEDED(element->get_CurrentLocalizedControlType(&localized_control_type)) &&
       localized_control_type != nullptr) {
-    PutString(context, "subrole", BstrToWString(localized_control_type));
+    context.subrole = WideToUtf8(BstrToWString(localized_control_type));
     ::SysFreeString(localized_control_type);
   }
 
   BOOL is_password = FALSE;
   if (SUCCEEDED(element->get_CurrentIsPassword(&is_password))) {
-    Put(context, "isSecure", EncodableValue(is_password == TRUE));
+    context.is_secure = (is_password == TRUE);
   }
 
   std::optional<bool> is_editable;
@@ -725,7 +708,7 @@ EncodableMap GetFocusedTextFieldContext(int max_chars_before, int max_chars_afte
     }
   }
   if (is_editable.has_value()) {
-    Put(context, "isEditable", EncodableValue(*is_editable));
+    context.is_editable = *is_editable;
   }
 
   std::wstring before_text;
@@ -761,29 +744,19 @@ EncodableMap GetFocusedTextFieldContext(int max_chars_before, int max_chars_afte
   }
 
   if (available) {
-    Put(context, "available", EncodableValue(true));
-    PutString(context, "reason", "ok");
-    PutString(context, "textBeforeSelection", before_text);
-    PutString(context, "selectedText", selected_text);
-    PutString(context, "textAfterSelection", after_text);
-    if (selection_start.has_value()) {
-      Put(context, "selectionStart", EncodableValue(*selection_start));
-    } else {
-      PutNull(context, "selectionStart");
-    }
-    if (selection_length.has_value()) {
-      Put(context, "selectionLength", EncodableValue(*selection_length));
-    } else {
-      PutNull(context, "selectionLength");
-    }
-    if (full_text_length.has_value()) {
-      Put(context, "fullTextLength", EncodableValue(*full_text_length));
-    }
+    context.available = true;
+    context.reason = "ok";
+    context.text_before_selection = WideToUtf8(before_text);
+    context.selected_text = WideToUtf8(selected_text);
+    context.text_after_selection = WideToUtf8(after_text);
+    context.selection_start = selection_start;
+    context.selection_length = selection_length;
+    context.full_text_length = full_text_length;
     return context;
   }
 
-  PutString(context, "reason", "textPatternUnavailable");
-  Put(context, "available", EncodableValue(false));
+  context.reason = "textPatternUnavailable";
+  context.available = false;
   return context;
 }
 

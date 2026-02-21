@@ -6,7 +6,7 @@ publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
 
 environment:
-  sdk: ^3.10.4
+  sdk: ^3.11.0
   flutter: ">=3.3.0"
 
 dependencies:

@@ -72,7 +72,7 @@ class _IntegratedVadCompressionPageState
   int _liveSnippetCount = 0;
   int _liveChunkCount = 0;
   double _currentRms = 0;
-  double _currentDbfs = -160;
+  double _currentDbfs = -90;
 
   bool _autoConvertSnippets = true;
   bool _convertWholeRecordingWhenStopped = true;
@@ -671,7 +671,13 @@ class _IntegratedVadCompressionPageState
     }
 
     setState(() {
-      _waveformSamples.add(amplitude);
+      final dbfs = SpeechAmplitudeUtils.rmsToDbfs(amplitude);
+      final waveformLevel = SpeechAmplitudeUtils.normalizeDbfsForWaveform(
+        dbfs,
+        sensitivity: SpeechAmplitudeUtils.defaultSensitivity,
+      );
+
+      _waveformSamples.add(waveformLevel);
       if (_waveformSamples.length > _waveformLimit) {
         _waveformSamples.removeRange(
           0,
@@ -680,9 +686,7 @@ class _IntegratedVadCompressionPageState
       }
       _speechDetected = speechActive;
       _currentRms = amplitude;
-      _currentDbfs = amplitude <= 0
-          ? -160
-          : (20 * math.log(amplitude) / math.ln10).clamp(-160, 0).toDouble();
+      _currentDbfs = dbfs;
     });
   }
 

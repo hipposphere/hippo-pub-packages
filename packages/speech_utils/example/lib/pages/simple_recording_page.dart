@@ -57,8 +57,8 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
 
   int _chunkCount = 0;
   double _currentRms = 0;
-  double _currentDbfs = -160;
-  double _peakDbfs = -160;
+  double _currentDbfs = -90;
+  double _peakDbfs = -90;
   double _speechThresholdRms = 0.035;
 
   String? _latestWavPath;
@@ -312,8 +312,8 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
       _speechDetected = false;
       _chunkCount = 0;
       _currentRms = 0;
-      _currentDbfs = -160;
-      _peakDbfs = -160;
+      _currentDbfs = -90;
+      _peakDbfs = -90;
       _recordingDuration = Duration.zero;
       _waveformSamples.clear();
       _latestWavPath = null;
@@ -344,15 +344,19 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
       _speechDetected = speech;
       _currentRms = rms;
 
-      _waveformSamples.add(rms);
+      final dbfs = SpeechAmplitudeUtils.rmsToDbfs(rms);
+      _currentDbfs = dbfs;
+      _peakDbfs = math.max(_peakDbfs, dbfs);
+
+      _waveformSamples.add(
+        SpeechAmplitudeUtils.normalizeDbfsForWaveform(
+          dbfs,
+          sensitivity: SpeechAmplitudeUtils.defaultSensitivity,
+        ),
+      );
       if (_waveformSamples.length > 220) {
         _waveformSamples.removeRange(0, _waveformSamples.length - 220);
       }
-      final dbfs =
-          (rms <= 0 ? -160 : (20 * math.log(rms) / math.ln10).clamp(-160, 0))
-              .toDouble();
-      _currentDbfs = dbfs;
-      _peakDbfs = math.max(_peakDbfs, dbfs);
     });
   }
 

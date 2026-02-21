@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
+import 'package:speech_utils_example/pages/file_recorder_page.dart';
 import 'package:speech_utils_example/pages/integrated_vad_compression_page.dart';
 import 'package:speech_utils_example/pages/simple_recording_page.dart';
 import 'package:speech_utils_example/widgets/theme_controls.dart';
@@ -92,6 +93,23 @@ class _SpeechUtilsHomePage extends StatelessWidget {
         children: [
           Text('Examples', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 10),
+          _ExamplePageCard(
+            title: 'File Recorder (start/stop)',
+            description:
+                'Direct capture with start/stop lifecycle and configurable codec, sample rate, channels, bitrate, and device selection.',
+            icon: Icons.mic_external_on,
+            onOpen: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => FileRecordingPage(
+                    themeMode: themeMode,
+                    onThemeModeChanged: onThemeModeChanged,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
           _ExamplePageCard(
             title: 'Integrated VAD + Compression',
             description:

@@ -4,6 +4,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'package:speech_recorder/speech_recorder.dart';
+import 'package:speech_utils/speech_utils.dart';
 
 class SpeechRecorderAmplitudeHistoryContainer extends StatelessWidget {
   final SpeechRecorderSession session;
@@ -49,7 +50,12 @@ class SpeechRecorderAmplitudeHistoryContainer extends StatelessWidget {
               .toList();
 
           final normalizedValues = subList
-              .map((amplitude) => _normalizeAmplitude(amplitude.current))
+              .map(
+                (amplitude) => SpeechAmplitudeUtils.normalizeDbfsForWaveform(
+                  amplitude.current,
+                  sensitivity: SpeechAmplitudeUtils.defaultSensitivity,
+                ).clamp(minLevel, 1.0),
+              )
               .toList(growable: false);
 
           return _AnimatedAmplitudeHistory(
@@ -71,19 +77,6 @@ class SpeechRecorderAmplitudeHistoryContainer extends StatelessWidget {
         },
       ),
     );
-  }
-
-  double _normalizeAmplitude(double value) {
-    var normalized = value;
-    if (normalized < 0) {
-      normalized = (normalized + 50) / 50;
-    }
-
-    normalized = normalized.clamp(0.0, 1.0);
-    if (normalized < minLevel) {
-      return minLevel;
-    }
-    return normalized;
   }
 }
 

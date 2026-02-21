@@ -319,7 +319,7 @@ class WindowsAudioRecorderState {
       return -6;
     }
 
-    if (!StartDeviceLocked(sample_rate_hz, channel_count, input_device_id_utf8, error_utf8,
+    if (!StartDeviceLocked(sample_rate_hz, channel_count, 0, input_device_id_utf8, error_utf8,
                            error_utf8_capacity)) {
       std::fclose(file);
       return -7;
@@ -350,8 +350,8 @@ class WindowsAudioRecorderState {
       return -2;
     }
 
-    if (!StartDeviceLocked(sample_rate_hz, channel_count, input_device_id_utf8, error_utf8,
-                           error_utf8_capacity)) {
+    if (!StartDeviceLocked(sample_rate_hz, channel_count, frames_per_chunk, input_device_id_utf8,
+                           error_utf8, error_utf8_capacity)) {
       return -3;
     }
 
@@ -590,8 +590,8 @@ class WindowsAudioRecorderState {
   }
 
   bool StartDeviceLocked(uint32_t sample_rate_hz, uint32_t channel_count,
-                         const char* input_device_id_utf8, char* error_utf8,
-                         uint32_t error_utf8_capacity) {
+                         uint32_t preferred_period_frames, const char* input_device_id_utf8,
+                         char* error_utf8, uint32_t error_utf8_capacity) {
     const std::string effective_device_id = TrimAscii(input_device_id_utf8);
 
     ma_device_id selected_device_id{};
@@ -624,6 +624,12 @@ class WindowsAudioRecorderState {
     config.capture.channels = channel_count;
     config.capture.pDeviceID = selected_device_id_ptr;
     config.sampleRate = sample_rate_hz;
+    if (preferred_period_frames > 0) {
+      // Keep streaming responsive by requesting a smaller callback period.
+      config.periodSizeInFrames = preferred_period_frames;
+      config.periods = 2;
+      config.performanceProfile = ma_performance_profile_low_latency;
+    }
     config.dataCallback = DataCallback;
     config.pUserData = this;
 

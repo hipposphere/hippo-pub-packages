@@ -511,15 +511,18 @@ class _IntegratedVadCompressionPageState
     final vadLabel = vadPairAndLabel.$2;
 
     late final Stream<Uint8List> micStream;
+    final inputDeviceId = _supportsInputSelection
+        ? ((_selectedInputDevice?.isDefault ?? true)
+              ? null
+              : _selectedInputDevice?.id)
+        : null;
     try {
       micStream = await _recorder.startStream(
         config: AudioRecorderConfig(
           sampleRateHz: _sampleRateHz ?? 16000,
           channelCount: _channelCount,
-          framesPerChunk: 1024,
-          inputDeviceId: _supportsInputSelection
-              ? _selectedInputDevice?.id
-              : null,
+          framesPerChunk: 256,
+          inputDeviceId: inputDeviceId,
           encoding: AudioEncodingConfig(
             encoder: _selectedAacEncoder != null
                 ? AudioEncoder.aacLc
@@ -528,6 +531,7 @@ class _IntegratedVadCompressionPageState
             bitrateBps: _bitrateKbps != null ? _bitrateKbps! * 1000 : null,
           ),
         ),
+        pollInterval: const Duration(milliseconds: 10),
         readSampleCapacity: 4096,
       );
     } on Object catch (error) {

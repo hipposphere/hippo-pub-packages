@@ -4,13 +4,13 @@ import 'package:native_toolchain_c/native_toolchain_c.dart';
 
 import 'hook_helpers.dart';
 
-const _appleAudioMetadataAssetName = 'src/metadata/generated/apple_audio_metadata_bindings.dart';
-const _appleAudioMetadataBindingsSource = 'native/apple/speech_utils_apple_aac_codec_bindings.mm';
+const _appleAudioMetadataAssetName = 'src/generated/metadata/apple_audio_metadata_bindings.dart';
+const _appleAudioMetadataBindingsSource = 'native/apple/speech_utils_apple_audio_codec_bindings.mm';
 const _macosAudioMetadataLibraryBaseName = 'speech_utils_macos_audio_metadata';
 const _iosAudioMetadataLibraryBaseName = 'speech_utils_ios_audio_metadata';
 const _appleAudioMetadataSources = <String>[
-  'native/apple/speech_utils_apple_aac_codec_bindings.mm',
-  'native/apple/speech_utils_apple_aac_codec.mm',
+  'native/apple/speech_utils_apple_audio_codec_bindings.mm',
+  'native/apple/speech_utils_apple_audio_codec.mm',
 ];
 
 Future<void> buildMacosAudioMetadataAsset(BuildInput input, BuildOutputBuilder output) async {
@@ -25,7 +25,7 @@ Future<void> buildMacosAudioMetadataAsset(BuildInput input, BuildOutputBuilder o
   );
   requireSourceFile(
     input,
-    relativePath: 'native/apple/speech_utils_apple_aac_codec.mm',
+    relativePath: 'native/apple/speech_utils_apple_audio_codec.mm',
     label: 'macOS audio metadata',
   );
 
@@ -36,7 +36,7 @@ Future<void> buildMacosAudioMetadataAsset(BuildInput input, BuildOutputBuilder o
     sources: _appleAudioMetadataSources,
     std: 'c++17',
     flags: appleObjectiveCArcFlags,
-    defines: const {'SPEECH_UTILS_APPLE_AAC_TARGET_MACOS': '1'},
+    defines: const {'SPEECH_UTILS_APPLE_AUDIO_CODEC_TARGET_MACOS': '1'},
     frameworks: appleCommonFrameworks,
     libraries: appleCommonLibraries,
   ).run(input: input, output: output);
@@ -54,7 +54,7 @@ Future<void> buildIosAudioMetadataAsset(BuildInput input, BuildOutputBuilder out
   );
   requireSourceFile(
     input,
-    relativePath: 'native/apple/speech_utils_apple_aac_codec.mm',
+    relativePath: 'native/apple/speech_utils_apple_audio_codec.mm',
     label: 'iOS audio metadata',
   );
 
@@ -65,7 +65,7 @@ Future<void> buildIosAudioMetadataAsset(BuildInput input, BuildOutputBuilder out
     sources: _appleAudioMetadataSources,
     std: 'c++17',
     flags: appleObjectiveCArcFlags,
-    defines: const {'SPEECH_UTILS_APPLE_AAC_TARGET_IOS': '1'},
+    defines: const {'SPEECH_UTILS_APPLE_AUDIO_CODEC_TARGET_IOS': '1'},
     frameworks: appleCommonFrameworks,
     libraries: appleCommonLibraries,
   ).run(input: input, output: output);

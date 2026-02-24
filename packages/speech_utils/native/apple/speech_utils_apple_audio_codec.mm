@@ -12,7 +12,7 @@
 #include <limits>
 #include <string>
 
-#include "speech_utils_apple_aac_codec.h"
+#include "speech_utils_apple_audio_codec.h"
 
 namespace {
 std::string EffectivePlatformName(const char* platform_name) {
@@ -191,7 +191,7 @@ bool ResolveAudioTrackMetadata(AVAssetTrack* track, int32_t* out_sample_rate_hz,
 }
 }  // namespace
 
-namespace speech_utils::apple_aac {
+namespace speech_utils::apple_audio_codec {
 int32_t EncodeAudioFileToAac(const char* input_path_utf8, const char* output_path_utf8,
                              uint32_t bitrate_bps, bool use_source_format_hint,
                              const char* platform_name, char* error_utf8,
@@ -497,4 +497,4 @@ int32_t ReadAudioMetadata(const char* input_path_utf8, int64_t* out_duration_mic
 
   return 0;
 }
-}  // namespace speech_utils::apple_aac
+}  // namespace speech_utils::apple_audio_codec

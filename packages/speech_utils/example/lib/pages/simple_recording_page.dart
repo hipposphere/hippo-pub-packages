@@ -40,7 +40,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
   int _channelCount = 1;
   int? _bitrateKbps;
 
-  final NativeAacEncoder _nativeAacEncoder = NativeAacEncoder();
+  final NativeAudioEncoder _nativeAacEncoder = NativeAudioEncoder();
   final FfmpegAacEncoder _ffmpegAacEncoder = FfmpegAacEncoder();
 
   bool _isNativeAacAvailable = false;
@@ -271,7 +271,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
               : _selectedInputDevice?.id)
         : null;
     try {
-      micStream = await _recorder.startStream(
+      micStream = await _recorder.startPcmStream(
         config: AudioRecorderConfig(
           sampleRateHz: _sampleRateHz ?? 16000,
           channelCount: _channelCount,

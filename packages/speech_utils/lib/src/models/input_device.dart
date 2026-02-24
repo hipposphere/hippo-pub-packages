@@ -1,10 +1,6 @@
 /// A discoverable microphone/input capture device exposed by native recorder backends.
 final class InputDevice {
-  const InputDevice({
-    required this.id,
-    required this.label,
-    this.isDefault = false,
-  });
+  const InputDevice({required this.id, required this.label, this.isDefault = false});
 
   final String id;
   final String label;

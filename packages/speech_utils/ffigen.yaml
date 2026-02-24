@@ -2,14 +2,14 @@
 
 name: TenVadBindings
 description: Generated bindings for TEN VAD.
-output: lib/src/vad/generated/ten_vad_bindings.dart
+output: lib/src/generated/vad/ten_vad_bindings.dart
 
 headers:
   entry-points:
     - third_party/ten_vad/include/ten_vad_ffi_bridge.h
 
 ffi-native:
-  asset-id: package:speech_utils/src/vad/generated/ten_vad_bindings.dart
+  asset-id: package:speech_utils/src/generated/vad/ten_vad_bindings.dart
 
 functions:
   include:

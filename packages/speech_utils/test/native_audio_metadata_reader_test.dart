@@ -9,9 +9,8 @@ void main() {
         windowsAvailabilityFn: () => true,
         windowsReadFn: (inputPath) {
           expect(inputPath, 'input.wav');
-          return const AudioMetadataNativeResult(
-            resultCode: 0,
-            durationMicros: 1234567,
+          return const AudioMetadata(
+            duration: Duration(microseconds: 1234567),
             sampleRateHz: 48000,
             channelCount: 2,
             bitrateBps: 192000,
@@ -36,7 +35,7 @@ void main() {
     test('readAudioDuration returns metadata duration', () async {
       final reader = NativeAudioMetadataReader(
         platform: NativeAudioMetadataPlatform.android,
-        androidReadFn: (_) => const AudioMetadataNativeResult(resultCode: 0, durationMicros: 42000),
+        androidReadFn: (_) => const AudioMetadata(duration: Duration(microseconds: 42000)),
         androidAvailabilityFn: () => true,
       );
 
@@ -47,9 +46,8 @@ void main() {
     test('maps non-positive optional fields to null', () async {
       final reader = NativeAudioMetadataReader(
         platform: NativeAudioMetadataPlatform.iOS,
-        iosReadFn: (_) => const AudioMetadataNativeResult(
-          resultCode: 0,
-          durationMicros: 1000,
+        iosReadFn: (_) => const AudioMetadata(
+          duration: Duration(microseconds: 1000),
           bitrateBps: -1,
           containerFormat: '  ',
           codec: '',
@@ -69,10 +67,10 @@ void main() {
     test('throws AudioMetadataException on native error', () {
       final reader = NativeAudioMetadataReader(
         platform: NativeAudioMetadataPlatform.windows,
-        windowsReadFn: (_) => const AudioMetadataNativeResult(
-          resultCode: -12,
-          durationMicros: -1,
-          error: 'native failure',
+        windowsReadFn: (_) => throw AudioMetadataException(
+          'Native audio metadata read failed',
+          errorCode: -12,
+          details: 'native failure',
         ),
         windowsAvailabilityFn: () => true,
       );
@@ -96,7 +94,7 @@ void main() {
     test('throws ArgumentError for empty path', () {
       final reader = NativeAudioMetadataReader(
         platform: NativeAudioMetadataPlatform.macOS,
-        macosReadFn: (_) => const AudioMetadataNativeResult(resultCode: 0, durationMicros: 10),
+        macosReadFn: (_) => const AudioMetadata(duration: Duration(microseconds: 10)),
         macosAvailabilityFn: () => true,
       );
 

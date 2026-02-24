@@ -6,7 +6,7 @@ metadata. The build hook expects a prebuilt FFmpeg SDK in
 
 Build hook implementation:
 - `hook/src/windows_ffmpeg_pipeline.dart`
-- `hook/src/aac_assets.dart`
+- `hook/src/audio_encoder_assets.dart`
 
 CI prebuild workflow:
 - `.github/workflows/build_windows_ffmpeg_lib.yml`

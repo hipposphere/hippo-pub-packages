@@ -219,7 +219,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
       bitrateBps: _selectedEncoder.isAac && _bitrateKbps != null
           ? _bitrateKbps! * 1000
           : null,
-      aacEncoder: _selectedEncoder.isAac ? NativeAacEncoder() : null,
+      audioEncoder: _selectedEncoder.isAac ? NativeAudioEncoder() : null,
     );
   }
 
@@ -249,7 +249,10 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     );
 
     try {
-      await _recorder.start(outputPath: outputPath, config: config);
+      await _recorder.startFileRecording(
+        outputPath: outputPath,
+        config: config,
+      );
     } on Object catch (error) {
       _appendLog('Failed to start recording: $error');
       return;

@@ -1,7 +1,7 @@
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 
-import 'src/aac_assets.dart';
+import 'src/audio_encoder_assets.dart';
 import 'src/metadata_assets.dart';
 import 'src/recorder_assets.dart';
 import 'src/ten_vad_assets.dart';
@@ -10,14 +10,14 @@ typedef HookBuildStep = Future<void> Function(BuildInput input, BuildOutputBuild
 
 final _buildSteps = <HookBuildStep>[
   bundleTenVadAsset,
-    buildWindowsAacEncoderAsset,
-    buildAndroidAacEncoderAsset,
-    buildIosAacEncoderAsset,
-    buildMacosAacEncoderAsset,
-    buildIosAudioMetadataAsset,
-    buildWindowsAudioRecorderAsset,
-    buildIosAudioRecorderAsset,
-    buildMacosAudioMetadataAsset,
+  buildWindowsAudioEncoderAsset,
+  buildAndroidAudioEncoderAsset,
+  buildIosAudioEncoderAsset,
+  buildMacosAudioEncoderAsset,
+  buildIosAudioMetadataAsset,
+  buildWindowsAudioRecorderAsset,
+  buildIosAudioRecorderAsset,
+  buildMacosAudioMetadataAsset,
   buildMacosAudioRecorderAsset,
 ];
 

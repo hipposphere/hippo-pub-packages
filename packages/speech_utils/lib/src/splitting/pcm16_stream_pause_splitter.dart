@@ -1,33 +1,28 @@
 import 'dart:collection';
 import 'dart:typed_data';
 
-import '../model/pause_split_options.dart';
-import '../model/pcm16_snippet.dart';
-import '../vad/energy_vad_backend.dart';
+import '../models/pause_split_options.dart';
+import '../models/pcm16_snippet.dart';
 import '../vad/vad_backend.dart';
+import 'pause_split_frame_policy.dart';
 
 /// Stateful splitter for live PCM16 streams.
 ///
 /// Feed chunks via [addChunk], and call [flush] when the input stream closes.
 final class Pcm16StreamPauseSplitter {
-  Pcm16StreamPauseSplitter({required this.options, VadBackend? vadBackend})
-    : vadBackend = vadBackend ?? const EnergyVadBackend(),
-      _frameByteCount = options.frameSampleCount * 2,
-      _minSpeechFrames = _atLeastOne(options.framesFor(options.minSpeechDuration)),
-      _minSilenceFrames = _atLeastOne(options.framesFor(options.minSilenceDuration)),
-      _preSpeechFrames = options.framesFor(options.preSpeechPadding),
-      _postSpeechFrames = options.framesFor(options.postSpeechPadding) {
+  Pcm16StreamPauseSplitter({
+    required this.options,
+    required this.vadBackend,
+    this.onFrameClassified,
+  }) : _framePolicy = PauseSplitFramePolicy.fromOptions(options) {
     options.validate();
   }
 
   final PauseSplitOptions options;
   final VadBackend vadBackend;
+  final void Function(bool isSpeech)? onFrameClassified;
 
-  final int _frameByteCount;
-  final int _minSpeechFrames;
-  final int _minSilenceFrames;
-  final int _preSpeechFrames;
-  final int _postSpeechFrames;
+  final PauseSplitFramePolicy _framePolicy;
 
   Uint8List _leftoverBytes = Uint8List(0);
   final ListQueue<Uint8List> _preSpeechFrameQueue = ListQueue<Uint8List>();
@@ -44,17 +39,17 @@ final class Pcm16StreamPauseSplitter {
     }
 
     final workingBytes = _ensureEvenByteOffset(_mergeWithLeftover(chunk));
-    final fullFrameCount = workingBytes.length ~/ _frameByteCount;
+    final fullFrameCount = workingBytes.length ~/ _framePolicy.frameByteCount;
     final emitted = <Pcm16Snippet>[];
 
     for (var frameIndex = 0; frameIndex < fullFrameCount; frameIndex++) {
-      final frameStart = frameIndex * _frameByteCount;
-      final frameEnd = frameStart + _frameByteCount;
+      final frameStart = frameIndex * _framePolicy.frameByteCount;
+      final frameEnd = frameStart + _framePolicy.frameByteCount;
       final frameBytes = Uint8List.sublistView(workingBytes, frameStart, frameEnd);
       _consumeFrame(frameBytes, emitted);
     }
 
-    final processedBytes = fullFrameCount * _frameByteCount;
+    final processedBytes = fullFrameCount * _framePolicy.frameByteCount;
     final remainingBytes = workingBytes.length - processedBytes;
     if (remainingBytes == 0) {
       _leftoverBytes = Uint8List(0);
@@ -88,15 +83,16 @@ final class Pcm16StreamPauseSplitter {
     final frameSamples = Int16List.view(
       alignedFrameBytes.buffer,
       alignedFrameBytes.offsetInBytes,
-      options.frameSampleCount,
+      _framePolicy.frameSampleCount,
     );
     final isSpeech = vadBackend.isSpeechFrame(
       frameSamples,
       startSampleOffset: 0,
-      sampleCount: options.frameSampleCount,
+      sampleCount: _framePolicy.frameSampleCount,
       sampleRateHz: options.sampleRateHz,
       channelCount: options.channelCount,
     );
+    onFrameClassified?.call(isSpeech);
 
     if (isSpeech) {
       _handleSpeechFrame(frameBytes);
@@ -126,7 +122,7 @@ final class Pcm16StreamPauseSplitter {
 
     _segmentFrames.add(frameBytes);
     _trailingSilenceFrames++;
-    if (_trailingSilenceFrames < _minSilenceFrames) {
+    if (_trailingSilenceFrames < _framePolicy.minSilenceFrames) {
       return;
     }
 
@@ -140,12 +136,17 @@ final class Pcm16StreamPauseSplitter {
     if (!_inSegment) {
       return null;
     }
-    if (_speechFrameCount < _minSpeechFrames) {
+    if (_speechFrameCount < _framePolicy.minSpeechFrames) {
       _resetCurrentSegmentState();
       return null;
     }
 
-    final keptFrameCount = forceFlush ? _segmentFrames.length : _computeKeptFrameCountAfterTrim();
+    final keptFrameCount = forceFlush
+        ? _segmentFrames.length
+        : _framePolicy.keptFrameCountAfterTrim(
+            totalFrameCount: _segmentFrames.length,
+            trailingSilenceFrames: _trailingSilenceFrames,
+          );
     if (keptFrameCount <= 0) {
       _resetCurrentSegmentState();
       return null;
@@ -174,19 +175,8 @@ final class Pcm16StreamPauseSplitter {
     return snippet;
   }
 
-  int _computeKeptFrameCountAfterTrim() {
-    final trimFrames = _trailingSilenceFrames - _postSpeechFrames;
-    if (trimFrames <= 0) {
-      return _segmentFrames.length;
-    }
-    final boundedTrimFrames = trimFrames > _segmentFrames.length
-        ? _segmentFrames.length
-        : trimFrames;
-    return _segmentFrames.length - boundedTrimFrames;
-  }
-
   void _seedPreSpeechBufferFromTrimmedFrames(int keptFrameCount) {
-    if (_preSpeechFrames == 0) {
+    if (_framePolicy.preSpeechFrames == 0) {
       return;
     }
     _preSpeechFrameQueue.clear();
@@ -196,11 +186,11 @@ final class Pcm16StreamPauseSplitter {
   }
 
   void _pushPreSpeechFrame(Uint8List frameBytes) {
-    if (_preSpeechFrames == 0) {
+    if (_framePolicy.preSpeechFrames == 0) {
       return;
     }
     _preSpeechFrameQueue.add(frameBytes);
-    while (_preSpeechFrameQueue.length > _preSpeechFrames) {
+    while (_preSpeechFrameQueue.length > _framePolicy.preSpeechFrames) {
       _preSpeechFrameQueue.removeFirst();
     }
   }
@@ -250,5 +240,3 @@ Uint8List _flattenFrames(List<Uint8List> frames, {Uint8List? trailingPartialByte
 
   return flattened;
 }
-
-int _atLeastOne(int value) => value <= 0 ? 1 : value;

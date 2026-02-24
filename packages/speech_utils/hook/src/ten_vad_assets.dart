@@ -5,7 +5,7 @@ import 'package:hooks/hooks.dart';
 
 import 'hook_helpers.dart';
 
-const _tenVadAssetName = 'src/vad/generated/ten_vad_bindings.dart';
+const _tenVadAssetName = 'src/generated/vad/ten_vad_bindings.dart';
 const _tenVadLibraryBaseName = 'speech_utils_ten_vad';
 
 Future<void> bundleTenVadAsset(BuildInput input, BuildOutputBuilder output) async {

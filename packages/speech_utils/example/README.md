@@ -9,7 +9,7 @@ Flutter example app for `speech_utils`.
   - **Simple Recorder + Waveform**
   - app-wide theme controls (system/light/dark via `hippo_components` app theme)
 - Live microphone streaming with native FFI recorder:
-  - `NativeAudioRecorder.startStream(...)`
+  - `NativeAudioRecorder.startPcmStream(...)`
   - `AudioRecorderConfig(sampleRateHz: 16000, channelCount: 1, framesPerChunk: 1024)`
   - `SpeechUtils.splitPcm16StreamOnSilence(...)` emits snippets during active speaking
 - Input routing:
@@ -34,9 +34,9 @@ Flutter example app for `speech_utils`.
   - `splitPcm16StreamOnSilence`
   - `splitPcm16AndWriteWavSnippets`
   - `splitPcm16AndEncodeAacSnippets`
-  - `NativeAacEncoder.encodePcm16BytesToAac`
-  - `NativeAacEncoder.encodePcm16FileToAac`
-  - `NativeAacEncoder.encodeAudioFileToAac`
+  - `NativeAudioEncoder.encodePcm16BytesToAac`
+  - `NativeAudioEncoder.encodePcm16FileToAac`
+  - `NativeAudioEncoder.encodeAudioFileToAac`
 
 ## Platforms
 
@@ -76,8 +76,8 @@ This repository includes a desktop integration test at:
 
 What it validates:
 
-- first non-empty microphone PCM chunk capture latency from `NativeAudioRecorder.startStream(...)`
-- end-to-end `startWithVadSegmentation(...)` pipeline with VAD + native AAC encoding
+- first non-empty microphone PCM chunk capture latency from `NativeAudioRecorder.startPcmStream(...)`
+- end-to-end `startVadCapture(...)` pipeline with VAD + native AAC segment encoding
 - encoded segment metadata through `NativeAudioMetadataReader`
 
 Run on macOS:

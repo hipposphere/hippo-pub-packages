@@ -3,37 +3,13 @@ import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 
-import '../encoding/generated/android_aac_bindings.dart' as android_bindings;
-import '../metadata/generated/apple_audio_metadata_bindings.dart' as apple_metadata_bindings;
-import '../encoding/generated/windows_aac_bindings.dart' as windows_bindings;
-import '../model/audio_metadata.dart';
+import '../generated/audio_encoder/android_audio_encoder_bindings.dart' as android_bindings;
+import '../generated/metadata/apple_audio_metadata_bindings.dart' as apple_metadata_bindings;
+import '../generated/audio_encoder/windows_audio_encoder_bindings.dart' as windows_bindings;
+import '../models/audio_metadata.dart';
 
-typedef NativeAudioMetadataReadFn = AudioMetadataNativeResult Function(String inputPath);
+typedef NativeAudioMetadataReadFn = AudioMetadata Function(String inputPath);
 typedef NativeAudioMetadataAvailabilityFn = bool Function();
-
-final class AudioMetadataNativeResult {
-  const AudioMetadataNativeResult({
-    required this.resultCode,
-    required this.durationMicros,
-    this.sampleRateHz,
-    this.channelCount,
-    this.bitrateBps,
-    this.containerFormat,
-    this.codec,
-    this.codecProfile,
-    this.error,
-  });
-
-  final int resultCode;
-  final int durationMicros;
-  final int? sampleRateHz;
-  final int? channelCount;
-  final int? bitrateBps;
-  final String? containerFormat;
-  final String? codec;
-  final String? codecProfile;
-  final String? error;
-}
 
 enum NativeAudioMetadataPlatform { macOS, windows, android, iOS, unsupported }
 
@@ -103,7 +79,7 @@ final class NativeAudioMetadataReader {
       throw ArgumentError.value(inputPath, 'inputPath', 'Must not be empty');
     }
 
-    final result = switch (_platform) {
+    final metadata = switch (_platform) {
       NativeAudioMetadataPlatform.macOS => _macosReadFn(inputPath),
       NativeAudioMetadataPlatform.windows => _windowsReadFn(inputPath),
       NativeAudioMetadataPlatform.android => _androidReadFn(inputPath),
@@ -113,29 +89,21 @@ final class NativeAudioMetadataReader {
       ),
     };
 
-    if (result.resultCode != 0) {
-      throw AudioMetadataException(
-        'Native audio metadata read failed',
-        errorCode: result.resultCode,
-        details: result.error,
-      );
-    }
-    if (result.durationMicros < 0) {
+    if (metadata.duration < Duration.zero) {
       throw AudioMetadataException(
         'Native audio metadata returned an invalid duration',
-        errorCode: result.resultCode,
-        details: 'durationMicros=${result.durationMicros}',
+        details: 'durationMicros=${metadata.duration.inMicroseconds}',
       );
     }
 
     return AudioMetadata(
-      duration: Duration(microseconds: result.durationMicros),
-      sampleRateHz: _toOptionalPositive(result.sampleRateHz),
-      channelCount: _toOptionalPositive(result.channelCount),
-      bitrateBps: _toOptionalPositive(result.bitrateBps),
-      containerFormat: _toOptionalText(result.containerFormat),
-      codec: _toOptionalText(result.codec),
-      codecProfile: _toOptionalText(result.codecProfile),
+      duration: metadata.duration,
+      sampleRateHz: _toOptionalPositive(metadata.sampleRateHz),
+      channelCount: _toOptionalPositive(metadata.channelCount),
+      bitrateBps: _toOptionalPositive(metadata.bitrateBps),
+      containerFormat: _toOptionalText(metadata.containerFormat),
+      codec: _toOptionalText(metadata.codec),
+      codecProfile: _toOptionalText(metadata.codecProfile),
     );
   }
 
@@ -194,37 +162,38 @@ bool _isAppleAudioMetadataAvailableViaFfi() {
   return true;
 }
 
-AudioMetadataNativeResult _readAudioMetadataViaMacosFfi(String inputPath) {
+AudioMetadata _readAudioMetadataViaMacosFfi(String inputPath) {
   return _readAudioMetadataViaAppleFfi(
     inputPath: inputPath,
     function: apple_metadata_bindings.speech_utils_macos_read_audio_metadata,
   );
 }
 
-AudioMetadataNativeResult _readAudioMetadataViaIosFfi(String inputPath) {
+AudioMetadata _readAudioMetadataViaIosFfi(String inputPath) {
   return _readAudioMetadataViaAppleFfi(
     inputPath: inputPath,
     function: apple_metadata_bindings.speech_utils_ios_read_audio_metadata,
   );
 }
 
-typedef _AppleAudioMetadataFfi = int Function(
-  ffi.Pointer<ffi.Char> inputPathUtf8,
-  ffi.Pointer<ffi.Int64> outDurationMicros,
-  ffi.Pointer<ffi.Int32> outSampleRateHz,
-  ffi.Pointer<ffi.Int32> outChannelCount,
-  ffi.Pointer<ffi.Int32> outBitrateBps,
-  ffi.Pointer<ffi.Char> outContainerFormatUtf8,
-  int outContainerFormatUtf8Capacity,
-  ffi.Pointer<ffi.Char> outCodecUtf8,
-  int outCodecUtf8Capacity,
-  ffi.Pointer<ffi.Char> outCodecProfileUtf8,
-  int outCodecProfileUtf8Capacity,
-  ffi.Pointer<ffi.Char> errorUtf8,
-  int errorUtf8Capacity,
-);
+typedef _AppleAudioMetadataFfi =
+    int Function(
+      ffi.Pointer<ffi.Char> inputPathUtf8,
+      ffi.Pointer<ffi.Int64> outDurationMicros,
+      ffi.Pointer<ffi.Int32> outSampleRateHz,
+      ffi.Pointer<ffi.Int32> outChannelCount,
+      ffi.Pointer<ffi.Int32> outBitrateBps,
+      ffi.Pointer<ffi.Char> outContainerFormatUtf8,
+      int outContainerFormatUtf8Capacity,
+      ffi.Pointer<ffi.Char> outCodecUtf8,
+      int outCodecUtf8Capacity,
+      ffi.Pointer<ffi.Char> outCodecProfileUtf8,
+      int outCodecProfileUtf8Capacity,
+      ffi.Pointer<ffi.Char> errorUtf8,
+      int errorUtf8Capacity,
+    );
 
-AudioMetadataNativeResult _readAudioMetadataViaAppleFfi({
+AudioMetadata _readAudioMetadataViaAppleFfi({
   required String inputPath,
   required _AppleAudioMetadataFfi function,
 }) {
@@ -258,16 +227,30 @@ AudioMetadataNativeResult _readAudioMetadataViaAppleFfi({
     final codec = outCodecPtr.cast<Utf8>().toDartString();
     final codecProfile = outCodecProfilePtr.cast<Utf8>().toDartString();
     final error = errorPtr.cast<Utf8>().toDartString();
-    return AudioMetadataNativeResult(
-      resultCode: code,
-      durationMicros: outDurationPtr.value,
-      sampleRateHz: outSampleRatePtr.value,
-      channelCount: outChannelCountPtr.value,
-      bitrateBps: outBitratePtr.value,
-      containerFormat: containerFormat.isEmpty ? null : containerFormat,
-      codec: codec.isEmpty ? null : codec,
-      codecProfile: codecProfile.isEmpty ? null : codecProfile,
-      error: error.isEmpty ? null : error,
+    if (code != 0) {
+      throw AudioMetadataException(
+        'Native audio metadata read failed',
+        errorCode: code,
+        details: error.isEmpty ? null : error,
+      );
+    }
+
+    final durationMicros = outDurationPtr.value;
+    if (durationMicros < 0) {
+      throw AudioMetadataException(
+        'Native audio metadata returned an invalid duration',
+        details: 'durationMicros=$durationMicros',
+      );
+    }
+
+    return AudioMetadata(
+      duration: Duration(microseconds: durationMicros),
+      sampleRateHz: _toOptionalPositive(outSampleRatePtr.value),
+      channelCount: _toOptionalPositive(outChannelCountPtr.value),
+      bitrateBps: _toOptionalPositive(outBitratePtr.value),
+      containerFormat: _toOptionalText(containerFormat),
+      codec: _toOptionalText(codec),
+      codecProfile: _toOptionalText(codecProfile),
     );
   } finally {
     calloc.free(inputPathPtr);
@@ -299,7 +282,7 @@ bool _isWindowsAudioMetadataAvailableViaFfi() {
   }
 }
 
-AudioMetadataNativeResult _readAudioMetadataViaWindowsFfi(String inputPath) {
+AudioMetadata _readAudioMetadataViaWindowsFfi(String inputPath) {
   final inputPathPtr = inputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
   final outDurationPtr = calloc<ffi.Int64>();
   final outSampleRatePtr = calloc<ffi.Int32>();
@@ -330,16 +313,30 @@ AudioMetadataNativeResult _readAudioMetadataViaWindowsFfi(String inputPath) {
     final codec = outCodecPtr.cast<Utf8>().toDartString();
     final codecProfile = outCodecProfilePtr.cast<Utf8>().toDartString();
     final error = errorPtr.cast<Utf8>().toDartString();
-    return AudioMetadataNativeResult(
-      resultCode: code,
-      durationMicros: outDurationPtr.value,
-      sampleRateHz: outSampleRatePtr.value,
-      channelCount: outChannelCountPtr.value,
-      bitrateBps: outBitratePtr.value,
-      containerFormat: containerFormat.isEmpty ? null : containerFormat,
-      codec: codec.isEmpty ? null : codec,
-      codecProfile: codecProfile.isEmpty ? null : codecProfile,
-      error: error.isEmpty ? null : error,
+    if (code != 0) {
+      throw AudioMetadataException(
+        'Native audio metadata read failed',
+        errorCode: code,
+        details: error.isEmpty ? null : error,
+      );
+    }
+
+    final durationMicros = outDurationPtr.value;
+    if (durationMicros < 0) {
+      throw AudioMetadataException(
+        'Native audio metadata returned an invalid duration',
+        details: 'durationMicros=$durationMicros',
+      );
+    }
+
+    return AudioMetadata(
+      duration: Duration(microseconds: durationMicros),
+      sampleRateHz: _toOptionalPositive(outSampleRatePtr.value),
+      channelCount: _toOptionalPositive(outChannelCountPtr.value),
+      bitrateBps: _toOptionalPositive(outBitratePtr.value),
+      containerFormat: _toOptionalText(containerFormat),
+      codec: _toOptionalText(codec),
+      codecProfile: _toOptionalText(codecProfile),
     );
   } finally {
     calloc.free(inputPathPtr);
@@ -371,7 +368,7 @@ bool _isAndroidAudioMetadataAvailableViaFfi() {
   }
 }
 
-AudioMetadataNativeResult _readAudioMetadataViaAndroidFfi(String inputPath) {
+AudioMetadata _readAudioMetadataViaAndroidFfi(String inputPath) {
   final inputPathPtr = inputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
   final outDurationPtr = calloc<ffi.Int64>();
   final outSampleRatePtr = calloc<ffi.Int32>();
@@ -402,16 +399,30 @@ AudioMetadataNativeResult _readAudioMetadataViaAndroidFfi(String inputPath) {
     final codec = outCodecPtr.cast<Utf8>().toDartString();
     final codecProfile = outCodecProfilePtr.cast<Utf8>().toDartString();
     final error = errorPtr.cast<Utf8>().toDartString();
-    return AudioMetadataNativeResult(
-      resultCode: code,
-      durationMicros: outDurationPtr.value,
-      sampleRateHz: outSampleRatePtr.value,
-      channelCount: outChannelCountPtr.value,
-      bitrateBps: outBitratePtr.value,
-      containerFormat: containerFormat.isEmpty ? null : containerFormat,
-      codec: codec.isEmpty ? null : codec,
-      codecProfile: codecProfile.isEmpty ? null : codecProfile,
-      error: error.isEmpty ? null : error,
+    if (code != 0) {
+      throw AudioMetadataException(
+        'Native audio metadata read failed',
+        errorCode: code,
+        details: error.isEmpty ? null : error,
+      );
+    }
+
+    final durationMicros = outDurationPtr.value;
+    if (durationMicros < 0) {
+      throw AudioMetadataException(
+        'Native audio metadata returned an invalid duration',
+        details: 'durationMicros=$durationMicros',
+      );
+    }
+
+    return AudioMetadata(
+      duration: Duration(microseconds: durationMicros),
+      sampleRateHz: _toOptionalPositive(outSampleRatePtr.value),
+      channelCount: _toOptionalPositive(outChannelCountPtr.value),
+      bitrateBps: _toOptionalPositive(outBitratePtr.value),
+      containerFormat: _toOptionalText(containerFormat),
+      codec: _toOptionalText(codec),
+      codecProfile: _toOptionalText(codecProfile),
     );
   } finally {
     calloc.free(inputPathPtr);

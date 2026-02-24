@@ -1,15 +1,14 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import '../model/pause_split_options.dart';
-import '../model/pcm16_snippet.dart';
-import '../vad/energy_vad_backend.dart';
+import '../models/pause_split_options.dart';
+import '../models/pcm16_snippet.dart';
 import '../vad/vad_backend.dart';
+import 'pause_split_frame_policy.dart';
 
 /// Splits PCM16 streams into snippets whenever silence is detected.
 final class Pcm16PauseSplitter {
-  Pcm16PauseSplitter({required this.options, VadBackend? vadBackend})
-    : vadBackend = vadBackend ?? const EnergyVadBackend() {
+  Pcm16PauseSplitter({required this.options, required this.vadBackend}) {
     options.validate();
   }
 
@@ -57,16 +56,12 @@ final class Pcm16PauseSplitter {
             0,
             effectiveByteCount,
           );
-    final frameSampleCount = options.frameSampleCount;
+    final framePolicy = PauseSplitFramePolicy.fromOptions(options);
+    final frameSampleCount = framePolicy.frameSampleCount;
     final totalFrames = samples.length ~/ frameSampleCount;
     if (totalFrames == 0) {
       return const [];
     }
-
-    final minSpeechFrames = math.max(1, options.framesFor(options.minSpeechDuration));
-    final minSilenceFrames = math.max(1, options.framesFor(options.minSilenceDuration));
-    final preSpeechFrames = options.framesFor(options.preSpeechPadding);
-    final postSpeechFrames = options.framesFor(options.postSpeechPadding);
 
     final snippets = <Pcm16Snippet>[];
     int? segmentStartFrame;
@@ -84,7 +79,7 @@ final class Pcm16PauseSplitter {
       );
 
       if (isSpeech) {
-        segmentStartFrame ??= _clampInt(frameIndex - preSpeechFrames, 0, totalFrames);
+        segmentStartFrame ??= _clampInt(frameIndex - framePolicy.preSpeechFrames, 0, totalFrames);
         speechFrameCount++;
         trailingSilenceFrames = 0;
         continue;
@@ -95,11 +90,12 @@ final class Pcm16PauseSplitter {
       }
 
       trailingSilenceFrames++;
-      if (trailingSilenceFrames < minSilenceFrames) {
+      if (trailingSilenceFrames < framePolicy.minSilenceFrames) {
         continue;
       }
 
-      final rawEndFrameExclusive = frameIndex - trailingSilenceFrames + 1 + postSpeechFrames;
+      final rawEndFrameExclusive =
+          (frameIndex + 1) - framePolicy.trimmedTrailingFrames(trailingSilenceFrames);
       final segmentEndFrame = _clampInt(rawEndFrameExclusive, segmentStartFrame, totalFrames);
       _addSnippet(
         snippets: snippets,
@@ -107,7 +103,7 @@ final class Pcm16PauseSplitter {
         segmentStartFrame: segmentStartFrame,
         segmentEndFrameExclusive: segmentEndFrame,
         frameSampleCount: frameSampleCount,
-        minSpeechFrames: minSpeechFrames,
+        minSpeechFrames: framePolicy.minSpeechFrames,
         speechFrameCount: speechFrameCount,
       );
 
@@ -123,7 +119,7 @@ final class Pcm16PauseSplitter {
         segmentStartFrame: segmentStartFrame,
         segmentEndFrameExclusive: totalFrames,
         frameSampleCount: frameSampleCount,
-        minSpeechFrames: minSpeechFrames,
+        minSpeechFrames: framePolicy.minSpeechFrames,
         speechFrameCount: speechFrameCount,
       );
     }

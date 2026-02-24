@@ -5,16 +5,16 @@ import 'package:native_toolchain_c/native_toolchain_c.dart';
 import 'hook_helpers.dart';
 
 const _windowsAudioRecorderAssetName =
-    'src/recording/generated/windows_audio_recorder_bindings.dart';
+    'src/generated/recorder/windows_audio_recorder_bindings.dart';
 const _windowsAudioRecorderLibraryBaseName = 'speech_utils_windows_audio_recorder';
 const _windowsAudioRecorderSources = <String>[
   'native/windows/speech_utils_windows_audio_recorder.cpp',
   'native/windows/recorder/windows_audio_recorder_api.cpp',
   'native/windows/recorder/miniaudio_implementation.cpp',
 ];
-const _iosAudioRecorderAssetName = 'src/recording/generated/ios_audio_recorder_bindings.dart';
+const _iosAudioRecorderAssetName = 'src/generated/recorder/ios_audio_recorder_bindings.dart';
 const _iosAudioRecorderLibraryBaseName = 'speech_utils_ios_audio_recorder';
-const _macosAudioRecorderAssetName = 'src/recording/generated/macos_audio_recorder_bindings.dart';
+const _macosAudioRecorderAssetName = 'src/generated/recorder/macos_audio_recorder_bindings.dart';
 const _macosAudioRecorderLibraryBaseName = 'speech_utils_macos_audio_recorder';
 
 Future<void> buildWindowsAudioRecorderAsset(BuildInput input, BuildOutputBuilder output) async {

@@ -1,10 +1,10 @@
-#ifndef SPEECH_UTILS_APPLE_AAC_CODEC_H_
-#define SPEECH_UTILS_APPLE_AAC_CODEC_H_
+#ifndef SPEECH_UTILS_APPLE_AUDIO_CODEC_H_
+#define SPEECH_UTILS_APPLE_AUDIO_CODEC_H_
 
 #include <cstdint>
 #include <string>
 
-namespace speech_utils::apple_aac {
+namespace speech_utils::apple_audio_codec {
 
 int32_t EncodeAudioFileToAac(const char* input_path_utf8, const char* output_path_utf8,
                              uint32_t bitrate_bps, bool use_source_format_hint,
@@ -19,6 +19,6 @@ int32_t ReadAudioMetadata(const char* input_path_utf8, int64_t* out_duration_mic
                           uint32_t out_codec_profile_utf8_capacity, char* error_utf8,
                           uint32_t error_utf8_capacity);
 
-}  // namespace speech_utils::apple_aac
+}  // namespace speech_utils::apple_audio_codec
 
-#endif  // SPEECH_UTILS_APPLE_AAC_CODEC_H_
+#endif  // SPEECH_UTILS_APPLE_AUDIO_CODEC_H_

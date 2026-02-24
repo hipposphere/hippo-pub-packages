@@ -8,33 +8,35 @@ import 'package:path/path.dart' as p;
 import 'hook_helpers.dart';
 import 'windows_ffmpeg_pipeline.dart';
 
-const _windowsAacAssetName = 'src/encoding/generated/windows_aac_bindings.dart';
-const _windowsAacLibraryBaseName = 'speech_utils_windows_aac_encoder';
-const _windowsFfmpegRuntimeAssetNamePrefix = 'src/encoding/generated/windows_ffmpeg_runtime';
-const _windowsAacSources = <String>[
-  'native/windows/speech_utils_windows_aac_encoder.cpp',
+const _windowsAudioEncoderAssetName =
+    'src/generated/audio_encoder/windows_audio_encoder_bindings.dart';
+const _windowsAudioEncoderLibraryBaseName = 'speech_utils_windows_audio_encoder';
+const _windowsFfmpegRuntimeAssetNamePrefix = 'src/generated/audio_encoder/windows_ffmpeg_runtime';
+const _windowsAudioEncoderSources = <String>[
+  'native/windows/speech_utils_windows_audio_encoder.cpp',
   'native/windows/encoding/windows_ffmpeg_common.cpp',
-  'native/windows/encoding/windows_aac_transcoder.cpp',
+  'native/windows/encoding/windows_audio_encoder_transcoder.cpp',
   'native/windows/encoding/windows_audio_metadata.cpp',
 ];
-const _androidAacAssetName = 'src/encoding/generated/android_aac_bindings.dart';
-const _androidAacLibraryBaseName = 'speech_utils_android_aac_encoder';
-const _appleAacAssetName = 'src/encoding/generated/apple_aac_bindings.dart';
-const _appleAacBindingsSource = 'native/apple/speech_utils_apple_aac_codec_bindings.mm';
-const _appleAacSharedSources = <String>[
-  'native/apple/speech_utils_apple_aac_codec_bindings.mm',
-  'native/apple/speech_utils_apple_aac_codec.mm',
+const _androidAudioEncoderAssetName =
+    'src/generated/audio_encoder/android_audio_encoder_bindings.dart';
+const _androidAudioEncoderLibraryBaseName = 'speech_utils_android_audio_encoder';
+const _appleAudioEncoderAssetName = 'src/generated/audio_encoder/apple_audio_encoder_bindings.dart';
+const _appleAudioCodecBindingsSource = 'native/apple/speech_utils_apple_audio_codec_bindings.mm';
+const _appleAudioCodecSharedSources = <String>[
+  'native/apple/speech_utils_apple_audio_codec_bindings.mm',
+  'native/apple/speech_utils_apple_audio_codec.mm',
 ];
-const _iosAacLibraryBaseName = 'speech_utils_ios_aac_encoder';
-const _macosAacLibraryBaseName = 'speech_utils_macos_aac_encoder';
+const _iosAudioEncoderLibraryBaseName = 'speech_utils_ios_audio_encoder';
+const _macosAudioEncoderLibraryBaseName = 'speech_utils_macos_audio_encoder';
 
-Future<void> buildWindowsAacEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
+Future<void> buildWindowsAudioEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
   if (!matchesTarget(input, os: OS.windows, arch: Architecture.x64)) {
     return;
   }
 
-  for (final source in _windowsAacSources) {
-    requireSourceFile(input, relativePath: source, label: 'Windows AAC encoder');
+  for (final source in _windowsAudioEncoderSources) {
+    requireSourceFile(input, relativePath: source, label: 'Windows audio encoder');
   }
 
   final ffmpegSdk = await loadWindowsFfmpegSdk(input);
@@ -44,10 +46,10 @@ Future<void> buildWindowsAacEncoderAsset(BuildInput input, BuildOutputBuilder ou
       .toList(growable: false);
 
   await CBuilder.library(
-    name: _windowsAacLibraryBaseName,
-    assetName: _windowsAacAssetName,
+    name: _windowsAudioEncoderLibraryBaseName,
+    assetName: _windowsAudioEncoderAssetName,
     language: Language.cpp,
-    sources: _windowsAacSources,
+    sources: _windowsAudioEncoderSources,
     includes: [ffmpegSdk.includeDir.path],
     std: 'c++17',
     flags: windowsCommonCppFlags,
@@ -56,11 +58,11 @@ Future<void> buildWindowsAacEncoderAsset(BuildInput input, BuildOutputBuilder ou
     libraryDirectories: importLibDirectories,
   ).run(input: input, output: output);
 
-  _copyWindowsRuntimeDllsNextToAacLibrary(input: input, runtimeDlls: runtimeDlls);
+  _copyWindowsRuntimeDllsNextToAudioEncoderLibrary(input: input, runtimeDlls: runtimeDlls);
   _bundleWindowsFfmpegRuntimeDlls(input: input, output: output, runtimeDlls: runtimeDlls);
 }
 
-void _copyWindowsRuntimeDllsNextToAacLibrary({
+void _copyWindowsRuntimeDllsNextToAudioEncoderLibrary({
   required BuildInput input,
   required List<File> runtimeDlls,
 }) {
@@ -69,15 +71,17 @@ void _copyWindowsRuntimeDllsNextToAacLibrary({
     return;
   }
 
-  final aacFileName = input.config.code.targetOS.dylibFileName(_windowsAacLibraryBaseName);
-  final builtAacLibraries = sharedOutputDir
+  final audioEncoderFileName = input.config.code.targetOS.dylibFileName(
+    _windowsAudioEncoderLibraryBaseName,
+  );
+  final builtAudioEncoderLibraries = sharedOutputDir
       .listSync(recursive: true, followLinks: false)
       .whereType<File>()
-      .where((file) => lowercaseFileName(file) == aacFileName.toLowerCase())
+      .where((file) => lowercaseFileName(file) == audioEncoderFileName.toLowerCase())
       .toList(growable: false);
 
-  for (final aacLibrary in builtAacLibraries) {
-    final targetDir = aacLibrary.parent;
+  for (final audioEncoderLibrary in builtAudioEncoderLibraries) {
+    final targetDir = audioEncoderLibrary.parent;
     for (final sourceDll in runtimeDlls) {
       final fileName = p.basename(sourceDll.path);
       final destination = File(p.join(targetDir.path, fileName));
@@ -107,24 +111,24 @@ void _bundleWindowsFfmpegRuntimeDlls({
   }
 }
 
-Future<void> buildAndroidAacEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
+Future<void> buildAndroidAudioEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
   if (!matchesTarget(input, os: OS.android)) {
     return;
   }
 
   requireSourceFile(
     input,
-    relativePath: 'native/android/speech_utils_android_aac_encoder.cpp',
-    label: 'Android AAC encoder',
+    relativePath: 'native/android/speech_utils_android_audio_encoder.cpp',
+    label: 'Android audio encoder',
   );
 
   final targetNdkApi = input.config.code.android.targetNdkApi;
   final effectiveNdkApi = targetNdkApi < 26 ? 26 : targetNdkApi;
   await CBuilder.library(
-    name: _androidAacLibraryBaseName,
-    assetName: _androidAacAssetName,
+    name: _androidAudioEncoderLibraryBaseName,
+    assetName: _androidAudioEncoderAssetName,
     language: Language.cpp,
-    sources: ['native/android/speech_utils_android_aac_encoder.cpp'],
+    sources: ['native/android/speech_utils_android_audio_encoder.cpp'],
     std: 'c++17',
     flags: ['-O2'],
     defines: {'__ANDROID_API__': '$effectiveNdkApi'},
@@ -132,59 +136,59 @@ Future<void> buildAndroidAacEncoderAsset(BuildInput input, BuildOutputBuilder ou
   ).run(input: input, output: output);
 }
 
-Future<void> buildIosAacEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
+Future<void> buildIosAudioEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
   if (!matchesTarget(input, os: OS.iOS)) {
     return;
   }
 
   requireSourceFile(
     input,
-    relativePath: _appleAacBindingsSource,
-    label: 'iOS AAC encoder',
+    relativePath: _appleAudioCodecBindingsSource,
+    label: 'iOS audio encoder',
   );
   requireSourceFile(
     input,
-    relativePath: 'native/apple/speech_utils_apple_aac_codec.mm',
-    label: 'iOS AAC encoder',
+    relativePath: 'native/apple/speech_utils_apple_audio_codec.mm',
+    label: 'iOS audio encoder',
   );
 
   await CBuilder.library(
-    name: _iosAacLibraryBaseName,
-    assetName: _appleAacAssetName,
+    name: _iosAudioEncoderLibraryBaseName,
+    assetName: _appleAudioEncoderAssetName,
     language: Language.objectiveC,
-    sources: _appleAacSharedSources,
+    sources: _appleAudioCodecSharedSources,
     std: 'c++17',
     flags: appleObjectiveCArcFlags,
-    defines: const {'SPEECH_UTILS_APPLE_AAC_TARGET_IOS': '1'},
+    defines: const {'SPEECH_UTILS_APPLE_AUDIO_CODEC_TARGET_IOS': '1'},
     frameworks: appleCommonFrameworks,
     libraries: appleCommonLibraries,
   ).run(input: input, output: output);
 }
 
-Future<void> buildMacosAacEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
+Future<void> buildMacosAudioEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
   if (!matchesTarget(input, os: OS.macOS)) {
     return;
   }
 
   requireSourceFile(
     input,
-    relativePath: _appleAacBindingsSource,
-    label: 'macOS AAC encoder',
+    relativePath: _appleAudioCodecBindingsSource,
+    label: 'macOS audio encoder',
   );
   requireSourceFile(
     input,
-    relativePath: 'native/apple/speech_utils_apple_aac_codec.mm',
-    label: 'macOS AAC encoder',
+    relativePath: 'native/apple/speech_utils_apple_audio_codec.mm',
+    label: 'macOS audio encoder',
   );
 
   await CBuilder.library(
-    name: _macosAacLibraryBaseName,
-    assetName: _appleAacAssetName,
+    name: _macosAudioEncoderLibraryBaseName,
+    assetName: _appleAudioEncoderAssetName,
     language: Language.objectiveC,
-    sources: _appleAacSharedSources,
+    sources: _appleAudioCodecSharedSources,
     std: 'c++17',
     flags: appleObjectiveCArcFlags,
-    defines: const {'SPEECH_UTILS_APPLE_AAC_TARGET_MACOS': '1'},
+    defines: const {'SPEECH_UTILS_APPLE_AUDIO_CODEC_TARGET_MACOS': '1'},
     frameworks: appleCommonFrameworks,
     libraries: appleCommonLibraries,
   ).run(input: input, output: output);

@@ -57,24 +57,32 @@ Future<void> run(Uint8List pcm16leBytes) async {
     channelCount: 1,
     minSilenceDuration: const Duration(milliseconds: 750),
   );
-
-  final snippets = SpeechUtils.splitPcm16OnSilence(
-    pcm16leBytes: pcm16leBytes,
+  final vad = SpeechUtils.resolveVadBackend(
     options: options,
-    vadConfig: const SpeechVadConfig.preferTen(
+    config: const SpeechVadConfig.preferTen(
       ten: TenVadConfig(threshold: 0.45),
     ),
   );
 
-  final encoder = NativeAacEncoder();
-  for (var i = 0; i < snippets.length; i++) {
-    await encoder.encodePcm16BytesToAac(
-      pcm16leBytes: snippets[i].asBytesView(),
-      sampleRateHz: options.sampleRateHz,
-      channelCount: options.channelCount,
-      outputPath: 'snippet_$i.m4a',
-      bitrateKbps: 48,
+  try {
+    final snippets = SpeechUtils.splitPcm16OnSilence(
+      pcm16leBytes: pcm16leBytes,
+      options: options,
+      vadBackend: vad.backend,
     );
+
+    final encoder = NativeAudioEncoder();
+    for (var i = 0; i < snippets.length; i++) {
+      await encoder.encodePcm16BytesToAac(
+        pcm16leBytes: snippets[i].asBytesView(),
+        sampleRateHz: options.sampleRateHz,
+        channelCount: options.channelCount,
+        outputPath: 'snippet_$i.m4a',
+        bitrateKbps: 48,
+      );
+    }
+  } finally {
+    vad.backend.dispose();
   }
 }
 ```
@@ -82,24 +90,39 @@ Future<void> run(Uint8List pcm16leBytes) async {
 ### Live stream mode
 
 ```dart
-final snippets = SpeechUtils.splitPcm16StreamOnSilence(
-  pcm16leStream: livePcmChunkStream,
-  options: const PauseSplitOptions(
-    sampleRateHz: 16000,
-    channelCount: 1,
-  ),
-  vadConfig: const SpeechVadConfig.preferTen(
+final options = const PauseSplitOptions(
+  sampleRateHz: 16000,
+  channelCount: 1,
+);
+final vad = SpeechUtils.resolveVadBackend(
+  options: options,
+  config: const SpeechVadConfig.preferTen(
     ten: TenVadConfig(threshold: 0.45),
   ),
 );
 
-await for (final snippet in snippets) {
-  // snippet is emitted as soon as a silence boundary is reached.
-  print('snippet duration: ${snippet.duration}');
+final snippets = SpeechUtils.splitPcm16StreamOnSilence(
+  pcm16leStream: livePcmChunkStream,
+  options: options,
+  vadBackend: vad.backend,
+);
+
+try {
+  await for (final snippet in snippets) {
+    // snippet is emitted as soon as a silence boundary is reached.
+    print('snippet duration: ${snippet.duration}');
+  }
+} finally {
+  vad.backend.dispose();
 }
 ```
 
 ### Native recorder (FFI)
+
+Recorder API naming:
+- file capture: `startFileRecording(...)`
+- raw PCM stream capture: `startPcmStream(...)`
+- VAD capture session: `startVadCapture(...)`
 
 ```dart
 final recorder = NativeAudioRecorder();
@@ -108,7 +131,7 @@ if (!permissionGranted) {
   throw StateError('Microphone permission denied');
 }
 
-await recorder.start(
+await recorder.startFileRecording(
   outputPath: '/tmp/recording.wav',
   config: const AudioRecorderConfig(
     sampleRateHz: 16000,
@@ -123,7 +146,7 @@ await recorder.start(
 await recorder.stop();
 ```
 
-`start()` output encoding is controlled by `AudioRecorderConfig.encoding` and
+`startFileRecording()` output encoding is controlled by `AudioRecorderConfig.encoding` and
 supports `AudioEncoder.wav`, `AudioEncoder.pcm16bits`,
 `AudioEncoder.aacLc`, `AudioEncoder.aacHe`, and `AudioEncoder.aacEld`.
 For AAC outputs, the recorder captures native WAV and finalizes AAC on `stop()`.
@@ -136,7 +159,7 @@ final preferred = devices.where((d) => d.isDefault).toList();
 final target = preferred.isNotEmpty ? preferred.first : (devices.isNotEmpty ? devices.first : null);
 
 if (recorder.supportsInputSelection) {
-  await recorder.start(
+  await recorder.startFileRecording(
     outputPath: '/tmp/recording.wav',
     config: AudioRecorderConfig(
       sampleRateHz: 16000,
@@ -147,18 +170,49 @@ if (recorder.supportsInputSelection) {
 }
 ```
 
+Processing + platform-specific config:
+
+```dart
+await recorder.startFileRecording(
+  outputPath: '/tmp/recording.wav',
+  config: const AudioRecorderConfig(
+    sampleRateHz: 16000,
+    channelCount: 1,
+    processing: AudioProcessingConfig(
+      preset: AudioCapturePreset.voiceIsolation,
+      enableNoiseSuppression: true,
+      enableEchoCancellation: true,
+      enableAutomaticGainControl: true,
+    ),
+    appleConfig: AppleAudioRecorderConfig(
+      sessionMode: AppleAudioSessionMode.voiceChat,
+      allowBluetoothInput: true,
+      defaultToSpeaker: true,
+    ),
+    windowsConfig: WindowsAudioRecorderConfig(
+      captureCategory: WindowsCaptureCategory.communications,
+      useCommunicationsDevice: true,
+    ),
+  ),
+);
+```
+
+`processing`, `appleConfig`, and `windowsConfig` are best-effort hints and may
+be applied partially depending on platform/backend capabilities.
+`processing.preferredLatency` is mapped to native capture buffering where
+possible (Apple I/O buffer hint and Windows period-size hint).
+
 Stream mode:
 
 ```dart
 final recorder = NativeAudioRecorder();
-final pcmStream = await recorder.startStream(
+final pcmStream = await recorder.startPcmStream(
   config: const AudioRecorderConfig(
     sampleRateHz: 16000,
     channelCount: 1,
     framesPerChunk: 1024,
     encoding: AudioEncodingConfig(
-      // Used by higher-level recording helpers such as
-      // startWithVadSegmentation(...).
+      // Used by higher-level recording helpers such as startVadCapture(...).
       encoder: AudioEncoder.aacLc,
       bitrateBps: 64000,
     ),
@@ -185,32 +239,55 @@ print('latest=${latest.current} dBFS');
 await subscription.cancel();
 ```
 
-Live VAD segmentation mode:
+Live VAD capture mode:
 
 ```dart
 final recorder = NativeAudioRecorder();
-final segments = await recorder.startWithVadSegmentation(
-  outputDirectory: Directory('/tmp/segments'),
-  splitOptions: const PauseSplitOptions(
-    sampleRateHz: 16000,
-    channelCount: 1,
-    frameDuration: Duration(milliseconds: 20),
-  ),
-  config: const AudioRecorderConfig(
-    sampleRateHz: 16000,
-    channelCount: 1,
-    encoding: AudioEncodingConfig(
-      encoder: AudioEncoder.aacLc,
-      bitrateBps: 64000,
+final capture = await recorder.startVadCapture(
+  VadCaptureRequest(
+    split: const PauseSplitOptions(
+      sampleRateHz: 16000,
+      channelCount: 1,
+      frameDuration: Duration(milliseconds: 20),
+    ),
+    audio: const AudioRecorderConfig(
+      sampleRateHz: 16000,
+      channelCount: 1,
+      framesPerChunk: 256,
+    ),
+    output: VadCaptureOutputConfig(
+      outputDirectory: Directory('/tmp/segments'),
+      segmentEncoding: const AudioEncodingConfig(
+        encoder: AudioEncoder.aacLc,
+        bitrateBps: 64000,
+      ),
+      emitFullRecordingOnStop: true,
+      fullRecordingEncoding: const AudioEncodingConfig(
+        encoder: AudioEncoder.wav,
+      ),
+      fullRecordingFileStem: 'recording_full',
+    ),
+    telemetry: const VadCaptureTelemetryConfig(
+      speechHoldDuration: Duration(milliseconds: 320),
     ),
   ),
-  flushOnStop: true,
 );
 
-await for (final segment in segments) {
+capture.speechStates.listen((state) {
+  print('speech detected: ${state.speechDetected}');
+});
+
+capture.segments.listen((segment) {
   print('segment #${segment.index}: ${segment.file.path}');
   print('duration: ${segment.metadata.duration}');
   print('speech probability: ${segment.voiceActivity.speechProbability}');
+});
+
+// ... later
+final result = await capture.stop();
+print('segments: ${result.segmentCount}');
+if (result.fullRecording != null) {
+  print('full recording: ${result.fullRecording!.file.path}');
 }
 ```
 
@@ -285,7 +362,7 @@ Notes:
 - Segmentation: works on any Dart platform.
 - TEN VAD FFI: bundled via `hook/build.dart` for macOS, Windows x64, Android
   (`arm64-v8a`, `armeabi-v7a`), and iOS arm64 (device build).
-- AAC encoding (`NativeAacEncoder`) without `ffmpeg` fallback:
+- AAC encoding (`NativeAudioEncoder`) without `ffmpeg` fallback:
   - macOS: bundled native AVFoundation encoder via Dart FFI
   - Windows: bundled native FFmpeg encoder (`libavcodec`) via Dart FFI
   - Android: bundled native NDK encoder via Dart FFI (expects PCM16 WAV input

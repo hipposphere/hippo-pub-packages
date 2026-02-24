@@ -7,7 +7,7 @@
   `SpeechRecorderStreamingOptions`; streaming now uses
   `SpeechRecorderOptions.recordConfig.encoding` as single source of truth.
 - Breaking: streaming sessions now always use
-  `NativeAudioRecorder.startWithVadSegmentation(...)` (no legacy/manual
+  `NativeAudioRecorder.startVadCapture(VadCaptureRequest)` (no legacy/manual
   fallback segmentation path in `speech_recorder`).
 - Breaking: remove streaming fallback/full-recording options from
   `SpeechRecorderStreamingOptions`

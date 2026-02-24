@@ -5,9 +5,9 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 
 import 'aac_encoder.dart';
-import 'generated/android_aac_bindings.dart' as android_bindings;
-import 'generated/apple_aac_bindings.dart' as apple_bindings;
-import 'generated/windows_aac_bindings.dart' as windows_bindings;
+import '../generated/audio_encoder/android_audio_encoder_bindings.dart' as android_bindings;
+import '../generated/audio_encoder/apple_audio_encoder_bindings.dart' as apple_bindings;
+import '../generated/audio_encoder/windows_audio_encoder_bindings.dart' as windows_bindings;
 
 typedef WindowsNativeAacEncodeFn =
     void Function({required String inputPath, required String outputPath, required int bitrateBps});
@@ -29,7 +29,7 @@ typedef IosNativeAacEncodeFn =
 
 typedef IosNativeAacAvailabilityFn = bool Function();
 
-enum NativeAacPlatform { macOS, windows, android, iOS, unsupported }
+enum NativeAudioEncoderPlatform { macOS, windows, android, iOS, unsupported }
 
 /// AAC encoder that uses native platform tooling:
 /// - macOS: bundled native AVFoundation bridge via Dart FFI
@@ -38,9 +38,9 @@ enum NativeAacPlatform { macOS, windows, android, iOS, unsupported }
 /// - iOS: bundled native AVFoundation bridge via Dart FFI
 ///
 /// This encoder does not depend on an external `ffmpeg` command-line binary.
-final class NativeAacEncoder implements AacEncoder {
-  NativeAacEncoder({
-    NativeAacPlatform? platform,
+final class NativeAudioEncoder implements AacEncoder {
+  NativeAudioEncoder({
+    NativeAudioEncoderPlatform? platform,
     MacosNativeAacEncodeFn? macosEncodeFn,
     MacosNativeAacAvailabilityFn? macosAvailabilityFn,
     WindowsNativeAacEncodeFn? windowsEncodeFn,
@@ -49,7 +49,7 @@ final class NativeAacEncoder implements AacEncoder {
     AndroidNativeAacAvailabilityFn? androidAvailabilityFn,
     IosNativeAacEncodeFn? iosEncodeFn,
     IosNativeAacAvailabilityFn? iosAvailabilityFn,
-  }) : _platform = platform ?? _detectNativeAacPlatform(),
+  }) : _platform = platform ?? _detectNativeAudioEncoderPlatform(),
        _macosEncodeFn = macosEncodeFn ?? _encodeAudioFileToAacViaMacosFfi,
        _macosAvailabilityFn = macosAvailabilityFn ?? _isAppleNativeAacAvailableViaFfi,
        _windowsEncodeFn = windowsEncodeFn ?? _encodeAudioFileToAacViaWindowsFfi,
@@ -59,7 +59,7 @@ final class NativeAacEncoder implements AacEncoder {
        _iosEncodeFn = iosEncodeFn ?? _encodeAudioFileToAacViaIosFfi,
        _iosAvailabilityFn = iosAvailabilityFn ?? _isAppleNativeAacAvailableViaFfi;
 
-  final NativeAacPlatform _platform;
+  final NativeAudioEncoderPlatform _platform;
   final MacosNativeAacEncodeFn _macosEncodeFn;
   final MacosNativeAacAvailabilityFn _macosAvailabilityFn;
   final WindowsNativeAacEncodeFn _windowsEncodeFn;
@@ -71,15 +71,15 @@ final class NativeAacEncoder implements AacEncoder {
 
   Future<bool> isAvailable() async {
     switch (_platform) {
-      case NativeAacPlatform.macOS:
+      case NativeAudioEncoderPlatform.macOS:
         return _macosAvailabilityFn();
-      case NativeAacPlatform.windows:
+      case NativeAudioEncoderPlatform.windows:
         return _windowsAvailabilityFn();
-      case NativeAacPlatform.android:
+      case NativeAudioEncoderPlatform.android:
         return _androidAvailabilityFn();
-      case NativeAacPlatform.iOS:
+      case NativeAudioEncoderPlatform.iOS:
         return _iosAvailabilityFn();
-      case NativeAacPlatform.unsupported:
+      case NativeAudioEncoderPlatform.unsupported:
         return false;
     }
   }
@@ -175,7 +175,7 @@ final class NativeAacEncoder implements AacEncoder {
     }
 
     switch (_platform) {
-      case NativeAacPlatform.macOS:
+      case NativeAudioEncoderPlatform.macOS:
         try {
           _macosEncodeFn(
             inputPath: inputPath,
@@ -187,7 +187,7 @@ final class NativeAacEncoder implements AacEncoder {
         } on Object catch (error) {
           throw AacEncodingException('Failed to execute macOS native AAC encoder: $error');
         }
-      case NativeAacPlatform.windows:
+      case NativeAudioEncoderPlatform.windows:
         try {
           _windowsEncodeFn(
             inputPath: inputPath,
@@ -199,7 +199,7 @@ final class NativeAacEncoder implements AacEncoder {
         } on Object catch (error) {
           throw AacEncodingException('Failed to execute windows native AAC encoder: $error');
         }
-      case NativeAacPlatform.android:
+      case NativeAudioEncoderPlatform.android:
         try {
           _androidEncodeFn(
             inputPath: inputPath,
@@ -211,7 +211,7 @@ final class NativeAacEncoder implements AacEncoder {
         } on Object catch (error) {
           throw AacEncodingException('Failed to execute android native AAC encoder: $error');
         }
-      case NativeAacPlatform.iOS:
+      case NativeAudioEncoderPlatform.iOS:
         try {
           _iosEncodeFn(
             inputPath: inputPath,
@@ -223,15 +223,15 @@ final class NativeAacEncoder implements AacEncoder {
         } on Object catch (error) {
           throw AacEncodingException('Failed to execute iOS native AAC encoder: $error');
         }
-      case NativeAacPlatform.unsupported:
+      case NativeAudioEncoderPlatform.unsupported:
         _ensureSupportedPlatform();
     }
   }
 
   void _ensureSupportedPlatform() {
-    if (_platform == NativeAacPlatform.unsupported) {
+    if (_platform == NativeAudioEncoderPlatform.unsupported) {
       throw UnsupportedError(
-        'NativeAacEncoder is currently supported on macOS (AVFoundation), '
+        'NativeAudioEncoder is currently supported on macOS (AVFoundation), '
         'Windows (FFmpeg/libavcodec), Android (NDK MediaCodec), and '
         'iOS (AVFoundation).',
       );
@@ -261,20 +261,20 @@ final class NativeAacEncoder implements AacEncoder {
   }
 }
 
-NativeAacPlatform _detectNativeAacPlatform() {
+NativeAudioEncoderPlatform _detectNativeAudioEncoderPlatform() {
   if (Platform.isMacOS) {
-    return NativeAacPlatform.macOS;
+    return NativeAudioEncoderPlatform.macOS;
   }
   if (Platform.isWindows) {
-    return NativeAacPlatform.windows;
+    return NativeAudioEncoderPlatform.windows;
   }
   if (Platform.isAndroid) {
-    return NativeAacPlatform.android;
+    return NativeAudioEncoderPlatform.android;
   }
   if (Platform.isIOS) {
-    return NativeAacPlatform.iOS;
+    return NativeAudioEncoderPlatform.iOS;
   }
-  return NativeAacPlatform.unsupported;
+  return NativeAudioEncoderPlatform.unsupported;
 }
 
 Future<void> _writePcm16BytesAsWav({
@@ -500,13 +500,14 @@ void _encodeAudioFileToAacViaAndroidFfi({
   }
 }
 
-typedef _AppleAacEncoderFfi = int Function(
-  ffi.Pointer<ffi.Char> inputPathUtf8,
-  ffi.Pointer<ffi.Char> outputPathUtf8,
-  int bitrateBps,
-  ffi.Pointer<ffi.Char> errorUtf8,
-  int errorUtf8Capacity,
-);
+typedef _AppleAacEncoderFfi =
+    int Function(
+      ffi.Pointer<ffi.Char> inputPathUtf8,
+      ffi.Pointer<ffi.Char> outputPathUtf8,
+      int bitrateBps,
+      ffi.Pointer<ffi.Char> errorUtf8,
+      int errorUtf8Capacity,
+    );
 
 void _encodeAudioFileToAacViaAppleFfi({
   required _AppleAacEncoderFfi function,

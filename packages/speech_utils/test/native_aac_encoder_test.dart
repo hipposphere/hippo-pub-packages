@@ -5,7 +5,7 @@ import 'package:speech_utils/speech_utils.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('NativeAacEncoder', () {
+  group('NativeAudioEncoder', () {
     test('uses macOS native encoder with wav intermediary for pcm bytes', () async {
       late String usedInputPath;
       late String usedOutputPath;
@@ -18,8 +18,8 @@ void main() {
       });
       final outputPath = '${outputDir.path}${Platform.pathSeparator}out.m4a';
 
-      final encoder = NativeAacEncoder(
-        platform: NativeAacPlatform.macOS,
+      final encoder = NativeAudioEncoder(
+        platform: NativeAudioEncoderPlatform.macOS,
         macosAvailabilityFn: () => true,
         macosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
           usedInputPath = inputPath;
@@ -47,7 +47,7 @@ void main() {
     });
 
     test('throws UnsupportedError on unsupported platform', () {
-      final encoder = NativeAacEncoder(platform: NativeAacPlatform.unsupported);
+      final encoder = NativeAudioEncoder(platform: NativeAudioEncoderPlatform.unsupported);
 
       expect(
         () => encoder.encodeAudioFileToAac(inputPath: 'in.wav', outputPath: 'out.m4a'),
@@ -56,8 +56,8 @@ void main() {
     });
 
     test('throws AacEncodingException when macOS native encoder fails', () {
-      final encoder = NativeAacEncoder(
-        platform: NativeAacPlatform.macOS,
+      final encoder = NativeAudioEncoder(
+        platform: NativeAudioEncoderPlatform.macOS,
         macosAvailabilityFn: () => true,
         macosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
           throw AacEncodingException(
@@ -75,8 +75,8 @@ void main() {
     });
 
     test('propagates macOS availability probe', () async {
-      final encoder = NativeAacEncoder(
-        platform: NativeAacPlatform.macOS,
+      final encoder = NativeAudioEncoder(
+        platform: NativeAudioEncoderPlatform.macOS,
         macosAvailabilityFn: () => true,
         macosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
       );
@@ -89,8 +89,8 @@ void main() {
       late String usedOutputPath;
       late int usedBitrateBps;
 
-      final encoder = NativeAacEncoder(
-        platform: NativeAacPlatform.windows,
+      final encoder = NativeAudioEncoder(
+        platform: NativeAudioEncoderPlatform.windows,
         windowsAvailabilityFn: () => true,
         windowsEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
           usedInputPath = inputPath;
@@ -111,8 +111,8 @@ void main() {
     });
 
     test('propagates windows availability probe', () async {
-      final encoder = NativeAacEncoder(
-        platform: NativeAacPlatform.windows,
+      final encoder = NativeAudioEncoder(
+        platform: NativeAudioEncoderPlatform.windows,
         windowsAvailabilityFn: () => true,
         windowsEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
       );
@@ -125,8 +125,8 @@ void main() {
       late String usedOutputPath;
       late int usedBitrateBps;
 
-      final encoder = NativeAacEncoder(
-        platform: NativeAacPlatform.android,
+      final encoder = NativeAudioEncoder(
+        platform: NativeAudioEncoderPlatform.android,
         androidAvailabilityFn: () => true,
         androidEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
           usedInputPath = inputPath;
@@ -147,8 +147,8 @@ void main() {
     });
 
     test('propagates android availability probe', () async {
-      final encoder = NativeAacEncoder(
-        platform: NativeAacPlatform.android,
+      final encoder = NativeAudioEncoder(
+        platform: NativeAudioEncoderPlatform.android,
         androidAvailabilityFn: () => true,
         androidEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
       );
@@ -161,8 +161,8 @@ void main() {
       late String usedOutputPath;
       late int usedBitrateBps;
 
-      final encoder = NativeAacEncoder(
-        platform: NativeAacPlatform.iOS,
+      final encoder = NativeAudioEncoder(
+        platform: NativeAudioEncoderPlatform.iOS,
         iosAvailabilityFn: () => true,
         iosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
           usedInputPath = inputPath;
@@ -183,8 +183,8 @@ void main() {
     });
 
     test('propagates iOS availability probe', () async {
-      final encoder = NativeAacEncoder(
-        platform: NativeAacPlatform.iOS,
+      final encoder = NativeAudioEncoder(
+        platform: NativeAudioEncoderPlatform.iOS,
         iosAvailabilityFn: () => true,
         iosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
       );

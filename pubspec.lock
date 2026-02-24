@@ -814,18 +814,18 @@ packages:
     dependency: transitive
     description:
       name: forui
-      sha256: d51431e0365346a9e85fa7ff23577742bb535f47a6a7f49d5e285a7a2fb9d4d7
+      sha256: "68e35cc6e989d960bcc4d31e49f22464e80f4c1f2d40c7ad63c1ba74386c209c"
       url: "https://pub.dev"
     source: hosted
-    version: "0.18.1"
+    version: "0.19.0"
   forui_assets:
     dependency: transitive
     description:
       name: forui_assets
-      sha256: "5c56e1615e25d0aecc73e2567683ce95eb41f623242e3775cecbd2b178455e7d"
+      sha256: ba80eeee720f517468bc06974a83905a183fa148ab34ea080b8fe7909806218c
       url: "https://pub.dev"
     source: hosted
-    version: "0.18.0"
+    version: "0.19.0"
   frontend_server_client:
     dependency: transitive
     description:
@@ -1328,10 +1328,10 @@ packages:
     dependency: transitive
     description:
       name: posthog_flutter
-      sha256: d6747c080a610ccc353b61e6677994788933a55aec066491bcba899fe8a64660
+      sha256: "36c7bf28e7862f6b7696a73253d6892e6df2cc98b757a63d0d624605f19d1502"
       url: "https://pub.dev"
     source: hosted
-    version: "5.15.0"
+    version: "5.15.2"
   process:
     dependency: transitive
     description:
@@ -1901,10 +1901,10 @@ packages:
     dependency: transitive
     description:
       name: uuid
-      sha256: a11b666489b1954e01d992f3d601b1804a33937b5a8fe677bd26b8a9f96f96e8
+      sha256: "1fef9e8e11e2991bb773070d4656b7bd5d850967a2456cfc83cf47925ba79489"
       url: "https://pub.dev"
     source: hosted
-    version: "4.5.2"
+    version: "4.5.3"
   vector_graphics:
     dependency: transitive
     description:

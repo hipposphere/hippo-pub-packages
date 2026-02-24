@@ -23,14 +23,14 @@ void main() {
                 required channelCount,
                 required inputDeviceId,
               }) {},
-          startStreamFn:
+          startPcmStreamFn:
               ({
                 required sampleRateHz,
                 required channelCount,
                 required framesPerChunk,
                 required inputDeviceId,
               }) {},
-          readStreamFn: ({required maxSamples}) => Uint8List(0),
+          readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
           stopFn: () {},
           isRecordingFn: () => false,
         );
@@ -67,21 +67,21 @@ void main() {
               usedChannelCount = channelCount;
               usedInputDeviceId = inputDeviceId;
             },
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) => Uint8List(0),
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
         stopFn: () {
           stopCalls++;
         },
         isRecordingFn: () => true,
       );
 
-      await recorder.start(
+      await recorder.startFileRecording(
         outputPath: '/tmp/recording.wav',
         config: const AudioRecorderConfig(sampleRateHz: 24000, channelCount: 2),
       );
@@ -95,7 +95,7 @@ void main() {
       expect(stopCalls, 1);
     });
 
-    test('startStream drains native PCM chunks', () async {
+    test('startPcmStream drains native PCM chunks', () async {
       var readCalls = 0;
       var stopCalls = 0;
       String? usedInputDeviceId;
@@ -113,7 +113,7 @@ void main() {
               required channelCount,
               required inputDeviceId,
             }) {},
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
@@ -125,7 +125,7 @@ void main() {
               expect(framesPerChunk, 1024);
               usedInputDeviceId = inputDeviceId;
             },
-        readStreamFn: ({required maxSamples}) {
+        readPcmStreamFn: ({required maxSamples}) {
           readCalls++;
           if (readCalls == 1) {
             return Uint8List.fromList(<int>[1, 2, 3, 4]);
@@ -138,7 +138,7 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      final stream = await recorder.startStream(pollInterval: const Duration(milliseconds: 5));
+      final stream = await recorder.startPcmStream(pollInterval: const Duration(milliseconds: 5));
 
       final firstChunk = await stream.first.timeout(const Duration(seconds: 1));
       expect(firstChunk, Uint8List.fromList(<int>[1, 2, 3, 4]));
@@ -163,29 +163,77 @@ void main() {
               required channelCount,
               required inputDeviceId,
             }) {},
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) => Uint8List(0),
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
         stopFn: () {},
         isRecordingFn: () => true,
       );
 
-      await recorder.start(outputPath: '/tmp/file.wav');
+      await recorder.startFileRecording(outputPath: '/tmp/file.wav');
 
-      expect(() => recorder.start(outputPath: '/tmp/other.wav'), throwsA(isA<StateError>()));
+      expect(
+        () => recorder.startFileRecording(outputPath: '/tmp/other.wav'),
+        throwsA(isA<StateError>()),
+      );
     });
 
     test('unsupported platform reports unavailable and throws', () async {
       final recorder = NativeAudioRecorder(platform: NativeAudioRecorderPlatform.unsupported);
 
       expect(await recorder.isAvailable(), isFalse);
-      expect(() => recorder.start(outputPath: '/tmp/file.wav'), throwsA(isA<UnsupportedError>()));
-      expect(() => recorder.startStream(), throwsA(isA<UnsupportedError>()));
+      expect(
+        () => recorder.startFileRecording(outputPath: '/tmp/file.wav'),
+        throwsA(isA<UnsupportedError>()),
+      );
+      expect(() => recorder.startPcmStream(), throwsA(isA<UnsupportedError>()));
+      expect(() => recorder.reset(), throwsA(isA<UnsupportedError>()));
+    });
+
+    test('reset invokes native reset path and closes stream', () async {
+      var resetCalls = 0;
+      var stopCalls = 0;
+
+      final recorder = NativeAudioRecorder(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        stopFn: () {
+          stopCalls++;
+        },
+        resetFn: () {
+          resetCalls++;
+        },
+        isRecordingFn: () => true,
+      );
+
+      await recorder.startFileRecording(outputPath: '/tmp/reset.wav');
+      await recorder.reset();
+
+      expect(resetCalls, 1);
+      expect(stopCalls, 0);
     });
 
     test('AudioRecorderConfig.inputDeviceId is forwarded to native start calls', () async {
@@ -209,19 +257,19 @@ void main() {
             }) {
               usedInputDeviceId = inputDeviceId;
             },
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) => Uint8List(0),
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
         stopFn: () {},
         isRecordingFn: () => true,
       );
 
-      await recorder.start(
+      await recorder.startFileRecording(
         outputPath: '/tmp/recording.wav',
         config: const AudioRecorderConfig(inputDeviceId: 'mic-default'),
       );
@@ -230,7 +278,7 @@ void main() {
       await recorder.stop();
     });
 
-    test('start rejects unsupported encoding for native file output', () {
+    test('startFileRecording rejects unsupported encoding for native file output', () {
       final recorder = NativeAudioRecorder(
         platform: NativeAudioRecorderPlatform.macOS,
         availabilityFn: () => true,
@@ -244,20 +292,20 @@ void main() {
               required channelCount,
               required inputDeviceId,
             }) {},
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) => Uint8List(0),
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
         stopFn: () {},
         isRecordingFn: () => true,
       );
 
       expect(
-        () => recorder.start(
+        () => recorder.startFileRecording(
           outputPath: '/tmp/file.wav',
           config: const AudioRecorderConfig(
             encoding: AudioEncodingConfig(encoder: AudioEncoder.flac),
@@ -267,7 +315,7 @@ void main() {
       );
     });
 
-    test('start uses direct macOS AAC file output for m4a', () async {
+    test('startFileRecording uses direct macOS AAC file output for m4a', () async {
       final fakeAacEncoder = _FakeAacEncoder();
       late String nativeOutputPath;
       var stopCalls = 0;
@@ -287,14 +335,14 @@ void main() {
             }) {
               nativeOutputPath = outputPath;
             },
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) => Uint8List(0),
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
         stopFn: () {
           stopCalls++;
           File(nativeOutputPath).writeAsBytesSync(const <int>[1, 2, 3, 4], flush: true);
@@ -302,7 +350,7 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      await recorder.start(
+      await recorder.startFileRecording(
         outputPath: '/tmp/recording.m4a',
         config: AudioRecorderConfig(
           sampleRateHz: 16000,
@@ -310,7 +358,7 @@ void main() {
           encoding: AudioEncodingConfig(
             encoder: AudioEncoder.aacLc,
             bitrateBps: 64000,
-            aacEncoder: fakeAacEncoder,
+            audioEncoder: fakeAacEncoder,
           ),
         ),
       );
@@ -322,7 +370,7 @@ void main() {
       expect(fakeAacEncoder.encodeAudioFileToAacCalls, 0);
     });
 
-    test('start rejects non-m4a output for direct macOS AAC recording', () {
+    test('startFileRecording rejects non-m4a output for direct macOS AAC recording', () {
       final recorder = NativeAudioRecorder(
         platform: NativeAudioRecorderPlatform.macOS,
         availabilityFn: () => true,
@@ -336,20 +384,20 @@ void main() {
               required channelCount,
               required inputDeviceId,
             }) {},
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) => Uint8List(0),
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
         stopFn: () {},
         isRecordingFn: () => true,
       );
 
       expect(
-        () => recorder.start(
+        () => recorder.startFileRecording(
           outputPath: '/tmp/recording.wav',
           config: const AudioRecorderConfig(
             encoding: AudioEncodingConfig(encoder: AudioEncoder.aacLc),
@@ -376,14 +424,14 @@ void main() {
               required channelCount,
               required inputDeviceId,
             }) {},
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) {
+        readPcmStreamFn: ({required maxSamples}) {
           readCalls++;
           if (readCalls == 1) {
             return chunk;
@@ -395,7 +443,7 @@ void main() {
       );
 
       final amplitudeEvents = recorder.onAmplitudeChanged(const Duration(milliseconds: 1));
-      await recorder.startStream(pollInterval: const Duration(milliseconds: 5));
+      await recorder.startPcmStream(pollInterval: const Duration(milliseconds: 5));
       final amplitude = await amplitudeEvents.first.timeout(const Duration(seconds: 1));
 
       expect(amplitude.current, greaterThan(-30));
@@ -418,14 +466,14 @@ void main() {
               required channelCount,
               required inputDeviceId,
             }) {},
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) => Uint8List(0),
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
         stopFn: () {},
         isRecordingFn: () => true,
         getAmplitudeFn: () {
@@ -435,7 +483,7 @@ void main() {
       );
 
       final amplitudeEvents = recorder.onAmplitudeChanged(const Duration(milliseconds: 5));
-      await recorder.start(outputPath: '/tmp/amp-file.wav');
+      await recorder.startFileRecording(outputPath: '/tmp/amp-file.wav');
       final amplitude = await amplitudeEvents.first.timeout(const Duration(seconds: 1));
 
       expect(readAmplitudeCalls, greaterThan(0));
@@ -445,8 +493,8 @@ void main() {
       await recorder.stop();
     });
 
-    test('startWithVadSegmentation rejects unsupported segment encoders', () async {
-      final outputDir = await Directory.systemTemp.createTemp('vad-segments-unsupported-');
+    test('startVadCapture rejects unsupported segment encoders', () async {
+      final outputDir = await Directory.systemTemp.createTemp('vad-capture-unsupported-');
       final recorder = NativeAudioRecorder(
         platform: NativeAudioRecorderPlatform.windows,
         availabilityFn: () => true,
@@ -460,28 +508,29 @@ void main() {
               required channelCount,
               required inputDeviceId,
             }) {},
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) => Uint8List(0),
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
         stopFn: () {},
         isRecordingFn: () => true,
       );
 
       expect(
-        () => recorder.startWithVadSegmentation(
-          outputDirectory: outputDir,
-          splitOptions: const PauseSplitOptions(sampleRateHz: 16000, channelCount: 1),
-          config: const AudioRecorderConfig(
-            sampleRateHz: 16000,
-            channelCount: 1,
-            encoding: AudioEncodingConfig(encoder: AudioEncoder.opus),
+        () => recorder.startVadCapture(
+          VadCaptureRequest(
+            split: const PauseSplitOptions(sampleRateHz: 16000, channelCount: 1),
+            audio: const AudioRecorderConfig(sampleRateHz: 16000, channelCount: 1),
+            vad: const SpeechVadConfig.energyOnly(),
+            output: VadCaptureOutputConfig(
+              outputDirectory: outputDir,
+              segmentEncoding: const AudioEncodingConfig(encoder: AudioEncoder.opus),
+            ),
           ),
-          vadConfig: const SpeechVadConfig.energyOnly(),
         ),
         throwsA(isA<ArgumentError>()),
       );
@@ -489,8 +538,8 @@ void main() {
       await outputDir.delete(recursive: true);
     });
 
-    test('startWithVadSegmentation flushes trailing speech when enabled', () async {
-      final outputDir = await Directory.systemTemp.createTemp('vad-segments-flush-');
+    test('startVadCapture flushes trailing speech when enabled', () async {
+      final outputDir = await Directory.systemTemp.createTemp('vad-capture-flush-');
       final pcmBytes = Uint8List.view(
         _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 450)).buffer,
       );
@@ -509,14 +558,14 @@ void main() {
               required channelCount,
               required inputDeviceId,
             }) {},
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) {
+        readPcmStreamFn: ({required maxSamples}) {
           if (emittedChunk) {
             return Uint8List(0);
           }
@@ -527,30 +576,29 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      final stream = await recorder.startWithVadSegmentation(
-        outputDirectory: outputDir,
-        splitOptions: const PauseSplitOptions(
-          sampleRateHz: 16000,
-          channelCount: 1,
-          frameDuration: Duration(milliseconds: 20),
-          minSpeechDuration: Duration(milliseconds: 100),
-          minSilenceDuration: Duration(milliseconds: 600),
+      final capture = await recorder.startVadCapture(
+        VadCaptureRequest(
+          split: const PauseSplitOptions(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            frameDuration: Duration(milliseconds: 20),
+            minSpeechDuration: Duration(milliseconds: 100),
+            minSilenceDuration: Duration(milliseconds: 600),
+          ),
+          audio: const AudioRecorderConfig(sampleRateHz: 16000, channelCount: 1),
+          vad: const SpeechVadConfig.energyOnly(),
+          flushOnStop: true,
+          pollInterval: const Duration(milliseconds: 5),
+          output: VadCaptureOutputConfig(outputDirectory: outputDir),
         ),
-        config: const AudioRecorderConfig(
-          sampleRateHz: 16000,
-          channelCount: 1,
-          encoding: AudioEncodingConfig(encoder: AudioEncoder.wav),
-        ),
-        vadConfig: const SpeechVadConfig.energyOnly(),
-        flushOnStop: true,
-        pollInterval: const Duration(milliseconds: 5),
       );
 
-      final segmentsFuture = stream.toList();
+      final segmentsFuture = capture.segments.toList();
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      await recorder.stop();
+      final stopResult = await capture.stop();
       final segments = await segmentsFuture;
 
+      expect(stopResult.segmentCount, 1);
       expect(segments, hasLength(1));
       expect(File(segments.first.file.path).existsSync(), isTrue);
       expect(segments.first.fileExtension, 'wav');
@@ -559,8 +607,8 @@ void main() {
       await outputDir.delete(recursive: true);
     });
 
-    test('startWithVadSegmentation can skip trailing flush', () async {
-      final outputDir = await Directory.systemTemp.createTemp('vad-segments-no-flush-');
+    test('startVadCapture can skip trailing flush', () async {
+      final outputDir = await Directory.systemTemp.createTemp('vad-capture-no-flush-');
       final pcmBytes = Uint8List.view(
         _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 450)).buffer,
       );
@@ -579,14 +627,14 @@ void main() {
               required channelCount,
               required inputDeviceId,
             }) {},
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) {
+        readPcmStreamFn: ({required maxSamples}) {
           if (emittedChunk) {
             return Uint8List(0);
           }
@@ -597,36 +645,35 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      final stream = await recorder.startWithVadSegmentation(
-        outputDirectory: outputDir,
-        splitOptions: const PauseSplitOptions(
-          sampleRateHz: 16000,
-          channelCount: 1,
-          frameDuration: Duration(milliseconds: 20),
-          minSpeechDuration: Duration(milliseconds: 100),
-          minSilenceDuration: Duration(milliseconds: 600),
+      final capture = await recorder.startVadCapture(
+        VadCaptureRequest(
+          split: const PauseSplitOptions(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            frameDuration: Duration(milliseconds: 20),
+            minSpeechDuration: Duration(milliseconds: 100),
+            minSilenceDuration: Duration(milliseconds: 600),
+          ),
+          audio: const AudioRecorderConfig(sampleRateHz: 16000, channelCount: 1),
+          vad: const SpeechVadConfig.energyOnly(),
+          flushOnStop: false,
+          pollInterval: const Duration(milliseconds: 5),
+          output: VadCaptureOutputConfig(outputDirectory: outputDir),
         ),
-        config: const AudioRecorderConfig(
-          sampleRateHz: 16000,
-          channelCount: 1,
-          encoding: AudioEncodingConfig(encoder: AudioEncoder.wav),
-        ),
-        vadConfig: const SpeechVadConfig.energyOnly(),
-        flushOnStop: false,
-        pollInterval: const Duration(milliseconds: 5),
       );
 
-      final segmentsFuture = stream.toList();
+      final segmentsFuture = capture.segments.toList();
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      await recorder.stop();
+      final stopResult = await capture.stop();
       final segments = await segmentsFuture;
 
+      expect(stopResult.segmentCount, 0);
       expect(segments, isEmpty);
       await outputDir.delete(recursive: true);
     });
 
-    test('startWithVadSegmentation uses configured AAC encoder', () async {
-      final outputDir = await Directory.systemTemp.createTemp('vad-segments-aac-');
+    test('startVadCapture uses configured AAC encoder for segments', () async {
+      final outputDir = await Directory.systemTemp.createTemp('vad-capture-segments-aac-');
       final pcmBytes = Uint8List.view(
         _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 450)).buffer,
       );
@@ -646,14 +693,14 @@ void main() {
               required channelCount,
               required inputDeviceId,
             }) {},
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) {
+        readPcmStreamFn: ({required maxSamples}) {
           if (emittedChunk) {
             return Uint8List(0);
           }
@@ -664,34 +711,40 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      final stream = await recorder.startWithVadSegmentation(
-        outputDirectory: outputDir,
-        splitOptions: const PauseSplitOptions(
-          sampleRateHz: 16000,
-          channelCount: 1,
-          frameDuration: Duration(milliseconds: 20),
-          minSpeechDuration: Duration(milliseconds: 100),
-          minSilenceDuration: Duration(milliseconds: 600),
-        ),
-        config: AudioRecorderConfig(
-          sampleRateHz: 16000,
-          channelCount: 1,
-          encoding: AudioEncodingConfig(
-            encoder: AudioEncoder.aacHe,
-            bitrateBps: 56000,
-            aacEncoder: fakeAacEncoder,
+      final capture = await recorder.startVadCapture(
+        VadCaptureRequest(
+          split: const PauseSplitOptions(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            frameDuration: Duration(milliseconds: 20),
+            minSpeechDuration: Duration(milliseconds: 100),
+            minSilenceDuration: Duration(milliseconds: 600),
+          ),
+          audio: const AudioRecorderConfig(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            encoding: AudioEncodingConfig(encoder: AudioEncoder.wav),
+          ),
+          vad: const SpeechVadConfig.energyOnly(),
+          flushOnStop: true,
+          pollInterval: const Duration(milliseconds: 5),
+          output: VadCaptureOutputConfig(
+            outputDirectory: outputDir,
+            segmentEncoding: AudioEncodingConfig(
+              encoder: AudioEncoder.aacHe,
+              bitrateBps: 56000,
+              audioEncoder: fakeAacEncoder,
+            ),
           ),
         ),
-        vadConfig: const SpeechVadConfig.energyOnly(),
-        flushOnStop: true,
-        pollInterval: const Duration(milliseconds: 5),
       );
 
-      final segmentsFuture = stream.toList();
+      final segmentsFuture = capture.segments.toList();
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      await recorder.stop();
+      final stopResult = await capture.stop();
       final segments = await segmentsFuture;
 
+      expect(stopResult.segmentCount, 1);
       expect(fakeAacEncoder.encodePcm16BytesToAacCalls, greaterThan(0));
       expect(segments, hasLength(1));
       expect(segments.first.fileExtension, 'm4a');
@@ -700,8 +753,84 @@ void main() {
       await outputDir.delete(recursive: true);
     });
 
-    test('startWithVadSegmentation emits error and continues on segment encode failure', () async {
-      final outputDir = await Directory.systemTemp.createTemp('vad-segments-continue-');
+    test('startVadCapture can emit full recording artifact on stop', () async {
+      final outputDir = await Directory.systemTemp.createTemp('vad-capture-full-recording-');
+      final pcmBytes = Uint8List.view(
+        _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 350)).buffer,
+      );
+
+      var emittedChunk = false;
+      final recorder = NativeAudioRecorder(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) {
+          if (emittedChunk) {
+            return Uint8List(0);
+          }
+          emittedChunk = true;
+          return pcmBytes;
+        },
+        stopFn: () {},
+        isRecordingFn: () => true,
+      );
+
+      final capture = await recorder.startVadCapture(
+        VadCaptureRequest(
+          split: const PauseSplitOptions(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            frameDuration: Duration(milliseconds: 20),
+            minSpeechDuration: Duration(milliseconds: 100),
+            minSilenceDuration: Duration(milliseconds: 600),
+          ),
+          audio: const AudioRecorderConfig(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            encoding: AudioEncodingConfig(encoder: AudioEncoder.wav),
+          ),
+          vad: const SpeechVadConfig.energyOnly(),
+          flushOnStop: true,
+          pollInterval: const Duration(milliseconds: 5),
+          output: VadCaptureOutputConfig(
+            outputDirectory: outputDir,
+            emitFullRecordingOnStop: true,
+            fullRecordingFileStem: 'recording_final',
+            fullRecordingEncoding: const AudioEncodingConfig(encoder: AudioEncoder.wav),
+          ),
+        ),
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      final stopResult = await capture.stop();
+
+      expect(stopResult.fullRecording, isNotNull);
+      final fullRecording = stopResult.fullRecording!;
+      expect(fullRecording.fileExtension, 'wav');
+      expect(File(fullRecording.file.path).existsSync(), isTrue);
+      expect(fullRecording.metrics.inputPcmByteCount, greaterThan(0));
+
+      await outputDir.delete(recursive: true);
+    });
+
+    test('startVadCapture emits error and continues on segment encode failure', () async {
+      final outputDir = await Directory.systemTemp.createTemp('vad-capture-continue-');
       final pcmBytes = Uint8List.view(
         _concatInt16([
           _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 400)),
@@ -725,14 +854,14 @@ void main() {
               required channelCount,
               required inputDeviceId,
             }) {},
-        startStreamFn:
+        startPcmStreamFn:
             ({
               required sampleRateHz,
               required channelCount,
               required framesPerChunk,
               required inputDeviceId,
             }) {},
-        readStreamFn: ({required maxSamples}) {
+        readPcmStreamFn: ({required maxSamples}) {
           if (emittedChunk) {
             return Uint8List(0);
           }
@@ -743,29 +872,33 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      final stream = await recorder.startWithVadSegmentation(
-        outputDirectory: outputDir,
-        splitOptions: const PauseSplitOptions(
-          sampleRateHz: 16000,
-          channelCount: 1,
-          frameDuration: Duration(milliseconds: 20),
-          minSpeechDuration: Duration(milliseconds: 100),
-          minSilenceDuration: Duration(milliseconds: 500),
+      final capture = await recorder.startVadCapture(
+        VadCaptureRequest(
+          split: const PauseSplitOptions(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            frameDuration: Duration(milliseconds: 20),
+            minSpeechDuration: Duration(milliseconds: 100),
+            minSilenceDuration: Duration(milliseconds: 500),
+          ),
+          audio: const AudioRecorderConfig(sampleRateHz: 16000, channelCount: 1),
+          vad: const SpeechVadConfig.energyOnly(),
+          flushOnStop: true,
+          pollInterval: const Duration(milliseconds: 5),
+          output: VadCaptureOutputConfig(
+            outputDirectory: outputDir,
+            segmentEncoding: AudioEncodingConfig(
+              encoder: AudioEncoder.aacLc,
+              audioEncoder: fakeAacEncoder,
+            ),
+          ),
         ),
-        config: AudioRecorderConfig(
-          sampleRateHz: 16000,
-          channelCount: 1,
-          encoding: AudioEncodingConfig(encoder: AudioEncoder.aacLc, aacEncoder: fakeAacEncoder),
-        ),
-        vadConfig: const SpeechVadConfig.energyOnly(),
-        flushOnStop: true,
-        pollInterval: const Duration(milliseconds: 5),
       );
 
       final segments = <VoiceSegment>[];
       final errors = <Object>[];
       final done = Completer<void>();
-      final subscription = stream.listen(
+      final subscription = capture.segments.listen(
         segments.add,
         onError: (Object error, StackTrace stackTrace) {
           errors.add(error);
@@ -776,7 +909,7 @@ void main() {
       );
 
       await Future<void>.delayed(const Duration(milliseconds: 80));
-      await recorder.stop();
+      await capture.stop();
       await done.future.timeout(const Duration(seconds: 2));
       await subscription.cancel();
 

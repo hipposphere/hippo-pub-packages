@@ -198,6 +198,119 @@ bool EnsureAudioInputPermission(int32_t* out_has_permission, bool request_if_nee
   return true;
 }
 
+NSString* ResolveAppleSessionMode(int32_t apple_session_mode_code, int32_t processing_flags) {
+#if TARGET_OS_IPHONE
+  switch (apple_session_mode_code) {
+    case 1:
+      return AVAudioSessionModeVoiceChat;
+    case 2:
+      return AVAudioSessionModeVideoChat;
+    case 3:
+      return AVAudioSessionModeMeasurement;
+    case 4:
+      return AVAudioSessionModeGameChat;
+    case 5:
+      return AVAudioSessionModeSpokenAudio;
+    case 0:
+    default:
+      break;
+  }
+
+  if ((processing_flags & (1 << 6)) != 0) {
+    return AVAudioSessionModeMeasurement;
+  }
+  if ((processing_flags & ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 5))) != 0) {
+    return AVAudioSessionModeVoiceChat;
+  }
+  return AVAudioSessionModeDefault;
+#else
+  (void)apple_session_mode_code;
+  (void)processing_flags;
+  return nil;
+#endif
+}
+
+AVAudioSessionCategoryOptions ResolveAppleCategoryOptions(uint32_t apple_category_options_flags) {
+#if TARGET_OS_IPHONE
+  AVAudioSessionCategoryOptions options = 0;
+  if ((apple_category_options_flags & (1u << 0)) != 0u) {
+    options |= AVAudioSessionCategoryOptionAllowBluetooth;
+  }
+  if ((apple_category_options_flags & (1u << 1)) != 0u) {
+    options |= AVAudioSessionCategoryOptionAllowBluetoothA2DP;
+  }
+  if ((apple_category_options_flags & (1u << 2)) != 0u) {
+    options |= AVAudioSessionCategoryOptionDefaultToSpeaker;
+  }
+  if ((apple_category_options_flags & (1u << 3)) != 0u) {
+    options |= AVAudioSessionCategoryOptionMixWithOthers;
+  }
+  if ((apple_category_options_flags & (1u << 4)) != 0u) {
+    options |= AVAudioSessionCategoryOptionDuckOthers;
+  }
+  return options;
+#else
+  (void)apple_category_options_flags;
+  return 0;
+#endif
+}
+
+bool ConfigureIosAudioSession(uint32_t sample_rate_hz, int32_t processing_flags,
+                              int32_t apple_session_mode_code,
+                              uint32_t apple_category_options_flags,
+                              double preferred_latency_seconds,
+                              double apple_preferred_io_buffer_duration_seconds,
+                              double apple_preferred_input_gain, char* error_utf8,
+                              uint32_t error_utf8_capacity) {
+#if TARGET_OS_IPHONE
+  AVAudioSession* audio_session = [AVAudioSession sharedInstance];
+  NSError* session_error = nil;
+  NSString* mode = ResolveAppleSessionMode(apple_session_mode_code, processing_flags);
+  const AVAudioSessionCategoryOptions options =
+      ResolveAppleCategoryOptions(apple_category_options_flags);
+  if (![audio_session setCategory:AVAudioSessionCategoryPlayAndRecord
+                         mode:mode
+                      options:options
+                        error:&session_error]) {
+    WriteNSError(session_error, "Failed to configure AVAudioSession category", error_utf8,
+                 error_utf8_capacity);
+    return false;
+  }
+
+  if (apple_preferred_io_buffer_duration_seconds > 0.0) {
+    [audio_session setPreferredIOBufferDuration:apple_preferred_io_buffer_duration_seconds
+                                          error:nil];
+  } else if (preferred_latency_seconds > 0.0) {
+    [audio_session setPreferredIOBufferDuration:preferred_latency_seconds error:nil];
+  }
+
+  [audio_session setPreferredSampleRate:static_cast<double>(sample_rate_hz) error:nil];
+
+  if (std::isfinite(apple_preferred_input_gain) && apple_preferred_input_gain >= 0.0 &&
+      apple_preferred_input_gain <= 1.0 && audio_session.inputGainSettable) {
+    [audio_session setInputGain:static_cast<float>(apple_preferred_input_gain) error:nil];
+  }
+
+  if (![audio_session setActive:YES error:&session_error]) {
+    WriteNSError(session_error, "Failed to activate AVAudioSession", error_utf8,
+                 error_utf8_capacity);
+    return false;
+  }
+  return true;
+#else
+  (void)sample_rate_hz;
+  (void)processing_flags;
+  (void)apple_session_mode_code;
+  (void)apple_category_options_flags;
+  (void)preferred_latency_seconds;
+  (void)apple_preferred_io_buffer_duration_seconds;
+  (void)apple_preferred_input_gain;
+  (void)error_utf8;
+  (void)error_utf8_capacity;
+  return true;
+#endif
+}
+
 struct WavHeader {
   char riff[4];
   uint32_t chunk_size;
@@ -456,9 +569,32 @@ class AppleAudioRecorderState {
     return 0;
   }
 
-  int32_t StartFile(const char* output_path_utf8, uint32_t sample_rate_hz, uint32_t channel_count,
-                    const char* input_device_id_utf8, char* error_utf8,
+  int32_t StartFile(const speech_utils::recorder::RecorderStartConfig& start_config,
+                    char* error_utf8,
                     uint32_t error_utf8_capacity) {
+    const char* output_path_utf8 = start_config.output_path_utf8;
+    const uint32_t sample_rate_hz = start_config.sample_rate_hz;
+    const uint32_t channel_count = start_config.channel_count;
+    const char* input_device_id_utf8 = start_config.input_device_id_utf8;
+    const int32_t processing_flags = start_config.runtime.processing_flags;
+    const int32_t apple_session_mode_code = start_config.runtime.apple_session_mode_code;
+    const uint32_t apple_category_options_flags =
+        start_config.runtime.apple_category_options_flags;
+    const double preferred_latency_seconds = start_config.runtime.preferred_latency_seconds;
+    const double apple_preferred_io_buffer_duration_seconds =
+        start_config.runtime.apple_preferred_io_buffer_duration_seconds;
+    const double apple_preferred_input_gain = start_config.runtime.apple_preferred_input_gain;
+    const uint32_t windows_preferred_period_frames =
+        start_config.runtime.windows_preferred_period_frames;
+    const uint32_t windows_flags = start_config.runtime.windows_flags;
+    const int32_t windows_capture_category_code =
+        start_config.runtime.windows_capture_category_code;
+    const int32_t windows_use_communications_device =
+        start_config.runtime.windows_use_communications_device;
+    (void)windows_preferred_period_frames;
+    (void)windows_flags;
+    (void)windows_capture_category_code;
+    (void)windows_use_communications_device;
     if (output_path_utf8 == nullptr) {
       WriteError("Output path is null.", error_utf8, error_utf8_capacity);
       return -1;
@@ -476,24 +612,56 @@ class AppleAudioRecorderState {
 
     const NSString* output_extension = [[output_path pathExtension] lowercaseString];
     if (output_extension.length > 0 && [output_extension isEqualToString:@"m4a"]) {
-      return StartAacFile(output_path, sample_rate_hz, channel_count, input_device_id_utf8,
-                          error_utf8, error_utf8_capacity);
+      return StartAacFile(
+          output_path, sample_rate_hz, channel_count, input_device_id_utf8, processing_flags,
+          apple_session_mode_code, apple_category_options_flags, preferred_latency_seconds,
+          apple_preferred_io_buffer_duration_seconds, apple_preferred_input_gain, error_utf8,
+          error_utf8_capacity);
     }
 
     return StartInternal(sample_rate_hz, channel_count, 1024, RecorderMode::kFile, output_path,
-                         input_device_id_utf8, error_utf8, error_utf8_capacity);
+                         input_device_id_utf8, processing_flags, apple_session_mode_code,
+                         apple_category_options_flags, preferred_latency_seconds,
+                         apple_preferred_io_buffer_duration_seconds, apple_preferred_input_gain,
+                         error_utf8, error_utf8_capacity);
   }
 
-  int32_t StartStream(uint32_t sample_rate_hz, uint32_t channel_count, uint32_t frames_per_chunk,
-                      const char* input_device_id_utf8, char* error_utf8,
+  int32_t StartStream(const speech_utils::recorder::RecorderStartConfig& start_config,
+                      char* error_utf8,
                       uint32_t error_utf8_capacity) {
+    const uint32_t sample_rate_hz = start_config.sample_rate_hz;
+    const uint32_t channel_count = start_config.channel_count;
+    const uint32_t frames_per_chunk = start_config.frames_per_chunk;
+    const char* input_device_id_utf8 = start_config.input_device_id_utf8;
+    const int32_t processing_flags = start_config.runtime.processing_flags;
+    const int32_t apple_session_mode_code = start_config.runtime.apple_session_mode_code;
+    const uint32_t apple_category_options_flags =
+        start_config.runtime.apple_category_options_flags;
+    const double preferred_latency_seconds = start_config.runtime.preferred_latency_seconds;
+    const double apple_preferred_io_buffer_duration_seconds =
+        start_config.runtime.apple_preferred_io_buffer_duration_seconds;
+    const double apple_preferred_input_gain = start_config.runtime.apple_preferred_input_gain;
+    const uint32_t windows_preferred_period_frames =
+        start_config.runtime.windows_preferred_period_frames;
+    const uint32_t windows_flags = start_config.runtime.windows_flags;
+    const int32_t windows_capture_category_code =
+        start_config.runtime.windows_capture_category_code;
+    const int32_t windows_use_communications_device =
+        start_config.runtime.windows_use_communications_device;
+    (void)windows_preferred_period_frames;
+    (void)windows_flags;
+    (void)windows_capture_category_code;
+    (void)windows_use_communications_device;
     if (sample_rate_hz == 0 || channel_count == 0 || frames_per_chunk == 0) {
       WriteError("Sample rate, channel count and frames_per_chunk must be > 0.", error_utf8,
                  error_utf8_capacity);
       return -1;
     }
     return StartInternal(sample_rate_hz, channel_count, frames_per_chunk, RecorderMode::kStream,
-                         nil, input_device_id_utf8, error_utf8, error_utf8_capacity);
+                         nil, input_device_id_utf8, processing_flags, apple_session_mode_code,
+                         apple_category_options_flags, preferred_latency_seconds,
+                         apple_preferred_io_buffer_duration_seconds, apple_preferred_input_gain,
+                         error_utf8, error_utf8_capacity);
   }
 
   int32_t ReadStreamPcm16(int16_t* out_samples, uint32_t out_sample_capacity,
@@ -631,6 +799,14 @@ class AppleAudioRecorderState {
     return 0;
   }
 
+  int32_t Reset(char* error_utf8, uint32_t error_utf8_capacity) {
+    char ignored_error[1] = {0};
+    (void)error_utf8;
+    (void)error_utf8_capacity;
+    (void)Stop(ignored_error, sizeof(ignored_error));
+    return 0;
+  }
+
   int32_t IsRecording(int32_t* out_is_recording, char* error_utf8,
                       uint32_t error_utf8_capacity) {
     if (out_is_recording == nullptr) {
@@ -658,7 +834,11 @@ class AppleAudioRecorderState {
 
  private:
   int32_t StartAacFile(NSString* output_path, uint32_t sample_rate_hz, uint32_t channel_count,
-                       const char* input_device_id_utf8, char* error_utf8,
+                       const char* input_device_id_utf8, int32_t processing_flags,
+                       int32_t apple_session_mode_code, uint32_t apple_category_options_flags,
+                       double preferred_latency_seconds,
+                       double apple_preferred_io_buffer_duration_seconds,
+                       double apple_preferred_input_gain, char* error_utf8,
                        uint32_t error_utf8_capacity) {
     int32_t has_permission = 0;
     if (!EnsureAudioInputPermission(&has_permission, false, error_utf8, error_utf8_capacity)) {
@@ -679,22 +859,15 @@ class AppleAudioRecorderState {
     AVCaptureDevice* capture_device = nil;
 
 #if TARGET_OS_IPHONE
-    AVAudioSession* audio_session = [AVAudioSession sharedInstance];
-    NSError* session_error = nil;
-    if (![audio_session setCategory:AVAudioSessionCategoryPlayAndRecord
-                           mode:AVAudioSessionModeDefault
-                        options:AVAudioSessionCategoryOptionDefaultToSpeaker
-                          error:&session_error]) {
-      WriteNSError(session_error, "Failed to configure AVAudioSession category", error_utf8,
-                   error_utf8_capacity);
-      return -7;
-    }
-    [audio_session setPreferredSampleRate:static_cast<double>(sample_rate_hz) error:nil];
-    if (![audio_session setActive:YES error:&session_error]) {
-      WriteNSError(session_error, "Failed to activate AVAudioSession", error_utf8,
-                   error_utf8_capacity);
+    if (!ConfigureIosAudioSession(sample_rate_hz, processing_flags, apple_session_mode_code,
+                                  apple_category_options_flags, preferred_latency_seconds,
+                                  apple_preferred_io_buffer_duration_seconds,
+                                  apple_preferred_input_gain, error_utf8,
+                                  error_utf8_capacity)) {
       return -8;
     }
+    AVAudioSession* audio_session = [AVAudioSession sharedInstance];
+    NSError* session_error = nil;
 
     NSString* requested_uid = nil;
     if (!effective_input_device_id.empty()) {
@@ -891,7 +1064,11 @@ class AppleAudioRecorderState {
 
   int32_t StartInternal(uint32_t sample_rate_hz, uint32_t channel_count, uint32_t frames_per_chunk,
                         RecorderMode mode, NSString* output_path, const char* input_device_id_utf8,
-                        char* error_utf8, uint32_t error_utf8_capacity) {
+                        int32_t processing_flags, int32_t apple_session_mode_code,
+                        uint32_t apple_category_options_flags, double preferred_latency_seconds,
+                        double apple_preferred_io_buffer_duration_seconds,
+                        double apple_preferred_input_gain, char* error_utf8,
+                        uint32_t error_utf8_capacity) {
     int32_t has_permission = 0;
     if (!EnsureAudioInputPermission(&has_permission, false, error_utf8, error_utf8_capacity)) {
       return -4;
@@ -910,22 +1087,15 @@ class AppleAudioRecorderState {
     const std::string effective_input_device_id = TrimAscii(input_device_id_utf8);
 
 #if TARGET_OS_IPHONE
-    AVAudioSession* audio_session = [AVAudioSession sharedInstance];
-    NSError* session_error = nil;
-    if (![audio_session setCategory:AVAudioSessionCategoryPlayAndRecord
-                           mode:AVAudioSessionModeDefault
-                        options:AVAudioSessionCategoryOptionDefaultToSpeaker
-                          error:&session_error]) {
-      WriteNSError(session_error, "Failed to configure AVAudioSession category", error_utf8,
-                   error_utf8_capacity);
-      return -7;
-    }
-    [audio_session setPreferredSampleRate:static_cast<double>(sample_rate_hz) error:nil];
-    if (![audio_session setActive:YES error:&session_error]) {
-      WriteNSError(session_error, "Failed to activate AVAudioSession", error_utf8,
-                   error_utf8_capacity);
+    if (!ConfigureIosAudioSession(sample_rate_hz, processing_flags, apple_session_mode_code,
+                                  apple_category_options_flags, preferred_latency_seconds,
+                                  apple_preferred_io_buffer_duration_seconds,
+                                  apple_preferred_input_gain, error_utf8,
+                                  error_utf8_capacity)) {
       return -8;
     }
+    AVAudioSession* audio_session = [AVAudioSession sharedInstance];
+    NSError* session_error = nil;
 
     NSString* preferred_uid = nil;
     if (!effective_input_device_id.empty()) {
@@ -1382,23 +1552,29 @@ int32_t ListInputDevicesJson(char* out_json_utf8, uint32_t out_json_capacity, ch
   }
 }
 
-int32_t StartFile(const char* output_path_utf8, uint32_t sample_rate_hz, uint32_t channel_count,
-                  const char* input_device_id_utf8, char* error_utf8,
+int32_t StartFile(const speech_utils::recorder::RecorderStartConfig* start_config,
+                  char* error_utf8,
                   uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
+  if (start_config == nullptr) {
+    WriteError("Start config pointer is null.", error_utf8, error_utf8_capacity);
+    return -1;
+  }
   @autoreleasepool {
-    return g_recorder.StartFile(output_path_utf8, sample_rate_hz, channel_count,
-                               input_device_id_utf8, error_utf8, error_utf8_capacity);
+    return g_recorder.StartFile(*start_config, error_utf8, error_utf8_capacity);
   }
 }
 
-int32_t StartStream(uint32_t sample_rate_hz, uint32_t channel_count, uint32_t frames_per_chunk,
-                    const char* input_device_id_utf8, char* error_utf8,
+int32_t StartStream(const speech_utils::recorder::RecorderStartConfig* start_config,
+                    char* error_utf8,
                     uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
+  if (start_config == nullptr) {
+    WriteError("Start config pointer is null.", error_utf8, error_utf8_capacity);
+    return -1;
+  }
   @autoreleasepool {
-    return g_recorder.StartStream(sample_rate_hz, channel_count, frames_per_chunk,
-                                 input_device_id_utf8, error_utf8, error_utf8_capacity);
+    return g_recorder.StartStream(*start_config, error_utf8, error_utf8_capacity);
   }
 }
 
@@ -1413,6 +1589,11 @@ int32_t ReadStreamPcm16(int16_t* out_samples, uint32_t out_sample_capacity,
 int32_t Stop(char* error_utf8, uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
   return g_recorder.Stop(error_utf8, error_utf8_capacity);
+}
+
+int32_t Reset(char* error_utf8, uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+  return g_recorder.Reset(error_utf8, error_utf8_capacity);
 }
 
 int32_t IsRecording(int32_t* out_is_recording, char* error_utf8,

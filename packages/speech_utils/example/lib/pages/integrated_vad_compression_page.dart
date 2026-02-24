@@ -40,7 +40,7 @@ class _IntegratedVadCompressionPageState
   late ThemeMode _themeMode;
   late final bool _supportsInputSelection;
 
-  final NativeAacEncoder _nativeAacEncoder = NativeAacEncoder();
+  final NativeAudioEncoder _nativeAacEncoder = NativeAudioEncoder();
   final FfmpegAacEncoder _ffmpegAacEncoder = FfmpegAacEncoder();
 
   final List<String> _logs = <String>[];
@@ -52,19 +52,14 @@ class _IntegratedVadCompressionPageState
   Directory? _outputRoot;
   Directory? _liveOutputDir;
 
-  StreamSubscription<Pcm16Snippet>? _liveSnippetSubscription;
-  Completer<void>? _liveDone;
-
-  VadBackend? _liveSplitVadBackend;
-  VadBackend? _liveDetectionVadBackend;
-  _LiveSpeechDetector? _liveSpeechDetector;
+  VadCaptureSession? _liveCaptureSession;
+  StreamSubscription<VoiceSegment>? _liveSegmentSubscription;
+  StreamSubscription<VadSpeechStateSample>? _liveSpeechStateSubscription;
+  StreamSubscription<VadLevelSample>? _liveLevelSubscription;
 
   Timer? _recordingTicker;
   Timer? _streamHealthTimer;
   final Stopwatch _recordingStopwatch = Stopwatch();
-
-  BytesBuilder? _sessionBytes;
-  DateTime? _lastSpeechAt;
 
   bool _isRunningSyntheticChecks = false;
   bool _isLiveStreaming = false;
@@ -142,9 +137,10 @@ class _IntegratedVadCompressionPageState
     _streamHealthTimer?.cancel();
     _recordingStopwatch.stop();
 
-    unawaited(_liveSnippetSubscription?.cancel());
-    _liveSplitVadBackend?.dispose();
-    _liveDetectionVadBackend?.dispose();
+    unawaited(_liveCaptureSession?.cancel());
+    unawaited(_liveSegmentSubscription?.cancel());
+    unawaited(_liveSpeechStateSubscription?.cancel());
+    unawaited(_liveLevelSubscription?.cancel());
 
     unawaited(_player.stop());
     unawaited(_player.dispose());
@@ -507,81 +503,123 @@ class _IntegratedVadCompressionPageState
     );
     await liveDir.create(recursive: true);
 
-    final vadPairAndLabel = _createVadPair(preferTenVad: _preferTenVadForLive);
-    final vadPair = vadPairAndLabel.$1;
-    final vadLabel = vadPairAndLabel.$2;
-
-    late final Stream<Uint8List> micStream;
+    final vadConfig = _buildSpeechVadConfig(preferTenVad: _preferTenVadForLive);
     final inputDeviceId = _supportsInputSelection
         ? ((_selectedInputDevice?.isDefault ?? true)
               ? null
               : _selectedInputDevice?.id)
         : null;
+    late final VadCaptureSession capture;
     try {
-      micStream = await _recorder.startStream(
-        config: AudioRecorderConfig(
-          sampleRateHz: _sampleRateHz ?? 16000,
-          channelCount: _channelCount,
-          framesPerChunk: 256,
-          inputDeviceId: inputDeviceId,
-          encoding: AudioEncodingConfig(
-            encoder: _selectedAacEncoder != null
-                ? AudioEncoder.aacLc
-                : AudioEncoder.wav,
-            aacEncoder: _selectedAacEncoder,
-            bitrateBps: _bitrateKbps != null ? _bitrateKbps! * 1000 : null,
+      capture = await _recorder.startVadCapture(
+        VadCaptureRequest(
+          split: _splitOptions,
+          audio: AudioRecorderConfig(
+            sampleRateHz: _sampleRateHz ?? 16000,
+            channelCount: _channelCount,
+            framesPerChunk: 256,
+            inputDeviceId: inputDeviceId,
+            encoding: const AudioEncodingConfig(encoder: AudioEncoder.wav),
           ),
+          vad: vadConfig,
+          telemetry: const VadCaptureTelemetryConfig(
+            speechHoldDuration: _speechHoldDuration,
+          ),
+          output: VadCaptureOutputConfig(
+            outputDirectory: liveDir,
+            segmentEncoding: const AudioEncodingConfig(
+              encoder: AudioEncoder.wav,
+            ),
+            emitFullRecordingOnStop: true,
+            fullRecordingFileStem: 'recording_full',
+            fullRecordingEncoding: const AudioEncodingConfig(
+              encoder: AudioEncoder.wav,
+            ),
+          ),
+          pollInterval: const Duration(milliseconds: 10),
+          readSampleCapacity: 4096,
         ),
-        pollInterval: const Duration(milliseconds: 10),
-        readSampleCapacity: 4096,
       );
     } on Object catch (error) {
-      vadPair.splitter.dispose();
-      vadPair.detector.dispose();
       _appendLog('Failed to start live recording: $error');
       return;
     }
 
+    _liveCaptureSession = capture;
     _liveOutputDir = liveDir;
-    _liveSplitVadBackend = vadPair.splitter;
-    _liveDetectionVadBackend = vadPair.detector;
-    _liveSpeechDetector = _LiveSpeechDetector(
-      options: _splitOptions,
-      vadBackend: vadPair.detector,
+    final activeInputLabel = _supportsInputSelection
+        ? (_selectedInputDevice?.label ?? 'System default')
+        : (_inputDevices
+                  .where((device) => device.isDefault)
+                  .firstOrNull
+                  ?.label ??
+              'System default');
+    _appendLog(
+      'Live stream started (${capture.backendLabel}) using "$activeInputLabel".',
     );
+    if (_preferTenVadForLive) {
+      _appendLog(
+        'TEN config: preset=${_tenVadPresetLabel(_tenVadPreset)}, '
+        'threshold=${_tenVadThreshold.toStringAsFixed(2)}',
+      );
+    }
+    if (!capture.backendLabel.startsWith('TEN VAD')) {
+      _appendLog(
+        'Energy thresholds: primary=${_energyPrimaryRmsThreshold.toStringAsFixed(4)}, '
+        'secondary=${_energySecondaryRmsThreshold.toStringAsFixed(4)}, '
+        'zcr=${_energyMinZeroCrossingRate.toStringAsFixed(3)}',
+      );
+    }
 
-    _sessionBytes = BytesBuilder(copy: false);
-    _lastSpeechAt = null;
-
-    final tappedStream = micStream.map((chunk) {
-      _onRawMicChunk(chunk);
-      return chunk;
-    });
-
-    final snippets = SpeechUtils.splitPcm16StreamOnSilence(
-      pcm16leStream: tappedStream,
-      options: _splitOptions,
-      vadBackend: vadPair.splitter,
-    );
-
-    final liveDone = Completer<void>();
-    _liveDone = liveDone;
-
-    _liveSnippetSubscription = snippets.listen(
-      (snippet) => unawaited(_onLiveSnippet(snippet)),
-      onError: (Object error, StackTrace stackTrace) {
-        _appendLog('Live stream error: $error');
-        _cleanupLiveState();
-        if (!liveDone.isCompleted) {
-          liveDone.complete();
-        }
+    _liveSegmentSubscription = capture.segments.listen(
+      (segment) {
+        unawaited(_onLiveSegment(segment));
       },
-      onDone: () {
-        _appendLog('Live stream closed.');
-        _cleanupLiveState();
-        if (!liveDone.isCompleted) {
-          liveDone.complete();
+      onError: (Object error, StackTrace stackTrace) {
+        _appendLog('Live segment stream error: $error');
+      },
+      cancelOnError: false,
+    );
+
+    _liveSpeechStateSubscription = capture.speechStates.listen(
+      (state) {
+        if (!mounted) {
+          return;
         }
+        setState(() {
+          _speechDetected = state.speechDetected;
+        });
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _appendLog('Live speech-state stream error: $error');
+      },
+      cancelOnError: false,
+    );
+
+    _liveLevelSubscription = capture.levels.listen(
+      (level) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _liveChunkCount++;
+          final waveformLevel = SpeechAmplitudeUtils.normalizeDbfsForWaveform(
+            level.dbfs,
+            sensitivity: SpeechAmplitudeUtils.defaultSensitivity,
+          );
+          _waveformSamples.add(waveformLevel);
+          if (_waveformSamples.length > _waveformLimit) {
+            _waveformSamples.removeRange(
+              0,
+              _waveformSamples.length - _waveformLimit,
+            );
+          }
+          _currentRms = level.rms;
+          _currentDbfs = level.dbfs;
+        });
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _appendLog('Live level stream error: $error');
       },
       cancelOnError: false,
     );
@@ -606,7 +644,7 @@ class _IntegratedVadCompressionPageState
     setState(() {
       _isLiveStreaming = true;
       _speechDetected = false;
-      _activeVadLabel = vadLabel;
+      _activeVadLabel = capture.backendLabel;
       _liveSnippetCount = 0;
       _liveChunkCount = 0;
       _recordingDuration = Duration.zero;
@@ -619,6 +657,8 @@ class _IntegratedVadCompressionPageState
       _fullRecordingAacPath = null;
       _fullRecordingAacBytes = null;
       _fullRecordingAacLatencyMs = null;
+      _fullRecordingWavMetadata = null;
+      _fullRecordingAacMetadata = null;
     });
 
     _streamHealthTimer?.cancel();
@@ -630,81 +670,15 @@ class _IntegratedVadCompressionPageState
         'No PCM chunks received after 2s. Check microphone routing/permissions on this device.',
       );
     });
-
-    final activeInputLabel = _supportsInputSelection
-        ? (_selectedInputDevice?.label ?? 'System default')
-        : (_inputDevices
-                  .where((device) => device.isDefault)
-                  .firstOrNull
-                  ?.label ??
-              'System default');
-    _appendLog('Live stream started ($vadLabel) using "$activeInputLabel".');
-    if (_preferTenVadForLive) {
-      _appendLog(
-        'TEN config: preset=${_tenVadPresetLabel(_tenVadPreset)}, '
-        'threshold=${_tenVadThreshold.toStringAsFixed(2)}',
-      );
-    }
-    if (!vadLabel.startsWith('TEN VAD')) {
-      _appendLog(
-        'Energy thresholds: primary=${_energyPrimaryRmsThreshold.toStringAsFixed(4)}, '
-        'secondary=${_energySecondaryRmsThreshold.toStringAsFixed(4)}, '
-        'zcr=${_energyMinZeroCrossingRate.toStringAsFixed(3)}',
-      );
-    }
   }
 
-  void _onRawMicChunk(Uint8List chunk) {
-    _sessionBytes?.add(chunk);
-    _liveChunkCount++;
-
-    final now = DateTime.now();
-    final amplitude = _computePcm16Rms(chunk);
-    final detector = _liveSpeechDetector;
-    final hasSpeechInChunk = detector?.addChunk(chunk) ?? false;
-
-    if (hasSpeechInChunk) {
-      _lastSpeechAt = now;
-    }
-
-    final speechActive =
-        _lastSpeechAt != null &&
-        now.difference(_lastSpeechAt!) <= _speechHoldDuration;
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      final dbfs = SpeechAmplitudeUtils.rmsToDbfs(amplitude);
-      final waveformLevel = SpeechAmplitudeUtils.normalizeDbfsForWaveform(
-        dbfs,
-        sensitivity: SpeechAmplitudeUtils.defaultSensitivity,
-      );
-
-      _waveformSamples.add(waveformLevel);
-      if (_waveformSamples.length > _waveformLimit) {
-        _waveformSamples.removeRange(
-          0,
-          _waveformSamples.length - _waveformLimit,
-        );
-      }
-      _speechDetected = speechActive;
-      _currentRms = amplitude;
-      _currentDbfs = dbfs;
-    });
-  }
-
-  Future<void> _onLiveSnippet(Pcm16Snippet snippet) async {
-    final outputDir = _liveOutputDir;
-    if (outputDir == null) {
+  Future<void> _onLiveSegment(VoiceSegment segment) async {
+    final wavPath = segment.file.path;
+    if (wavPath.isEmpty) {
       return;
     }
 
     final nextIndex = _liveSnippetCount + 1;
-    final wavPath =
-        '${outputDir.path}${Platform.pathSeparator}snippet_${nextIndex.toString().padLeft(3, '0')}.wav';
-    await snippet.writeWav(wavPath);
     final wavBytes = await File(wavPath).length();
 
     if (!mounted) {
@@ -713,13 +687,14 @@ class _IntegratedVadCompressionPageState
 
     final artifact = _SnippetArtifact(
       id: nextIndex,
-      duration: snippet.duration,
+      duration: segment.metadata.duration,
       wavPath: wavPath,
       wavBytes: wavBytes,
       aacPath: null,
       aacBytes: null,
       aacLatencyMs: null,
       conversionInProgress: _autoConvertSnippets && _selectedAacEncoder != null,
+      wavMetadata: segment.metadata,
     );
 
     setState(() {
@@ -728,20 +703,22 @@ class _IntegratedVadCompressionPageState
     });
 
     _appendLog(
-      'Snippet #$nextIndex finished (${snippet.duration.inMilliseconds} ms, WAV ${_formatBytes(wavBytes)}).',
+      'Snippet #$nextIndex finished (${segment.metadata.duration.inMilliseconds} ms, WAV ${_formatBytes(wavBytes)}).',
     );
 
     final encoder = _selectedAacEncoder;
+    final outputDir = _liveOutputDir;
     if (_autoConvertSnippets && encoder != null) {
+      if (outputDir == null) {
+        return;
+      }
       final aacPath =
           '${outputDir.path}${Platform.pathSeparator}snippet_${nextIndex.toString().padLeft(3, '0')}.m4a';
 
       try {
         final watch = Stopwatch()..start();
-        await encoder.encodePcm16BytesToAac(
-          pcm16leBytes: snippet.asBytesView(),
-          sampleRateHz: _splitOptions.sampleRateHz,
-          channelCount: _splitOptions.channelCount,
+        await encoder.encodeAudioFileToAac(
+          inputPath: wavPath,
           outputPath: aacPath,
           bitrateKbps: _bitrateKbps ?? 48,
         );
@@ -812,26 +789,27 @@ class _IntegratedVadCompressionPageState
       return;
     }
 
+    final capture = _liveCaptureSession;
+    _liveCaptureSession = null;
+    VadCaptureStopResult? stopResult;
     try {
-      await _recorder.stop();
+      if (capture != null) {
+        stopResult = await capture.stop();
+      } else {
+        await _recorder.stop();
+      }
     } on Object catch (error) {
       _appendLog('Stop recording failed: $error');
     }
 
-    final done = _liveDone;
-    if (done != null) {
-      try {
-        await done.future.timeout(const Duration(seconds: 3));
-      } on TimeoutException {
-        await _liveSnippetSubscription?.cancel();
-        _cleanupLiveState();
-      }
-    } else {
-      await _liveSnippetSubscription?.cancel();
-      _cleanupLiveState();
-    }
+    await _liveSegmentSubscription?.cancel();
+    await _liveSpeechStateSubscription?.cancel();
+    await _liveLevelSubscription?.cancel();
+    _cleanupLiveState();
 
-    await _finalizeWholeRecordingArtifacts();
+    await _finalizeWholeRecordingArtifacts(
+      fullRecording: stopResult?.fullRecording,
+    );
 
     if (!internalDispose) {
       _appendLog('Live stream stopped.');
@@ -843,16 +821,9 @@ class _IntegratedVadCompressionPageState
     _streamHealthTimer?.cancel();
     _recordingStopwatch.stop();
 
-    _liveSnippetSubscription = null;
-    _liveDone = null;
-
-    _liveSplitVadBackend?.dispose();
-    _liveSplitVadBackend = null;
-
-    _liveDetectionVadBackend?.dispose();
-    _liveDetectionVadBackend = null;
-
-    _liveSpeechDetector = null;
+    _liveSegmentSubscription = null;
+    _liveSpeechStateSubscription = null;
+    _liveLevelSubscription = null;
 
     if (!mounted) {
       return;
@@ -868,36 +839,24 @@ class _IntegratedVadCompressionPageState
     });
   }
 
-  Future<void> _finalizeWholeRecordingArtifacts() async {
-    final bytesBuilder = _sessionBytes;
+  Future<void> _finalizeWholeRecordingArtifacts({
+    required VadRecordingArtifact? fullRecording,
+  }) async {
     final sessionDir = _liveOutputDir;
 
-    _sessionBytes = null;
     _liveOutputDir = null;
 
-    if (bytesBuilder == null || sessionDir == null) {
+    if (fullRecording == null || sessionDir == null) {
       return;
     }
 
-    final pcmBytes = bytesBuilder.toBytes();
-    if (pcmBytes.isEmpty) {
-      return;
-    }
-
-    final wavPath =
-        '${sessionDir.path}${Platform.pathSeparator}recording_full.wav';
-    await _writePcm16BytesAsWav(
-      pcm16leBytes: pcmBytes,
-      sampleRateHz: _splitOptions.sampleRateHz,
-      channelCount: _splitOptions.channelCount,
-      outputPath: wavPath,
-    );
+    final wavPath = fullRecording.file.path;
     final wavBytes = await File(wavPath).length();
 
     String? aacPath;
     int? aacBytes;
     int? aacLatencyMs;
-    AudioMetadata? wavMetadata;
+    AudioMetadata? wavMetadata = fullRecording.metadata;
     AudioMetadata? aacMetadata;
 
     final encoder = _selectedAacEncoder;
@@ -905,10 +864,8 @@ class _IntegratedVadCompressionPageState
       aacPath = '${sessionDir.path}${Platform.pathSeparator}recording_full.m4a';
       try {
         final watch = Stopwatch()..start();
-        await encoder.encodePcm16BytesToAac(
-          pcm16leBytes: pcmBytes,
-          sampleRateHz: _splitOptions.sampleRateHz,
-          channelCount: _splitOptions.channelCount,
+        await encoder.encodeAudioFileToAac(
+          inputPath: wavPath,
           outputPath: aacPath,
           bitrateKbps: _bitrateKbps ?? 48,
         );
@@ -922,7 +879,7 @@ class _IntegratedVadCompressionPageState
       }
     }
 
-    wavMetadata = await _readNativeMetadataAsync(wavPath);
+    wavMetadata = await _readNativeMetadataAsync(wavPath) ?? wavMetadata;
     if (aacPath != null) {
       aacMetadata = await _readNativeMetadataAsync(aacPath);
     }
@@ -1875,75 +1832,6 @@ final class _VadPair {
   final VadBackend detector;
 }
 
-final class _LiveSpeechDetector {
-  _LiveSpeechDetector({required this.options, required this.vadBackend})
-    : _frameByteCount = options.frameSampleCount * 2;
-
-  final PauseSplitOptions options;
-  final VadBackend vadBackend;
-
-  final int _frameByteCount;
-  Uint8List _leftoverBytes = Uint8List(0);
-
-  bool addChunk(Uint8List chunk) {
-    if (chunk.isEmpty) {
-      return false;
-    }
-
-    final workingBytes = _ensureEvenByteOffset(_mergeWithLeftover(chunk));
-    final fullFrameCount = workingBytes.length ~/ _frameByteCount;
-    var hasSpeech = false;
-
-    for (var frameIndex = 0; frameIndex < fullFrameCount; frameIndex++) {
-      final frameStart = frameIndex * _frameByteCount;
-      final frameEnd = frameStart + _frameByteCount;
-      final frameBytes = Uint8List.sublistView(
-        workingBytes,
-        frameStart,
-        frameEnd,
-      );
-      final alignedFrameBytes = _ensureEvenByteOffset(frameBytes);
-      final frameSamples = Int16List.view(
-        alignedFrameBytes.buffer,
-        alignedFrameBytes.offsetInBytes,
-        options.frameSampleCount,
-      );
-
-      if (vadBackend.isSpeechFrame(
-        frameSamples,
-        startSampleOffset: 0,
-        sampleCount: options.frameSampleCount,
-        sampleRateHz: options.sampleRateHz,
-        channelCount: options.channelCount,
-      )) {
-        hasSpeech = true;
-      }
-    }
-
-    final processedBytes = fullFrameCount * _frameByteCount;
-    final remainingBytes = workingBytes.length - processedBytes;
-    if (remainingBytes == 0) {
-      _leftoverBytes = Uint8List(0);
-    } else {
-      _leftoverBytes = Uint8List(remainingBytes);
-      _leftoverBytes.setRange(0, remainingBytes, workingBytes, processedBytes);
-    }
-
-    return hasSpeech;
-  }
-
-  Uint8List _mergeWithLeftover(Uint8List chunk) {
-    if (_leftoverBytes.isEmpty) {
-      return chunk;
-    }
-
-    final merged = Uint8List(_leftoverBytes.length + chunk.length);
-    merged.setRange(0, _leftoverBytes.length, _leftoverBytes);
-    merged.setRange(_leftoverBytes.length, merged.length, chunk);
-    return merged;
-  }
-}
-
 Stream<Uint8List> _chunkedPcmStream(
   Uint8List input, {
   required int chunkByteSize,
@@ -2023,93 +1911,6 @@ Int16List _concatSamples(List<Int16List> segments) {
   }
 
   return result;
-}
-
-Uint8List _buildPcm16WavHeader({
-  required int sampleRateHz,
-  required int channelCount,
-  required int pcmDataByteLength,
-}) {
-  final header = Uint8List(44);
-  final data = ByteData.sublistView(header);
-
-  void writeAscii(int offset, String value) {
-    for (var i = 0; i < value.length; i++) {
-      header[offset + i] = value.codeUnitAt(i);
-    }
-  }
-
-  final byteRate = sampleRateHz * channelCount * 2;
-  final blockAlign = channelCount * 2;
-  final riffChunkSize = 36 + pcmDataByteLength;
-
-  writeAscii(0, 'RIFF');
-  data.setUint32(4, riffChunkSize, Endian.little);
-  writeAscii(8, 'WAVE');
-  writeAscii(12, 'fmt ');
-  data.setUint32(16, 16, Endian.little);
-  data.setUint16(20, 1, Endian.little);
-  data.setUint16(22, channelCount, Endian.little);
-  data.setUint32(24, sampleRateHz, Endian.little);
-  data.setUint32(28, byteRate, Endian.little);
-  data.setUint16(32, blockAlign, Endian.little);
-  data.setUint16(34, 16, Endian.little);
-  writeAscii(36, 'data');
-  data.setUint32(40, pcmDataByteLength, Endian.little);
-
-  return header;
-}
-
-Future<void> _writePcm16BytesAsWav({
-  required Uint8List pcm16leBytes,
-  required int sampleRateHz,
-  required int channelCount,
-  required String outputPath,
-}) async {
-  final output = File(outputPath);
-  final sink = output.openWrite();
-  sink.add(
-    _buildPcm16WavHeader(
-      sampleRateHz: sampleRateHz,
-      channelCount: channelCount,
-      pcmDataByteLength: pcm16leBytes.length,
-    ),
-  );
-  sink.add(pcm16leBytes);
-  await sink.close();
-}
-
-double _computePcm16Rms(Uint8List bytes) {
-  if (bytes.lengthInBytes < 2) {
-    return 0;
-  }
-
-  final byteData = ByteData.sublistView(bytes);
-  var sumSquares = 0.0;
-  var sampleCount = 0;
-
-  for (var i = 0; i + 1 < bytes.lengthInBytes; i += 2) {
-    final sample = byteData.getInt16(i, Endian.little) / 32768.0;
-    sumSquares += sample * sample;
-    sampleCount++;
-  }
-
-  if (sampleCount == 0) {
-    return 0;
-  }
-
-  final rms = math.sqrt(sumSquares / sampleCount);
-  return rms.clamp(0.0, 1.0);
-}
-
-Uint8List _ensureEvenByteOffset(Uint8List bytes) {
-  if (bytes.offsetInBytes.isEven) {
-    return bytes;
-  }
-
-  final aligned = Uint8List(bytes.lengthInBytes);
-  aligned.setRange(0, aligned.lengthInBytes, bytes);
-  return aligned;
 }
 
 String _formatBytes(int bytes) {

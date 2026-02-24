@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstring>
 #include <deque>
+#include <limits>
 #include <mutex>
 #include <string>
 
@@ -283,9 +284,20 @@ class WindowsAudioRecorderState {
     return 0;
   }
 
-  int32_t StartFile(const char* output_path_utf8, uint32_t sample_rate_hz, uint32_t channel_count,
-                    const char* input_device_id_utf8, char* error_utf8,
+  int32_t StartFile(const speech_utils::recorder::RecorderStartConfig& start_config,
+                    char* error_utf8,
                     uint32_t error_utf8_capacity) {
+    const uint32_t sample_rate_hz = start_config.sample_rate_hz;
+    const uint32_t channel_count = start_config.channel_count;
+    const char* output_path_utf8 = start_config.output_path_utf8;
+    const char* input_device_id_utf8 = start_config.input_device_id_utf8;
+    const uint32_t windows_preferred_period_frames =
+        start_config.runtime.windows_preferred_period_frames;
+    const uint32_t windows_flags = start_config.runtime.windows_flags;
+    const int32_t windows_capture_category_code =
+        start_config.runtime.windows_capture_category_code;
+    const int32_t windows_use_communications_device =
+        start_config.runtime.windows_use_communications_device;
     if (output_path_utf8 == nullptr) {
       WriteError("Output path is null.", error_utf8, error_utf8_capacity);
       return -1;
@@ -319,7 +331,9 @@ class WindowsAudioRecorderState {
       return -6;
     }
 
-    if (!StartDeviceLocked(sample_rate_hz, channel_count, 0, input_device_id_utf8, error_utf8,
+    if (!StartDeviceLocked(sample_rate_hz, channel_count, windows_preferred_period_frames,
+                           windows_flags, windows_capture_category_code,
+                           windows_use_communications_device, input_device_id_utf8, error_utf8,
                            error_utf8_capacity)) {
       std::fclose(file);
       return -7;
@@ -335,9 +349,20 @@ class WindowsAudioRecorderState {
     return 0;
   }
 
-  int32_t StartStream(uint32_t sample_rate_hz, uint32_t channel_count, uint32_t frames_per_chunk,
-                      const char* input_device_id_utf8, char* error_utf8,
+  int32_t StartStream(const speech_utils::recorder::RecorderStartConfig& start_config,
+                      char* error_utf8,
                       uint32_t error_utf8_capacity) {
+    const uint32_t sample_rate_hz = start_config.sample_rate_hz;
+    const uint32_t channel_count = start_config.channel_count;
+    const uint32_t frames_per_chunk = start_config.frames_per_chunk;
+    const char* input_device_id_utf8 = start_config.input_device_id_utf8;
+    const uint32_t windows_preferred_period_frames =
+        start_config.runtime.windows_preferred_period_frames;
+    const uint32_t windows_flags = start_config.runtime.windows_flags;
+    const int32_t windows_capture_category_code =
+        start_config.runtime.windows_capture_category_code;
+    const int32_t windows_use_communications_device =
+        start_config.runtime.windows_use_communications_device;
     if (sample_rate_hz == 0 || channel_count == 0 || frames_per_chunk == 0) {
       WriteError("Sample rate, channel count and frames_per_chunk must be > 0.", error_utf8,
                  error_utf8_capacity);
@@ -350,8 +375,12 @@ class WindowsAudioRecorderState {
       return -2;
     }
 
-    if (!StartDeviceLocked(sample_rate_hz, channel_count, frames_per_chunk, input_device_id_utf8,
-                           error_utf8, error_utf8_capacity)) {
+    const uint32_t effective_period_frames =
+        windows_preferred_period_frames > 0 ? windows_preferred_period_frames : frames_per_chunk;
+
+    if (!StartDeviceLocked(sample_rate_hz, channel_count, effective_period_frames, windows_flags,
+                           windows_capture_category_code, windows_use_communications_device,
+                           input_device_id_utf8, error_utf8, error_utf8_capacity)) {
       return -3;
     }
 
@@ -391,39 +420,60 @@ class WindowsAudioRecorderState {
   }
 
   int32_t Stop(char* error_utf8, uint32_t error_utf8_capacity) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (mode_ == RecorderMode::kStopped) {
-      return 0;
+    FILE* file_to_finalize = nullptr;
+    uint32_t data_bytes_written = 0;
+    uint32_t sample_rate_hz = 0;
+    uint32_t channel_count = 0;
+    bool should_stop_device = false;
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (mode_ == RecorderMode::kStopped) {
+        return 0;
+      }
+
+      mode_ = RecorderMode::kStopped;
+      stream_samples_.clear();
+      stream_sample_limit_ = 0;
+      current_amplitude_dbfs_ = -90.0;
+      max_amplitude_dbfs_ = -90.0;
+
+      should_stop_device = device_initialized_;
+      device_initialized_ = false;
+
+      file_to_finalize = file_;
+      file_ = nullptr;
+      data_bytes_written = data_bytes_written_;
+      sample_rate_hz = sample_rate_hz_;
+      channel_count = channel_count_;
+
+      data_bytes_written_ = 0;
+      sample_rate_hz_ = 0;
+      channel_count_ = 0;
     }
 
-    if (device_initialized_) {
+    if (should_stop_device) {
       ma_device_stop(&device_);
       ma_device_uninit(&device_);
-      device_initialized_ = false;
     }
 
-    if (file_ != nullptr) {
-      if (!FinalizeWavHeader(file_, data_bytes_written_, sample_rate_hz_, channel_count_)) {
+    if (file_to_finalize != nullptr) {
+      if (!FinalizeWavHeader(file_to_finalize, data_bytes_written, sample_rate_hz, channel_count)) {
         WriteError("Failed to finalize WAV header.", error_utf8, error_utf8_capacity);
-        std::fclose(file_);
-        file_ = nullptr;
-        mode_ = RecorderMode::kStopped;
-        stream_samples_.clear();
-        stream_sample_limit_ = 0;
+        std::fclose(file_to_finalize);
         return -1;
       }
-      std::fclose(file_);
-      file_ = nullptr;
+      std::fclose(file_to_finalize);
     }
 
-    mode_ = RecorderMode::kStopped;
-    stream_samples_.clear();
-    stream_sample_limit_ = 0;
-    data_bytes_written_ = 0;
-    sample_rate_hz_ = 0;
-    channel_count_ = 0;
-    current_amplitude_dbfs_ = -90.0;
-    max_amplitude_dbfs_ = -90.0;
+    return 0;
+  }
+
+  int32_t Reset(char* error_utf8, uint32_t error_utf8_capacity) {
+    char ignored_error[1] = {0};
+    (void)error_utf8;
+    (void)error_utf8_capacity;
+    (void)Stop(ignored_error, sizeof(ignored_error));
     return 0;
   }
 
@@ -590,7 +640,10 @@ class WindowsAudioRecorderState {
   }
 
   bool StartDeviceLocked(uint32_t sample_rate_hz, uint32_t channel_count,
-                         uint32_t preferred_period_frames, const char* input_device_id_utf8,
+                         uint32_t preferred_period_frames, uint32_t windows_flags,
+                         int32_t windows_capture_category_code,
+                         int32_t windows_use_communications_device,
+                         const char* input_device_id_utf8,
                          char* error_utf8, uint32_t error_utf8_capacity) {
     const std::string effective_device_id = TrimAscii(input_device_id_utf8);
 
@@ -623,7 +676,25 @@ class WindowsAudioRecorderState {
     config.capture.format = ma_format_s16;
     config.capture.channels = channel_count;
     config.capture.pDeviceID = selected_device_id_ptr;
+    if ((windows_flags & 0x01U) != 0U) {
+      config.capture.shareMode = ma_share_mode_exclusive;
+    }
+    if (windows_capture_category_code <= 0) {
+      config.wasapi.usage = ma_wasapi_usage_default;
+    } else {
+      config.wasapi.usage = ma_wasapi_usage_pro_audio;
+    }
+    if (windows_use_communications_device != 0 && selected_device_id_ptr == nullptr) {
+      // Miniaudio does not expose the Windows "communications role" selector.
+      // Keep automatic routing enabled and rely on the system-default capture endpoint.
+      config.wasapi.noAutoStreamRouting = MA_FALSE;
+    }
     config.sampleRate = sample_rate_hz;
+    if ((windows_flags & 0x02U) != 0U) {
+      config.wasapi.noAutoConvertSRC = MA_TRUE;
+      config.wasapi.noDefaultQualitySRC = MA_TRUE;
+      config.wasapi.noAutoStreamRouting = MA_TRUE;
+    }
     if (preferred_period_frames > 0) {
       // Keep streaming responsive by requesting a smaller callback period.
       config.periodSizeInFrames = preferred_period_frames;
@@ -676,11 +747,6 @@ class WindowsAudioRecorderState {
 WindowsAudioRecorderState g_recorder;
 }  // namespace
 
-int32_t Healthcheck(char* error_utf8, uint32_t error_utf8_capacity) {
-  WriteError("", error_utf8, error_utf8_capacity);
-  return 0;
-}
-
 int32_t HasPermission(int32_t* out_has_permission, char* error_utf8, uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
   if (out_has_permission == nullptr) {
@@ -709,20 +775,26 @@ int32_t ListInputDevicesJson(char* out_json_utf8, uint32_t out_json_capacity, ch
                                          error_utf8_capacity);
 }
 
-int32_t StartFile(const char* output_path_utf8, uint32_t sample_rate_hz, uint32_t channel_count,
-                  const char* input_device_id_utf8, char* error_utf8,
+int32_t StartFile(const speech_utils::recorder::RecorderStartConfig* start_config,
+                  char* error_utf8,
                   uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
-  return g_recorder.StartFile(output_path_utf8, sample_rate_hz, channel_count, input_device_id_utf8,
-                              error_utf8, error_utf8_capacity);
+  if (start_config == nullptr) {
+    WriteError("Start config pointer is null.", error_utf8, error_utf8_capacity);
+    return -1;
+  }
+  return g_recorder.StartFile(*start_config, error_utf8, error_utf8_capacity);
 }
 
-int32_t StartStream(uint32_t sample_rate_hz, uint32_t channel_count, uint32_t frames_per_chunk,
-                    const char* input_device_id_utf8, char* error_utf8,
+int32_t StartStream(const speech_utils::recorder::RecorderStartConfig* start_config,
+                    char* error_utf8,
                     uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
-  return g_recorder.StartStream(sample_rate_hz, channel_count, frames_per_chunk, input_device_id_utf8,
-                                error_utf8, error_utf8_capacity);
+  if (start_config == nullptr) {
+    WriteError("Start config pointer is null.", error_utf8, error_utf8_capacity);
+    return -1;
+  }
+  return g_recorder.StartStream(*start_config, error_utf8, error_utf8_capacity);
 }
 
 int32_t ReadStreamPcm16(int16_t* out_samples, uint32_t out_sample_capacity,
@@ -736,6 +808,11 @@ int32_t ReadStreamPcm16(int16_t* out_samples, uint32_t out_sample_capacity,
 int32_t Stop(char* error_utf8, uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
   return g_recorder.Stop(error_utf8, error_utf8_capacity);
+}
+
+int32_t Reset(char* error_utf8, uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+  return g_recorder.Reset(error_utf8, error_utf8_capacity);
 }
 
 int32_t IsRecording(int32_t* out_is_recording, char* error_utf8, uint32_t error_utf8_capacity) {

@@ -6,11 +6,11 @@ This folder keeps Windows AAC/metadata native logic split by responsibility whil
 
 - `windows_ffmpeg_common.h/.cpp`
   - Shared FFmpeg helpers (`WriteError`, `AvErrorToString`, output text helpers, duration helpers).
-- `windows_aac_transcoder.h/.cpp`
+- `windows_audio_encoder_transcoder.h/.cpp`
   - AAC transcoding pipeline (`decode -> resample -> fifo -> encode -> mux`) and AAC healthcheck.
 - `windows_audio_metadata.h/.cpp`
   - Audio metadata probing and metadata healthcheck.
-- `../speech_utils_windows_aac_encoder.cpp`
+- `../speech_utils_windows_audio_encoder.cpp`
   - Thin exported bridge that keeps stable C ABI symbols used by Dart FFI bindings.
 
 ## Why this shape

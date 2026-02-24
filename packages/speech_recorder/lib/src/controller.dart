@@ -154,7 +154,7 @@ class SpeechRecorderController {
     final streamingOptions = session.options.streaming;
     if (streamingOptions == null) {
       await _ensureOutputParentDirectoryExists(session.options.path);
-      await _recorder.start(
+      await _recorder.startFileRecording(
         outputPath: session.options.path,
         config: session.options.recordConfig,
       );
@@ -218,22 +218,28 @@ class SpeechRecorderController {
     final outputDirectory = Directory(
       _defaultSegmentsOutputDirectory(session.options.path),
     );
-    final stream = await _recorder.startWithVadSegmentation(
-      outputDirectory: outputDirectory,
-      splitOptions: splitOptions,
-      config: recordConfig,
-      vadConfig: vadConfig,
-      flushOnStop: true,
-      segmentPathBuilder: (segmentIndex, fileExtension) {
-        return _defaultSegmentRelativePath(
-          sessionPath: session.options.path,
-          segmentIndex: segmentIndex,
-          fileExtension: fileExtension,
-        );
-      },
+    final vadCapture = await _recorder.startVadCapture(
+      VadCaptureRequest(
+        split: splitOptions,
+        audio: recordConfig,
+        vad: vadConfig,
+        flushOnStop: true,
+        output: VadCaptureOutputConfig(
+          outputDirectory: outputDirectory,
+          segmentEncoding: recordConfig.encoding,
+          segmentPathBuilder: (segmentIndex, fileExtension) {
+            return _defaultSegmentRelativePath(
+              sessionPath: session.options.path,
+              segmentIndex: segmentIndex,
+              fileExtension: fileExtension,
+            );
+          },
+        ),
+      ),
     );
+    session._vadCaptureSession = vadCapture;
 
-    session._streamingSegmentSubscription = stream
+    session._streamingSegmentSubscription = vadCapture.segments
         .asyncMap((segment) async {
           await _handleNativeStreamingSegment(
             session: session,
@@ -286,19 +292,32 @@ class SpeechRecorderController {
   Future<void> _drainStreamingSegmentation(
     SpeechRecorderSession session,
   ) async {
+    final vadCaptureSession = session._vadCaptureSession;
     final subscription = session._streamingSegmentSubscription;
-    if (subscription == null) {
+    if (vadCaptureSession == null && subscription == null) {
       return;
     }
 
     try {
-      await subscription.asFuture<void>().timeout(_streamingSegmentDrainTimeout);
+      if (vadCaptureSession != null) {
+        await vadCaptureSession.stop().timeout(_streamingSegmentDrainTimeout);
+      }
+      if (subscription != null) {
+        await subscription.asFuture<void>().timeout(
+          _streamingSegmentDrainTimeout,
+        );
+      }
     } on Object catch (error) {
       debugPrint('Speech recorder streaming drain failed: $error');
     } finally {
-      await subscription.cancel();
-      if (identical(session._streamingSegmentSubscription, subscription)) {
-        session._streamingSegmentSubscription = null;
+      if (subscription != null) {
+        await subscription.cancel();
+        if (identical(session._streamingSegmentSubscription, subscription)) {
+          session._streamingSegmentSubscription = null;
+        }
+      }
+      if (identical(session._vadCaptureSession, vadCaptureSession)) {
+        session._vadCaptureSession = null;
       }
     }
   }
@@ -306,12 +325,12 @@ class SpeechRecorderController {
   Future<void> _cancelStreamingSegmentation(
     SpeechRecorderSession session,
   ) async {
+    final vadCaptureSession = session._vadCaptureSession;
+    session._vadCaptureSession = null;
     final subscription = session._streamingSegmentSubscription;
-    if (subscription == null) {
-      return;
-    }
     session._streamingSegmentSubscription = null;
-    await subscription.cancel();
+    await subscription?.cancel();
+    await vadCaptureSession?.cancel();
   }
 
   String _defaultSegmentsOutputDirectory(String sessionPath) {

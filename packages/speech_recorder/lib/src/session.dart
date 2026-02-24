@@ -5,14 +5,10 @@ enum SpeechRecorderSessionState { idle, recording, paused, stopped, canceled }
 class SpeechRecorderSession {
   final SpeechRecorderOptions options;
   final bool isStreaming;
-  final NativeAudioMetadataReader _audioMetadataReader;
+  final NativeAudioMetadataReader _audioMetadataReader =
+      NativeAudioMetadataReader();
 
-  SpeechRecorderSession({
-    required this.options,
-    required this.isStreaming,
-    NativeAudioMetadataReader? audioMetadataReader,
-  }) : _audioMetadataReader =
-           audioMetadataReader ?? NativeAudioMetadataReader();
+  SpeechRecorderSession({required this.options, required this.isStreaming});
 
   factory SpeechRecorderSession.create({
     required SpeechRecorderOptions options,
@@ -31,6 +27,7 @@ class SpeechRecorderSession {
 
   StreamSubscription<Amplitude>? _amplitudeSubscription;
   StreamSubscription<void>? _streamingSegmentSubscription;
+  VadCaptureSession? _vadCaptureSession;
 
   void _setState(SpeechRecorderSessionState state) {
     stateSubject.add(state);

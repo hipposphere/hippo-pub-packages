@@ -1,8 +1,8 @@
 import 'package:cross_file/cross_file.dart';
 
-import '../model/audio_metadata.dart';
-import '../model/audio_segment_metrics.dart';
-import '../model/voice_activity_metadata.dart';
+import '../models/audio_metadata.dart';
+import '../models/audio_segment_metrics.dart';
+import '../models/voice_activity_metadata.dart';
 
 typedef NativeVoiceSegmentPathBuilder = String Function(int segmentIndex, String fileExtension);
 

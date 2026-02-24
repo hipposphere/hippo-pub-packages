@@ -2,12 +2,31 @@
 
 - Breaking: remove `RecordConfig` and move recorder encoding options into
   `AudioRecorderConfig.encoding` (`AudioEncodingConfig`).
-- Add `NativeAudioRecorder.startWithVadSegmentation(...)` for live VAD
-  segmentation with file-based `VoiceSegment` output.
+- Breaking: rename `NativeAudioRecorder` entrypoints for consistency:
+  - `start(...)` -> `startFileRecording(...)`
+  - `startStream(...)` -> `startPcmStream(...)`
+  - remove `startWithVadSegmentation(...)`, `startVadSegments(...)`, and
+    `startVadPipeline(...)` in favor of `startVadCapture(VadCaptureRequest)`.
+- Breaking: consolidate Dart models under `lib/src/models/` and generated
+  FFI bindings under `lib/src/generated/`.
+- Add `NativeAudioRecorder.startVadCapture(VadCaptureRequest)` with:
+  - `segments` stream (`VoiceSegment`)
+  - `speechStates` stream
+  - `levels` stream
+  - `frameDecisions` stream (optional)
+  - `stop()` result including optional full-recording artifact
 - Add reusable metadata models:
   - `AudioMetadata`
   - `VoiceActivityMetadata`
   - `AudioSegmentMetrics`
+- Breaking: remove implicit/default VAD backends from:
+  - `Pcm16PauseSplitter`
+  - `Pcm16StreamPauseSplitter`
+  - `SpeechUtils.splitPcm16OnSilence(...)`
+  - `SpeechUtils.splitPcm16StreamOnSilence(...)`
+  - `SpeechUtils.splitPcm16AndWriteWavSnippets(...)`
+  - `SpeechUtils.splitPcm16AndEncodeAacSnippets(...)`
+  Callers must provide an explicit `VadBackend`.
 - Breaking: file-based speech utils APIs now use `XFile` instead of `dart:io`
   `File` (`VoiceSegment.file`, snippet write helpers, and snippet split
   helpers that return file lists).
@@ -45,12 +64,12 @@
 
 ## 0.1.2
 
-- Add `NativeAacEncoder` using native platform tooling:
+- Add `NativeAudioEncoder` using native platform tooling:
   - macOS: AVFoundation
   - Windows: bundled native encoder via Dart FFI
   - Android: bundled native NDK encoder via Dart FFI
   - iOS: bundled native AVFoundation encoder via Dart FFI
-- Make `SpeechUtils.splitPcm16AndEncodeAacSnippets` default to `NativeAacEncoder`.
+- Make `SpeechUtils.splitPcm16AndEncodeAacSnippets` default to `NativeAudioEncoder`.
 - Add TEN VAD mobile bundles for Android (`arm64-v8a`, `armeabi-v7a`) and iOS arm64 (device).
 - Update docs/example to use native AAC encoding without `ffmpeg` fallback.
 

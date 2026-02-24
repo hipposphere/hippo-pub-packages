@@ -1,5 +1,5 @@
-#ifndef SPEECH_UTILS_WINDOWS_AAC_TRANSCODER_H_
-#define SPEECH_UTILS_WINDOWS_AAC_TRANSCODER_H_
+#ifndef SPEECH_UTILS_WINDOWS_AUDIO_ENCODER_TRANSCODER_H_
+#define SPEECH_UTILS_WINDOWS_AUDIO_ENCODER_TRANSCODER_H_
 
 #include <cstdint>
 
@@ -13,4 +13,4 @@ int32_t AacEncoderHealthcheck(char* error_utf8, uint32_t error_utf8_capacity);
 
 }  // namespace speech_utils::windows_encoding
 
-#endif  // SPEECH_UTILS_WINDOWS_AAC_TRANSCODER_H_
+#endif  // SPEECH_UTILS_WINDOWS_AUDIO_ENCODER_TRANSCODER_H_

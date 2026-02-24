@@ -4,7 +4,6 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'package:speech_recorder/speech_recorder.dart';
-import 'package:speech_utils/speech_utils.dart';
 
 class SpeechRecorderAmplitudeHistoryContainer extends StatelessWidget {
   final SpeechRecorderSession session;

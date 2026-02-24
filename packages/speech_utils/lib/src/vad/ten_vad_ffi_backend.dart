@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
-import 'generated/ten_vad_bindings.dart' as ten_vad;
+import '../generated/vad/ten_vad_bindings.dart' as ten_vad;
 import 'vad_backend.dart';
 
 /// TEN VAD backend using bundled native assets.

@@ -1,4 +1,4 @@
-import '../model/pause_split_options.dart';
+import '../models/pause_split_options.dart';
 import 'energy_vad_backend.dart';
 import 'ten_vad_ffi_backend.dart';
 import 'vad_backend.dart';

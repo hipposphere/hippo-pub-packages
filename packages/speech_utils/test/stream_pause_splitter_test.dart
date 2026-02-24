@@ -27,7 +27,7 @@ void main() {
     final snippets = await SpeechUtils.splitPcm16StreamOnSilence(
       pcm16leStream: stream,
       options: options,
-      vadConfig: const SpeechVadConfig.energyOnly(),
+      vadBackend: const EnergyVadBackend(),
     ).toList();
 
     expect(snippets, hasLength(2));
@@ -45,7 +45,7 @@ void main() {
     final snippets = await SpeechUtils.splitPcm16StreamOnSilence(
       pcm16leStream: _chunkedStream(bytes, <int>[95, 43, 128]),
       options: options,
-      vadConfig: const SpeechVadConfig.energyOnly(),
+      vadBackend: const EnergyVadBackend(),
     ).toList();
 
     expect(snippets, hasLength(1));
@@ -68,7 +68,7 @@ void main() {
     final snippets = await SpeechUtils.splitPcm16StreamOnSilence(
       pcm16leStream: _chunkedStream(unalignedBytes, <int>[111, 77, 205, 513, 89, 44, 333]),
       options: options,
-      vadConfig: const SpeechVadConfig.energyOnly(),
+      vadBackend: const EnergyVadBackend(),
     ).toList();
 
     expect(snippets, hasLength(2));

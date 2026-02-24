@@ -60,13 +60,142 @@ extension AudioEncoderCapabilities on AudioEncoder {
   }
 }
 
+/// Broad signal-processing hint for voice/music capture.
+enum AudioCapturePreset { voice, voiceIsolation, raw, music }
+
+/// Cross-platform capture-processing preferences.
+///
+/// These values are best-effort hints. Native platforms may apply only a
+/// subset depending on OS capabilities and active audio route.
+final class AudioProcessingConfig {
+  const AudioProcessingConfig({
+    this.preset = AudioCapturePreset.voice,
+    this.enableNoiseSuppression,
+    this.enableEchoCancellation,
+    this.enableAutomaticGainControl,
+    this.enableHighPassFilter,
+    this.preferredLatency,
+  });
+
+  final AudioCapturePreset preset;
+
+  /// Noise suppression / denoising preference.
+  final bool? enableNoiseSuppression;
+
+  /// Acoustic echo cancellation preference.
+  final bool? enableEchoCancellation;
+
+  /// Automatic gain control preference.
+  final bool? enableAutomaticGainControl;
+
+  /// High-pass filtering preference for low-frequency rumble removal.
+  final bool? enableHighPassFilter;
+
+  /// Preferred end-to-end capture latency.
+  final Duration? preferredLatency;
+
+  void validate() {
+    if (preferredLatency != null && preferredLatency! <= Duration.zero) {
+      throw ArgumentError.value(
+        preferredLatency,
+        'preferredLatency',
+        'Must be > Duration.zero when provided',
+      );
+    }
+  }
+}
+
+enum AppleAudioSessionMode { defaultMode, voiceChat, videoChat, measurement, gameChat, spokenAudio }
+
+/// Apple-specific capture preferences (iOS/macOS).
+final class AppleAudioRecorderConfig {
+  const AppleAudioRecorderConfig({
+    this.sessionMode = AppleAudioSessionMode.voiceChat,
+    this.allowBluetoothInput = true,
+    this.allowBluetoothA2dp = false,
+    this.defaultToSpeaker = true,
+    this.mixWithOthers = false,
+    this.duckOthers = false,
+    this.preferredInputGain,
+    this.preferredIoBufferDuration,
+  });
+
+  final AppleAudioSessionMode sessionMode;
+  final bool allowBluetoothInput;
+  final bool allowBluetoothA2dp;
+  final bool defaultToSpeaker;
+  final bool mixWithOthers;
+  final bool duckOthers;
+
+  /// iOS-only input gain hint in [0.0, 1.0].
+  final double? preferredInputGain;
+
+  /// iOS/macOS I/O buffer duration hint.
+  final Duration? preferredIoBufferDuration;
+
+  void validate() {
+    final inputGain = preferredInputGain;
+    if (inputGain != null && (inputGain < 0.0 || inputGain > 1.0)) {
+      throw ArgumentError.value(
+        preferredInputGain,
+        'preferredInputGain',
+        'Must be in range [0.0, 1.0] when provided',
+      );
+    }
+    if (preferredIoBufferDuration != null && preferredIoBufferDuration! <= Duration.zero) {
+      throw ArgumentError.value(
+        preferredIoBufferDuration,
+        'preferredIoBufferDuration',
+        'Must be > Duration.zero when provided',
+      );
+    }
+  }
+}
+
+enum WindowsCaptureCategory { media, communications, speech }
+
+/// Windows-specific capture preferences.
+final class WindowsAudioRecorderConfig {
+  const WindowsAudioRecorderConfig({
+    this.captureCategory = WindowsCaptureCategory.speech,
+    this.useCommunicationsDevice = false,
+    this.useExclusiveMode = false,
+    this.useRawCapture = false,
+    this.targetBufferDuration,
+  });
+
+  final WindowsCaptureCategory captureCategory;
+
+  /// Prefer the communications-role input endpoint on Windows.
+  final bool useCommunicationsDevice;
+
+  /// Requests exclusive-mode capture where available.
+  final bool useExclusiveMode;
+
+  /// Requests minimally processed/raw capture where available.
+  final bool useRawCapture;
+
+  /// Preferred backend capture buffer duration.
+  final Duration? targetBufferDuration;
+
+  void validate() {
+    if (targetBufferDuration != null && targetBufferDuration! <= Duration.zero) {
+      throw ArgumentError.value(
+        targetBufferDuration,
+        'targetBufferDuration',
+        'Must be > Duration.zero when provided',
+      );
+    }
+  }
+}
+
 /// Encoding output options used by recorder-driven workflows.
 final class AudioEncodingConfig {
-  const AudioEncodingConfig({this.encoder = AudioEncoder.wav, this.bitrateBps, this.aacEncoder});
+  const AudioEncodingConfig({this.encoder = AudioEncoder.wav, this.bitrateBps, this.audioEncoder});
 
   final AudioEncoder encoder;
   final int? bitrateBps;
-  final AacEncoder? aacEncoder;
+  final AacEncoder? audioEncoder;
 
   void validate() {
     if (bitrateBps != null && bitrateBps! <= 0) {
@@ -82,6 +211,9 @@ final class AudioRecorderConfig {
     this.channelCount = 1,
     this.framesPerChunk = 1024,
     this.inputDeviceId,
+    this.processing = const AudioProcessingConfig(),
+    this.appleConfig,
+    this.windowsConfig,
     this.encoding = const AudioEncodingConfig(),
   });
 
@@ -96,6 +228,15 @@ final class AudioRecorderConfig {
   /// Use `NativeAudioRecorder.listInputDevices()` to discover valid IDs.
   /// If omitted, the recorder uses the current default input route.
   final String? inputDeviceId;
+
+  /// Cross-platform processing preferences (best effort).
+  final AudioProcessingConfig processing;
+
+  /// Optional Apple-specific recorder preferences.
+  final AppleAudioRecorderConfig? appleConfig;
+
+  /// Optional Windows-specific recorder preferences.
+  final WindowsAudioRecorderConfig? windowsConfig;
 
   final AudioEncodingConfig encoding;
 
@@ -113,6 +254,9 @@ final class AudioRecorderConfig {
     if (trimmedDeviceId != null && trimmedDeviceId.isEmpty) {
       throw ArgumentError.value(inputDeviceId, 'inputDeviceId', 'Must not be blank');
     }
+    processing.validate();
+    appleConfig?.validate();
+    windowsConfig?.validate();
     encoding.validate();
   }
 }

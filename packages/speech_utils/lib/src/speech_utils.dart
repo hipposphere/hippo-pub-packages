@@ -5,9 +5,9 @@ import 'package:cross_file/cross_file.dart';
 import 'package:path/path.dart' as path;
 
 import 'encoding/aac_encoder.dart';
-import 'encoding/native_aac_encoder.dart';
-import 'model/pause_split_options.dart';
-import 'model/pcm16_snippet.dart';
+import 'encoding/native_audio_encoder.dart';
+import 'models/pause_split_options.dart';
+import 'models/pcm16_snippet.dart';
 import 'splitting/pcm16_pause_splitter.dart';
 import 'splitting/pcm16_stream_pause_splitter.dart';
 import 'vad/speech_vad_config.dart';
@@ -18,85 +18,39 @@ final class SpeechUtils {
   SpeechUtils._();
 
   /// Splits PCM16 audio into speech snippets, using silence as boundaries.
+  ///
+  /// Callers own [vadBackend] lifecycle and should dispose it when needed.
   static List<Pcm16Snippet> splitPcm16OnSilence({
     required Uint8List pcm16leBytes,
     required PauseSplitOptions options,
-    VadBackend? vadBackend,
-    SpeechVadConfig vadConfig = const SpeechVadConfig(),
+    required VadBackend vadBackend,
   }) {
-    final managedBackend = _ManagedVadBackend.resolve(
-      options: options,
-      explicitBackend: vadBackend,
-      config: vadConfig,
-    );
-    try {
-      final splitter = Pcm16PauseSplitter(options: options, vadBackend: managedBackend.backend);
-      return splitter.split(pcm16leBytes);
-    } finally {
-      managedBackend.disposeIfOwned();
-    }
+    final splitter = Pcm16PauseSplitter(options: options, vadBackend: vadBackend);
+    return splitter.split(pcm16leBytes);
   }
 
   /// Splits a live PCM16 stream into snippets and emits each snippet once
   /// silence boundaries are detected.
+  ///
+  /// Callers own [vadBackend] lifecycle and should dispose it when needed.
   static Stream<Pcm16Snippet> splitPcm16StreamOnSilence({
     required Stream<Uint8List> pcm16leStream,
     required PauseSplitOptions options,
-    VadBackend? vadBackend,
-    SpeechVadConfig vadConfig = const SpeechVadConfig(),
+    required VadBackend vadBackend,
   }) async* {
-    final managedBackend = _ManagedVadBackend.resolve(
-      options: options,
-      explicitBackend: vadBackend,
-      config: vadConfig,
-    );
-    final splitter = Pcm16StreamPauseSplitter(options: options, vadBackend: managedBackend.backend);
+    final splitter = Pcm16StreamPauseSplitter(options: options, vadBackend: vadBackend);
 
-    try {
-      await for (final chunk in pcm16leStream) {
-        final emitted = splitter.addChunk(chunk);
-        for (final snippet in emitted) {
-          yield snippet;
-        }
-      }
-
-      final trailing = splitter.flush();
-      for (final snippet in trailing) {
+    await for (final chunk in pcm16leStream) {
+      final emitted = splitter.addChunk(chunk);
+      for (final snippet in emitted) {
         yield snippet;
       }
-    } finally {
-      managedBackend.disposeIfOwned();
     }
-  }
 
-  @Deprecated('Use splitPcm16OnSilence instead.')
-  static List<Pcm16Snippet> splitPcm16OnLongPauses({
-    required Uint8List pcm16leBytes,
-    required PauseSplitOptions options,
-    VadBackend? vadBackend,
-    SpeechVadConfig vadConfig = const SpeechVadConfig(),
-  }) {
-    return splitPcm16OnSilence(
-      pcm16leBytes: pcm16leBytes,
-      options: options,
-      vadBackend: vadBackend,
-      vadConfig: vadConfig,
-    );
-  }
-
-  @Deprecated('Use splitPcm16StreamOnSilence instead.')
-  static Stream<Pcm16Snippet> splitPcm16StreamOnLongPauses({
-    required Stream<Uint8List> pcm16leStream,
-    required PauseSplitOptions options,
-    VadBackend? vadBackend,
-    SpeechVadConfig vadConfig = const SpeechVadConfig(),
-  }) {
-    return splitPcm16StreamOnSilence(
-      pcm16leStream: pcm16leStream,
-      options: options,
-      vadBackend: vadBackend,
-      vadConfig: vadConfig,
-    );
+    final trailing = splitter.flush();
+    for (final snippet in trailing) {
+      yield snippet;
+    }
   }
 
   /// Writes speech snippets as WAV files.
@@ -104,15 +58,13 @@ final class SpeechUtils {
     required Uint8List pcm16leBytes,
     required PauseSplitOptions options,
     required Directory outputDirectory,
-    VadBackend? vadBackend,
-    SpeechVadConfig vadConfig = const SpeechVadConfig(),
+    required VadBackend vadBackend,
     String filePrefix = 'snippet',
   }) async {
     final snippets = splitPcm16OnSilence(
       pcm16leBytes: pcm16leBytes,
       options: options,
       vadBackend: vadBackend,
-      vadConfig: vadConfig,
     );
     await outputDirectory.create(recursive: true);
 
@@ -134,8 +86,7 @@ final class SpeechUtils {
     required Uint8List pcm16leBytes,
     required PauseSplitOptions options,
     required Directory outputDirectory,
-    VadBackend? vadBackend,
-    SpeechVadConfig vadConfig = const SpeechVadConfig(),
+    required VadBackend vadBackend,
     AacEncoder? encoder,
     int bitrateKbps = 48,
     String filePrefix = 'snippet',
@@ -145,11 +96,10 @@ final class SpeechUtils {
       pcm16leBytes: pcm16leBytes,
       options: options,
       vadBackend: vadBackend,
-      vadConfig: vadConfig,
     );
     await outputDirectory.create(recursive: true);
 
-    final effectiveEncoder = encoder ?? NativeAacEncoder();
+    final effectiveEncoder = encoder ?? NativeAudioEncoder();
     final files = <XFile>[];
     for (var i = 0; i < snippets.length; i++) {
       final outputPath = path.join(
@@ -176,31 +126,5 @@ final class SpeechUtils {
     SpeechVadConfig config = const SpeechVadConfig(),
   }) {
     return resolveSpeechVadBackend(options: options, config: config);
-  }
-}
-
-final class _ManagedVadBackend {
-  const _ManagedVadBackend._({required this.backend, required this.owned});
-
-  final VadBackend backend;
-  final bool owned;
-
-  factory _ManagedVadBackend.resolve({
-    required PauseSplitOptions options,
-    required VadBackend? explicitBackend,
-    required SpeechVadConfig config,
-  }) {
-    if (explicitBackend != null) {
-      return _ManagedVadBackend._(backend: explicitBackend, owned: false);
-    }
-    final resolved = resolveSpeechVadBackend(options: options, config: config);
-    return _ManagedVadBackend._(backend: resolved.backend, owned: true);
-  }
-
-  void disposeIfOwned() {
-    if (!owned) {
-      return;
-    }
-    backend.dispose();
   }
 }

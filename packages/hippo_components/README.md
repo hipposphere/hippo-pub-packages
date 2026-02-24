@@ -34,6 +34,7 @@ A comprehensive Flutter UI component library providing reusable, opinionated bui
 
 ### 🔧 Developer Tools
 - **List View Controller**: Enhanced list view management with scroll-to-index support
+- **Onboarding System**: Conditional multi-step onboarding with swipe navigation and controller-driven state
 - **Toast System**: Notification and feedback system with `ToastBuilder` and `ToastRunner`
 - **Utility Widgets**: Gap spacing, app versioning, time formatting, and more
 
@@ -212,6 +213,61 @@ AdaptiveBuilder(
 )
 ```
 
+### Conditional Onboarding
+```dart
+class IntroState {
+  final bool hasPermission;
+  final bool isReturningUser;
+  const IntroState({
+    required this.hasPermission,
+    required this.isReturningUser,
+  });
+}
+
+final onboardingController = OnboardingController<IntroState>(
+  initialState: const IntroState(hasPermission: false, isReturningUser: false),
+  steps: [
+    OnboardingStep(
+      id: 'welcome',
+      title: 'Welcome',
+      description: 'Let us quickly walk you through the app.',
+    ),
+    OnboardingStep(
+      id: 'permissions',
+      title: 'Permissions',
+      description: 'We need access to notifications for reminders.',
+      isEnabled: (state) => !state.hasPermission,
+    ),
+    OnboardingStep(
+      id: 'new-features',
+      title: "What's new",
+      description: 'A quick summary of the latest improvements.',
+      isEnabled: (state) => state.isReturningUser,
+    ),
+    OnboardingStep(
+      id: 'done',
+      title: 'Ready to go',
+      description: 'You are all set.',
+    ),
+  ],
+);
+
+OnboardingView<IntroState>(
+  controller: onboardingController,
+  onFinished: () async {
+    // Persist completion in your app layer
+  },
+  onSkipped: (index, step) async {
+    // Optional analytics hook
+  },
+);
+
+// Update conditions dynamically at runtime
+onboardingController.updateState(
+  const IntroState(hasPermission: true, isReturningUser: true),
+);
+```
+
 ## Asset Usage
 
 Animations (Lottie) under `assets/other/` can be referenced through provided asset helpers (see `lib/src/assets/`). Ensure you add them to your app's `pubspec.yaml` if consumed externally.
@@ -234,6 +290,29 @@ Format & analyze before PRs:
 dart format . -o write
 dart analyze .
 ```
+
+## Widget Previews
+
+This package includes Flutter Widget Preview entries for onboarding in:
+
+- `lib/src/complex/onboarding/onboarding_preview.dart`
+
+Run previews from the monorepo root:
+
+```bash
+flutter widget-preview start
+```
+
+If you need to reset generated preview state:
+
+```bash
+flutter widget-preview clean
+```
+
+Official docs:
+
+- https://docs.flutter.dev/tools/widget-previewer
+- https://api.flutter.dev/flutter/widget_previews/Preview-class.html
 
 ## Contributing
 

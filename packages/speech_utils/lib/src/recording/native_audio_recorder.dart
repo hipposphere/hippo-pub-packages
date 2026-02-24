@@ -10,23 +10,49 @@ import 'package:ffi/ffi.dart';
 import 'package:path/path.dart' as path;
 
 import '../encoding/aac_encoder.dart';
-import '../encoding/native_aac_encoder.dart';
-import '../model/audio_metadata.dart';
-import '../model/audio_segment_metrics.dart';
-import '../model/pause_split_options.dart';
-import '../model/pcm16_snippet.dart';
-import '../model/voice_activity_metadata.dart';
+import '../encoding/native_audio_encoder.dart';
+import '../models/audio_metadata.dart';
+import '../models/audio_segment_metrics.dart';
+import '../models/vad_capture.dart';
+import '../models/pause_split_options.dart';
+import '../models/pcm16_snippet.dart';
+import '../models/voice_activity_metadata.dart';
 import '../models/input_device.dart';
 import '../splitting/pcm16_stream_pause_splitter.dart';
 import '../vad/speech_vad_config.dart';
-import '../vad/vad_backend.dart';
 import 'audio_recorder_config.dart';
-import 'generated/ios_audio_recorder_bindings.dart' as ios_bindings;
-import 'generated/macos_audio_recorder_bindings.dart' as macos_bindings;
-import 'generated/windows_audio_recorder_bindings.dart' as windows_bindings;
+import '../generated/recorder/ios_audio_recorder_bindings.dart' as ios_bindings;
+import '../generated/recorder/macos_audio_recorder_bindings.dart' as macos_bindings;
+import '../generated/recorder/windows_audio_recorder_bindings.dart' as windows_bindings;
 import 'voice_segment.dart';
 
 enum NativeAudioRecorderPlatform { macOS, windows, iOS, unsupported }
+
+final class _NativeRecorderRuntimeConfig {
+  const _NativeRecorderRuntimeConfig({
+    required this.processingFlags,
+    required this.appleSessionModeCode,
+    required this.appleCategoryOptionsFlags,
+    required this.preferredLatencySeconds,
+    required this.applePreferredIoBufferDurationSeconds,
+    required this.applePreferredInputGain,
+    required this.windowsPreferredPeriodFrames,
+    required this.windowsFlags,
+    required this.windowsCaptureCategoryCode,
+    required this.windowsUseCommunicationsDevice,
+  });
+
+  final int processingFlags;
+  final int appleSessionModeCode;
+  final int appleCategoryOptionsFlags;
+  final double preferredLatencySeconds;
+  final double applePreferredIoBufferDurationSeconds;
+  final double applePreferredInputGain;
+  final int windowsPreferredPeriodFrames;
+  final int windowsFlags;
+  final int windowsCaptureCategoryCode;
+  final int windowsUseCommunicationsDevice;
+}
 
 typedef NativeAudioRecorderAvailabilityFn = bool Function();
 typedef NativeAudioRecorderPermissionFn = bool Function();
@@ -39,15 +65,16 @@ typedef NativeAudioRecorderStartFileFn =
       required int channelCount,
       required String? inputDeviceId,
     });
-typedef NativeAudioRecorderStartStreamFn =
+typedef NativeAudioRecorderStartPcmStreamFn =
     void Function({
       required int sampleRateHz,
       required int channelCount,
       required int framesPerChunk,
       required String? inputDeviceId,
     });
-typedef NativeAudioRecorderReadStreamFn = Uint8List Function({required int maxSamples});
+typedef NativeAudioRecorderReadPcmStreamFn = Uint8List Function({required int maxSamples});
 typedef NativeAudioRecorderStopFn = void Function();
+typedef NativeAudioRecorderResetFn = void Function();
 typedef NativeAudioRecorderIsRecordingFn = bool Function();
 typedef NativeAudioRecorderGetAmplitudeFn = Amplitude Function();
 
@@ -66,9 +93,10 @@ final class NativeAudioRecorder {
     NativeAudioRecorderRequestPermissionFn? requestPermissionFn,
     NativeAudioRecorderListInputDevicesFn? listInputDevicesFn,
     NativeAudioRecorderStartFileFn? startFileFn,
-    NativeAudioRecorderStartStreamFn? startStreamFn,
-    NativeAudioRecorderReadStreamFn? readStreamFn,
+    NativeAudioRecorderStartPcmStreamFn? startPcmStreamFn,
+    NativeAudioRecorderReadPcmStreamFn? readPcmStreamFn,
     NativeAudioRecorderStopFn? stopFn,
+    NativeAudioRecorderResetFn? resetFn,
     NativeAudioRecorderIsRecordingFn? isRecordingFn,
     NativeAudioRecorderGetAmplitudeFn? getAmplitudeFn,
   }) : this._(
@@ -78,9 +106,10 @@ final class NativeAudioRecorder {
          requestPermissionFn: requestPermissionFn,
          listInputDevicesFn: listInputDevicesFn,
          startFileFn: startFileFn,
-         startStreamFn: startStreamFn,
-         readStreamFn: readStreamFn,
+         startPcmStreamFn: startPcmStreamFn,
+         readPcmStreamFn: readPcmStreamFn,
          stopFn: stopFn,
+         resetFn: resetFn,
          isRecordingFn: isRecordingFn,
          getAmplitudeFn: getAmplitudeFn,
        );
@@ -92,9 +121,10 @@ final class NativeAudioRecorder {
     NativeAudioRecorderRequestPermissionFn? requestPermissionFn,
     NativeAudioRecorderListInputDevicesFn? listInputDevicesFn,
     NativeAudioRecorderStartFileFn? startFileFn,
-    NativeAudioRecorderStartStreamFn? startStreamFn,
-    NativeAudioRecorderReadStreamFn? readStreamFn,
+    NativeAudioRecorderStartPcmStreamFn? startPcmStreamFn,
+    NativeAudioRecorderReadPcmStreamFn? readPcmStreamFn,
     NativeAudioRecorderStopFn? stopFn,
+    NativeAudioRecorderResetFn? resetFn,
     NativeAudioRecorderIsRecordingFn? isRecordingFn,
     NativeAudioRecorderGetAmplitudeFn? getAmplitudeFn,
   }) : _platform = platform,
@@ -102,10 +132,11 @@ final class NativeAudioRecorder {
        _hasPermissionFn = hasPermissionFn ?? _resolveHasPermissionFn(platform),
        _requestPermissionFn = requestPermissionFn ?? _resolveRequestPermissionFn(platform),
        _listInputDevicesFn = listInputDevicesFn ?? _resolveListInputDevicesFn(platform),
-       _startFileFn = startFileFn ?? _resolveStartFileFn(platform),
-       _startStreamFn = startStreamFn ?? _resolveStartStreamFn(platform),
-       _readStreamFn = readStreamFn ?? _resolveReadStreamFn(platform),
+       _startFileFn = startFileFn,
+       _startPcmStreamFn = startPcmStreamFn,
+       _readPcmStreamFn = readPcmStreamFn ?? _resolveReadPcmStreamFn(platform),
        _stopFn = stopFn ?? _resolveStopFn(platform),
+       _resetFn = resetFn ?? _resolveResetFn(platform),
        _isRecordingFn = isRecordingFn ?? _resolveIsRecordingFn(platform),
        _getAmplitudeFn = getAmplitudeFn ?? _resolveGetAmplitudeFn(platform);
 
@@ -114,10 +145,11 @@ final class NativeAudioRecorder {
   final NativeAudioRecorderPermissionFn _hasPermissionFn;
   final NativeAudioRecorderRequestPermissionFn _requestPermissionFn;
   final NativeAudioRecorderListInputDevicesFn _listInputDevicesFn;
-  final NativeAudioRecorderStartFileFn _startFileFn;
-  final NativeAudioRecorderStartStreamFn _startStreamFn;
-  final NativeAudioRecorderReadStreamFn _readStreamFn;
+  final NativeAudioRecorderStartFileFn? _startFileFn;
+  final NativeAudioRecorderStartPcmStreamFn? _startPcmStreamFn;
+  final NativeAudioRecorderReadPcmStreamFn _readPcmStreamFn;
   final NativeAudioRecorderStopFn _stopFn;
+  final NativeAudioRecorderResetFn _resetFn;
   final NativeAudioRecorderIsRecordingFn _isRecordingFn;
   final NativeAudioRecorderGetAmplitudeFn _getAmplitudeFn;
 
@@ -173,7 +205,8 @@ final class NativeAudioRecorder {
   /// Whether this platform can route capture to a specific input-device ID.
   ///
   /// Routing is driven only by `AudioRecorderConfig.inputDeviceId` passed to
-  /// `start(...)`/`startStream(...)`; no input selection is stored internally.
+  /// `startFileRecording(...)`/`startPcmStream(...)`; no input selection is
+  /// stored internally.
   ///
   /// On Apple platforms this is implemented by the native AVFoundation capture
   /// backend using per-start configuration.
@@ -231,7 +264,10 @@ final class NativeAudioRecorder {
     return _amplitudeController!.stream;
   }
 
-  Future<void> start({
+  /// Starts file-based recording with native platform capture backends.
+  ///
+  /// Output format is controlled by [config.encoding].
+  Future<void> startFileRecording({
     required String outputPath,
     AudioRecorderConfig config = const AudioRecorderConfig(),
   }) async {
@@ -245,7 +281,7 @@ final class NativeAudioRecorder {
       throw ArgumentError.value(
         config.encoding.encoder,
         'config.encoding.encoder',
-        'start() supports AudioEncoder.wav, AudioEncoder.pcm16bits, '
+        'startFileRecording() supports AudioEncoder.wav, AudioEncoder.pcm16bits, '
             'AudioEncoder.aacLc, AudioEncoder.aacHe, and AudioEncoder.aacEld.',
       );
     }
@@ -267,12 +303,21 @@ final class NativeAudioRecorder {
     }
 
     try {
-      _startFileFn(
-        outputPath: nativeOutputPath,
-        sampleRateHz: config.sampleRateHz,
-        channelCount: config.channelCount,
-        inputDeviceId: config.inputDeviceId,
-      );
+      final startFileFn = _startFileFn;
+      if (startFileFn != null) {
+        startFileFn(
+          outputPath: nativeOutputPath,
+          sampleRateHz: config.sampleRateHz,
+          channelCount: config.channelCount,
+          inputDeviceId: config.inputDeviceId,
+        );
+      } else {
+        _startNativeFile(
+          outputPath: nativeOutputPath,
+          config: config,
+          runtimeConfig: _buildNativeRecorderRuntimeConfig(config: config, platform: _platform),
+        );
+      }
       _mode = _RecorderMode.file;
       _restartNativeAmplitudePollingIfNeeded();
     } on Object {
@@ -282,7 +327,11 @@ final class NativeAudioRecorder {
     }
   }
 
-  Future<Stream<Uint8List>> startStream({
+  /// Starts live PCM16 streaming capture.
+  ///
+  /// The returned stream emits little-endian PCM16 chunks until [stop] or
+  /// [reset] is called.
+  Future<Stream<Uint8List>> startPcmStream({
     AudioRecorderConfig config = const AudioRecorderConfig(),
     Duration pollInterval = const Duration(milliseconds: 20),
     int readSampleCapacity = _defaultReadSampleCapacity,
@@ -306,12 +355,20 @@ final class NativeAudioRecorder {
     _nativeAmplitudeTimer?.cancel();
     _nativeAmplitudeTimer = null;
 
-    _startStreamFn(
-      sampleRateHz: config.sampleRateHz,
-      channelCount: config.channelCount,
-      framesPerChunk: config.framesPerChunk,
-      inputDeviceId: config.inputDeviceId,
-    );
+    final startPcmStreamFn = _startPcmStreamFn;
+    if (startPcmStreamFn != null) {
+      startPcmStreamFn(
+        sampleRateHz: config.sampleRateHz,
+        channelCount: config.channelCount,
+        framesPerChunk: config.framesPerChunk,
+        inputDeviceId: config.inputDeviceId,
+      );
+    } else {
+      _startNativeStream(
+        config: config,
+        runtimeConfig: _buildNativeRecorderRuntimeConfig(config: config, platform: _platform),
+      );
+    }
 
     _mode = _RecorderMode.stream;
     _streamReadSampleCapacity = readSampleCapacity;
@@ -332,82 +389,221 @@ final class NativeAudioRecorder {
     return controller.stream;
   }
 
-  Future<Stream<VoiceSegment>> startWithVadSegmentation({
-    required Directory outputDirectory,
-    required PauseSplitOptions splitOptions,
-    AudioRecorderConfig config = const AudioRecorderConfig(),
-    SpeechVadConfig vadConfig = const SpeechVadConfig(),
-    bool flushOnStop = true,
-    NativeVoiceSegmentPathBuilder? segmentPathBuilder,
-    Duration pollInterval = const Duration(milliseconds: 20),
-    int readSampleCapacity = _defaultReadSampleCapacity,
-  }) async {
+  /// Starts live VAD capture and returns a session with dedicated streams.
+  Future<VadCaptureSession> startVadCapture(VadCaptureRequest request) async {
     _ensureSupportedPlatform();
     _ensureIdle();
-    config.validate();
-    splitOptions.validate();
-    _validateVadSegmentationConfig(config: config, splitOptions: splitOptions);
-    await outputDirectory.create(recursive: true);
+    request.validate();
 
-    final encoding = config.encoding;
-    final managedBackend = _ManagedVadBackend.resolve(options: splitOptions, config: vadConfig);
+    final splitOptions = request.split;
+    final output = request.output;
+    final telemetry = request.telemetry;
+    final effectiveFullRecordingEncoding = output.fullRecordingEncoding ?? output.segmentEncoding;
 
-    Stream<Uint8List> pcmStream;
+    _validateVadCaptureConfig(
+      config: request.audio,
+      splitOptions: splitOptions,
+      segmentEncoding: output.segmentEncoding,
+      fullRecordingEncoding: effectiveFullRecordingEncoding,
+    );
+    await output.outputDirectory.create(recursive: true);
+
+    final resolvedBackend = resolveSpeechVadBackend(options: splitOptions, config: request.vad);
+
+    late final Stream<Uint8List> pcmStream;
     try {
-      pcmStream = await startStream(
-        config: config,
-        pollInterval: pollInterval,
-        readSampleCapacity: readSampleCapacity,
+      pcmStream = await startPcmStream(
+        config: request.audio,
+        pollInterval: request.pollInterval,
+        readSampleCapacity: request.readSampleCapacity,
       );
     } on Object {
-      managedBackend.disposeIfOwned();
+      resolvedBackend.backend.dispose();
       rethrow;
     }
 
-    final resolvedAacEncoder = encoding.encoder.isAac
-        ? (encoding.aacEncoder ?? NativeAacEncoder())
+    final resolvedSegmentAudioEncoder = output.segmentEncoding.encoder.isAac
+        ? (output.segmentEncoding.audioEncoder ?? NativeAudioEncoder())
         : null;
-    final bitrateBps = _resolveEncodingBitrateBps(encoding);
+    final resolvedFullRecordingAudioEncoder = effectiveFullRecordingEncoding.encoder.isAac
+        ? (effectiveFullRecordingEncoding.audioEncoder ?? NativeAudioEncoder())
+        : null;
+    final segmentBitrateBps = _resolveEncodingBitrateBps(output.segmentEncoding);
+    final fullRecordingBitrateBps = _resolveEncodingBitrateBps(effectiveFullRecordingEncoding);
 
-    return (() async* {
+    final segmentsController = StreamController<VoiceSegment>.broadcast();
+    final speechStatesController = StreamController<VadSpeechStateSample>.broadcast();
+    final levelsController = StreamController<VadLevelSample>.broadcast();
+    final frameDecisionsController = StreamController<VadFrameDecision>.broadcast();
+    final doneCompleter = Completer<VadCaptureStopResult>();
+
+    unawaited(() async {
+      var segmentIndex = 0;
+      var analyzedFrameCount = 0;
+      var speechFrameCount = 0;
+      var speechDetected = false;
+      DateTime? lastSpeechFrameAt;
+      var currentChunkHasSpeech = false;
+      final fullRecordingBytes = output.emitFullRecordingOnStop ? BytesBuilder(copy: false) : null;
+
       final splitter = Pcm16StreamPauseSplitter(
         options: splitOptions,
-        vadBackend: managedBackend.backend,
+        vadBackend: resolvedBackend.backend,
+        onFrameClassified: (isSpeech) {
+          analyzedFrameCount++;
+          if (isSpeech) {
+            speechFrameCount++;
+            currentChunkHasSpeech = true;
+            lastSpeechFrameAt = DateTime.now();
+          }
+          if (!telemetry.emitFrameDecisions) {
+            return;
+          }
+          frameDecisionsController.add(
+            VadFrameDecision(
+              at: DateTime.now(),
+              isSpeechFrame: isSpeech,
+              analyzedFrameCount: analyzedFrameCount,
+              speechFrameCount: speechFrameCount,
+            ),
+          );
+        },
       );
-      var segmentIndex = 0;
 
-      Stream<VoiceSegment> emitSnippets(List<Pcm16Snippet> snippets) async* {
+      Future<void> emitSnippets(List<Pcm16Snippet> snippets) async {
         for (final snippet in snippets) {
           segmentIndex++;
           try {
             final segment = await _materializeVoiceSegment(
               index: segmentIndex,
               snippet: snippet,
-              outputDirectory: outputDirectory,
+              outputDirectory: output.outputDirectory,
               splitOptions: splitOptions,
-              encoding: encoding,
-              bitrateBps: bitrateBps,
-              aacEncoder: resolvedAacEncoder,
-              segmentPathBuilder: segmentPathBuilder,
+              encoding: output.segmentEncoding,
+              bitrateBps: segmentBitrateBps,
+              audioEncoder: resolvedSegmentAudioEncoder,
+              segmentPathBuilder: output.segmentPathBuilder,
             );
-            yield segment;
+            segmentsController.add(segment);
           } on Object catch (error, stackTrace) {
-            yield* Stream<VoiceSegment>.error(error, stackTrace);
+            segmentsController.addError(error, stackTrace);
           }
         }
       }
 
       try {
         await for (final chunk in pcmStream) {
-          yield* emitSnippets(splitter.addChunk(chunk));
+          fullRecordingBytes?.add(chunk);
+          currentChunkHasSpeech = false;
+          final snippets = splitter.addChunk(chunk);
+          await emitSnippets(snippets);
+
+          final now = DateTime.now();
+          if (currentChunkHasSpeech) {
+            lastSpeechFrameAt = now;
+          }
+
+          if (telemetry.emitSpeechState) {
+            final nextSpeechDetected =
+                lastSpeechFrameAt != null &&
+                now.difference(lastSpeechFrameAt!) <= telemetry.speechHoldDuration;
+            if (nextSpeechDetected != speechDetected) {
+              speechDetected = nextSpeechDetected;
+              speechStatesController.add(
+                VadSpeechStateSample(at: now, speechDetected: speechDetected),
+              );
+            }
+          }
+
+          if (telemetry.emitLevels) {
+            levelsController.add(
+              VadLevelSample(
+                at: now,
+                rms: _pcm16Rms(chunk),
+                dbfs: _pcm16Dbfs(chunk),
+                hasSpeechFrame: currentChunkHasSpeech,
+              ),
+            );
+          }
         }
-        if (flushOnStop) {
-          yield* emitSnippets(splitter.flush());
+
+        if (request.flushOnStop) {
+          await emitSnippets(splitter.flush());
+        }
+
+        VadRecordingArtifact? fullRecording;
+        if (fullRecordingBytes != null) {
+          final fullRecordingPcmBytes = fullRecordingBytes.toBytes();
+          if (fullRecordingPcmBytes.isNotEmpty) {
+            fullRecording = await _materializeFullRecordingArtifact(
+              outputDirectory: output.outputDirectory,
+              pcm16leBytes: fullRecordingPcmBytes,
+              splitOptions: splitOptions,
+              encoding: effectiveFullRecordingEncoding,
+              bitrateBps: fullRecordingBitrateBps,
+              audioEncoder: resolvedFullRecordingAudioEncoder,
+              fileStem: output.fullRecordingFileStem,
+            );
+          }
+        }
+
+        if (speechDetected && telemetry.emitSpeechState) {
+          speechStatesController.add(
+            VadSpeechStateSample(at: DateTime.now(), speechDetected: false),
+          );
+        }
+
+        if (!doneCompleter.isCompleted) {
+          doneCompleter.complete(
+            VadCaptureStopResult(
+              segmentCount: segmentIndex,
+              analyzedFrameCount: analyzedFrameCount,
+              speechFrameCount: speechFrameCount,
+              fullRecording: fullRecording,
+            ),
+          );
+        }
+      } on Object catch (error, stackTrace) {
+        segmentsController.addError(error, stackTrace);
+        speechStatesController.addError(error, stackTrace);
+        levelsController.addError(error, stackTrace);
+        frameDecisionsController.addError(error, stackTrace);
+        if (!doneCompleter.isCompleted) {
+          doneCompleter.completeError(error, stackTrace);
         }
       } finally {
-        managedBackend.disposeIfOwned();
+        resolvedBackend.backend.dispose();
+        await segmentsController.close();
+        await speechStatesController.close();
+        await levelsController.close();
+        await frameDecisionsController.close();
       }
-    })();
+    }());
+
+    return _VadCaptureSessionImpl(
+      backendKind: resolvedBackend.kind,
+      backendLabel: resolvedBackend.label,
+      segments: segmentsController.stream,
+      speechStates: speechStatesController.stream,
+      levels: levelsController.stream,
+      frameDecisions: frameDecisionsController.stream,
+      stopFn: () async {
+        if (!doneCompleter.isCompleted) {
+          await stop();
+        }
+        return doneCompleter.future;
+      },
+      cancelFn: () async {
+        if (!doneCompleter.isCompleted) {
+          await cancel();
+        }
+        try {
+          await doneCompleter.future;
+        } on Object {
+          // Ignore completion errors on explicit cancel.
+        }
+      },
+    );
   }
 
   Future<void> stop() async {
@@ -474,8 +670,59 @@ final class NativeAudioRecorder {
     }
   }
 
+  /// Cancels active recording and discards pending file finalization work.
+  ///
+  /// This is intended as a robust recovery path if normal stop/finalization is
+  /// not desired or has failed.
+  Future<void> cancel() async {
+    await reset();
+  }
+
+  /// Force-resets recorder state on Dart and native sides.
+  ///
+  /// Unlike [stop], this does not finalize encoded outputs.
+  Future<void> reset() async {
+    _streamTimer?.cancel();
+    _streamTimer = null;
+    _nativeAmplitudeTimer?.cancel();
+    _nativeAmplitudeTimer = null;
+
+    Object? resetError;
+    StackTrace? resetStackTrace;
+    try {
+      _resetFn();
+    } on Object catch (error, stackTrace) {
+      resetError = error;
+      resetStackTrace = stackTrace;
+    }
+
+    _mode = _RecorderMode.stopped;
+    _stopping = false;
+    _streamReadSampleCapacity = _defaultReadSampleCapacity;
+    _lastAmplitudeEmissionAt = null;
+
+    final controller = _streamController;
+    _streamController = null;
+    if (controller != null && !controller.isClosed) {
+      final closeFuture = controller.close();
+      if (controller.hasListener) {
+        await closeFuture;
+      } else {
+        unawaited(closeFuture);
+      }
+    }
+
+    await _cleanupTempRecordingDirectory(_activeTempDirectory);
+    _clearActiveRecordingOutputTracking();
+    _resetAmplitudeState();
+
+    if (resetError != null) {
+      Error.throwWithStackTrace(resetError, resetStackTrace ?? StackTrace.current);
+    }
+  }
+
   Future<void> dispose() async {
-    await stop();
+    await reset();
     _nativeAmplitudeTimer?.cancel();
     _nativeAmplitudeTimer = null;
     final amplitudeController = _amplitudeController;
@@ -496,7 +743,7 @@ final class NativeAudioRecorder {
 
     try {
       for (var i = 0; i < 8; i++) {
-        final chunk = _readStreamFn(maxSamples: _streamReadSampleCapacity);
+        final chunk = _readPcmStreamFn(maxSamples: _streamReadSampleCapacity);
         if (chunk.isEmpty) {
           break;
         }
@@ -523,11 +770,85 @@ final class NativeAudioRecorder {
     }
   }
 
+  void _startNativeFile({
+    required String outputPath,
+    required AudioRecorderConfig config,
+    required _NativeRecorderRuntimeConfig runtimeConfig,
+  }) {
+    switch (_platform) {
+      case NativeAudioRecorderPlatform.macOS:
+        _startMacosAudioRecorderFileViaFfi(
+          outputPath: outputPath,
+          sampleRateHz: config.sampleRateHz,
+          channelCount: config.channelCount,
+          inputDeviceId: config.inputDeviceId,
+          runtimeConfig: runtimeConfig,
+        );
+      case NativeAudioRecorderPlatform.windows:
+        _startWindowsAudioRecorderFileViaFfi(
+          outputPath: outputPath,
+          sampleRateHz: config.sampleRateHz,
+          channelCount: config.channelCount,
+          inputDeviceId: config.inputDeviceId,
+          runtimeConfig: runtimeConfig,
+        );
+      case NativeAudioRecorderPlatform.iOS:
+        _startIosAudioRecorderFileViaFfi(
+          outputPath: outputPath,
+          sampleRateHz: config.sampleRateHz,
+          channelCount: config.channelCount,
+          inputDeviceId: config.inputDeviceId,
+          runtimeConfig: runtimeConfig,
+        );
+      case NativeAudioRecorderPlatform.unsupported:
+        throw UnsupportedError(
+          'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
+        );
+    }
+  }
+
+  void _startNativeStream({
+    required AudioRecorderConfig config,
+    required _NativeRecorderRuntimeConfig runtimeConfig,
+  }) {
+    switch (_platform) {
+      case NativeAudioRecorderPlatform.macOS:
+        _startMacosAudioRecorderStreamViaFfi(
+          sampleRateHz: config.sampleRateHz,
+          channelCount: config.channelCount,
+          framesPerChunk: config.framesPerChunk,
+          inputDeviceId: config.inputDeviceId,
+          runtimeConfig: runtimeConfig,
+        );
+      case NativeAudioRecorderPlatform.windows:
+        _startWindowsAudioRecorderStreamViaFfi(
+          sampleRateHz: config.sampleRateHz,
+          channelCount: config.channelCount,
+          framesPerChunk: config.framesPerChunk,
+          inputDeviceId: config.inputDeviceId,
+          runtimeConfig: runtimeConfig,
+        );
+      case NativeAudioRecorderPlatform.iOS:
+        _startIosAudioRecorderStreamViaFfi(
+          sampleRateHz: config.sampleRateHz,
+          channelCount: config.channelCount,
+          framesPerChunk: config.framesPerChunk,
+          inputDeviceId: config.inputDeviceId,
+          runtimeConfig: runtimeConfig,
+        );
+      case NativeAudioRecorderPlatform.unsupported:
+        throw UnsupportedError(
+          'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
+        );
+    }
+  }
+
   bool _shouldUseNativeAppleDirectAacStart({
     required String outputPath,
     required AudioRecorderConfig config,
   }) {
-    final isAppleAac = (_platform == NativeAudioRecorderPlatform.macOS ||
+    final isAppleAac =
+        (_platform == NativeAudioRecorderPlatform.macOS ||
             _platform == NativeAudioRecorderPlatform.iOS) &&
         config.encoding.encoder.isAac;
     if (!isAppleAac) {
@@ -546,15 +867,25 @@ final class NativeAudioRecorder {
     return true;
   }
 
-  void _validateVadSegmentationConfig({
+  void _validateVadCaptureConfig({
     required AudioRecorderConfig config,
     required PauseSplitOptions splitOptions,
+    required AudioEncodingConfig segmentEncoding,
+    required AudioEncodingConfig fullRecordingEncoding,
   }) {
-    if (!config.encoding.encoder.supportsVadSegmentationOutput) {
+    if (!segmentEncoding.encoder.supportsVadSegmentationOutput) {
       throw ArgumentError.value(
-        config.encoding.encoder,
-        'config.encoding.encoder',
-        'startWithVadSegmentation() supports AudioEncoder.wav, '
+        segmentEncoding.encoder,
+        'segmentEncoding.encoder',
+        'startVadCapture() supports AudioEncoder.wav, '
+            'AudioEncoder.aacLc, AudioEncoder.aacHe, and AudioEncoder.aacEld.',
+      );
+    }
+    if (!fullRecordingEncoding.encoder.supportsVadSegmentationOutput) {
+      throw ArgumentError.value(
+        fullRecordingEncoding.encoder,
+        'fullRecordingEncoding.encoder',
+        'startVadCapture() full-recording output supports AudioEncoder.wav, '
             'AudioEncoder.aacLc, AudioEncoder.aacHe, and AudioEncoder.aacEld.',
       );
     }
@@ -579,7 +910,7 @@ final class NativeAudioRecorder {
     required PauseSplitOptions splitOptions,
     required AudioEncodingConfig encoding,
     required int bitrateBps,
-    required AacEncoder? aacEncoder,
+    required AacEncoder? audioEncoder,
     required NativeVoiceSegmentPathBuilder? segmentPathBuilder,
   }) async {
     final encoder = encoding.encoder;
@@ -600,10 +931,10 @@ final class NativeAudioRecorder {
       case AudioEncoder.aacLc:
       case AudioEncoder.aacHe:
       case AudioEncoder.aacEld:
-        if (aacEncoder == null) {
+        if (audioEncoder == null) {
           throw StateError('AAC encoder is required for AAC segment output.');
         }
-        await aacEncoder.encodePcm16BytesToAac(
+        await audioEncoder.encodePcm16BytesToAac(
           pcm16leBytes: snippet.asBytesView(),
           sampleRateHz: splitOptions.sampleRateHz,
           channelCount: splitOptions.channelCount,
@@ -668,6 +999,98 @@ final class NativeAudioRecorder {
     );
   }
 
+  Future<VadRecordingArtifact> _materializeFullRecordingArtifact({
+    required Directory outputDirectory,
+    required Uint8List pcm16leBytes,
+    required PauseSplitOptions splitOptions,
+    required AudioEncodingConfig encoding,
+    required int bitrateBps,
+    required AacEncoder? audioEncoder,
+    required String fileStem,
+  }) async {
+    final encoder = encoding.encoder;
+    final extension = encoder.defaultFileExtension;
+    final outputPath = path.join(outputDirectory.path, '$fileStem.$extension');
+    final outputFile = File(outputPath);
+    await outputFile.parent.create(recursive: true);
+
+    final snippet = Pcm16Snippet(
+      sourceBuffer: pcm16leBytes.buffer,
+      sourceByteOffset: pcm16leBytes.offsetInBytes,
+      startSampleOffset: 0,
+      endSampleOffsetExclusive: pcm16leBytes.lengthInBytes ~/ 2,
+      sampleRateHz: splitOptions.sampleRateHz,
+      channelCount: splitOptions.channelCount,
+    );
+
+    switch (encoder) {
+      case AudioEncoder.wav:
+        await snippet.writeWav(outputPath);
+      case AudioEncoder.aacLc:
+      case AudioEncoder.aacHe:
+      case AudioEncoder.aacEld:
+        if (audioEncoder == null) {
+          throw StateError('AAC encoder is required for AAC full-recording output.');
+        }
+        await audioEncoder.encodePcm16BytesToAac(
+          pcm16leBytes: pcm16leBytes,
+          sampleRateHz: splitOptions.sampleRateHz,
+          channelCount: splitOptions.channelCount,
+          outputPath: outputPath,
+          bitrateKbps: _bitrateKbpsFromBps(bitrateBps),
+        );
+      case AudioEncoder.flac:
+      case AudioEncoder.opus:
+      case AudioEncoder.pcm16bits:
+        throw ArgumentError.value(
+          encoder,
+          'encoding.encoder',
+          'Unsupported encoder for full-recording output.',
+        );
+    }
+
+    final outputByteCount = await outputFile.length();
+    return VadRecordingArtifact(
+      file: XFile(outputPath, mimeType: encoder.defaultMimeType),
+      fileExtension: extension,
+      mimeType: encoder.defaultMimeType,
+      metadata: AudioMetadata(
+        duration: snippet.duration,
+        sampleRateHz: splitOptions.sampleRateHz,
+        channelCount: splitOptions.channelCount,
+        bitrateBps: _resolvedSegmentBitrateBps(
+          encoder: encoder,
+          configuredBitrateBps: encoding.bitrateBps,
+          sampleRateHz: splitOptions.sampleRateHz,
+          channelCount: splitOptions.channelCount,
+        ),
+        containerFormat: switch (encoder) {
+          AudioEncoder.wav => 'wav',
+          AudioEncoder.aacLc || AudioEncoder.aacHe || AudioEncoder.aacEld => 'mp4',
+          AudioEncoder.flac || AudioEncoder.opus || AudioEncoder.pcm16bits => null,
+        },
+        codec: switch (encoder) {
+          AudioEncoder.wav => 'pcm_s16le',
+          AudioEncoder.aacLc || AudioEncoder.aacHe || AudioEncoder.aacEld => 'aac',
+          AudioEncoder.flac || AudioEncoder.opus || AudioEncoder.pcm16bits => null,
+        },
+        codecProfile: switch (encoder) {
+          AudioEncoder.aacLc => 'lc',
+          AudioEncoder.aacHe => 'he',
+          AudioEncoder.aacEld => 'eld',
+          AudioEncoder.wav ||
+          AudioEncoder.flac ||
+          AudioEncoder.opus ||
+          AudioEncoder.pcm16bits => null,
+        },
+      ),
+      metrics: AudioSegmentMetrics(
+        inputPcmByteCount: pcm16leBytes.lengthInBytes,
+        outputByteCount: outputByteCount,
+      ),
+    );
+  }
+
   String _normalizeRelativeSegmentPath(String inputPath) {
     final trimmed = inputPath.trim();
     if (trimmed.isEmpty) {
@@ -711,8 +1134,8 @@ final class NativeAudioRecorder {
         if (tempWavPath == null) {
           throw StateError('Missing temporary WAV recording for encoded output.');
         }
-        final aacEncoder = config.encoding.aacEncoder ?? NativeAacEncoder();
-        await aacEncoder.encodeAudioFileToAac(
+        final audioEncoder = config.encoding.audioEncoder ?? NativeAudioEncoder();
+        await audioEncoder.encodeAudioFileToAac(
           inputPath: tempWavPath,
           outputPath: outputPath,
           bitrateKbps: _bitrateKbpsFromBps(_resolveEncodingBitrateBps(config.encoding)),
@@ -861,6 +1284,24 @@ final class NativeAudioRecorder {
 
     return (dbfs.clamp(-90.0, 0.0) as num).toDouble();
   }
+
+  double _pcm16Rms(Uint8List pcm16leBytes) {
+    final sampleCount = pcm16leBytes.lengthInBytes ~/ 2;
+    if (sampleCount <= 0) {
+      return 0.0;
+    }
+
+    final samples = Int16List.view(pcm16leBytes.buffer, pcm16leBytes.offsetInBytes, sampleCount);
+    var sumSquares = 0.0;
+    for (final sample in samples) {
+      final normalized = sample / 32768.0;
+      sumSquares += normalized * normalized;
+    }
+    if (sumSquares <= 0) {
+      return 0.0;
+    }
+    return math.sqrt(sumSquares / sampleCount);
+  }
 }
 
 int _resolveEncodingBitrateBps(AudioEncodingConfig encoding) {
@@ -890,25 +1331,50 @@ int? _resolvedSegmentBitrateBps({
   };
 }
 
-final class _ManagedVadBackend {
-  const _ManagedVadBackend._({required this.backend, required this.owned});
+final class _VadCaptureSessionImpl implements VadCaptureSession {
+  _VadCaptureSessionImpl({
+    required this.backendKind,
+    required this.backendLabel,
+    required this.segments,
+    required this.speechStates,
+    required this.levels,
+    required this.frameDecisions,
+    required Future<VadCaptureStopResult> Function() stopFn,
+    required Future<void> Function() cancelFn,
+  }) : _stopFn = stopFn,
+       _cancelFn = cancelFn;
 
-  final VadBackend backend;
-  final bool owned;
+  final Future<VadCaptureStopResult> Function() _stopFn;
+  final Future<void> Function() _cancelFn;
+  Future<VadCaptureStopResult>? _stopFuture;
+  Future<void>? _cancelFuture;
 
-  factory _ManagedVadBackend.resolve({
-    required PauseSplitOptions options,
-    required SpeechVadConfig config,
-  }) {
-    final resolved = resolveSpeechVadBackend(options: options, config: config);
-    return _ManagedVadBackend._(backend: resolved.backend, owned: true);
+  @override
+  final ResolvedVadKind backendKind;
+
+  @override
+  final String backendLabel;
+
+  @override
+  final Stream<VoiceSegment> segments;
+
+  @override
+  final Stream<VadSpeechStateSample> speechStates;
+
+  @override
+  final Stream<VadLevelSample> levels;
+
+  @override
+  final Stream<VadFrameDecision> frameDecisions;
+
+  @override
+  Future<VadCaptureStopResult> stop() {
+    return _stopFuture ??= _stopFn();
   }
 
-  void disposeIfOwned() {
-    if (!owned) {
-      return;
-    }
-    backend.dispose();
+  @override
+  Future<void> cancel() {
+    return _cancelFuture ??= _cancelFn();
   }
 }
 
@@ -983,41 +1449,7 @@ NativeAudioRecorderListInputDevicesFn _resolveListInputDevicesFn(
   };
 }
 
-NativeAudioRecorderStartFileFn _resolveStartFileFn(NativeAudioRecorderPlatform platform) {
-  return switch (platform) {
-    NativeAudioRecorderPlatform.macOS => _startMacosAudioRecorderFileViaFfi,
-    NativeAudioRecorderPlatform.windows => _startWindowsAudioRecorderFileViaFfi,
-    NativeAudioRecorderPlatform.iOS => _startIosAudioRecorderFileViaFfi,
-    NativeAudioRecorderPlatform.unsupported =>
-      ({
-        required outputPath,
-        required sampleRateHz,
-        required channelCount,
-        required inputDeviceId,
-      }) => throw UnsupportedError(
-        'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
-      ),
-  };
-}
-
-NativeAudioRecorderStartStreamFn _resolveStartStreamFn(NativeAudioRecorderPlatform platform) {
-  return switch (platform) {
-    NativeAudioRecorderPlatform.macOS => _startMacosAudioRecorderStreamViaFfi,
-    NativeAudioRecorderPlatform.windows => _startWindowsAudioRecorderStreamViaFfi,
-    NativeAudioRecorderPlatform.iOS => _startIosAudioRecorderStreamViaFfi,
-    NativeAudioRecorderPlatform.unsupported =>
-      ({
-        required sampleRateHz,
-        required channelCount,
-        required framesPerChunk,
-        required inputDeviceId,
-      }) => throw UnsupportedError(
-        'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
-      ),
-  };
-}
-
-NativeAudioRecorderReadStreamFn _resolveReadStreamFn(NativeAudioRecorderPlatform platform) {
+NativeAudioRecorderReadPcmStreamFn _resolveReadPcmStreamFn(NativeAudioRecorderPlatform platform) {
   return switch (platform) {
     NativeAudioRecorderPlatform.macOS => _readMacosAudioRecorderStreamViaFfi,
     NativeAudioRecorderPlatform.windows => _readWindowsAudioRecorderStreamViaFfi,
@@ -1033,6 +1465,17 @@ NativeAudioRecorderStopFn _resolveStopFn(NativeAudioRecorderPlatform platform) {
     NativeAudioRecorderPlatform.macOS => _stopMacosAudioRecorderViaFfi,
     NativeAudioRecorderPlatform.windows => _stopWindowsAudioRecorderViaFfi,
     NativeAudioRecorderPlatform.iOS => _stopIosAudioRecorderViaFfi,
+    NativeAudioRecorderPlatform.unsupported => () => throw UnsupportedError(
+      'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
+    ),
+  };
+}
+
+NativeAudioRecorderResetFn _resolveResetFn(NativeAudioRecorderPlatform platform) {
+  return switch (platform) {
+    NativeAudioRecorderPlatform.macOS => _resetMacosAudioRecorderViaFfi,
+    NativeAudioRecorderPlatform.windows => _resetWindowsAudioRecorderViaFfi,
+    NativeAudioRecorderPlatform.iOS => _resetIosAudioRecorderViaFfi,
     NativeAudioRecorderPlatform.unsupported => () => throw UnsupportedError(
       'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
     ),
@@ -1057,19 +1500,9 @@ NativeAudioRecorderGetAmplitudeFn _resolveGetAmplitudeFn(NativeAudioRecorderPlat
   };
 }
 
-typedef _NativeHealthcheckFn = int Function(ffi.Pointer<ffi.Char>, int);
 typedef _NativeBoolOutFn = int Function(ffi.Pointer<ffi.Int32>, ffi.Pointer<ffi.Char>, int);
-typedef _NativeStartFileFn =
-    int Function(
-      ffi.Pointer<ffi.Char>,
-      int,
-      int,
-      ffi.Pointer<ffi.Char>,
-      ffi.Pointer<ffi.Char>,
-      int,
-    );
-typedef _NativeStartStreamFn =
-    int Function(int, int, int, ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>, int);
+typedef _NativeStartFileFn = int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Char>, int);
+typedef _NativeStartStreamFn = int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Char>, int);
 typedef _NativeReadStreamFn =
     int Function(ffi.Pointer<ffi.Int16>, int, ffi.Pointer<ffi.Uint32>, ffi.Pointer<ffi.Char>, int);
 typedef _NativeStopFn = int Function(ffi.Pointer<ffi.Char>, int);
@@ -1080,18 +1513,53 @@ typedef _NativeGetAmplitudeFn =
 
 const _recorderErrorBufferBytes = 4096;
 
-bool _runRecorderHealthcheck(_NativeHealthcheckFn fn) {
-  final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
-  try {
-    try {
-      final code = fn(errorPtr, _recorderErrorBufferBytes);
-      return code == 0;
-    } on Object {
-      return false;
-    }
-  } finally {
-    calloc.free(errorPtr);
-  }
+final class _NativeRecorderRuntimeConfigFfi extends ffi.Struct {
+  @ffi.Int32()
+  external int processingFlags;
+
+  @ffi.Int32()
+  external int appleSessionModeCode;
+
+  @ffi.Uint32()
+  external int appleCategoryOptionsFlags;
+
+  @ffi.Double()
+  external double preferredLatencySeconds;
+
+  @ffi.Double()
+  external double applePreferredIoBufferDurationSeconds;
+
+  @ffi.Double()
+  external double applePreferredInputGain;
+
+  @ffi.Uint32()
+  external int windowsPreferredPeriodFrames;
+
+  @ffi.Uint32()
+  external int windowsFlags;
+
+  @ffi.Int32()
+  external int windowsCaptureCategoryCode;
+
+  @ffi.Int32()
+  external int windowsUseCommunicationsDevice;
+}
+
+final class _NativeRecorderStartConfigFfi extends ffi.Struct {
+  @ffi.Uint32()
+  external int sampleRateHz;
+
+  @ffi.Uint32()
+  external int channelCount;
+
+  @ffi.Uint32()
+  external int framesPerChunk;
+
+  external ffi.Pointer<ffi.Char> outputPathUtf8;
+
+  external ffi.Pointer<ffi.Char> inputDeviceIdUtf8;
+
+  external _NativeRecorderRuntimeConfigFfi runtime;
 }
 
 bool _runRecorderBoolCall(_NativeBoolOutFn fn, {required String operation}) {
@@ -1113,24 +1581,39 @@ void _runRecorderStartFile(
   required int sampleRateHz,
   required int channelCount,
   required String? inputDeviceId,
+  required _NativeRecorderRuntimeConfig runtimeConfig,
   required String operation,
 }) {
   final outputPathPtr = outputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
   final inputDeviceIdPtr = (inputDeviceId == null || inputDeviceId.trim().isEmpty)
       ? ffi.nullptr
       : inputDeviceId.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
+  final startConfigPtr = calloc<_NativeRecorderStartConfigFfi>();
   final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
   try {
-    final code = fn(
-      outputPathPtr,
-      sampleRateHz,
-      channelCount,
-      inputDeviceIdPtr,
-      errorPtr,
-      _recorderErrorBufferBytes,
-    );
+    final startConfig = startConfigPtr.ref;
+    startConfig.sampleRateHz = sampleRateHz;
+    startConfig.channelCount = channelCount;
+    startConfig.framesPerChunk = 0;
+    startConfig.outputPathUtf8 = outputPathPtr;
+    startConfig.inputDeviceIdUtf8 = inputDeviceIdPtr;
+    startConfig.runtime.processingFlags = runtimeConfig.processingFlags;
+    startConfig.runtime.appleSessionModeCode = runtimeConfig.appleSessionModeCode;
+    startConfig.runtime.appleCategoryOptionsFlags = runtimeConfig.appleCategoryOptionsFlags;
+    startConfig.runtime.preferredLatencySeconds = runtimeConfig.preferredLatencySeconds;
+    startConfig.runtime.applePreferredIoBufferDurationSeconds =
+        runtimeConfig.applePreferredIoBufferDurationSeconds;
+    startConfig.runtime.applePreferredInputGain = runtimeConfig.applePreferredInputGain;
+    startConfig.runtime.windowsPreferredPeriodFrames = runtimeConfig.windowsPreferredPeriodFrames;
+    startConfig.runtime.windowsFlags = runtimeConfig.windowsFlags;
+    startConfig.runtime.windowsCaptureCategoryCode = runtimeConfig.windowsCaptureCategoryCode;
+    startConfig.runtime.windowsUseCommunicationsDevice =
+        runtimeConfig.windowsUseCommunicationsDevice;
+
+    final code = fn(startConfigPtr.cast<ffi.Void>(), errorPtr, _recorderErrorBufferBytes);
     _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
   } finally {
+    calloc.free(startConfigPtr);
     calloc.free(outputPathPtr);
     if (inputDeviceIdPtr != ffi.nullptr) {
       calloc.free(inputDeviceIdPtr);
@@ -1145,23 +1628,38 @@ void _runRecorderStartStream(
   required int channelCount,
   required int framesPerChunk,
   required String? inputDeviceId,
+  required _NativeRecorderRuntimeConfig runtimeConfig,
   required String operation,
 }) {
   final inputDeviceIdPtr = (inputDeviceId == null || inputDeviceId.trim().isEmpty)
       ? ffi.nullptr
       : inputDeviceId.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
+  final startConfigPtr = calloc<_NativeRecorderStartConfigFfi>();
   final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
   try {
-    final code = fn(
-      sampleRateHz,
-      channelCount,
-      framesPerChunk,
-      inputDeviceIdPtr,
-      errorPtr,
-      _recorderErrorBufferBytes,
-    );
+    final startConfig = startConfigPtr.ref;
+    startConfig.sampleRateHz = sampleRateHz;
+    startConfig.channelCount = channelCount;
+    startConfig.framesPerChunk = framesPerChunk;
+    startConfig.outputPathUtf8 = ffi.nullptr;
+    startConfig.inputDeviceIdUtf8 = inputDeviceIdPtr;
+    startConfig.runtime.processingFlags = runtimeConfig.processingFlags;
+    startConfig.runtime.appleSessionModeCode = runtimeConfig.appleSessionModeCode;
+    startConfig.runtime.appleCategoryOptionsFlags = runtimeConfig.appleCategoryOptionsFlags;
+    startConfig.runtime.preferredLatencySeconds = runtimeConfig.preferredLatencySeconds;
+    startConfig.runtime.applePreferredIoBufferDurationSeconds =
+        runtimeConfig.applePreferredIoBufferDurationSeconds;
+    startConfig.runtime.applePreferredInputGain = runtimeConfig.applePreferredInputGain;
+    startConfig.runtime.windowsPreferredPeriodFrames = runtimeConfig.windowsPreferredPeriodFrames;
+    startConfig.runtime.windowsFlags = runtimeConfig.windowsFlags;
+    startConfig.runtime.windowsCaptureCategoryCode = runtimeConfig.windowsCaptureCategoryCode;
+    startConfig.runtime.windowsUseCommunicationsDevice =
+        runtimeConfig.windowsUseCommunicationsDevice;
+
+    final code = fn(startConfigPtr.cast<ffi.Void>(), errorPtr, _recorderErrorBufferBytes);
     _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
   } finally {
+    calloc.free(startConfigPtr);
     if (inputDeviceIdPtr != ffi.nullptr) {
       calloc.free(inputDeviceIdPtr);
     }
@@ -1254,6 +1752,16 @@ void _runRecorderStop(_NativeStopFn fn, {required String operation}) {
   }
 }
 
+void _runRecorderReset(_NativeStopFn fn, {required String operation}) {
+  final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
+  try {
+    final code = fn(errorPtr, _recorderErrorBufferBytes);
+    _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
+  } finally {
+    calloc.free(errorPtr);
+  }
+}
+
 Amplitude _runRecorderGetAmplitude(_NativeGetAmplitudeFn fn, {required String operation}) {
   final outCurrentPtr = calloc<ffi.Double>();
   final outMaxPtr = calloc<ffi.Double>();
@@ -1277,6 +1785,132 @@ double _sanitizeDbfs(double value) {
     return -90.0;
   }
   return (value.clamp(-90.0, 0.0) as num).toDouble();
+}
+
+const int _processingFlagNoiseSuppression = 1 << 0;
+const int _processingFlagEchoCancellation = 1 << 1;
+const int _processingFlagAutomaticGainControl = 1 << 2;
+const int _processingFlagHighPassFilter = 1 << 3;
+const int _processingFlagPresetVoice = 1 << 4;
+const int _processingFlagPresetVoiceIsolation = 1 << 5;
+const int _processingFlagPresetRaw = 1 << 6;
+const int _processingFlagPresetMusic = 1 << 7;
+
+const int _appleCategoryOptionAllowBluetooth = 1 << 0;
+const int _appleCategoryOptionAllowBluetoothA2dp = 1 << 1;
+const int _appleCategoryOptionDefaultToSpeaker = 1 << 2;
+const int _appleCategoryOptionMixWithOthers = 1 << 3;
+const int _appleCategoryOptionDuckOthers = 1 << 4;
+
+const int _windowsFlagExclusiveMode = 1 << 0;
+const int _windowsFlagRawCapture = 1 << 1;
+
+_NativeRecorderRuntimeConfig _buildNativeRecorderRuntimeConfig({
+  required AudioRecorderConfig config,
+  required NativeAudioRecorderPlatform platform,
+}) {
+  final processing = config.processing;
+  var processingFlags = 0;
+
+  switch (processing.preset) {
+    case AudioCapturePreset.voice:
+      processingFlags |= _processingFlagPresetVoice;
+    case AudioCapturePreset.voiceIsolation:
+      processingFlags |= _processingFlagPresetVoiceIsolation;
+    case AudioCapturePreset.raw:
+      processingFlags |= _processingFlagPresetRaw;
+    case AudioCapturePreset.music:
+      processingFlags |= _processingFlagPresetMusic;
+  }
+
+  if (processing.enableNoiseSuppression == true) {
+    processingFlags |= _processingFlagNoiseSuppression;
+  }
+  if (processing.enableEchoCancellation == true) {
+    processingFlags |= _processingFlagEchoCancellation;
+  }
+  if (processing.enableAutomaticGainControl == true) {
+    processingFlags |= _processingFlagAutomaticGainControl;
+  }
+  if (processing.enableHighPassFilter == true) {
+    processingFlags |= _processingFlagHighPassFilter;
+  }
+
+  final apple = config.appleConfig;
+  var appleCategoryOptionsFlags = 0;
+  if (apple?.allowBluetoothInput ?? false) {
+    appleCategoryOptionsFlags |= _appleCategoryOptionAllowBluetooth;
+  }
+  if (apple?.allowBluetoothA2dp ?? false) {
+    appleCategoryOptionsFlags |= _appleCategoryOptionAllowBluetoothA2dp;
+  }
+  if (apple?.defaultToSpeaker ?? false) {
+    appleCategoryOptionsFlags |= _appleCategoryOptionDefaultToSpeaker;
+  }
+  if (apple?.mixWithOthers ?? false) {
+    appleCategoryOptionsFlags |= _appleCategoryOptionMixWithOthers;
+  }
+  if (apple?.duckOthers ?? false) {
+    appleCategoryOptionsFlags |= _appleCategoryOptionDuckOthers;
+  }
+
+  final windows = config.windowsConfig;
+  var windowsFlags = 0;
+  if (windows?.useExclusiveMode ?? false) {
+    windowsFlags |= _windowsFlagExclusiveMode;
+  }
+  if (windows?.useRawCapture ?? false) {
+    windowsFlags |= _windowsFlagRawCapture;
+  }
+
+  final preferredLatency = processing.preferredLatency;
+  final windowsTargetDuration = windows?.targetBufferDuration ?? preferredLatency;
+  final windowsPreferredPeriodFrames = windowsTargetDuration == null
+      ? 0
+      : (((windowsTargetDuration.inMicroseconds * config.sampleRateHz) ~/
+                Duration.microsecondsPerSecond)
+            .clamp(0, 0x7fffffff));
+
+  final applePreferredIoDuration = apple?.preferredIoBufferDuration ?? preferredLatency;
+  final applePreferredInputGain = apple?.preferredInputGain ?? -1.0;
+
+  return _NativeRecorderRuntimeConfig(
+    processingFlags: processingFlags,
+    appleSessionModeCode: _encodeAppleSessionMode(apple?.sessionMode),
+    appleCategoryOptionsFlags: appleCategoryOptionsFlags,
+    preferredLatencySeconds: preferredLatency == null
+        ? 0.0
+        : preferredLatency.inMicroseconds / Duration.microsecondsPerSecond,
+    applePreferredIoBufferDurationSeconds: applePreferredIoDuration == null
+        ? 0.0
+        : applePreferredIoDuration.inMicroseconds / Duration.microsecondsPerSecond,
+    applePreferredInputGain: applePreferredInputGain,
+    windowsPreferredPeriodFrames: windowsPreferredPeriodFrames,
+    windowsFlags: windowsFlags,
+    windowsCaptureCategoryCode: _encodeWindowsCaptureCategory(windows?.captureCategory),
+    windowsUseCommunicationsDevice: windows?.useCommunicationsDevice == true ? 1 : 0,
+  );
+}
+
+int _encodeAppleSessionMode(AppleAudioSessionMode? mode) {
+  return switch (mode) {
+    null => 0,
+    AppleAudioSessionMode.defaultMode => 0,
+    AppleAudioSessionMode.voiceChat => 1,
+    AppleAudioSessionMode.videoChat => 2,
+    AppleAudioSessionMode.measurement => 3,
+    AppleAudioSessionMode.gameChat => 4,
+    AppleAudioSessionMode.spokenAudio => 5,
+  };
+}
+
+int _encodeWindowsCaptureCategory(WindowsCaptureCategory? category) {
+  return switch (category) {
+    null => 2,
+    WindowsCaptureCategory.media => 0,
+    WindowsCaptureCategory.communications => 1,
+    WindowsCaptureCategory.speech => 2,
+  };
 }
 
 void _throwRecorderExceptionIfNeeded({
@@ -1314,6 +1948,7 @@ void _startMacosAudioRecorderFileViaFfi({
   required int sampleRateHz,
   required int channelCount,
   required String? inputDeviceId,
+  required _NativeRecorderRuntimeConfig runtimeConfig,
 }) {
   _runRecorderStartFile(
     macos_bindings.speech_utils_macos_audio_recorder_start_file,
@@ -1321,6 +1956,7 @@ void _startMacosAudioRecorderFileViaFfi({
     sampleRateHz: sampleRateHz,
     channelCount: channelCount,
     inputDeviceId: inputDeviceId,
+    runtimeConfig: runtimeConfig,
     operation: 'macOS file recording start',
   );
 }
@@ -1330,6 +1966,7 @@ void _startMacosAudioRecorderStreamViaFfi({
   required int channelCount,
   required int framesPerChunk,
   required String? inputDeviceId,
+  required _NativeRecorderRuntimeConfig runtimeConfig,
 }) {
   _runRecorderStartStream(
     macos_bindings.speech_utils_macos_audio_recorder_start_stream,
@@ -1337,6 +1974,7 @@ void _startMacosAudioRecorderStreamViaFfi({
     channelCount: channelCount,
     framesPerChunk: framesPerChunk,
     inputDeviceId: inputDeviceId,
+    runtimeConfig: runtimeConfig,
     operation: 'macOS stream recording start',
   );
 }
@@ -1363,6 +2001,13 @@ void _stopMacosAudioRecorderViaFfi() {
   );
 }
 
+void _resetMacosAudioRecorderViaFfi() {
+  _runRecorderReset(
+    macos_bindings.speech_utils_macos_audio_recorder_reset,
+    operation: 'macOS recorder reset',
+  );
+}
+
 bool _isMacosAudioRecorderRunningViaFfi() {
   return _runRecorderBoolCall(
     macos_bindings.speech_utils_macos_audio_recorder_is_recording,
@@ -1378,7 +2023,7 @@ Amplitude _getMacosAudioRecorderAmplitudeViaFfi() {
 }
 
 bool _isWindowsAudioRecorderAvailableViaFfi() {
-  return _runRecorderHealthcheck(windows_bindings.speech_utils_windows_audio_recorder_healthcheck);
+  return true;
 }
 
 bool _hasWindowsMicrophonePermissionViaFfi() {
@@ -1400,6 +2045,7 @@ void _startWindowsAudioRecorderFileViaFfi({
   required int sampleRateHz,
   required int channelCount,
   required String? inputDeviceId,
+  required _NativeRecorderRuntimeConfig runtimeConfig,
 }) {
   _runRecorderStartFile(
     windows_bindings.speech_utils_windows_audio_recorder_start_file,
@@ -1407,6 +2053,7 @@ void _startWindowsAudioRecorderFileViaFfi({
     sampleRateHz: sampleRateHz,
     channelCount: channelCount,
     inputDeviceId: inputDeviceId,
+    runtimeConfig: runtimeConfig,
     operation: 'Windows file recording start',
   );
 }
@@ -1416,6 +2063,7 @@ void _startWindowsAudioRecorderStreamViaFfi({
   required int channelCount,
   required int framesPerChunk,
   required String? inputDeviceId,
+  required _NativeRecorderRuntimeConfig runtimeConfig,
 }) {
   _runRecorderStartStream(
     windows_bindings.speech_utils_windows_audio_recorder_start_stream,
@@ -1423,6 +2071,7 @@ void _startWindowsAudioRecorderStreamViaFfi({
     channelCount: channelCount,
     framesPerChunk: framesPerChunk,
     inputDeviceId: inputDeviceId,
+    runtimeConfig: runtimeConfig,
     operation: 'Windows stream recording start',
   );
 }
@@ -1446,6 +2095,13 @@ void _stopWindowsAudioRecorderViaFfi() {
   _runRecorderStop(
     windows_bindings.speech_utils_windows_audio_recorder_stop,
     operation: 'Windows recording stop',
+  );
+}
+
+void _resetWindowsAudioRecorderViaFfi() {
+  _runRecorderReset(
+    windows_bindings.speech_utils_windows_audio_recorder_reset,
+    operation: 'Windows recorder reset',
   );
 }
 
@@ -1482,6 +2138,7 @@ void _startIosAudioRecorderFileViaFfi({
   required int sampleRateHz,
   required int channelCount,
   required String? inputDeviceId,
+  required _NativeRecorderRuntimeConfig runtimeConfig,
 }) {
   _runRecorderStartFile(
     ios_bindings.speech_utils_ios_audio_recorder_start_file,
@@ -1489,6 +2146,7 @@ void _startIosAudioRecorderFileViaFfi({
     sampleRateHz: sampleRateHz,
     channelCount: channelCount,
     inputDeviceId: inputDeviceId,
+    runtimeConfig: runtimeConfig,
     operation: 'iOS file recording start',
   );
 }
@@ -1498,6 +2156,7 @@ void _startIosAudioRecorderStreamViaFfi({
   required int channelCount,
   required int framesPerChunk,
   required String? inputDeviceId,
+  required _NativeRecorderRuntimeConfig runtimeConfig,
 }) {
   _runRecorderStartStream(
     ios_bindings.speech_utils_ios_audio_recorder_start_stream,
@@ -1505,6 +2164,7 @@ void _startIosAudioRecorderStreamViaFfi({
     channelCount: channelCount,
     framesPerChunk: framesPerChunk,
     inputDeviceId: inputDeviceId,
+    runtimeConfig: runtimeConfig,
     operation: 'iOS stream recording start',
   );
 }
@@ -1528,6 +2188,13 @@ void _stopIosAudioRecorderViaFfi() {
   _runRecorderStop(
     ios_bindings.speech_utils_ios_audio_recorder_stop,
     operation: 'iOS recording stop',
+  );
+}
+
+void _resetIosAudioRecorderViaFfi() {
+  _runRecorderReset(
+    ios_bindings.speech_utils_ios_audio_recorder_reset,
+    operation: 'iOS recorder reset',
   );
 }
 

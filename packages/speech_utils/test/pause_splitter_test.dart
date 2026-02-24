@@ -27,7 +27,7 @@ void main() {
       final snippets = SpeechUtils.splitPcm16OnSilence(
         pcm16leBytes: bytes,
         options: options,
-        vadConfig: const SpeechVadConfig.energyOnly(),
+        vadBackend: const EnergyVadBackend(),
       );
 
       expect(snippets, hasLength(2));
@@ -44,7 +44,7 @@ void main() {
       final snippets = SpeechUtils.splitPcm16OnSilence(
         pcm16leBytes: bytes,
         options: options.copyWith(minSilenceDuration: const Duration(milliseconds: 100)),
-        vadConfig: const SpeechVadConfig.energyOnly(),
+        vadBackend: const EnergyVadBackend(),
       );
 
       expect(snippets, hasLength(1));
@@ -66,7 +66,7 @@ void main() {
       final snippets = SpeechUtils.splitPcm16OnSilence(
         pcm16leBytes: bytes,
         options: options,
-        vadConfig: const SpeechVadConfig.energyOnly(),
+        vadBackend: const EnergyVadBackend(),
       );
 
       expect(snippets, isEmpty);
@@ -87,7 +87,7 @@ void main() {
       final snippets = SpeechUtils.splitPcm16OnSilence(
         pcm16leBytes: unalignedBytes,
         options: options,
-        vadConfig: const SpeechVadConfig.energyOnly(),
+        vadBackend: const EnergyVadBackend(),
       );
 
       expect(snippets, hasLength(2));

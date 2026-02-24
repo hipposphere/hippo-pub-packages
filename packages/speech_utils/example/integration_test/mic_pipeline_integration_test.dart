@@ -31,7 +31,7 @@ void main() {
 
       final stopwatch = Stopwatch()..start();
       try {
-        final stream = await recorder.startStream(
+        final stream = await recorder.startPcmStream(
           config: const AudioRecorderConfig(
             sampleRateHz: 16000,
             channelCount: 1,
@@ -72,7 +72,7 @@ void main() {
     'records microphone through VAD segmentation and native AAC encoding',
     (tester) async {
       final recorder = NativeAudioRecorder();
-      final encoder = NativeAacEncoder();
+      final encoder = NativeAudioEncoder();
       final metadataReader = NativeAudioMetadataReader();
       Directory? outputDirectory;
 
@@ -81,7 +81,7 @@ void main() {
         await encoder.isAvailable(),
         isTrue,
         reason:
-            'NativeAacEncoder must be available for end-to-end AAC pipeline coverage.',
+            'NativeAudioEncoder must be available for end-to-end AAC pipeline coverage.',
       );
       expect(
         await metadataReader.isAvailable(),
@@ -94,39 +94,43 @@ void main() {
         outputDirectory = await Directory.systemTemp.createTemp(
           'speech_utils_mic_pipeline_it_',
         );
-        final segmentStream = await recorder.startWithVadSegmentation(
-          outputDirectory: outputDirectory,
-          splitOptions: const PauseSplitOptions(
-            sampleRateHz: 16000,
-            channelCount: 1,
-            frameDuration: Duration(milliseconds: 20),
-            minSpeechDuration: Duration(milliseconds: 20),
-            minSilenceDuration: Duration(milliseconds: 120),
-            preSpeechPadding: Duration.zero,
-            postSpeechPadding: Duration.zero,
-          ),
-          config: AudioRecorderConfig(
-            sampleRateHz: 16000,
-            channelCount: 1,
-            framesPerChunk: 256,
-            encoding: AudioEncodingConfig(
-              encoder: AudioEncoder.aacLc,
-              bitrateBps: 64000,
-              aacEncoder: encoder,
+        final capture = await recorder.startVadCapture(
+          VadCaptureRequest(
+            split: const PauseSplitOptions(
+              sampleRateHz: 16000,
+              channelCount: 1,
+              frameDuration: Duration(milliseconds: 20),
+              minSpeechDuration: Duration(milliseconds: 20),
+              minSilenceDuration: Duration(milliseconds: 120),
+              preSpeechPadding: Duration.zero,
+              postSpeechPadding: Duration.zero,
             ),
-          ),
-          vadConfig: const SpeechVadConfig.energyOnly(
-            energy: EnergyVadConfig(
-              primaryRmsThreshold: 0.0,
-              secondaryRmsThreshold: 0.0,
-              minZeroCrossingRate: 0.0,
+            audio: const AudioRecorderConfig(
+              sampleRateHz: 16000,
+              channelCount: 1,
+              framesPerChunk: 256,
             ),
+            output: VadCaptureOutputConfig(
+              outputDirectory: outputDirectory,
+              segmentEncoding: AudioEncodingConfig(
+                encoder: AudioEncoder.aacLc,
+                bitrateBps: 64000,
+                audioEncoder: encoder,
+              ),
+            ),
+            vad: const SpeechVadConfig.energyOnly(
+              energy: EnergyVadConfig(
+                primaryRmsThreshold: 0.0,
+                secondaryRmsThreshold: 0.0,
+                minZeroCrossingRate: 0.0,
+              ),
+            ),
+            pollInterval: const Duration(milliseconds: 10),
+            readSampleCapacity: 4096,
           ),
-          pollInterval: const Duration(milliseconds: 10),
-          readSampleCapacity: 4096,
         );
 
-        final firstSegmentFuture = segmentStream.first.timeout(
+        final firstSegmentFuture = capture.segments.first.timeout(
           const Duration(seconds: 15),
           onTimeout: () => throw TimeoutException(
             'No VAD segment emitted within timeout. Check mic routing/permission.',
@@ -134,7 +138,7 @@ void main() {
         );
 
         await Future<void>.delayed(const Duration(milliseconds: 900));
-        await recorder.stop();
+        await capture.stop();
 
         final segment = await firstSegmentFuture;
         final encodedSegmentFile = File(segment.file.path);

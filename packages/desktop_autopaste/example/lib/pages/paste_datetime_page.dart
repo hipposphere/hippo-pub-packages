@@ -4,6 +4,7 @@ import 'package:desktop_autopaste/desktop_autopaste.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'package:hotkey_api/hotkey_api.dart';
 
@@ -149,6 +150,23 @@ class PasteDateTimePage extends StatelessWidget {
                       onPressed: isPasting ? null : bloc.pasteNow,
                       icon: const Icon(Icons.paste_outlined),
                       label: const Text('Paste current DateTime'),
+                    );
+                  },
+                ),
+                Gap(8),
+                DataSubjectBuilder<bool>(
+                  subject: bloc.isPasting,
+                  builder: (context, isPasting) {
+                    return FilledButton.icon(
+                      onPressed: isPasting
+                          ? null
+                          : () {
+                              Future.delayed(const Duration(seconds: 1), () {
+                                bloc.pasteNow();
+                              });
+                            },
+                      icon: const Icon(Icons.paste_outlined),
+                      label: const Text('Paste current DateTime (1s delay)'),
                     );
                   },
                 ),

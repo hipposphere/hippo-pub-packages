@@ -3,6 +3,12 @@
 
 #include <stdint.h>
 
+#if defined(_WIN32)
+#define DESKTOP_AUTOPASTE_FFI_EXPORT __declspec(dllexport)
+#else
+#define DESKTOP_AUTOPASTE_FFI_EXPORT
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -13,12 +19,12 @@ typedef struct desktop_autopaste_text_edit_operation_t {
   const char* replacement_utf8;
 } desktop_autopaste_text_edit_operation_t;
 
-int32_t desktop_autopaste_paste_into_cursor_via_clipboard(
+DESKTOP_AUTOPASTE_FFI_EXPORT int32_t desktop_autopaste_paste_into_cursor_via_clipboard(
     const char* text_utf8,
     char* error_utf8,
     uint32_t error_utf8_capacity);
 
-int32_t desktop_autopaste_get_focused_text_field_context_json(
+DESKTOP_AUTOPASTE_FFI_EXPORT int32_t desktop_autopaste_get_focused_text_field_context_json(
     int32_t max_chars_before,
     int32_t max_chars_after,
     int32_t enable_screen_reader,
@@ -27,7 +33,7 @@ int32_t desktop_autopaste_get_focused_text_field_context_json(
     char* error_utf8,
     uint32_t error_utf8_capacity);
 
-int32_t desktop_autopaste_edit_focused_text_field(
+DESKTOP_AUTOPASTE_FFI_EXPORT int32_t desktop_autopaste_edit_focused_text_field(
     const desktop_autopaste_text_edit_operation_t* operations,
     uint32_t operation_count,
     char* error_utf8,

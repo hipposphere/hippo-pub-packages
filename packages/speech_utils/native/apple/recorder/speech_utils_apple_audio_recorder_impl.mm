@@ -1,7 +1,9 @@
+#import <TargetConditionals.h>
 #import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioToolbox.h>
+#if !TARGET_OS_IPHONE
 #import <CoreAudio/CoreAudio.h>
-#import <TargetConditionals.h>
+#endif
 #import <dispatch/dispatch.h>
 
 #include <algorithm>

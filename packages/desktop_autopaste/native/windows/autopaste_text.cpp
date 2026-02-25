@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cwctype>
+#include <iostream>
 #include <limits>
 #include <string>
 
@@ -414,6 +415,7 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
   }
   WaitForClipboardSequenceChange(sequence_before);
 
+  std::cout << "[desktop_autopaste] Dispatching paste signal" << std::endl;
   if (!SendPasteShortcut(shortcut)) {
     RestoreClipboardUnicodeText(previous_text_copy);
     return false;

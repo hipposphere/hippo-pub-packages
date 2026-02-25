@@ -201,6 +201,8 @@ await recorder.startFileRecording(
 be applied partially depending on platform/backend capabilities.
 `processing.preferredLatency` is mapped to native capture buffering where
 possible (Apple I/O buffer hint and Windows period-size hint).
+On Apple platforms, stream/WAV capture can switch to an `AVAudioEngine`
+voice-processing backend when suppression/cancellation hints are requested.
 
 Stream mode:
 

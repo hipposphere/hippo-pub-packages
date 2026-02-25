@@ -77,9 +77,16 @@ void main() {
         expect(capabilities.supportsVoiceIsolation, isFalse);
       }
 
-      await expectAllFalse(NativeAudioRecorderPlatform.macOS);
+      Future<void> expectAllTrue(NativeAudioRecorderPlatform platform) async {
+        final capabilities = await recorderFor(platform).getCapabilities();
+        expect(capabilities.supportsNoiseCancellation, isTrue);
+        expect(capabilities.supportsEchoCancellation, isTrue);
+        expect(capabilities.supportsVoiceIsolation, isTrue);
+      }
+
+      await expectAllTrue(NativeAudioRecorderPlatform.macOS);
       await expectAllFalse(NativeAudioRecorderPlatform.windows);
-      await expectAllFalse(NativeAudioRecorderPlatform.iOS);
+      await expectAllTrue(NativeAudioRecorderPlatform.iOS);
       await expectAllFalse(NativeAudioRecorderPlatform.unsupported);
     });
 

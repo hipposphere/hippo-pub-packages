@@ -223,8 +223,12 @@ final class NativeAudioRecorder {
   Future<NativeAudioRecorderCapabilities> getCapabilities() async {
     return switch (_platform) {
       NativeAudioRecorderPlatform.macOS ||
+      NativeAudioRecorderPlatform.iOS => const NativeAudioRecorderCapabilities(
+        supportsNoiseCancellation: true,
+        supportsEchoCancellation: true,
+        supportsVoiceIsolation: true,
+      ),
       NativeAudioRecorderPlatform.windows ||
-      NativeAudioRecorderPlatform.iOS ||
       NativeAudioRecorderPlatform.unsupported => const NativeAudioRecorderCapabilities(
         supportsNoiseCancellation: false,
         supportsEchoCancellation: false,

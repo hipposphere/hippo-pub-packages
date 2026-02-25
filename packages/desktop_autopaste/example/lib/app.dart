@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 import 'pages/context_page.dart';
@@ -9,13 +10,10 @@ class ExampleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const App(
+      brightness: Brightness.light,
       title: 'Desktop Autopaste Example',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
-      home: const _ExampleHomePage(),
+      home: _ExampleHomePage(),
     );
   }
 }

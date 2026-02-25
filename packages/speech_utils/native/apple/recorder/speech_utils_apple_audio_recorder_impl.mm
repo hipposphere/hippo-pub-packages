@@ -86,6 +86,12 @@ typedef void (*SpeechUtilsSampleBufferCallback)(void* context, CMSampleBufferRef
 
 namespace speech_utils::apple_recorder {
 
+constexpr int32_t kProcessingFlagNoiseSuppression = 1 << 0;
+constexpr int32_t kProcessingFlagEchoCancellation = 1 << 1;
+constexpr int32_t kProcessingFlagAutomaticGainControl = 1 << 2;
+constexpr int32_t kProcessingFlagPresetVoiceIsolation = 1 << 5;
+constexpr int32_t kProcessingFlagPresetRaw = 1 << 6;
+
 void WriteError(const std::string& message, char* out_error_utf8, uint32_t out_error_capacity) {
   if (out_error_utf8 == nullptr || out_error_capacity == 0) {
     return;
@@ -216,10 +222,12 @@ NSString* ResolveAppleSessionMode(int32_t apple_session_mode_code, int32_t proce
       break;
   }
 
-  if ((processing_flags & (1 << 6)) != 0) {
+  if ((processing_flags & kProcessingFlagPresetRaw) != 0) {
     return AVAudioSessionModeMeasurement;
   }
-  if ((processing_flags & ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 5))) != 0) {
+  if ((processing_flags &
+       (kProcessingFlagNoiseSuppression | kProcessingFlagEchoCancellation |
+        kProcessingFlagAutomaticGainControl | kProcessingFlagPresetVoiceIsolation)) != 0) {
     return AVAudioSessionModeVoiceChat;
   }
   return AVAudioSessionModeDefault;
@@ -253,6 +261,13 @@ AVAudioSessionCategoryOptions ResolveAppleCategoryOptions(uint32_t apple_categor
   (void)apple_category_options_flags;
   return 0;
 #endif
+}
+
+bool ShouldUseVoiceProcessingBackend(int32_t processing_flags) {
+  const int32_t voice_processing_mask =
+      kProcessingFlagNoiseSuppression | kProcessingFlagEchoCancellation |
+      kProcessingFlagAutomaticGainControl | kProcessingFlagPresetVoiceIsolation;
+  return (processing_flags & voice_processing_mask) != 0;
 }
 
 bool ConfigureIosAudioSession(uint32_t sample_rate_hz, int32_t processing_flags,
@@ -491,6 +506,7 @@ AVAudioPCMBuffer* CopySampleBufferToAudioPcmBuffer(CMSampleBufferRef sample_buff
 }
 
 enum class RecorderMode { kStopped, kFile, kStream };
+enum class RecorderBackend { kNone, kCaptureSession, kVoiceProcessingEngine };
 
 class AppleAudioRecorderState {
  public:
@@ -695,6 +711,9 @@ class AppleAudioRecorderState {
     AVCaptureAudioDataOutput* capture_output = nil;
     AVCaptureAudioFileOutput* capture_file_output = nil;
     SpeechUtilsCaptureFileOutputDelegate* capture_file_delegate = nil;
+    AVAudioEngine* audio_engine = nil;
+    AVAudioInputNode* audio_engine_input_node = nil;
+    RecorderBackend recorder_backend = RecorderBackend::kNone;
     FILE* wav_file = nullptr;
     uint32_t wav_data_bytes_written = 0;
     uint32_t wav_sample_rate_hz = 0;
@@ -723,12 +742,15 @@ class AppleAudioRecorderState {
       wav_channel_count_ = 0;
       current_amplitude_dbfs_ = -90.0;
       max_amplitude_dbfs_ = -90.0;
+      recorder_backend = recorder_backend_;
 
       capture_session = capture_session_;
       capture_input = capture_input_;
       capture_output = capture_output_;
       capture_file_output = capture_file_output_;
       capture_file_delegate = capture_file_delegate_;
+      audio_engine = audio_engine_;
+      audio_engine_input_node = audio_engine_input_node_;
 
       capture_session_ = nil;
       capture_input_ = nil;
@@ -737,36 +759,53 @@ class AppleAudioRecorderState {
       capture_queue_ = nil;
       capture_file_output_ = nil;
       capture_file_delegate_ = nil;
+      audio_engine_ = nil;
+      audio_engine_input_node_ = nil;
+      recorder_backend_ = RecorderBackend::kNone;
     }
 
-    if (capture_output != nil) {
-      [capture_output setSampleBufferDelegate:nil queue:nil];
-    }
+    if (recorder_backend == RecorderBackend::kVoiceProcessingEngine) {
+      if (audio_engine_input_node != nil) {
+        [audio_engine_input_node removeTapOnBus:0];
+      }
+      if (audio_engine != nil) {
+        [audio_engine stop];
+        if (audio_engine_input_node != nil) {
+          if (@available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)) {
+            (void)[audio_engine_input_node setVoiceProcessingEnabled:NO error:nil];
+          }
+        }
+      }
+    } else {
+      if (capture_output != nil) {
+        [capture_output setSampleBufferDelegate:nil queue:nil];
+      }
 
-    if (capture_file_output != nil && [capture_file_output isRecording]) {
-      [capture_file_output stopRecording];
-      if (capture_file_delegate != nil && capture_file_delegate.recordingError != nil &&
-          deferred_error_code == 0) {
-        deferred_error_code = -25;
-        deferred_error = std::string("Direct AAC recording failed: ") +
-                         [[capture_file_delegate.recordingError localizedDescription] UTF8String];
+      if (capture_file_output != nil && [capture_file_output isRecording]) {
+        [capture_file_output stopRecording];
+        if (capture_file_delegate != nil && capture_file_delegate.recordingError != nil &&
+            deferred_error_code == 0) {
+          deferred_error_code = -25;
+          deferred_error = std::string("Direct AAC recording failed: ") +
+                           [[capture_file_delegate.recordingError localizedDescription] UTF8String];
+        }
       }
-    }
 
-    if (capture_session != nil) {
-      [capture_session stopRunning];
-      [capture_session beginConfiguration];
-      if (capture_output != nil && [capture_session.outputs containsObject:capture_output]) {
-        [capture_session removeOutput:capture_output];
+      if (capture_session != nil) {
+        [capture_session stopRunning];
+        [capture_session beginConfiguration];
+        if (capture_output != nil && [capture_session.outputs containsObject:capture_output]) {
+          [capture_session removeOutput:capture_output];
+        }
+        if (capture_file_output != nil &&
+            [capture_session.outputs containsObject:capture_file_output]) {
+          [capture_session removeOutput:capture_file_output];
+        }
+        if (capture_input != nil && [capture_session.inputs containsObject:capture_input]) {
+          [capture_session removeInput:capture_input];
+        }
+        [capture_session commitConfiguration];
       }
-      if (capture_file_output != nil &&
-          [capture_session.outputs containsObject:capture_file_output]) {
-        [capture_session removeOutput:capture_file_output];
-      }
-      if (capture_input != nil && [capture_session.inputs containsObject:capture_input]) {
-        [capture_session removeInput:capture_input];
-      }
-      [capture_session commitConfiguration];
     }
 
     if (wav_file != nullptr) {
@@ -1056,9 +1095,227 @@ class AppleAudioRecorderState {
     capture_queue_ = capture_queue;
     capture_file_output_ = capture_file_output;
     capture_file_delegate_ = file_delegate;
+    audio_engine_ = nil;
+    audio_engine_input_node_ = nil;
+    recorder_backend_ = RecorderBackend::kCaptureSession;
     current_amplitude_dbfs_ = -90.0;
     max_amplitude_dbfs_ = -90.0;
     mode_ = RecorderMode::kFile;
+    return 0;
+  }
+
+  int32_t StartInternalWithVoiceProcessing(
+      uint32_t sample_rate_hz, uint32_t channel_count, uint32_t frames_per_chunk, RecorderMode mode,
+      NSString* output_path, const char* input_device_id_utf8, int32_t processing_flags,
+      int32_t apple_session_mode_code, uint32_t apple_category_options_flags,
+      double preferred_latency_seconds, double apple_preferred_io_buffer_duration_seconds,
+      double apple_preferred_input_gain, char* error_utf8, uint32_t error_utf8_capacity) {
+    int32_t has_permission = 0;
+    if (!EnsureAudioInputPermission(&has_permission, false, error_utf8, error_utf8_capacity)) {
+      return -4;
+    }
+    if (has_permission == 0) {
+      WriteError("Microphone permission not granted.", error_utf8, error_utf8_capacity);
+      return -5;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (mode_ != RecorderMode::kStopped) {
+      WriteError("Recorder is already running.", error_utf8, error_utf8_capacity);
+      return -6;
+    }
+
+    const std::string effective_input_device_id = TrimAscii(input_device_id_utf8);
+
+#if TARGET_OS_IPHONE
+    if (!ConfigureIosAudioSession(sample_rate_hz, processing_flags, apple_session_mode_code,
+                                  apple_category_options_flags, preferred_latency_seconds,
+                                  apple_preferred_io_buffer_duration_seconds,
+                                  apple_preferred_input_gain, error_utf8,
+                                  error_utf8_capacity)) {
+      return -8;
+    }
+    AVAudioSession* audio_session = [AVAudioSession sharedInstance];
+    NSError* session_error = nil;
+
+    NSString* preferred_uid = nil;
+    if (!effective_input_device_id.empty()) {
+      preferred_uid = [NSString stringWithUTF8String:effective_input_device_id.c_str()];
+      if (preferred_uid == nil || preferred_uid.length == 0) {
+        WriteError("Input device id UTF-8 decoding failed.", error_utf8, error_utf8_capacity);
+        return -9;
+      }
+    }
+
+    AVAudioSessionPortDescription* preferred_input = nil;
+    if (preferred_uid != nil) {
+      NSArray<AVAudioSessionPortDescription*>* available_inputs = audio_session.availableInputs;
+      for (AVAudioSessionPortDescription* port in available_inputs) {
+        if ([port.UID isEqualToString:preferred_uid]) {
+          preferred_input = port;
+          break;
+        }
+      }
+      if (preferred_input == nil) {
+        WriteError("Selected iOS input device is not available.", error_utf8,
+                   error_utf8_capacity);
+        return -10;
+      }
+    }
+
+    if (![audio_session setPreferredInput:preferred_input error:&session_error]) {
+      WriteNSError(session_error, "Failed to set preferred iOS input device", error_utf8,
+                   error_utf8_capacity);
+      return -11;
+    }
+#else
+    if (!effective_input_device_id.empty()) {
+      WriteError(
+          "AVAudioEngine voice-processing capture currently supports only the default "
+          "input device on macOS.",
+          error_utf8, error_utf8_capacity);
+      return -13;
+    }
+#endif
+
+    AVAudioFormat* target_format =
+        [[AVAudioFormat alloc] initWithCommonFormat:AVAudioPCMFormatInt16
+                                          sampleRate:static_cast<double>(sample_rate_hz)
+                                            channels:channel_count
+                                         interleaved:YES];
+    if (target_format == nil) {
+      WriteError("Failed to create target PCM16 format.", error_utf8, error_utf8_capacity);
+      return -12;
+    }
+
+    FILE* wav_file = nullptr;
+    if (mode == RecorderMode::kFile) {
+      if (output_path == nil || output_path.length == 0) {
+        WriteError("Output path is missing.", error_utf8, error_utf8_capacity);
+        return -20;
+      }
+
+      NSFileManager* file_manager = [NSFileManager defaultManager];
+      if ([file_manager fileExistsAtPath:output_path]) {
+        NSError* remove_error = nil;
+        if (![file_manager removeItemAtPath:output_path error:&remove_error]) {
+          WriteNSError(remove_error, "Failed to remove existing output file", error_utf8,
+                       error_utf8_capacity);
+          return -21;
+        }
+      }
+
+      const char* output_path_cstr = [output_path fileSystemRepresentation];
+      if (output_path_cstr == nullptr || output_path_cstr[0] == '\0') {
+        WriteError("Output path cannot be represented as a file-system path.", error_utf8,
+                   error_utf8_capacity);
+        return -22;
+      }
+
+      wav_file = std::fopen(output_path_cstr, "wb");
+      if (wav_file == nullptr) {
+        WriteError("Failed to create output WAV file.", error_utf8, error_utf8_capacity);
+        return -22;
+      }
+      if (!WriteInitialWavHeader(wav_file, sample_rate_hz, channel_count)) {
+        std::fclose(wav_file);
+        WriteError("Failed to write WAV header.", error_utf8, error_utf8_capacity);
+        return -22;
+      }
+    }
+
+    AVAudioEngine* audio_engine = [[AVAudioEngine alloc] init];
+    if (audio_engine == nil) {
+      if (wav_file != nullptr) {
+        std::fclose(wav_file);
+      }
+      WriteError("Failed to initialize AVAudioEngine.", error_utf8, error_utf8_capacity);
+      return -17;
+    }
+
+    AVAudioInputNode* input_node = audio_engine.inputNode;
+    if (input_node == nil) {
+      if (wav_file != nullptr) {
+        std::fclose(wav_file);
+      }
+      WriteError("Audio input node is unavailable.", error_utf8, error_utf8_capacity);
+      return -18;
+    }
+
+    NSError* voice_processing_error = nil;
+    if (@available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)) {
+      if (![input_node setVoiceProcessingEnabled:YES error:&voice_processing_error]) {
+        if (wav_file != nullptr) {
+          std::fclose(wav_file);
+        }
+        WriteNSError(voice_processing_error, "Failed to enable AVAudioEngine voice processing",
+                     error_utf8, error_utf8_capacity);
+        return -19;
+      }
+      input_node.voiceProcessingAGCEnabled =
+          (processing_flags & kProcessingFlagAutomaticGainControl) != 0;
+    } else {
+      if (wav_file != nullptr) {
+        std::fclose(wav_file);
+      }
+      WriteError("AVAudioEngine voice processing requires iOS 13.0/macOS 10.15 or newer.",
+                 error_utf8, error_utf8_capacity);
+      return -19;
+    }
+
+    const AVAudioFrameCount tap_buffer_frames =
+        static_cast<AVAudioFrameCount>(std::max<uint32_t>(frames_per_chunk, 64));
+    [input_node removeTapOnBus:0];
+    AppleAudioRecorderState* const callback_state = this;
+    [input_node installTapOnBus:0
+                     bufferSize:tap_buffer_frames
+                         format:nil
+                          block:^(AVAudioPCMBuffer* buffer, AVAudioTime* when) {
+                            (void)when;
+                            if (callback_state == nullptr || buffer == nil) {
+                              return;
+                            }
+                            callback_state->OnAudioEnginePcmBuffer(buffer);
+                          }];
+
+    [audio_engine prepare];
+    NSError* start_error = nil;
+    if (![audio_engine startAndReturnError:&start_error]) {
+      [input_node removeTapOnBus:0];
+      if (wav_file != nullptr) {
+        std::fclose(wav_file);
+      }
+#if TARGET_OS_IPHONE
+      [audio_session setActive:NO error:nil];
+#endif
+      WriteNSError(start_error, "Failed to start AVAudioEngine", error_utf8, error_utf8_capacity);
+      return -23;
+    }
+
+    stream_samples_.clear();
+    stream_sample_limit_ =
+        std::max<std::size_t>(sample_rate_hz * channel_count * 5,
+                              static_cast<std::size_t>(frames_per_chunk) * channel_count * 16);
+    target_channel_count_ = channel_count;
+    target_format_ = target_format;
+    wav_file_ = wav_file;
+    wav_data_bytes_written_ = 0;
+    wav_sample_rate_hz_ = mode == RecorderMode::kFile ? sample_rate_hz : 0;
+    wav_channel_count_ = mode == RecorderMode::kFile ? channel_count : 0;
+
+    capture_session_ = nil;
+    capture_input_ = nil;
+    capture_output_ = nil;
+    capture_delegate_ = nil;
+    capture_queue_ = nil;
+    capture_file_output_ = nil;
+    capture_file_delegate_ = nil;
+    audio_engine_ = audio_engine;
+    audio_engine_input_node_ = input_node;
+    recorder_backend_ = RecorderBackend::kVoiceProcessingEngine;
+    current_amplitude_dbfs_ = -90.0;
+    max_amplitude_dbfs_ = -90.0;
+    mode_ = mode;
     return 0;
   }
 
@@ -1069,6 +1326,26 @@ class AppleAudioRecorderState {
                         double apple_preferred_io_buffer_duration_seconds,
                         double apple_preferred_input_gain, char* error_utf8,
                         uint32_t error_utf8_capacity) {
+    const bool wants_voice_processing = ShouldUseVoiceProcessingBackend(processing_flags);
+    if (wants_voice_processing) {
+#if TARGET_OS_IPHONE
+      return StartInternalWithVoiceProcessing(
+          sample_rate_hz, channel_count, frames_per_chunk, mode, output_path, input_device_id_utf8,
+          processing_flags, apple_session_mode_code, apple_category_options_flags,
+          preferred_latency_seconds, apple_preferred_io_buffer_duration_seconds,
+          apple_preferred_input_gain, error_utf8, error_utf8_capacity);
+#else
+      if (TrimAscii(input_device_id_utf8).empty()) {
+        return StartInternalWithVoiceProcessing(
+            sample_rate_hz, channel_count, frames_per_chunk, mode, output_path,
+            input_device_id_utf8, processing_flags, apple_session_mode_code,
+            apple_category_options_flags, preferred_latency_seconds,
+            apple_preferred_io_buffer_duration_seconds, apple_preferred_input_gain, error_utf8,
+            error_utf8_capacity);
+      }
+#endif
+    }
+
     int32_t has_permission = 0;
     if (!EnsureAudioInputPermission(&has_permission, false, error_utf8, error_utf8_capacity)) {
       return -4;
@@ -1320,6 +1597,9 @@ class AppleAudioRecorderState {
     capture_queue_ = capture_queue;
     capture_file_output_ = nil;
     capture_file_delegate_ = nil;
+    audio_engine_ = nil;
+    audio_engine_input_node_ = nil;
+    recorder_backend_ = RecorderBackend::kCaptureSession;
     current_amplitude_dbfs_ = -90.0;
     max_amplitude_dbfs_ = -90.0;
 
@@ -1354,6 +1634,47 @@ class AppleAudioRecorderState {
     AVAudioPCMBuffer* input_buffer = CopySampleBufferToAudioPcmBuffer(sample_buffer);
     if (input_buffer == nil) {
       return;
+    }
+
+    AVAudioPCMBuffer* pcm16_buffer = ConvertToTargetPcm16(input_buffer, target_format);
+    if (pcm16_buffer == nil) {
+      return;
+    }
+
+    const auto frame_length = pcm16_buffer.frameLength;
+    const auto sample_channels = static_cast<uint32_t>(pcm16_buffer.format.channelCount);
+    if (frame_length == 0 || sample_channels == 0 || sample_channels != target_channel_count) {
+      return;
+    }
+
+    int16_t* interleaved = pcm16_buffer.int16ChannelData[0];
+    if (interleaved == nullptr) {
+      return;
+    }
+    const auto sample_count = static_cast<std::size_t>(frame_length) * sample_channels;
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (mode_ == RecorderMode::kStopped) {
+      return;
+    }
+
+    AppendPcm16SamplesLocked(interleaved, sample_count);
+  }
+
+  void OnAudioEnginePcmBuffer(AVAudioPCMBuffer* input_buffer) {
+    if (input_buffer == nil) {
+      return;
+    }
+
+    AVAudioFormat* target_format = nil;
+    uint32_t target_channel_count = 0;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (mode_ == RecorderMode::kStopped || target_format_ == nil || target_channel_count_ == 0) {
+        return;
+      }
+      target_format = target_format_;
+      target_channel_count = target_channel_count_;
     }
 
     AVAudioPCMBuffer* pcm16_buffer = ConvertToTargetPcm16(input_buffer, target_format);
@@ -1509,6 +1830,7 @@ class AppleAudioRecorderState {
   uint32_t wav_channel_count_ = 0;
   double current_amplitude_dbfs_ = -90.0;
   double max_amplitude_dbfs_ = -90.0;
+  RecorderBackend recorder_backend_ = RecorderBackend::kNone;
 
   AVCaptureSession* capture_session_ = nil;
   AVCaptureDeviceInput* capture_input_ = nil;
@@ -1517,6 +1839,8 @@ class AppleAudioRecorderState {
   dispatch_queue_t capture_queue_ = nil;
   AVCaptureAudioFileOutput* capture_file_output_ = nil;
   SpeechUtilsCaptureFileOutputDelegate* capture_file_delegate_ = nil;
+  AVAudioEngine* audio_engine_ = nil;
+  AVAudioInputNode* audio_engine_input_node_ = nil;
 };
 
 AppleAudioRecorderState g_recorder;

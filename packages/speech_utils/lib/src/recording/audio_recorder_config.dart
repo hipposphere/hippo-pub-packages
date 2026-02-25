@@ -67,6 +67,17 @@ enum AudioCapturePreset { voice, voiceIsolation, raw, music }
 ///
 /// These values are best-effort hints. Native platforms may apply only a
 /// subset depending on OS capabilities and active audio route.
+///
+/// [preset] defines default behavior for optional processing switches.
+/// Explicit `enable*` values override preset defaults.
+///
+/// Preset defaults:
+/// - [AudioCapturePreset.voice]: noise suppression, echo cancellation,
+///   automatic gain control, and high-pass filter enabled.
+/// - [AudioCapturePreset.voiceIsolation]: same defaults as voice plus a
+///   stronger voice-isolation request where available.
+/// - [AudioCapturePreset.raw]: all optional processing disabled.
+/// - [AudioCapturePreset.music]: all optional processing disabled.
 final class AudioProcessingConfig {
   const AudioProcessingConfig({
     this.preset = AudioCapturePreset.voice,
@@ -94,6 +105,22 @@ final class AudioProcessingConfig {
   /// Preferred end-to-end capture latency.
   final Duration? preferredLatency;
 
+  bool get effectiveNoiseSuppression {
+    return enableNoiseSuppression ?? _presetNoiseSuppressionDefault(preset);
+  }
+
+  bool get effectiveEchoCancellation {
+    return enableEchoCancellation ?? _presetEchoCancellationDefault(preset);
+  }
+
+  bool get effectiveAutomaticGainControl {
+    return enableAutomaticGainControl ?? _presetAutomaticGainControlDefault(preset);
+  }
+
+  bool get effectiveHighPassFilter {
+    return enableHighPassFilter ?? _presetHighPassFilterDefault(preset);
+  }
+
   void validate() {
     if (preferredLatency != null && preferredLatency! <= Duration.zero) {
       throw ArgumentError.value(
@@ -103,6 +130,34 @@ final class AudioProcessingConfig {
       );
     }
   }
+}
+
+bool _presetNoiseSuppressionDefault(AudioCapturePreset preset) {
+  return switch (preset) {
+    AudioCapturePreset.voice || AudioCapturePreset.voiceIsolation => true,
+    AudioCapturePreset.raw || AudioCapturePreset.music => false,
+  };
+}
+
+bool _presetEchoCancellationDefault(AudioCapturePreset preset) {
+  return switch (preset) {
+    AudioCapturePreset.voice || AudioCapturePreset.voiceIsolation => true,
+    AudioCapturePreset.raw || AudioCapturePreset.music => false,
+  };
+}
+
+bool _presetAutomaticGainControlDefault(AudioCapturePreset preset) {
+  return switch (preset) {
+    AudioCapturePreset.voice || AudioCapturePreset.voiceIsolation => true,
+    AudioCapturePreset.raw || AudioCapturePreset.music => false,
+  };
+}
+
+bool _presetHighPassFilterDefault(AudioCapturePreset preset) {
+  return switch (preset) {
+    AudioCapturePreset.voice || AudioCapturePreset.voiceIsolation => true,
+    AudioCapturePreset.raw || AudioCapturePreset.music => false,
+  };
 }
 
 enum AppleAudioSessionMode { defaultMode, voiceChat, videoChat, measurement, gameChat, spokenAudio }

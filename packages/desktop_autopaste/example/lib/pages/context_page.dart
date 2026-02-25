@@ -44,8 +44,8 @@ class _ContextPageState extends State<ContextPage> {
   final _jsonEncoder = const JsonEncoder.withIndent('  ');
   final _hotkeyController = HotkeyStatusController(
     initialHotkey: Hotkey.single(switch (defaultTargetPlatform) {
-      .macOS => PhysicalKeyboardKey.metaRight,
-      .windows => PhysicalKeyboardKey.controlRight,
+      TargetPlatform.windows => PhysicalKeyboardKey.controlLeft,
+      TargetPlatform.macOS => PhysicalKeyboardKey.metaLeft,
       _ => PhysicalKeyboardKey.f8,
     }),
   );
@@ -56,6 +56,12 @@ class _ContextPageState extends State<ContextPage> {
   bool _swapOnHotkey = false;
   SemanticsHandle? _semanticsHandle;
   String? _lastError;
+
+  String get _defaultHotkeyLabel => switch (defaultTargetPlatform) {
+    TargetPlatform.windows => 'Left Ctrl',
+    TargetPlatform.macOS => 'Left Cmd',
+    _ => 'F8',
+  };
 
   @override
   void initState() {
@@ -246,8 +252,8 @@ class _ContextPageState extends State<ContextPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Press F8 in any app/text field to capture focused text context.',
+                    Text(
+                      'Press $_defaultHotkeyLabel in any app/text field to capture focused text context.',
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -350,9 +356,9 @@ class _ContextPageState extends State<ContextPage> {
           ),
           Expanded(
             child: _logEntries.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'No captures yet. Focus a text field and press F8.',
+                      'No captures yet. Focus a text field and press $_defaultHotkeyLabel.',
                     ),
                   )
                 : ListView.separated(

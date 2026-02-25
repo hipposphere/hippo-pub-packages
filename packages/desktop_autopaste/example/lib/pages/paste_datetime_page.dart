@@ -7,83 +7,86 @@ import 'package:flutter/services.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'package:hotkey_api/hotkey_api.dart';
 
-class PasteDateTimePage extends StatefulWidget {
-  const PasteDateTimePage({super.key});
-
-  @override
-  State<PasteDateTimePage> createState() => _PasteDateTimePageState();
+Future<void> openPasteDateTimePage(BuildContext context) async {
+  final bloc = _Bloc();
+  await Routing.openPage(
+    context,
+    BlocProvider<_Bloc>(bloc: bloc, child: const PasteDateTimePage()),
+  );
+  bloc.dispose();
 }
 
-class _PasteDateTimePageState extends State<PasteDateTimePage> {
+class _Bloc extends BlocBase {
   final _autopaste = DesktopAutopaste();
-  final _hotkeyController = HotkeyStatusController(
+  final hotkeyController = HotkeyStatusController(
     initialHotkey: Hotkey.single(switch (defaultTargetPlatform) {
-      .macOS => PhysicalKeyboardKey.metaRight,
-      .windows => PhysicalKeyboardKey.controlRight,
+      TargetPlatform.windows => PhysicalKeyboardKey.controlLeft,
+      TargetPlatform.macOS => PhysicalKeyboardKey.metaLeft,
       _ => PhysicalKeyboardKey.f8,
     }),
   );
 
+  final isPasting = DataSubject<bool>.seeded(false);
+  final lastPastedText = DataSubject<String?>.seeded(null);
+  final lastError = DataSubject<String?>.seeded(null);
   StreamSubscription<HotkeyStatusType>? _hotkeySubscription;
-  bool _isPasting = false;
-  String? _lastPastedText;
-  String? _lastError;
+  bool _isDisposed = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _hotkeySubscription = _hotkeyController.streamHotkeyStatusType().listen((
+  _Bloc() {
+    _hotkeySubscription = hotkeyController.streamHotkeyStatusType().listen((
       status,
     ) {
       if (status == HotkeyStatusType.pressed) {
-        // ignore: avoid_print
-        print('Hotkey pressed, attempting to paste current DateTime...');
-        _pasteNow();
+        debugPrint('Hotkey pressed, attempting to paste current DateTime...');
+        pasteNow();
       }
     });
   }
 
-  @override
-  void dispose() {
-    _hotkeySubscription?.cancel();
-    _hotkeyController.close();
-    super.dispose();
+  static _Bloc of(BuildContext context) {
+    return BlocProvider.of<_Bloc>(context);
   }
 
-  Future<void> _pasteNow() async {
-    if (_isPasting) return;
-    setState(() {
-      _isPasting = true;
-      _lastError = null;
-    });
+  Future<void> pasteNow() async {
+    if (isPasting.value || _isDisposed) return;
+    isPasting.add(true);
+    lastError.add(null);
 
     try {
       final text = DateTime.now().toIso8601String();
       final ok = await _autopaste.pasteIntoCursorViaClipboard(text);
-      if (!mounted) return;
-      setState(() {
-        if (ok) {
-          _lastPastedText = text;
-        } else {
-          _lastError = 'Paste failed.';
-        }
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _lastError = error.toString();
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isPasting = false;
-        });
+      if (_isDisposed) return;
+      if (ok) {
+        lastPastedText.add(text);
+      } else {
+        lastError.add('Paste failed.');
       }
+    } catch (error) {
+      if (_isDisposed) return;
+      lastError.add(error.toString());
+    } finally {
+      if (_isDisposed) return;
+      isPasting.add(false);
     }
   }
 
   @override
+  void dispose() {
+    _isDisposed = true;
+    _hotkeySubscription?.cancel();
+    hotkeyController.close();
+    isPasting.close();
+    lastPastedText.close();
+    lastError.close();
+  }
+}
+
+class PasteDateTimePage extends StatelessWidget {
+  const PasteDateTimePage({super.key});
+
+  @override
   Widget build(BuildContext context) {
+    final bloc = _Bloc.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Paste Current DateTime')),
       body: Padding(
@@ -98,9 +101,12 @@ class _PasteDateTimePageState extends State<PasteDateTimePage> {
                   'Focus any text field in any app, then press your selected hotkey to paste the current date/time via clipboard.',
                 ),
                 const SizedBox(height: 12),
-                DataSubjectBuilder(
-                  subject: _hotkeyController.hotkeySubject,
+                DataSubjectBuilder<Hotkey?>(
+                  subject: bloc.hotkeyController.hotkeySubject,
                   builder: (context, selectedHotkey) {
+                    if (selectedHotkey == null) {
+                      return const Text('No hotkey selected');
+                    }
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -112,7 +118,7 @@ class _PasteDateTimePageState extends State<PasteDateTimePage> {
                                   initialHotkey: selectedHotkey,
                                 ).open(context);
                                 if (hotkey != null) {
-                                  _hotkeyController.setHotkey(hotkey);
+                                  bloc.hotkeyController.setHotkey(hotkey);
                                 }
                               },
                               icon: const Icon(Icons.keyboard_outlined),
@@ -120,30 +126,31 @@ class _PasteDateTimePageState extends State<PasteDateTimePage> {
                             ),
                             const SizedBox(width: 8),
                             OutlinedButton.icon(
-                              onPressed: selectedHotkey == null
-                                  ? null
-                                  : () {
-                                      _hotkeyController.hotkeySubject.add(null);
-                                    },
+                              onPressed: () {
+                                bloc.hotkeyController.hotkeySubject.add(null);
+                              },
                               icon: const Icon(Icons.clear_outlined),
                               label: const Text('Clear hotkey'),
                             ),
                           ],
                         ),
                         const SizedBox(height: 8),
-                        if (selectedHotkey != null)
-                          HotkeyChip(hotkey: selectedHotkey)
-                        else
-                          const Text('No hotkey selected'),
+                        HotkeyChip(hotkey: selectedHotkey),
                         const SizedBox(height: 12),
                       ],
                     );
                   },
+                  emptyBuilder: (context) => const Text('No hotkey selected'),
                 ),
-                FilledButton.icon(
-                  onPressed: _isPasting ? null : _pasteNow,
-                  icon: const Icon(Icons.paste_outlined),
-                  label: const Text('Paste current DateTime'),
+                DataSubjectBuilder<bool>(
+                  subject: bloc.isPasting,
+                  builder: (context, isPasting) {
+                    return FilledButton.icon(
+                      onPressed: isPasting ? null : bloc.pasteNow,
+                      icon: const Icon(Icons.paste_outlined),
+                      label: const Text('Paste current DateTime'),
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 const TextField(
@@ -153,19 +160,38 @@ class _PasteDateTimePageState extends State<PasteDateTimePage> {
                     labelText: 'Local test field',
                   ),
                 ),
-                if (_lastPastedText != null) ...[
-                  const SizedBox(height: 12),
-                  Text('Last pasted: $_lastPastedText'),
-                ],
-                if (_lastError != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _lastError!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ],
+                DataSubjectBuilder<String?>(
+                  subject: bloc.lastPastedText,
+                  emptyBuilder: (_) => const SizedBox.shrink(),
+                  builder: (context, text) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 12),
+                        Text('Last pasted: $text'),
+                      ],
+                    );
+                  },
+                ),
+                DataSubjectBuilder<String?>(
+                  subject: bloc.lastError,
+                  builder: (context, error) {
+                    if (error == null) return const SizedBox.shrink();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 12),
+                        Text(
+                          error,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                  emptyBuilder: (_) => const SizedBox.shrink(),
+                ),
               ],
             ),
           ),

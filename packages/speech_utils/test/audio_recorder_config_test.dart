@@ -60,5 +60,68 @@ void main() {
 
       expect(() => config.validate(), throwsArgumentError);
     });
+
+    test('voice preset defaults to voice-oriented processing flags', () {
+      const processing = AudioProcessingConfig(preset: AudioCapturePreset.voice);
+
+      expect(processing.effectiveNoiseSuppression, isTrue);
+      expect(processing.effectiveEchoCancellation, isTrue);
+      expect(processing.effectiveAutomaticGainControl, isTrue);
+      expect(processing.effectiveHighPassFilter, isTrue);
+    });
+
+    test('voice-isolation preset keeps voice defaults enabled', () {
+      const processing = AudioProcessingConfig(preset: AudioCapturePreset.voiceIsolation);
+
+      expect(processing.effectiveNoiseSuppression, isTrue);
+      expect(processing.effectiveEchoCancellation, isTrue);
+      expect(processing.effectiveAutomaticGainControl, isTrue);
+      expect(processing.effectiveHighPassFilter, isTrue);
+    });
+
+    test('raw and music presets default to no optional processing', () {
+      const raw = AudioProcessingConfig(preset: AudioCapturePreset.raw);
+      const music = AudioProcessingConfig(preset: AudioCapturePreset.music);
+
+      expect(raw.effectiveNoiseSuppression, isFalse);
+      expect(raw.effectiveEchoCancellation, isFalse);
+      expect(raw.effectiveAutomaticGainControl, isFalse);
+      expect(raw.effectiveHighPassFilter, isFalse);
+
+      expect(music.effectiveNoiseSuppression, isFalse);
+      expect(music.effectiveEchoCancellation, isFalse);
+      expect(music.effectiveAutomaticGainControl, isFalse);
+      expect(music.effectiveHighPassFilter, isFalse);
+    });
+
+    test('explicit processing flags override preset defaults', () {
+      const processing = AudioProcessingConfig(
+        preset: AudioCapturePreset.voice,
+        enableNoiseSuppression: false,
+        enableEchoCancellation: false,
+        enableAutomaticGainControl: false,
+        enableHighPassFilter: false,
+      );
+
+      expect(processing.effectiveNoiseSuppression, isFalse);
+      expect(processing.effectiveEchoCancellation, isFalse);
+      expect(processing.effectiveAutomaticGainControl, isFalse);
+      expect(processing.effectiveHighPassFilter, isFalse);
+    });
+
+    test('explicit true flags can opt in on raw preset', () {
+      const processing = AudioProcessingConfig(
+        preset: AudioCapturePreset.raw,
+        enableNoiseSuppression: true,
+        enableEchoCancellation: true,
+        enableAutomaticGainControl: true,
+        enableHighPassFilter: true,
+      );
+
+      expect(processing.effectiveNoiseSuppression, isTrue);
+      expect(processing.effectiveEchoCancellation, isTrue);
+      expect(processing.effectiveAutomaticGainControl, isTrue);
+      expect(processing.effectiveHighPassFilter, isTrue);
+    });
   });
 }

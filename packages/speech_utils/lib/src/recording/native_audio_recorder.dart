@@ -897,7 +897,18 @@ final class NativeAudioRecorder {
       );
     }
 
+    if (_wantsVoiceProcessing(config.processing)) {
+      return false;
+    }
+
     return true;
+  }
+
+  bool _wantsVoiceProcessing(AudioProcessingConfig processing) {
+    return processing.effectiveNoiseSuppression ||
+        processing.effectiveEchoCancellation ||
+        processing.effectiveAutomaticGainControl ||
+        processing.preset == AudioCapturePreset.voiceIsolation;
   }
 
   void _validateVadCaptureConfig({
@@ -1843,29 +1854,19 @@ _NativeRecorderRuntimeConfig _buildNativeRecorderRuntimeConfig({
   required NativeAudioRecorderPlatform platform,
 }) {
   final processing = config.processing;
-  var processingFlags = 0;
+  final presetFlags = _processingPresetFlags(processing.preset);
+  var processingFlags = presetFlags;
 
-  switch (processing.preset) {
-    case AudioCapturePreset.voice:
-      processingFlags |= _processingFlagPresetVoice;
-    case AudioCapturePreset.voiceIsolation:
-      processingFlags |= _processingFlagPresetVoiceIsolation;
-    case AudioCapturePreset.raw:
-      processingFlags |= _processingFlagPresetRaw;
-    case AudioCapturePreset.music:
-      processingFlags |= _processingFlagPresetMusic;
-  }
-
-  if (processing.enableNoiseSuppression == true) {
+  if (processing.effectiveNoiseSuppression) {
     processingFlags |= _processingFlagNoiseSuppression;
   }
-  if (processing.enableEchoCancellation == true) {
+  if (processing.effectiveEchoCancellation) {
     processingFlags |= _processingFlagEchoCancellation;
   }
-  if (processing.enableAutomaticGainControl == true) {
+  if (processing.effectiveAutomaticGainControl) {
     processingFlags |= _processingFlagAutomaticGainControl;
   }
-  if (processing.enableHighPassFilter == true) {
+  if (processing.effectiveHighPassFilter) {
     processingFlags |= _processingFlagHighPassFilter;
   }
 
@@ -1923,6 +1924,15 @@ _NativeRecorderRuntimeConfig _buildNativeRecorderRuntimeConfig({
     windowsCaptureCategoryCode: _encodeWindowsCaptureCategory(windows?.captureCategory),
     windowsUseCommunicationsDevice: windows?.useCommunicationsDevice == true ? 1 : 0,
   );
+}
+
+int _processingPresetFlags(AudioCapturePreset preset) {
+  return switch (preset) {
+    AudioCapturePreset.voice => _processingFlagPresetVoice,
+    AudioCapturePreset.voiceIsolation => _processingFlagPresetVoiceIsolation,
+    AudioCapturePreset.raw => _processingFlagPresetRaw,
+    AudioCapturePreset.music => _processingFlagPresetMusic,
+  };
 }
 
 int _encodeAppleSessionMode(AppleAudioSessionMode? mode) {

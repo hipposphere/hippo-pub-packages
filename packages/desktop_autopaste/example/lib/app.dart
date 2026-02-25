@@ -40,7 +40,7 @@ class _ExampleHomePage extends StatelessWidget {
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: () async {
-                await Routing.openPage(context, const PasteDateTimePage());
+                await openPasteDateTimePage(context);
               },
               icon: const Icon(Icons.paste_outlined),
               label: const Text('Open Paste DateTime Example'),

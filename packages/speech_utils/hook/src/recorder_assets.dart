@@ -102,7 +102,7 @@ Future<void> buildMacosAudioRecorderAsset(BuildInput input, BuildOutputBuilder o
     std: 'c++17',
     flags: appleObjectiveCArcFlags,
     defines: const {'SPEECH_UTILS_AUDIO_RECORDER_TARGET_MACOS': '1'},
-    frameworks: appleCommonFrameworks,
+    frameworks: [...appleCommonFrameworks, 'CoreAudio'],
     libraries: appleCommonLibraries,
   ).run(input: input, output: output);
 }

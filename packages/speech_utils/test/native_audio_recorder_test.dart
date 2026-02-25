@@ -418,6 +418,64 @@ void main() {
       expect(fakeAacEncoder.encodeAudioFileToAacCalls, 0);
     });
 
+    test('startFileRecording finalizes AAC on iOS via temp WAV output', () async {
+      final fakeAacEncoder = _FakeAacEncoder();
+      late String nativeOutputPath;
+      var stopCalls = 0;
+
+      final recorder = NativeAudioRecorder(
+        platform: NativeAudioRecorderPlatform.iOS,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {
+              nativeOutputPath = outputPath;
+            },
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        stopFn: () {
+          stopCalls++;
+          File(nativeOutputPath).writeAsBytesSync(const <int>[1, 2, 3, 4], flush: true);
+        },
+        isRecordingFn: () => true,
+      );
+
+      await recorder.startFileRecording(
+        outputPath: '/tmp/recording_ios.m4a',
+        config: AudioRecorderConfig(
+          sampleRateHz: 16000,
+          channelCount: 1,
+          encoding: AudioEncodingConfig(
+            encoder: AudioEncoder.aacLc,
+            bitrateBps: 64000,
+            audioEncoder: fakeAacEncoder,
+          ),
+        ),
+      );
+
+      expect(nativeOutputPath, isNot('/tmp/recording_ios.m4a'));
+      expect(nativeOutputPath.endsWith('/capture.wav'), isTrue);
+
+      await recorder.stop();
+      expect(stopCalls, 1);
+      expect(fakeAacEncoder.encodeAudioFileToAacCalls, 1);
+      expect(fakeAacEncoder.lastEncodeAudioInputPath, nativeOutputPath);
+      expect(fakeAacEncoder.lastEncodeAudioOutputPath, '/tmp/recording_ios.m4a');
+    });
+
     test('startFileRecording rejects non-m4a output for direct macOS AAC recording', () {
       final recorder = NativeAudioRecorder(
         platform: NativeAudioRecorderPlatform.macOS,
@@ -975,6 +1033,7 @@ class _FakeAacEncoder implements AacEncoder {
   final Set<int> failOnEncodeCalls;
   int encodePcm16BytesToAacCalls = 0;
   int encodeAudioFileToAacCalls = 0;
+  String? lastEncodeAudioInputPath;
   String? lastEncodeAudioOutputPath;
 
   @override
@@ -1012,6 +1071,7 @@ class _FakeAacEncoder implements AacEncoder {
     int bitrateKbps = 48,
   }) async {
     encodeAudioFileToAacCalls++;
+    lastEncodeAudioInputPath = inputPath;
     lastEncodeAudioOutputPath = outputPath;
     final file = File(outputPath);
     await file.parent.create(recursive: true);

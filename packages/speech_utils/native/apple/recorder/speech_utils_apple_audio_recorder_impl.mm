@@ -1,4 +1,6 @@
 #import <AVFoundation/AVFoundation.h>
+#import <AudioToolbox/AudioToolbox.h>
+#import <CoreAudio/CoreAudio.h>
 #import <TargetConditionals.h>
 #import <dispatch/dispatch.h>
 
@@ -18,6 +20,13 @@
 #include "speech_utils_apple_audio_recorder_api.h"
 
 typedef void (*SpeechUtilsSampleBufferCallback)(void* context, CMSampleBufferRef sample_buffer);
+
+#if TARGET_OS_IPHONE
+typedef AVCaptureFileOutput SpeechUtilsCaptureFileOutput;
+#else
+typedef AVCaptureAudioFileOutput SpeechUtilsCaptureFileOutput;
+#endif
+@class SpeechUtilsCaptureFileOutputDelegate;
 
 @interface SpeechUtilsCaptureOutputDelegate : NSObject <AVCaptureAudioDataOutputSampleBufferDelegate>
 - (instancetype)initWithContext:(void*)context callback:(SpeechUtilsSampleBufferCallback)callback;
@@ -49,6 +58,7 @@ typedef void (*SpeechUtilsSampleBufferCallback)(void* context, CMSampleBufferRef
 
 @end
 
+#if !TARGET_OS_IPHONE
 @interface SpeechUtilsCaptureFileOutputDelegate : NSObject <AVCaptureFileOutputRecordingDelegate>
 - (instancetype)init;
 @property(nonatomic, strong, nullable) NSError* recordingError;
@@ -83,6 +93,7 @@ typedef void (*SpeechUtilsSampleBufferCallback)(void* context, CMSampleBufferRef
 }
 
 @end
+#endif
 
 namespace speech_utils::apple_recorder {
 
@@ -269,6 +280,125 @@ bool ShouldUseVoiceProcessingBackend(int32_t processing_flags) {
       kProcessingFlagAutomaticGainControl | kProcessingFlagPresetVoiceIsolation;
   return (processing_flags & voice_processing_mask) != 0;
 }
+
+#if !TARGET_OS_IPHONE
+std::string DescribeOsStatus(const char* prefix, OSStatus status) {
+  return std::string(prefix) + " (OSStatus=" + std::to_string(static_cast<int32_t>(status)) + ").";
+}
+
+bool ResolveMacosInputDeviceIdByUid(NSString* uid, AudioDeviceID* out_device_id, char* error_utf8,
+                                    uint32_t error_utf8_capacity) {
+  if (uid == nil || uid.length == 0 || out_device_id == nullptr) {
+    WriteError("Invalid macOS input-device selection request.", error_utf8, error_utf8_capacity);
+    return false;
+  }
+
+  AudioObjectPropertyAddress devices_address{
+      kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+  UInt32 device_ids_size = 0;
+  OSStatus status = AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &devices_address, 0,
+                                                   nullptr, &device_ids_size);
+  if (status != noErr) {
+    WriteError(DescribeOsStatus("Failed to enumerate CoreAudio devices", status), error_utf8,
+               error_utf8_capacity);
+    return false;
+  }
+  if (device_ids_size == 0) {
+    WriteError("No CoreAudio devices are currently available.", error_utf8, error_utf8_capacity);
+    return false;
+  }
+
+  const auto device_count =
+      static_cast<std::size_t>(device_ids_size / static_cast<UInt32>(sizeof(AudioDeviceID)));
+  std::vector<AudioDeviceID> device_ids(device_count, kAudioObjectUnknown);
+  status = AudioObjectGetPropertyData(kAudioObjectSystemObject, &devices_address, 0, nullptr,
+                                      &device_ids_size, device_ids.data());
+  if (status != noErr) {
+    WriteError(DescribeOsStatus("Failed to read CoreAudio devices", status), error_utf8,
+               error_utf8_capacity);
+    return false;
+  }
+
+  AudioObjectPropertyAddress uid_address{
+      kAudioDevicePropertyDeviceUID, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+  AudioObjectPropertyAddress input_streams_address{
+      kAudioDevicePropertyStreams, kAudioDevicePropertyScopeInput, kAudioObjectPropertyElementMain};
+
+  for (AudioDeviceID candidate_device_id : device_ids) {
+    CFStringRef candidate_uid_ref = nullptr;
+    UInt32 uid_size = static_cast<UInt32>(sizeof(candidate_uid_ref));
+    status = AudioObjectGetPropertyData(candidate_device_id, &uid_address, 0, nullptr, &uid_size,
+                                        &candidate_uid_ref);
+    if (status != noErr || candidate_uid_ref == nullptr) {
+      if (candidate_uid_ref != nullptr) {
+        CFRelease(candidate_uid_ref);
+      }
+      continue;
+    }
+
+    NSString* candidate_uid = (__bridge NSString*)candidate_uid_ref;
+    const bool is_match = [candidate_uid isEqualToString:uid];
+    CFRelease(candidate_uid_ref);
+    if (!is_match) {
+      continue;
+    }
+
+    UInt32 input_streams_size = 0;
+    status = AudioObjectGetPropertyDataSize(candidate_device_id, &input_streams_address, 0, nullptr,
+                                            &input_streams_size);
+    if (status != noErr) {
+      WriteError(
+          DescribeOsStatus("Failed to query selected macOS input-device stream information", status),
+          error_utf8, error_utf8_capacity);
+      return false;
+    }
+    if (input_streams_size == 0) {
+      WriteError("Selected macOS audio device does not expose an input stream.", error_utf8,
+                 error_utf8_capacity);
+      return false;
+    }
+
+    *out_device_id = candidate_device_id;
+    return true;
+  }
+
+  WriteError("Selected macOS input device is not available.", error_utf8, error_utf8_capacity);
+  return false;
+}
+
+bool SetVoiceProcessingInputDeviceOnMacos(AVAudioInputNode* input_node, NSString* uid,
+                                          char* error_utf8, uint32_t error_utf8_capacity) {
+  if (uid == nil || uid.length == 0) {
+    return true;
+  }
+  if (input_node == nil) {
+    WriteError("AVAudioEngine input node is unavailable for input-device selection.", error_utf8,
+               error_utf8_capacity);
+    return false;
+  }
+
+  AudioDeviceID selected_device_id = kAudioObjectUnknown;
+  if (!ResolveMacosInputDeviceIdByUid(uid, &selected_device_id, error_utf8, error_utf8_capacity)) {
+    return false;
+  }
+
+  AudioUnit input_audio_unit = input_node.audioUnit;
+  if (input_audio_unit == nullptr) {
+    WriteError("AVAudioEngine input AudioUnit is unavailable.", error_utf8, error_utf8_capacity);
+    return false;
+  }
+
+  const OSStatus status = AudioUnitSetProperty(input_audio_unit, kAudioOutputUnitProperty_CurrentDevice,
+                                               kAudioUnitScope_Global, 0, &selected_device_id,
+                                               static_cast<UInt32>(sizeof(selected_device_id)));
+  if (status != noErr) {
+    WriteError(DescribeOsStatus("Failed to set AVAudioEngine input device", status), error_utf8,
+               error_utf8_capacity);
+    return false;
+  }
+  return true;
+}
+#endif
 
 bool ConfigureIosAudioSession(uint32_t sample_rate_hz, int32_t processing_flags,
                               int32_t apple_session_mode_code,
@@ -709,7 +839,7 @@ class AppleAudioRecorderState {
     AVCaptureSession* capture_session = nil;
     AVCaptureDeviceInput* capture_input = nil;
     AVCaptureAudioDataOutput* capture_output = nil;
-    AVCaptureAudioFileOutput* capture_file_output = nil;
+    SpeechUtilsCaptureFileOutput* capture_file_output = nil;
     SpeechUtilsCaptureFileOutputDelegate* capture_file_delegate = nil;
     AVAudioEngine* audio_engine = nil;
     AVAudioInputNode* audio_engine_input_node = nil;
@@ -781,6 +911,7 @@ class AppleAudioRecorderState {
         [capture_output setSampleBufferDelegate:nil queue:nil];
       }
 
+#if !TARGET_OS_IPHONE
       if (capture_file_output != nil && [capture_file_output isRecording]) {
         [capture_file_output stopRecording];
         if (capture_file_delegate != nil && capture_file_delegate.recordingError != nil &&
@@ -790,6 +921,7 @@ class AppleAudioRecorderState {
                            [[capture_file_delegate.recordingError localizedDescription] UTF8String];
         }
       }
+#endif
 
       if (capture_session != nil) {
         [capture_session stopRunning];
@@ -879,6 +1011,23 @@ class AppleAudioRecorderState {
                        double apple_preferred_io_buffer_duration_seconds,
                        double apple_preferred_input_gain, char* error_utf8,
                        uint32_t error_utf8_capacity) {
+#if TARGET_OS_IPHONE
+    (void)output_path;
+    (void)sample_rate_hz;
+    (void)channel_count;
+    (void)input_device_id_utf8;
+    (void)processing_flags;
+    (void)apple_session_mode_code;
+    (void)apple_category_options_flags;
+    (void)preferred_latency_seconds;
+    (void)apple_preferred_io_buffer_duration_seconds;
+    (void)apple_preferred_input_gain;
+    WriteError(
+        "Direct AAC capture is unavailable on iOS in this backend. "
+        "Use WAV capture with recorder finalization to AAC.",
+        error_utf8, error_utf8_capacity);
+    return -30;
+#else
     int32_t has_permission = 0;
     if (!EnsureAudioInputPermission(&has_permission, false, error_utf8, error_utf8_capacity)) {
       return -4;
@@ -973,7 +1122,7 @@ class AppleAudioRecorderState {
 
     AVCaptureSession* capture_session = [[AVCaptureSession alloc] init];
     AVCaptureAudioDataOutput* capture_output = [[AVCaptureAudioDataOutput alloc] init];
-    AVCaptureAudioFileOutput* capture_file_output = [[AVCaptureAudioFileOutput alloc] init];
+    SpeechUtilsCaptureFileOutput* capture_file_output = [[AVCaptureAudioFileOutput alloc] init];
     if (capture_session == nil || capture_file_output == nil || capture_output == nil) {
       WriteError("Failed to initialize AVCaptureSession objects.", error_utf8,
                  error_utf8_capacity);
@@ -1102,6 +1251,7 @@ class AppleAudioRecorderState {
     max_amplitude_dbfs_ = -90.0;
     mode_ = RecorderMode::kFile;
     return 0;
+#endif
   }
 
   int32_t StartInternalWithVoiceProcessing(
@@ -1126,6 +1276,7 @@ class AppleAudioRecorderState {
     }
 
     const std::string effective_input_device_id = TrimAscii(input_device_id_utf8);
+    NSString* requested_input_uid = nil;
 
 #if TARGET_OS_IPHONE
     if (!ConfigureIosAudioSession(sample_rate_hz, processing_flags, apple_session_mode_code,
@@ -1170,11 +1321,11 @@ class AppleAudioRecorderState {
     }
 #else
     if (!effective_input_device_id.empty()) {
-      WriteError(
-          "AVAudioEngine voice-processing capture currently supports only the default "
-          "input device on macOS.",
-          error_utf8, error_utf8_capacity);
-      return -13;
+      requested_input_uid = [NSString stringWithUTF8String:effective_input_device_id.c_str()];
+      if (requested_input_uid == nil || requested_input_uid.length == 0) {
+        WriteError("Input device id UTF-8 decoding failed.", error_utf8, error_utf8_capacity);
+        return -13;
+      }
     }
 #endif
 
@@ -1241,6 +1392,16 @@ class AppleAudioRecorderState {
       WriteError("Audio input node is unavailable.", error_utf8, error_utf8_capacity);
       return -18;
     }
+
+#if !TARGET_OS_IPHONE
+    if (!SetVoiceProcessingInputDeviceOnMacos(input_node, requested_input_uid, error_utf8,
+                                              error_utf8_capacity)) {
+      if (wav_file != nullptr) {
+        std::fclose(wav_file);
+      }
+      return -18;
+    }
+#endif
 
     NSError* voice_processing_error = nil;
     if (@available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)) {
@@ -1837,7 +1998,7 @@ class AppleAudioRecorderState {
   AVCaptureAudioDataOutput* capture_output_ = nil;
   SpeechUtilsCaptureOutputDelegate* capture_delegate_ = nil;
   dispatch_queue_t capture_queue_ = nil;
-  AVCaptureAudioFileOutput* capture_file_output_ = nil;
+  SpeechUtilsCaptureFileOutput* capture_file_output_ = nil;
   SpeechUtilsCaptureFileOutputDelegate* capture_file_delegate_ = nil;
   AVAudioEngine* audio_engine_ = nil;
   AVAudioInputNode* audio_engine_input_node_ = nil;

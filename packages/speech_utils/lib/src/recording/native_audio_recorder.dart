@@ -883,9 +883,7 @@ final class NativeAudioRecorder {
     required AudioRecorderConfig config,
   }) {
     final isAppleAac =
-        (_platform == NativeAudioRecorderPlatform.macOS ||
-            _platform == NativeAudioRecorderPlatform.iOS) &&
-        config.encoding.encoder.isAac;
+        _platform == NativeAudioRecorderPlatform.macOS && config.encoding.encoder.isAac;
     if (!isAppleAac) {
       return false;
     }
@@ -895,7 +893,7 @@ final class NativeAudioRecorder {
       throw ArgumentError.value(
         outputPath,
         'outputPath',
-        'Apple direct AAC recording requires an .m4a output path.',
+        'macOS direct AAC recording requires an .m4a output path.',
       );
     }
 

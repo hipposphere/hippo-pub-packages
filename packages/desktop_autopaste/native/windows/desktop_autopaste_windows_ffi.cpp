@@ -129,7 +129,8 @@ extern "C" DESKTOP_AUTOPASTE_FFI_EXPORT int32_t
     return 2;
   }
 
-  const bool ok = desktop_autopaste::AutoPasteTextViaClipboard(Utf8ToWide(text_utf8));
+  const bool ok = desktop_autopaste::AutoPasteTextViaClipboard(
+      Utf8ToWide(text_utf8));
   if (!ok) {
     WriteUtf8(error_utf8, error_utf8_capacity, "Auto paste failed");
     return 1;

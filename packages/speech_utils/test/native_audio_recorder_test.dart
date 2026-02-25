@@ -42,6 +42,47 @@ void main() {
       expect(recorderFor(NativeAudioRecorderPlatform.unsupported).supportsInputSelection, isFalse);
     });
 
+    test('getCapabilities returns current enhancement support by platform', () async {
+      NativeAudioRecorder recorderFor(NativeAudioRecorderPlatform platform) {
+        return NativeAudioRecorder(
+          platform: platform,
+          availabilityFn: () => true,
+          hasPermissionFn: () => true,
+          requestPermissionFn: () => true,
+          listInputDevicesFn: () => const <InputDevice>[],
+          startFileFn:
+              ({
+                required outputPath,
+                required sampleRateHz,
+                required channelCount,
+                required inputDeviceId,
+              }) {},
+          startPcmStreamFn:
+              ({
+                required sampleRateHz,
+                required channelCount,
+                required framesPerChunk,
+                required inputDeviceId,
+              }) {},
+          readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+          stopFn: () {},
+          isRecordingFn: () => false,
+        );
+      }
+
+      Future<void> expectAllFalse(NativeAudioRecorderPlatform platform) async {
+        final capabilities = await recorderFor(platform).getCapabilities();
+        expect(capabilities.supportsNoiseCancellation, isFalse);
+        expect(capabilities.supportsEchoCancellation, isFalse);
+        expect(capabilities.supportsVoiceIsolation, isFalse);
+      }
+
+      await expectAllFalse(NativeAudioRecorderPlatform.macOS);
+      await expectAllFalse(NativeAudioRecorderPlatform.windows);
+      await expectAllFalse(NativeAudioRecorderPlatform.iOS);
+      await expectAllFalse(NativeAudioRecorderPlatform.unsupported);
+    });
+
     test('starts file recording with configured sample rate/channels', () async {
       late String usedOutputPath;
       late int usedSampleRate;

@@ -3,6 +3,7 @@
 #include <ole2.h>
 #include <uiautomation.h>
 #include <windows.h>
+#include <wil/resource.h>
 #include <wrl/client.h>
 
 #include <algorithm>
@@ -133,18 +134,18 @@ std::optional<std::wstring> GetProcessImagePath(DWORD process_id) {
     return std::nullopt;
   }
 
-  HANDLE process = ::OpenProcess(
+  wil::unique_handle process(::OpenProcess(
       PROCESS_QUERY_LIMITED_INFORMATION,
       FALSE,
-      process_id);
-  if (process == nullptr) {
+      process_id));
+  if (!process) {
     return std::nullopt;
   }
 
   std::wstring path(4096, L'\0');
   DWORD size = static_cast<DWORD>(path.size());
-  const BOOL ok = ::QueryFullProcessImageNameW(process, 0, path.data(), &size);
-  ::CloseHandle(process);
+  const BOOL ok =
+      ::QueryFullProcessImageNameW(process.get(), 0, path.data(), &size);
   if (!ok || size == 0) {
     return std::nullopt;
   }

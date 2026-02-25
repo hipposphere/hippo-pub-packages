@@ -9,9 +9,11 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <vector>
+
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 namespace {
 
@@ -42,131 +44,77 @@ void WriteUtf8(char* buffer, uint32_t capacity, const std::string& value) {
   buffer[copy_length] = '\0';
 }
 
-std::string EscapeJsonString(const std::string& input) {
-  std::string escaped;
-  escaped.reserve(input.size() + 16);
-
-  for (const char ch : input) {
-    switch (ch) {
-      case '"':
-        escaped += "\\\"";
-        break;
-      case '\\':
-        escaped += "\\\\";
-        break;
-      case '\b':
-        escaped += "\\b";
-        break;
-      case '\f':
-        escaped += "\\f";
-        break;
-      case '\n':
-        escaped += "\\n";
-        break;
-      case '\r':
-        escaped += "\\r";
-        break;
-      case '\t':
-        escaped += "\\t";
-        break;
-      default:
-        const unsigned char byte = static_cast<unsigned char>(ch);
-        if (byte < 0x20) {
-          const char hex[] = "0123456789abcdef";
-          escaped += "\\u00";
-          escaped += hex[(byte >> 4) & 0x0F];
-          escaped += hex[byte & 0x0F];
-        } else {
-          escaped.push_back(ch);
-        }
-        break;
-    }
-  }
-
-  return escaped;
-}
-
-void AppendJsonStringField(
-    std::ostringstream& out,
+void AppendOptionalJsonStringField(
+    rapidjson::Writer<rapidjson::StringBuffer>& writer,
     const char* key,
-    const std::optional<std::string>& value,
-    bool* needs_comma) {
+    const std::optional<std::string>& value) {
   if (!value.has_value()) {
     return;
   }
-  if (*needs_comma) {
-    out << ',';
-  }
-  out << '"' << key << "\":\"" << EscapeJsonString(*value) << '"';
-  *needs_comma = true;
+  writer.Key(key);
+  writer.String(
+      value->c_str(),
+      static_cast<rapidjson::SizeType>(value->size()));
 }
 
-void AppendJsonIntField(
-    std::ostringstream& out,
+void AppendOptionalJsonIntField(
+    rapidjson::Writer<rapidjson::StringBuffer>& writer,
     const char* key,
-    const std::optional<int>& value,
-    bool* needs_comma) {
+    const std::optional<int>& value) {
   if (!value.has_value()) {
     return;
   }
-  if (*needs_comma) {
-    out << ',';
-  }
-  out << '"' << key << "\":" << *value;
-  *needs_comma = true;
+  writer.Key(key);
+  writer.Int(*value);
 }
 
-void AppendJsonBoolField(
-    std::ostringstream& out,
+void AppendOptionalJsonBoolField(
+    rapidjson::Writer<rapidjson::StringBuffer>& writer,
     const char* key,
-    const std::optional<bool>& value,
-    bool* needs_comma) {
+    const std::optional<bool>& value) {
   if (!value.has_value()) {
     return;
   }
-  if (*needs_comma) {
-    out << ',';
-  }
-  out << '"' << key << "\":" << (*value ? "true" : "false");
-  *needs_comma = true;
+  writer.Key(key);
+  writer.Bool(*value);
 }
 
 std::string ContextToJson(
     const desktop_autopaste::FocusedTextFieldContextData& context) {
-  std::ostringstream out;
-  out << '{';
-
-  bool needs_comma = false;
-  out << "\"available\":" << (context.available ? "true" : "false");
-  needs_comma = true;
+  rapidjson::StringBuffer buffer;
+  rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+  writer.StartObject();
+  writer.Key("available");
+  writer.Bool(context.available);
 
   if (!context.reason.empty()) {
-    out << ",\"reason\":\"" << EscapeJsonString(context.reason) << '"';
+    writer.Key("reason");
+    writer.String(
+        context.reason.c_str(),
+        static_cast<rapidjson::SizeType>(context.reason.size()));
   }
 
-  AppendJsonStringField(out, "appIdentifier", context.app_identifier, &needs_comma);
-  AppendJsonStringField(out, "appName", context.app_name, &needs_comma);
-  AppendJsonStringField(out, "role", context.role, &needs_comma);
-  AppendJsonStringField(out, "subrole", context.subrole, &needs_comma);
-  AppendJsonBoolField(out, "isEditable", context.is_editable, &needs_comma);
-  AppendJsonBoolField(out, "isSecure", context.is_secure, &needs_comma);
-  AppendJsonIntField(out, "selectionStart", context.selection_start, &needs_comma);
-  AppendJsonIntField(out, "selectionLength", context.selection_length, &needs_comma);
-  AppendJsonStringField(out, "selectedText", context.selected_text, &needs_comma);
-  AppendJsonStringField(
-      out,
+  AppendOptionalJsonStringField(writer, "appIdentifier", context.app_identifier);
+  AppendOptionalJsonStringField(writer, "appName", context.app_name);
+  AppendOptionalJsonStringField(writer, "role", context.role);
+  AppendOptionalJsonStringField(writer, "subrole", context.subrole);
+  AppendOptionalJsonBoolField(writer, "isEditable", context.is_editable);
+  AppendOptionalJsonBoolField(writer, "isSecure", context.is_secure);
+  AppendOptionalJsonIntField(writer, "selectionStart", context.selection_start);
+  AppendOptionalJsonIntField(writer, "selectionLength", context.selection_length);
+  AppendOptionalJsonStringField(writer, "selectedText", context.selected_text);
+  AppendOptionalJsonStringField(
+      writer,
       "textBeforeSelection",
-      context.text_before_selection,
-      &needs_comma);
-  AppendJsonStringField(
-      out,
+      context.text_before_selection);
+  AppendOptionalJsonStringField(
+      writer,
       "textAfterSelection",
-      context.text_after_selection,
-      &needs_comma);
-  AppendJsonIntField(out, "fullTextLength", context.full_text_length, &needs_comma);
+      context.text_after_selection);
+  AppendOptionalJsonIntField(writer, "fullTextLength", context.full_text_length);
 
-  out << '}';
-  return out.str();
+  writer.EndObject();
+  return std::string(buffer.GetString(), buffer.GetSize());
 }
 
 }  // namespace

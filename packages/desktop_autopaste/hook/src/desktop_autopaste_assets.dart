@@ -1,6 +1,7 @@
 import 'package:code_assets/code_assets.dart';
 import 'dart:io';
 
+import 'package:hippo_native_deps/hippo_native_deps.dart';
 import 'package:hooks/hooks.dart';
 import 'package:native_toolchain_c/native_toolchain_c.dart';
 
@@ -40,13 +41,14 @@ Future<void> buildDesktopAutopasteWindowsAsset(
     relativePath: 'native/include/desktop_autopaste_ffi.h',
     label: 'desktop_autopaste ffi header',
   );
+  final nativeDepsIncludes = requireNativeDepsWindowsIncludeDirs(input);
 
   await CBuilder.library(
     name: _windowsLibraryBaseName,
     assetName: _assetName,
     language: Language.cpp,
     sources: _windowsSources,
-    includes: ['native/include', 'native/windows'],
+    includes: ['native/include', 'native/windows', ...nativeDepsIncludes],
     std: 'c++17',
     flags: windowsCommonCppFlags,
     defines: windowsCommonDefines,

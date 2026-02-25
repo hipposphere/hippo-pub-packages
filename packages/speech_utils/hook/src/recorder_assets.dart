@@ -1,4 +1,5 @@
 import 'package:code_assets/code_assets.dart';
+import 'package:hippo_native_deps/hippo_native_deps.dart';
 import 'package:hooks/hooks.dart';
 import 'package:native_toolchain_c/native_toolchain_c.dart';
 
@@ -25,12 +26,14 @@ Future<void> buildWindowsAudioRecorderAsset(BuildInput input, BuildOutputBuilder
   for (final source in _windowsAudioRecorderSources) {
     requireSourceFile(input, relativePath: source, label: 'Windows audio recorder');
   }
+  final nativeDepsIncludes = requireNativeDepsWindowsIncludeDirs(input);
 
   await CBuilder.library(
     name: _windowsAudioRecorderLibraryBaseName,
     assetName: _windowsAudioRecorderAssetName,
     language: Language.cpp,
     sources: _windowsAudioRecorderSources,
+    includes: nativeDepsIncludes,
     std: 'c++17',
     flags: windowsCommonCppFlags,
     defines: windowsCommonDefines,

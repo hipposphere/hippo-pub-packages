@@ -31,6 +31,7 @@ workspace:
   - packages/postgres_models_builder
   - packages/desktop_autopaste
   - packages/desktop_autopaste/example
+  - packages/hippo_native_deps
   - packages/app_permissions
   - packages/app_permissions/example
   - packages/speech_recorder

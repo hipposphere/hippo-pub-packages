@@ -28,6 +28,21 @@ import 'voice_segment.dart';
 
 enum NativeAudioRecorderPlatform { macOS, windows, iOS, unsupported }
 
+/// Recorder enhancement capabilities currently implemented by this package.
+///
+/// These flags represent library/backend support, not theoretical OS support.
+final class NativeAudioRecorderCapabilities {
+  const NativeAudioRecorderCapabilities({
+    required this.supportsNoiseCancellation,
+    required this.supportsEchoCancellation,
+    required this.supportsVoiceIsolation,
+  });
+
+  final bool supportsNoiseCancellation;
+  final bool supportsEchoCancellation;
+  final bool supportsVoiceIsolation;
+}
+
 final class _NativeRecorderRuntimeConfig {
   const _NativeRecorderRuntimeConfig({
     required this.processingFlags,
@@ -200,6 +215,22 @@ final class NativeAudioRecorder {
   Future<bool> requestPermission() async {
     _ensureSupportedPlatform();
     return _requestPermissionFn();
+  }
+
+  /// Returns recorder enhancement capabilities for the current platform.
+  ///
+  /// These values reflect what this library currently implements.
+  Future<NativeAudioRecorderCapabilities> getCapabilities() async {
+    return switch (_platform) {
+      NativeAudioRecorderPlatform.macOS ||
+      NativeAudioRecorderPlatform.windows ||
+      NativeAudioRecorderPlatform.iOS ||
+      NativeAudioRecorderPlatform.unsupported => const NativeAudioRecorderCapabilities(
+        supportsNoiseCancellation: false,
+        supportsEchoCancellation: false,
+        supportsVoiceIsolation: false,
+      ),
+    };
   }
 
   /// Whether this platform can route capture to a specific input-device ID.

@@ -12,6 +12,9 @@
 #include <mutex>
 #include <string>
 
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+
 #include "../../../third_party/miniaudio/include/miniaudio.h"
 
 namespace speech_utils::windows_recorder {
@@ -96,49 +99,6 @@ std::string TrimAscii(const char* utf8) {
   return std::string(begin, end);
 }
 
-std::string JsonEscape(const std::string& input) {
-  std::string escaped;
-  escaped.reserve(input.size() + 8);
-  static constexpr char kHexDigits[] = "0123456789abcdef";
-
-  for (unsigned char ch : input) {
-    switch (ch) {
-      case '"':
-        escaped += "\\\"";
-        break;
-      case '\\':
-        escaped += "\\\\";
-        break;
-      case '\b':
-        escaped += "\\b";
-        break;
-      case '\f':
-        escaped += "\\f";
-        break;
-      case '\n':
-        escaped += "\\n";
-        break;
-      case '\r':
-        escaped += "\\r";
-        break;
-      case '\t':
-        escaped += "\\t";
-        break;
-      default:
-        if (ch < 0x20) {
-          escaped += "\\u00";
-          escaped += kHexDigits[(ch >> 4) & 0x0F];
-          escaped += kHexDigits[ch & 0x0F];
-        } else {
-          escaped.push_back(static_cast<char>(ch));
-        }
-        break;
-    }
-  }
-
-  return escaped;
-}
-
 std::string DeviceIdToHex(const ma_device_id& device_id) {
   static constexpr char kHexDigits[] = "0123456789abcdef";
   const auto* bytes = reinterpret_cast<const uint8_t*>(&device_id);
@@ -212,26 +172,27 @@ bool FindCaptureDeviceByHexId(const ma_device_info* capture_infos, ma_uint32 cap
 }
 
 std::string BuildInputDevicesJson(const ma_device_info* capture_infos, ma_uint32 capture_count) {
-  std::string json = "[";
-  for (ma_uint32 i = 0; i < capture_count; i++) {
-    if (i > 0) {
-      json += ',';
-    }
+  rapidjson::StringBuffer buffer;
+  rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+  writer.StartArray();
 
+  for (ma_uint32 i = 0; i < capture_count; i++) {
     const auto& info = capture_infos[i];
     const std::string device_id = DeviceIdToHex(info.id);
     const std::string label = std::string(info.name);
 
-    json += "{\"id\":\"";
-    json += JsonEscape(device_id);
-    json += "\",\"label\":\"";
-    json += JsonEscape(label);
-    json += "\",\"isDefault\":";
-    json += info.isDefault ? "true" : "false";
-    json += '}';
+    writer.StartObject();
+    writer.Key("id");
+    writer.String(device_id.c_str(), static_cast<rapidjson::SizeType>(device_id.size()));
+    writer.Key("label");
+    writer.String(label.c_str(), static_cast<rapidjson::SizeType>(label.size()));
+    writer.Key("isDefault");
+    writer.Bool(info.isDefault == MA_TRUE);
+    writer.EndObject();
   }
-  json += ']';
-  return json;
+
+  writer.EndArray();
+  return std::string(buffer.GetString(), buffer.GetSize());
 }
 
 #pragma pack(push, 1)

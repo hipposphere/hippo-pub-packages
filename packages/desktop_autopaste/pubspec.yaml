@@ -1,6 +1,6 @@
 name: desktop_autopaste
 description: Desktop auto-paste utilities implemented via native FFI code assets.
-version: 0.2.0
+version: 0.2.1
 resolution: workspace
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
@@ -12,6 +12,9 @@ environment:
 dependencies:
   code_assets: ^1.0.0
   ffi: ^2.2.0
+  hippo_native_deps:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.0
   hooks: ^1.0.1
   native_toolchain_c: ^0.17.4
   objective_c: ^9.3.0

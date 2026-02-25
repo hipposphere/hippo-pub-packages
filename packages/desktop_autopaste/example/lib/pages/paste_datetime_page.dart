@@ -4,6 +4,7 @@ import 'package:desktop_autopaste/desktop_autopaste.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hippo_utils/hippo_utils.dart';
 import 'package:hotkey_api/hotkey_api.dart';
 
 class PasteDateTimePage extends StatefulWidget {
@@ -92,9 +93,51 @@ class _PasteDateTimePageState extends State<PasteDateTimePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Focus any text field in any app, then press the button to paste the current date/time via clipboard.',
+                  'Focus any text field in any app, then press your selected hotkey to paste the current date/time via clipboard.',
                 ),
                 const SizedBox(height: 12),
+                DataSubjectBuilder(
+                  subject: _hotkeyController.hotkeySubject,
+                  builder: (context, selectedHotkey) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            FilledButton.tonalIcon(
+                              onPressed: () async {
+                                final hotkey = await SelectHotkeyModal(
+                                  initialHotkey: selectedHotkey,
+                                ).open(context);
+                                if (hotkey != null) {
+                                  _hotkeyController.setHotkey(hotkey);
+                                }
+                              },
+                              icon: const Icon(Icons.keyboard_outlined),
+                              label: const Text('Select hotkey'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: selectedHotkey == null
+                                  ? null
+                                  : () {
+                                      _hotkeyController.hotkeySubject.add(null);
+                                    },
+                              icon: const Icon(Icons.clear_outlined),
+                              label: const Text('Clear hotkey'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        if (selectedHotkey != null)
+                          HotkeyChip(hotkey: selectedHotkey)
+                        else
+                          const Text('No hotkey selected'),
+                        const SizedBox(height: 12),
+                      ],
+                    );
+                  },
+                ),
                 FilledButton.icon(
                   onPressed: _isPasting ? null : _pasteNow,
                   icon: const Icon(Icons.paste_outlined),

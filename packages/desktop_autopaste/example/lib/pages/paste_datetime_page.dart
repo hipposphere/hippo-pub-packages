@@ -36,6 +36,8 @@ class _PasteDateTimePageState extends State<PasteDateTimePage> {
       status,
     ) {
       if (status == HotkeyStatusType.pressed) {
+        // ignore: avoid_print
+        print('Hotkey pressed, attempting to paste current DateTime...');
         _pasteNow();
       }
     });

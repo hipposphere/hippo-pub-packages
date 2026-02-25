@@ -52,7 +52,7 @@ Future<void> buildDesktopAutopasteWindowsAsset(
     std: 'c++17',
     flags: windowsCommonCppFlags,
     defines: windowsCommonDefines,
-    libraries: ['ole32', 'uiautomationcore'],
+    libraries: ['ole32', 'oleaut32', 'user32', 'uiautomationcore'],
   ).run(input: input, output: output);
 }
 

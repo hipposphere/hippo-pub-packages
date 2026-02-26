@@ -66,8 +66,9 @@ class _Bloc extends BlocBase {
       if (_isDisposed) return;
       lastError.add(error.toString());
     } finally {
-      if (_isDisposed) return;
-      isPasting.add(false);
+      if (!_isDisposed) {
+        isPasting.add(false);
+      }
     }
   }
 

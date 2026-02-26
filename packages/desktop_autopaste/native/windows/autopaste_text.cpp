@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cstring>
 #include <cwctype>
-#include <iostream>
 #include <limits>
 #include <string>
 
@@ -245,6 +244,41 @@ bool SetClipboardUnicodeText(const std::wstring& text) {
   return true;
 }
 
+bool SetClipboardAnsiText(const std::wstring& text) {
+  const int size_in_bytes = ::WideCharToMultiByte(
+      CP_ACP, 0, text.c_str(), -1, nullptr, 0, nullptr, nullptr);
+  if (size_in_bytes <= 0) {
+    return false;
+  }
+
+  HGLOBAL clipboard_text = ::GlobalAlloc(
+      GMEM_MOVEABLE, static_cast<SIZE_T>(size_in_bytes) * sizeof(char));
+  if (clipboard_text == nullptr) {
+    return false;
+  }
+
+  char* buffer = static_cast<char*>(::GlobalLock(clipboard_text));
+  if (buffer == nullptr) {
+    ::GlobalFree(clipboard_text);
+    return false;
+  }
+
+  const int converted = ::WideCharToMultiByte(
+      CP_ACP, 0, text.c_str(), -1, buffer, size_in_bytes, nullptr, nullptr);
+  if (converted <= 0) {
+    ::GlobalUnlock(clipboard_text);
+    ::GlobalFree(clipboard_text);
+    return false;
+  }
+  ::GlobalUnlock(clipboard_text);
+
+  if (::SetClipboardData(CF_TEXT, clipboard_text) == nullptr) {
+    ::GlobalFree(clipboard_text);
+    return false;
+  }
+  return true;
+}
+
 void RestoreClipboardUnicodeText(HGLOBAL previous_text_copy) {
   if (previous_text_copy == nullptr) {
     return;
@@ -406,7 +440,12 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
   }
 
   HGLOBAL previous_text_copy = DuplicateClipboardUnicodeText();
-  const bool publish_ok = ::EmptyClipboard() && SetClipboardUnicodeText(text);
+  bool publish_ok = false;
+  if (::EmptyClipboard()) {
+    const bool unicode_ok = SetClipboardUnicodeText(text);
+    const bool ansi_ok = SetClipboardAnsiText(text);
+    publish_ok = unicode_ok || ansi_ok;
+  }
   ::CloseClipboard();
 
   if (!publish_ok) {
@@ -415,7 +454,6 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
   }
   WaitForClipboardSequenceChange(sequence_before);
 
-  std::cout << "[desktop_autopaste] Dispatching paste signal" << std::endl;
   if (!SendPasteShortcut(shortcut)) {
     RestoreClipboardUnicodeText(previous_text_copy);
     return false;

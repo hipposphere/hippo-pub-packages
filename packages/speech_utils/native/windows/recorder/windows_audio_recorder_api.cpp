@@ -13,7 +13,6 @@
 #include <cstdio>
 #include <cstring>
 #include <deque>
-#include <limits>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -383,7 +382,6 @@ struct SoftwareVoiceProcessingConfig {
 struct VoiceProcessingSelection {
   VoiceProcessingBackend backend = VoiceProcessingBackend::kOff;
   SoftwareVoiceProcessingConfig software{};
-  bool system_dns_available = false;
 };
 
 SoftwareVoiceProcessingConfig BuildSoftwareVoiceProcessingConfig(uint32_t processing_flags) {
@@ -463,7 +461,6 @@ bool ResolveVoiceProcessingSelection(uint32_t processing_flags, uint32_t windows
           return false;
         }
       } else {
-        selection.system_dns_available = dns_available;
         if (dns_available) {
           selection.backend = VoiceProcessingBackend::kSystem;
           *out_selection = selection;
@@ -723,7 +720,6 @@ class WindowsAudioRecorderState {
       max_amplitude_dbfs_ = -90.0;
       active_processing_backend_ = VoiceProcessingBackend::kOff;
       software_processing_config_ = {};
-      system_dns_available_ = false;
 
       should_stop_device = device_initialized_;
       device_initialized_ = false;
@@ -1091,11 +1087,9 @@ class WindowsAudioRecorderState {
 
     active_processing_backend_ = voice_processing_selection.backend;
     software_processing_config_ = voice_processing_selection.software;
-    system_dns_available_ = voice_processing_selection.system_dns_available;
     webrtc_processing_active_ = false;
 
-    if (active_processing_backend_ == VoiceProcessingBackend::kSoftware &&
-        webrtc_processor_.IsSupported()) {
+    if (active_processing_backend_ == VoiceProcessingBackend::kSoftware) {
       WebRtcProcessingConfig webrtc_config{};
       webrtc_config.sample_rate_hz = sample_rate_hz;
       webrtc_config.channel_count = channel_count;
@@ -1195,7 +1189,6 @@ class WindowsAudioRecorderState {
   double max_amplitude_dbfs_ = -90.0;
   VoiceProcessingBackend active_processing_backend_ = VoiceProcessingBackend::kOff;
   SoftwareVoiceProcessingConfig software_processing_config_{};
-  bool system_dns_available_ = false;
   double software_noise_floor_rms_ = 0.015;
   double software_agc_gain_ = 1.0;
   bool webrtc_processing_active_ = false;

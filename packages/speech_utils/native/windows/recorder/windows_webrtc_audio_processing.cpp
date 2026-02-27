@@ -1,20 +1,10 @@
 #include "windows_webrtc_audio_processing.h"
 
-#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
 
-#if defined(SPEECH_UTILS_ENABLE_WEBRTC_APM) && SPEECH_UTILS_ENABLE_WEBRTC_APM
-#if __has_include("modules/audio_processing/include/audio_processing.h")
 #include "modules/audio_processing/include/audio_processing.h"
-#define SPEECH_UTILS_HAS_WEBRTC_APM_HEADERS 1
-#else
-#define SPEECH_UTILS_HAS_WEBRTC_APM_HEADERS 0
-#endif
-#else
-#define SPEECH_UTILS_HAS_WEBRTC_APM_HEADERS 0
-#endif
 
 namespace speech_utils::windows_recorder {
 
@@ -32,7 +22,6 @@ void AssignError(std::string* out_error, const std::string& error) {
 
 }  // namespace
 
-#if SPEECH_UTILS_HAS_WEBRTC_APM_HEADERS
 struct WebRtcAudioProcessor::Impl {
   rtc::scoped_refptr<webrtc::AudioProcessing> apm;
   uint32_t sample_rate_hz = 0;
@@ -41,9 +30,6 @@ struct WebRtcAudioProcessor::Impl {
   uint32_t frame_sample_count = 0;
   std::vector<int16_t> processed_int16;
 };
-#else
-struct WebRtcAudioProcessor::Impl {};
-#endif
 
 WebRtcAudioProcessor::WebRtcAudioProcessor() : impl_(std::make_unique<Impl>()) {}
 
@@ -51,19 +37,10 @@ WebRtcAudioProcessor::~WebRtcAudioProcessor() {
   Reset();
 }
 
-bool WebRtcAudioProcessor::IsSupported() const {
-#if SPEECH_UTILS_HAS_WEBRTC_APM_HEADERS
-  return true;
-#else
-  return false;
-#endif
-}
-
 bool WebRtcAudioProcessor::Initialize(const WebRtcProcessingConfig& config,
                                       std::string* out_error) {
   Reset();
 
-#if SPEECH_UTILS_HAS_WEBRTC_APM_HEADERS
   if (!IsSupportedSampleRate(config.sample_rate_hz)) {
     AssignError(out_error, "WebRTC APM supports 8/16/32/48 kHz capture rates.");
     return false;
@@ -121,12 +98,6 @@ bool WebRtcAudioProcessor::Initialize(const WebRtcProcessingConfig& config,
   impl_->frame_sample_count = impl_->frame_samples_per_channel * impl_->channel_count;
   impl_->processed_int16.clear();
   return true;
-#else
-  (void)config;
-  AssignError(out_error,
-              "WebRTC APM headers are unavailable in vendored third_party/webrtc_apm/windows SDK.");
-  return false;
-#endif
 }
 
 const int16_t* WebRtcAudioProcessor::ProcessInterleaved(const int16_t* input_samples,
@@ -137,7 +108,6 @@ const int16_t* WebRtcAudioProcessor::ProcessInterleaved(const int16_t* input_sam
     *out_sample_count = 0;
   }
 
-#if SPEECH_UTILS_HAS_WEBRTC_APM_HEADERS
   if (input_samples == nullptr || sample_count == 0 || !impl_->apm) {
     AssignError(out_error, "WebRTC APM processor is not initialized.");
     return nullptr;
@@ -170,16 +140,9 @@ const int16_t* WebRtcAudioProcessor::ProcessInterleaved(const int16_t* input_sam
     *out_sample_count = sample_count;
   }
   return impl_->processed_int16.data();
-#else
-  (void)input_samples;
-  (void)sample_count;
-  AssignError(out_error, "WebRTC APM support is not compiled in.");
-  return nullptr;
-#endif
 }
 
 void WebRtcAudioProcessor::Reset() {
-#if SPEECH_UTILS_HAS_WEBRTC_APM_HEADERS
   if (impl_ != nullptr) {
     impl_->apm = nullptr;
     impl_->sample_rate_hz = 0;
@@ -188,7 +151,6 @@ void WebRtcAudioProcessor::Reset() {
     impl_->frame_sample_count = 0;
     impl_->processed_int16.clear();
   }
-#endif
 }
 
 }  // namespace speech_utils::windows_recorder

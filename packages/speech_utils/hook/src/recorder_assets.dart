@@ -43,13 +43,12 @@ Future<void> buildWindowsAudioRecorderAsset(BuildInput input, BuildOutputBuilder
     requireSourceFile(input, relativePath: source, label: 'Windows audio recorder');
   }
   final nativeDepsIncludes = requireNativeDepsWindowsIncludeDirs(input);
-  final webrtcSdk = await requireVendoredWindowsWebRtcApmSdk(input);
+  final webrtcSdk = requireVendoredWindowsWebRtcApmSdk(input);
 
   final windowsDefines = Map<String, String>.from(windowsCommonDefines);
   final windowsLibraries = <String>['ole32', 'avrt', 'winmm', 'uuid'];
   final windowsIncludes = <String>[...nativeDepsIncludes];
   final windowsLibraryDirectories = <String>[];
-  windowsDefines['SPEECH_UTILS_ENABLE_WEBRTC_APM'] = '1';
   final webrtcIncludeRoot = p.join(webrtcSdk.rootDir.path, 'include');
   windowsIncludes.add(webrtcIncludeRoot);
   windowsIncludes.add(webrtcSdk.includeDir.path);

@@ -675,7 +675,6 @@ class AppleAudioEngineRecorder {
 #endif
 
     const bool voice_processing_requested =
-        mode == RecorderMode::kStream &&
         RequiresVoiceProcessing(config.runtime.processing_flags);
     if (voice_processing_requested) {
       if (@available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)) {
@@ -702,11 +701,11 @@ class AppleAudioEngineRecorder {
       }
     }
 
-    AVAudioFormat* input_format = [input_node inputFormatForBus:0];
-    if (input_format == nil || input_format.sampleRate <= 0.0 || input_format.channelCount == 0) {
-      input_format = [input_node outputFormatForBus:0];
+    AVAudioFormat* tap_format = [input_node outputFormatForBus:0];
+    if (tap_format == nil || tap_format.sampleRate <= 0.0 || tap_format.channelCount == 0) {
+      tap_format = [input_node inputFormatForBus:0];
     }
-    if (input_format == nil) {
+    if (tap_format == nil) {
       if (pcm_file != nullptr) {
         std::fclose(pcm_file);
       }
@@ -716,8 +715,8 @@ class AppleAudioEngineRecorder {
     }
 
     AVAudioConverter* pcm_converter = nil;
-    if (!FormatsMatchPcm16(input_format, target_format)) {
-      pcm_converter = [[AVAudioConverter alloc] initFromFormat:input_format toFormat:target_format];
+    if (!FormatsMatchPcm16(tap_format, target_format)) {
+      pcm_converter = [[AVAudioConverter alloc] initFromFormat:tap_format toFormat:target_format];
       if (pcm_converter == nil) {
         if (pcm_file != nullptr) {
           std::fclose(pcm_file);
@@ -746,7 +745,7 @@ class AppleAudioEngineRecorder {
     [input_node removeTapOnBus:0];
     [input_node installTapOnBus:0
                      bufferSize:tap_frames
-                         format:input_format
+                         format:tap_format
                           block:^(AVAudioPCMBuffer* buffer, AVAudioTime* when) {
                             (void)when;
                             if (callback_self == nullptr || buffer == nil) {
@@ -836,11 +835,36 @@ class AppleAudioEngineRecorder {
     }
 
     AVAudioPCMBuffer* converted = ConvertToTargetPcm16(input_buffer, target_format, pcm_converter);
+    if (converted == nil && input_buffer.format != nil &&
+        !FormatsMatchPcm16(input_buffer.format, target_format)) {
+      AVAudioConverter* adaptive_converter =
+          [[AVAudioConverter alloc] initFromFormat:input_buffer.format toFormat:target_format];
+      if (adaptive_converter != nil) {
+        adaptive_converter.sampleRateConverterQuality = AVAudioQualityHigh;
+#if TARGET_OS_IPHONE
+        if (@available(iOS 13.0, *)) {
+          adaptive_converter.primeMethod = AVAudioConverterPrimeMethod_None;
+        }
+#else
+        if (@available(macOS 10.15, *)) {
+          adaptive_converter.primeMethod = AVAudioConverterPrimeMethod_None;
+        }
+#endif
+        converted = ConvertToTargetPcm16(input_buffer, target_format, adaptive_converter);
+        if (converted != nil) {
+          std::lock_guard<std::mutex> lock(mutex_);
+          if (mode_ != RecorderMode::kStopped) {
+            pcm_converter_ = adaptive_converter;
+          }
+        }
+      }
+    }
     if (converted == nil) {
       std::lock_guard<std::mutex> lock(mutex_);
       if (deferred_error_code_ == 0) {
         deferred_error_code_ = -28;
-        deferred_error_ = "Failed to convert input audio buffer into target PCM format.";
+        deferred_error_ =
+            "Failed to convert input audio buffer into target PCM format (voice-processing format mismatch).";
       }
       return;
     }
@@ -1212,7 +1236,11 @@ AVAudioSessionCategoryOptions ResolveIosCategoryOptions(uint32_t apple_category_
 }
 
 bool RequiresVoiceProcessing(int32_t processing_flags) {
-  const int32_t mask = kProcessingFlagEchoCancellation;
+  const int32_t mask = kProcessingFlagEchoCancellation |
+                       kProcessingFlagNoiseSuppression |
+                       kProcessingFlagAutomaticGainControl |
+                       kProcessingFlagPresetVoice |
+                       kProcessingFlagPresetVoiceIsolation;
   return (processing_flags & mask) != 0;
 }
 

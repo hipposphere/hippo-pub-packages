@@ -25,8 +25,6 @@ class WebRtcAudioProcessor {
   WebRtcAudioProcessor(const WebRtcAudioProcessor&) = delete;
   WebRtcAudioProcessor& operator=(const WebRtcAudioProcessor&) = delete;
 
-  bool IsSupported() const;
-
   bool Initialize(const WebRtcProcessingConfig& config, std::string* out_error);
 
   const int16_t* ProcessInterleaved(const int16_t* input_samples,

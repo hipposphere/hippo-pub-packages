@@ -823,12 +823,14 @@ class AppleAudioEngineRecorder {
 
     AVAudioFormat* target_format = nil;
     AVAudioConverter* pcm_converter = nil;
+    RecorderMode mode = RecorderMode::kStopped;
 
     {
       std::lock_guard<std::mutex> lock(mutex_);
       if (mode_ == RecorderMode::kStopped || target_format_ == nil || channel_count_ == 0) {
         return;
       }
+      mode = mode_;
       target_format = target_format_;
       pcm_converter = pcm_converter_;
     }
@@ -904,6 +906,12 @@ class AppleAudioEngineRecorder {
 
     if (captured_samples.empty() ||
         !accepting_samples_.load(std::memory_order_acquire)) {
+      return;
+    }
+
+    if (mode == RecorderMode::kStream) {
+      ProcessCapturedSamples(
+          std::make_shared<std::vector<int16_t>>(std::move(captured_samples)));
       return;
     }
 

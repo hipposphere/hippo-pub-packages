@@ -112,7 +112,10 @@ bool ResolveInputDeviceId(NSString* input_uid, AudioDeviceID* out_device_id, cha
     }
 
     NSString* candidate_uid = (__bridge NSString*)candidate_uid_ref;
-    const bool match = [candidate_uid isEqualToString:input_uid];
+    const bool uid_match = [candidate_uid isEqualToString:input_uid];
+    const bool device_id_match =
+        [input_uid isEqualToString:[NSString stringWithFormat:@"%u", candidate]];
+    const bool match = uid_match || device_id_match;
     CFRelease(candidate_uid_ref);
     if (!match) {
       continue;
@@ -167,6 +170,23 @@ bool SetMacosInputDevice(AVAudioInputNode* input_node, NSString* input_uid, char
   AudioDeviceID resolved_device_id = kAudioObjectUnknown;
   if (!ResolveInputDeviceId(input_uid, &resolved_device_id, error_utf8, error_utf8_capacity)) {
     return false;
+  }
+
+  AUAudioUnit* input_au_audio_unit = input_node.AUAudioUnit;
+  if (input_au_audio_unit == nil) {
+    WriteError("AVAudioEngine input AUAudioUnit is unavailable.", error_utf8,
+               error_utf8_capacity);
+    return false;
+  }
+
+  if ([input_au_audio_unit respondsToSelector:@selector(setDeviceID:error:)]) {
+    NSError* set_device_error = nil;
+    if (![input_au_audio_unit setDeviceID:resolved_device_id error:&set_device_error]) {
+      WriteNSError(set_device_error, "Failed to route AVAudioEngine input device", error_utf8,
+                   error_utf8_capacity);
+      return false;
+    }
+    return true;
   }
 
   AudioUnit input_audio_unit = input_node.audioUnit;

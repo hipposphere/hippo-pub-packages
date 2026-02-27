@@ -155,6 +155,7 @@ final class NativeAudioRecorder {
        _listInputDevicesFn = listInputDevicesFn ?? _resolveListInputDevicesFn(platform),
        _startFileFn = startFileFn,
        _startPcmStreamFn = startPcmStreamFn,
+       _usesDefaultReadPcmStreamFn = readPcmStreamFn == null,
        _readPcmStreamFn = readPcmStreamFn ?? _resolveReadPcmStreamFn(platform),
        _stopFn = stopFn ?? _resolveStopFn(platform),
        _resetFn = resetFn ?? _resolveResetFn(platform),
@@ -168,6 +169,7 @@ final class NativeAudioRecorder {
   final NativeAudioRecorderListInputDevicesFn _listInputDevicesFn;
   final NativeAudioRecorderStartFileFn? _startFileFn;
   final NativeAudioRecorderStartPcmStreamFn? _startPcmStreamFn;
+  final bool _usesDefaultReadPcmStreamFn;
   final NativeAudioRecorderReadPcmStreamFn _readPcmStreamFn;
   final NativeAudioRecorderStopFn _stopFn;
   final NativeAudioRecorderResetFn _resetFn;
@@ -190,8 +192,14 @@ final class NativeAudioRecorder {
   Directory? _activeTempDirectory;
   bool _stopping = false;
   bool _nativeAmplitudePollInFlight = false;
+  bool _streamDrainInFlight = false;
+  ffi.Pointer<ffi.Int16>? _streamReadSamplesPtr;
+  ffi.Pointer<ffi.Uint32>? _streamReadSamplesWrittenPtr;
+  ffi.Pointer<ffi.Char>? _streamReadErrorPtr;
+  int _streamReadBufferCapacitySamples = 0;
 
   static const _defaultReadSampleCapacity = 4096;
+  static const _maxReadIterationsPerDrain = 3;
 
   NativeAudioRecorderPlatform get platform => _platform;
 
@@ -417,6 +425,8 @@ final class NativeAudioRecorder {
 
     _mode = _RecorderMode.stream;
     _streamReadSampleCapacity = readSampleCapacity;
+    _streamDrainInFlight = false;
+    _prepareStreamReadBuffersIfNeeded(readSampleCapacity);
 
     final controller = StreamController<Uint8List>(
       onCancel: () async {
@@ -688,6 +698,8 @@ final class NativeAudioRecorder {
     _mode = _RecorderMode.stopped;
     _streamReadSampleCapacity = _defaultReadSampleCapacity;
     _lastAmplitudeEmissionAt = null;
+    _streamDrainInFlight = false;
+    _releaseStreamReadBuffers();
 
     final controller = _streamController;
     _streamController = null;
@@ -745,6 +757,8 @@ final class NativeAudioRecorder {
     _stopping = false;
     _streamReadSampleCapacity = _defaultReadSampleCapacity;
     _lastAmplitudeEmissionAt = null;
+    _streamDrainInFlight = false;
+    _releaseStreamReadBuffers();
 
     final controller = _streamController;
     _streamController = null;
@@ -778,6 +792,9 @@ final class NativeAudioRecorder {
   }
 
   void _drainNativeStream() {
+    if (_streamDrainInFlight) {
+      return;
+    }
     if (_mode != _RecorderMode.stream) {
       return;
     }
@@ -786,9 +803,10 @@ final class NativeAudioRecorder {
       return;
     }
 
+    _streamDrainInFlight = true;
     try {
-      for (var i = 0; i < 8; i++) {
-        final chunk = _readPcmStreamFn(maxSamples: _streamReadSampleCapacity);
+      for (var i = 0; i < _maxReadIterationsPerDrain; i++) {
+        final chunk = _readPcmStreamChunk(maxSamples: _streamReadSampleCapacity);
         if (chunk.isEmpty) {
           break;
         }
@@ -798,7 +816,97 @@ final class NativeAudioRecorder {
     } on Object catch (error, stackTrace) {
       controller.addError(error, stackTrace);
       unawaited(stop());
+    } finally {
+      _streamDrainInFlight = false;
     }
+  }
+
+  Uint8List _readPcmStreamChunk({required int maxSamples}) {
+    if (!_usesDefaultReadPcmStreamFn) {
+      return _readPcmStreamFn(maxSamples: maxSamples);
+    }
+
+    _prepareStreamReadBuffersIfNeeded(maxSamples);
+    final outSamplesPtr = _streamReadSamplesPtr;
+    final outSamplesWrittenPtr = _streamReadSamplesWrittenPtr;
+    final errorPtr = _streamReadErrorPtr;
+    if (outSamplesPtr == null || outSamplesWrittenPtr == null || errorPtr == null) {
+      throw StateError('Native stream read buffers are not initialized.');
+    }
+
+    return _runRecorderReadStreamWithBuffers(
+      _nativeReadStreamFnForPlatform(),
+      maxSamples: maxSamples,
+      outSamplesPtr: outSamplesPtr,
+      outSamplesWrittenPtr: outSamplesWrittenPtr,
+      errorPtr: errorPtr,
+      operation: _nativeReadStreamOperationForPlatform(),
+    );
+  }
+
+  void _prepareStreamReadBuffersIfNeeded(int requiredSampleCapacity) {
+    if (!_usesDefaultReadPcmStreamFn) {
+      return;
+    }
+
+    if (_streamReadBufferCapacitySamples >= requiredSampleCapacity &&
+        _streamReadSamplesPtr != null &&
+        _streamReadSamplesWrittenPtr != null &&
+        _streamReadErrorPtr != null) {
+      return;
+    }
+
+    _releaseStreamReadBuffers();
+
+    _streamReadSamplesPtr = calloc<ffi.Int16>(requiredSampleCapacity);
+    _streamReadSamplesWrittenPtr = calloc<ffi.Uint32>();
+    _streamReadErrorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
+    _streamReadBufferCapacitySamples = requiredSampleCapacity;
+  }
+
+  void _releaseStreamReadBuffers() {
+    final samplesPtr = _streamReadSamplesPtr;
+    if (samplesPtr != null) {
+      calloc.free(samplesPtr);
+    }
+    _streamReadSamplesPtr = null;
+
+    final samplesWrittenPtr = _streamReadSamplesWrittenPtr;
+    if (samplesWrittenPtr != null) {
+      calloc.free(samplesWrittenPtr);
+    }
+    _streamReadSamplesWrittenPtr = null;
+
+    final errorPtr = _streamReadErrorPtr;
+    if (errorPtr != null) {
+      calloc.free(errorPtr);
+    }
+    _streamReadErrorPtr = null;
+    _streamReadBufferCapacitySamples = 0;
+  }
+
+  _NativeReadStreamFn _nativeReadStreamFnForPlatform() {
+    return switch (_platform) {
+      NativeAudioRecorderPlatform.macOS =>
+        macos_bindings.speech_utils_macos_audio_recorder_read_stream_pcm16,
+      NativeAudioRecorderPlatform.windows =>
+        windows_bindings.speech_utils_windows_audio_recorder_read_stream_pcm16,
+      NativeAudioRecorderPlatform.iOS =>
+        ios_bindings.speech_utils_ios_audio_recorder_read_stream_pcm16,
+      NativeAudioRecorderPlatform.unsupported => throw UnsupportedError(
+        'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
+      ),
+    };
+  }
+
+  String _nativeReadStreamOperationForPlatform() {
+    return switch (_platform) {
+      NativeAudioRecorderPlatform.macOS => 'macOS stream read',
+      NativeAudioRecorderPlatform.windows => 'Windows stream read',
+      NativeAudioRecorderPlatform.iOS => 'iOS stream read',
+      NativeAudioRecorderPlatform.unsupported =>
+        'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
+    };
   }
 
   void _ensureSupportedPlatform() {
@@ -1777,30 +1885,48 @@ Uint8List _runRecorderReadStream(
   final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
 
   try {
-    final code = fn(
-      outSamplesPtr,
-      maxSamples,
-      outSamplesWrittenPtr,
-      errorPtr,
-      _recorderErrorBufferBytes,
+    return _runRecorderReadStreamWithBuffers(
+      fn,
+      maxSamples: maxSamples,
+      outSamplesPtr: outSamplesPtr,
+      outSamplesWrittenPtr: outSamplesWrittenPtr,
+      errorPtr: errorPtr,
+      operation: operation,
     );
-    _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
-
-    final sampleCount = outSamplesWrittenPtr.value;
-    if (sampleCount <= 0) {
-      return Uint8List(0);
-    }
-
-    final bytes = Uint8List(sampleCount * 2);
-    final dst = bytes.buffer.asInt16List();
-    final src = outSamplesPtr.asTypedList(sampleCount);
-    dst.setRange(0, sampleCount, src);
-    return bytes;
   } finally {
     calloc.free(outSamplesPtr);
     calloc.free(outSamplesWrittenPtr);
     calloc.free(errorPtr);
   }
+}
+
+Uint8List _runRecorderReadStreamWithBuffers(
+  _NativeReadStreamFn fn, {
+  required int maxSamples,
+  required ffi.Pointer<ffi.Int16> outSamplesPtr,
+  required ffi.Pointer<ffi.Uint32> outSamplesWrittenPtr,
+  required ffi.Pointer<ffi.Char> errorPtr,
+  required String operation,
+}) {
+  final code = fn(
+    outSamplesPtr,
+    maxSamples,
+    outSamplesWrittenPtr,
+    errorPtr,
+    _recorderErrorBufferBytes,
+  );
+  _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
+
+  final sampleCount = math.min(outSamplesWrittenPtr.value, maxSamples);
+  if (sampleCount <= 0) {
+    return Uint8List(0);
+  }
+
+  final bytes = Uint8List(sampleCount * 2);
+  final dst = bytes.buffer.asInt16List();
+  final src = outSamplesPtr.asTypedList(sampleCount);
+  dst.setRange(0, sampleCount, src);
+  return bytes;
 }
 
 void _runRecorderStop(_NativeStopFn fn, {required String operation}) {

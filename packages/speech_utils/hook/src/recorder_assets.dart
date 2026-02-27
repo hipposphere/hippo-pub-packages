@@ -50,6 +50,8 @@ Future<void> buildWindowsAudioRecorderAsset(BuildInput input, BuildOutputBuilder
   final windowsIncludes = <String>[...nativeDepsIncludes];
   final windowsLibraryDirectories = <String>[];
   windowsDefines['SPEECH_UTILS_ENABLE_WEBRTC_APM'] = '1';
+  final webrtcIncludeRoot = p.join(webrtcSdk.rootDir.path, 'include');
+  windowsIncludes.add(webrtcIncludeRoot);
   windowsIncludes.add(webrtcSdk.includeDir.path);
   windowsLibraries.insertAll(0, webrtcSdk.libraries);
   windowsLibraryDirectories.addAll(webrtcSdk.importLibDirectories);

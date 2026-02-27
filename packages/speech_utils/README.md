@@ -149,7 +149,9 @@ await recorder.stop();
 `startFileRecording()` output encoding is controlled by `AudioRecorderConfig.encoding` and
 supports `AudioEncoder.wav`, `AudioEncoder.pcm16bits`,
 `AudioEncoder.aacLc`, `AudioEncoder.aacHe`, and `AudioEncoder.aacEld`.
-For AAC outputs, the recorder captures native WAV and finalizes AAC on `stop()`.
+For AAC outputs on Apple platforms (`macOS`/`iOS`), recording writes directly to `.m4a`
+through the native AVAudioEngine capture path. Non-Apple platforms keep the WAV-then-encode
+finalization path on `stop()`.
 
 Input device discovery/selection:
 
@@ -180,9 +182,18 @@ await recorder.startFileRecording(
     channelCount: 1,
     processing: AudioProcessingConfig(
       preset: AudioCapturePreset.voiceIsolation,
-      enableNoiseSuppression: true,
-      enableEchoCancellation: true,
-      enableAutomaticGainControl: true,
+      apple: AppleAudioProcessingConfig(
+        usePresetDefaults: true,
+        enableNoiseSuppression: true,
+        enableEchoCancellation: true,
+        enableAutomaticGainControl: true,
+      ),
+      windows: WindowsAudioProcessingConfig(
+        usePresetDefaults: true,
+        enableNoiseSuppression: true,
+        enableEchoCancellation: true,
+        enableAutomaticGainControl: true,
+      ),
     ),
     appleConfig: AppleAudioRecorderConfig(
       sessionMode: AppleAudioSessionMode.voiceChat,
@@ -201,8 +212,10 @@ await recorder.startFileRecording(
 be applied partially depending on platform/backend capabilities.
 `processing.preferredLatency` is mapped to native capture buffering where
 possible (Apple I/O buffer hint and Windows period-size hint).
-On Apple platforms, stream/WAV capture can switch to an `AVAudioEngine`
-voice-processing backend when suppression/cancellation hints are requested.
+On Apple platforms, stream/WAV capture uses `AVAudioEngine` and enables
+voice-processing features when suppression/cancellation hints are requested.
+`AudioCapturePreset.voice` and `AudioCapturePreset.voiceIsolation` also request
+Apple voice-processing intent in the native backend.
 
 Stream mode:
 

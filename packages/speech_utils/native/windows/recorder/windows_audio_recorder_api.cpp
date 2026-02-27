@@ -1,6 +1,11 @@
 #include "windows_audio_recorder_api.h"
+#include "windows_webrtc_audio_processing.h"
 
 #include <windows.h>
+#include <audioclient.h>
+#include <combaseapi.h>
+#include <ksmedia.h>
+#include <mmdeviceapi.h>
 
 #include <algorithm>
 #include <cctype>
@@ -11,6 +16,7 @@
 #include <limits>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
@@ -30,6 +36,27 @@ void WriteError(const std::string& message, char* out_error_utf8, uint32_t out_e
 }
 
 namespace {
+constexpr uint32_t kProcessingFlagNoiseSuppression = 1U << 0;
+constexpr uint32_t kProcessingFlagEchoCancellation = 1U << 1;
+constexpr uint32_t kProcessingFlagAutomaticGainControl = 1U << 2;
+constexpr uint32_t kProcessingFlagHighPassFilter = 1U << 3;
+constexpr uint32_t kProcessingFlagPresetVoiceIsolation = 1U << 5;
+
+constexpr uint32_t kWindowsFlagExclusiveMode = 1U << 0;
+constexpr uint32_t kWindowsFlagRawCapture = 1U << 1;
+
+constexpr int32_t kWindowsVoiceProcessingModeAuto = 0;
+constexpr int32_t kWindowsVoiceProcessingModeSystem = 1;
+constexpr int32_t kWindowsVoiceProcessingModeSoftware = 2;
+constexpr int32_t kWindowsVoiceProcessingModeOff = 3;
+
+#if defined(__IAudioEffectsManager_INTERFACE_DEFINED__) && \
+    defined(AUDIO_EFFECT_TYPE_DEEP_NOISE_SUPPRESSION)
+#define SPEECH_UTILS_WINDOWS_HAS_AUDIO_EFFECTS_MANAGER 1
+#else
+#define SPEECH_UTILS_WINDOWS_HAS_AUDIO_EFFECTS_MANAGER 0
+#endif
+
 std::string DescribeMiniaudioError(const char* prefix, ma_result result) {
   const char* description = ma_result_description(result);
   if (description == nullptr || description[0] == '\0') {
@@ -195,6 +222,293 @@ std::string BuildInputDevicesJson(const ma_device_info* capture_infos, ma_uint32
   return std::string(buffer.GetString(), buffer.GetSize());
 }
 
+std::string DescribeHResult(const char* prefix, HRESULT hr) {
+  char buffer[160] = {0};
+  std::snprintf(buffer, sizeof(buffer), "%s (HRESULT 0x%08lx).", prefix,
+                static_cast<unsigned long>(hr));
+  return std::string(buffer);
+}
+
+template <typename T>
+void SafeRelease(T*& value) {
+  if (value != nullptr) {
+    value->Release();
+    value = nullptr;
+  }
+}
+
+bool ProbeAndEnableSystemDeepNoiseSuppression(bool use_communications_device,
+                                              bool* out_available,
+                                              std::string* out_reason) {
+  if (out_available == nullptr) {
+    if (out_reason != nullptr) {
+      *out_reason = "Voice-processing probe output pointer is null.";
+    }
+    return false;
+  }
+
+  *out_available = false;
+
+#if SPEECH_UTILS_WINDOWS_HAS_AUDIO_EFFECTS_MANAGER
+  const HRESULT co_init_result = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+  const bool should_uninitialize =
+      co_init_result == S_OK || co_init_result == S_FALSE;
+  if (FAILED(co_init_result) && co_init_result != RPC_E_CHANGED_MODE) {
+    if (out_reason != nullptr) {
+      *out_reason = DescribeHResult("Failed to initialize COM for audio-effects probe",
+                                    co_init_result);
+    }
+    return false;
+  }
+
+  IMMDeviceEnumerator* enumerator = nullptr;
+  IMMDevice* endpoint = nullptr;
+  IAudioClient* audio_client = nullptr;
+  IAudioEffectsManager* effects_manager = nullptr;
+  WAVEFORMATEX* mix_format = nullptr;
+  AUDIO_EFFECT* effects = nullptr;
+  UINT32 effect_count = 0;
+  bool success = false;
+
+  const ERole endpoint_role = use_communications_device ? eCommunications : eConsole;
+
+  HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+                                __uuidof(IMMDeviceEnumerator),
+                                reinterpret_cast<void**>(&enumerator));
+  if (FAILED(hr)) {
+    if (out_reason != nullptr) {
+      *out_reason = DescribeHResult("Failed to create IMMDeviceEnumerator", hr);
+    }
+    goto cleanup;
+  }
+
+  hr = enumerator->GetDefaultAudioEndpoint(eCapture, endpoint_role, &endpoint);
+  if (FAILED(hr)) {
+    if (out_reason != nullptr) {
+      *out_reason = DescribeHResult("Failed to resolve default capture endpoint", hr);
+    }
+    goto cleanup;
+  }
+
+  hr = endpoint->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr,
+                          reinterpret_cast<void**>(&audio_client));
+  if (FAILED(hr)) {
+    if (out_reason != nullptr) {
+      *out_reason = DescribeHResult("Failed to activate IAudioClient", hr);
+    }
+    goto cleanup;
+  }
+
+  hr = audio_client->GetMixFormat(&mix_format);
+  if (FAILED(hr) || mix_format == nullptr) {
+    if (out_reason != nullptr) {
+      *out_reason = DescribeHResult("Failed to read capture mix format", hr);
+    }
+    goto cleanup;
+  }
+
+  hr = audio_client->Initialize(AUDCLNT_SHAREMODE_SHARED, 0, 0, 0, mix_format, nullptr);
+  if (FAILED(hr) && hr != AUDCLNT_E_ALREADY_INITIALIZED) {
+    if (out_reason != nullptr) {
+      *out_reason = DescribeHResult("Failed to initialize IAudioClient for effects query", hr);
+    }
+    goto cleanup;
+  }
+
+  hr = audio_client->GetService(__uuidof(IAudioEffectsManager),
+                                reinterpret_cast<void**>(&effects_manager));
+  if (FAILED(hr)) {
+    success = true;
+    goto cleanup;
+  }
+
+  hr = effects_manager->GetAudioEffects(&effects, &effect_count);
+  if (FAILED(hr)) {
+    if (out_reason != nullptr) {
+      *out_reason = DescribeHResult("Failed to enumerate audio effects", hr);
+    }
+    goto cleanup;
+  }
+
+  for (UINT32 i = 0; i < effect_count; i++) {
+    if (!IsEqualGUID(effects[i].id, AUDIO_EFFECT_TYPE_DEEP_NOISE_SUPPRESSION)) {
+      continue;
+    }
+    *out_available = true;
+    if (effects[i].canSetState && effects[i].state != AUDIO_EFFECT_STATE_ON) {
+      const HRESULT set_state_result =
+          effects_manager->SetAudioEffectState(effects[i].id, AUDIO_EFFECT_STATE_ON);
+      if (FAILED(set_state_result) && out_reason != nullptr) {
+        *out_reason = DescribeHResult(
+            "Deep noise suppression exists but could not be enabled", set_state_result);
+      }
+    }
+    break;
+  }
+
+  success = true;
+
+cleanup:
+  if (effects != nullptr) {
+    CoTaskMemFree(effects);
+  }
+  if (mix_format != nullptr) {
+    CoTaskMemFree(mix_format);
+  }
+  SafeRelease(effects_manager);
+  SafeRelease(audio_client);
+  SafeRelease(endpoint);
+  SafeRelease(enumerator);
+  if (should_uninitialize) {
+    CoUninitialize();
+  }
+  return success;
+#else
+  if (out_reason != nullptr) {
+    *out_reason = "Windows SDK does not expose IAudioEffectsManager.";
+  }
+  return true;
+#endif
+}
+
+enum class VoiceProcessingBackend { kOff, kSystem, kSoftware };
+
+struct SoftwareVoiceProcessingConfig {
+  bool noise_suppression = false;
+  bool automatic_gain_control = false;
+  bool high_pass_filter = false;
+  bool strong_isolation = false;
+};
+
+struct VoiceProcessingSelection {
+  VoiceProcessingBackend backend = VoiceProcessingBackend::kOff;
+  SoftwareVoiceProcessingConfig software{};
+  bool system_dns_available = false;
+};
+
+SoftwareVoiceProcessingConfig BuildSoftwareVoiceProcessingConfig(uint32_t processing_flags) {
+  SoftwareVoiceProcessingConfig config{};
+  config.noise_suppression = (processing_flags & kProcessingFlagNoiseSuppression) != 0;
+  config.automatic_gain_control = (processing_flags & kProcessingFlagAutomaticGainControl) != 0;
+  config.high_pass_filter = (processing_flags & kProcessingFlagHighPassFilter) != 0;
+  config.strong_isolation = (processing_flags & kProcessingFlagPresetVoiceIsolation) != 0;
+  return config;
+}
+
+bool ResolveVoiceProcessingSelection(uint32_t processing_flags, uint32_t windows_flags,
+                                     int32_t windows_voice_processing_mode_code,
+                                     bool use_communications_device,
+                                     VoiceProcessingSelection* out_selection,
+                                     std::string* out_reason) {
+  if (out_selection == nullptr) {
+    if (out_reason != nullptr) {
+      *out_reason = "Voice-processing selection output pointer is null.";
+    }
+    return false;
+  }
+
+  VoiceProcessingSelection selection{};
+  selection.software = BuildSoftwareVoiceProcessingConfig(processing_flags);
+
+  const bool has_software_processing = selection.software.noise_suppression ||
+                                       selection.software.automatic_gain_control ||
+                                       selection.software.high_pass_filter;
+  const bool voice_processing_requested =
+      has_software_processing || ((processing_flags & kProcessingFlagEchoCancellation) != 0);
+  const bool raw_capture_requested = (windows_flags & kWindowsFlagRawCapture) != 0;
+
+  if (!voice_processing_requested ||
+      windows_voice_processing_mode_code == kWindowsVoiceProcessingModeOff) {
+    *out_selection = selection;
+    return true;
+  }
+
+  if (raw_capture_requested &&
+      windows_voice_processing_mode_code == kWindowsVoiceProcessingModeAuto) {
+    *out_selection = selection;
+    return true;
+  }
+  if (raw_capture_requested &&
+      windows_voice_processing_mode_code == kWindowsVoiceProcessingModeSystem) {
+    if (out_reason != nullptr) {
+      *out_reason = "System voice processing cannot run with raw capture.";
+    }
+    return false;
+  }
+
+  if (windows_voice_processing_mode_code == kWindowsVoiceProcessingModeAuto ||
+      windows_voice_processing_mode_code == kWindowsVoiceProcessingModeSystem) {
+    const bool can_try_system =
+        (windows_flags & (kWindowsFlagExclusiveMode | kWindowsFlagRawCapture)) == 0;
+
+    if (!can_try_system) {
+      if (windows_voice_processing_mode_code == kWindowsVoiceProcessingModeSystem) {
+        if (out_reason != nullptr) {
+          *out_reason =
+              "System voice processing cannot run with exclusive-mode or raw capture.";
+        }
+        return false;
+      }
+    } else {
+      std::string probe_reason;
+      bool dns_available = false;
+      if (!ProbeAndEnableSystemDeepNoiseSuppression(use_communications_device, &dns_available,
+                                                    &probe_reason)) {
+        if (windows_voice_processing_mode_code == kWindowsVoiceProcessingModeSystem) {
+          if (out_reason != nullptr) {
+            *out_reason =
+                probe_reason.empty() ? "System deep noise suppression probe failed."
+                                     : probe_reason;
+          }
+          return false;
+        }
+      } else {
+        selection.system_dns_available = dns_available;
+        if (dns_available) {
+          selection.backend = VoiceProcessingBackend::kSystem;
+          *out_selection = selection;
+          return true;
+        }
+        if (windows_voice_processing_mode_code == kWindowsVoiceProcessingModeSystem) {
+          if (out_reason != nullptr) {
+            *out_reason = probe_reason.empty()
+                              ? "System deep noise suppression is unavailable on this endpoint."
+                              : probe_reason;
+          }
+          return false;
+        }
+      }
+    }
+  }
+
+  if ((windows_voice_processing_mode_code == kWindowsVoiceProcessingModeAuto ||
+       windows_voice_processing_mode_code == kWindowsVoiceProcessingModeSoftware) &&
+      has_software_processing) {
+    selection.backend = VoiceProcessingBackend::kSoftware;
+    *out_selection = selection;
+    return true;
+  }
+
+  if (windows_voice_processing_mode_code == kWindowsVoiceProcessingModeSoftware &&
+      !has_software_processing) {
+    *out_selection = selection;
+    return true;
+  }
+
+  if (windows_voice_processing_mode_code != kWindowsVoiceProcessingModeAuto &&
+      windows_voice_processing_mode_code != kWindowsVoiceProcessingModeSystem &&
+      windows_voice_processing_mode_code != kWindowsVoiceProcessingModeSoftware &&
+      windows_voice_processing_mode_code != kWindowsVoiceProcessingModeOff) {
+    if (out_reason != nullptr) {
+      *out_reason = "Unknown Windows voice-processing mode code.";
+    }
+    return false;
+  }
+
+  *out_selection = selection;
+  return true;
+}
+
 #pragma pack(push, 1)
 struct WavHeader {
   char riff[4];
@@ -252,6 +566,8 @@ class WindowsAudioRecorderState {
     const uint32_t channel_count = start_config.channel_count;
     const char* output_path_utf8 = start_config.output_path_utf8;
     const char* input_device_id_utf8 = start_config.input_device_id_utf8;
+    const uint32_t processing_flags =
+        static_cast<uint32_t>(start_config.runtime.processing_flags);
     const uint32_t windows_preferred_period_frames =
         start_config.runtime.windows_preferred_period_frames;
     const uint32_t windows_flags = start_config.runtime.windows_flags;
@@ -259,6 +575,8 @@ class WindowsAudioRecorderState {
         start_config.runtime.windows_capture_category_code;
     const int32_t windows_use_communications_device =
         start_config.runtime.windows_use_communications_device;
+    const int32_t windows_voice_processing_mode_code =
+        start_config.runtime.windows_voice_processing_mode_code;
     if (output_path_utf8 == nullptr) {
       WriteError("Output path is null.", error_utf8, error_utf8_capacity);
       return -1;
@@ -293,9 +611,9 @@ class WindowsAudioRecorderState {
     }
 
     if (!StartDeviceLocked(sample_rate_hz, channel_count, windows_preferred_period_frames,
-                           windows_flags, windows_capture_category_code,
-                           windows_use_communications_device, input_device_id_utf8, error_utf8,
-                           error_utf8_capacity)) {
+                           processing_flags, windows_flags, windows_capture_category_code,
+                           windows_use_communications_device, windows_voice_processing_mode_code,
+                           input_device_id_utf8, error_utf8, error_utf8_capacity)) {
       std::fclose(file);
       return -7;
     }
@@ -317,6 +635,8 @@ class WindowsAudioRecorderState {
     const uint32_t channel_count = start_config.channel_count;
     const uint32_t frames_per_chunk = start_config.frames_per_chunk;
     const char* input_device_id_utf8 = start_config.input_device_id_utf8;
+    const uint32_t processing_flags =
+        static_cast<uint32_t>(start_config.runtime.processing_flags);
     const uint32_t windows_preferred_period_frames =
         start_config.runtime.windows_preferred_period_frames;
     const uint32_t windows_flags = start_config.runtime.windows_flags;
@@ -324,6 +644,8 @@ class WindowsAudioRecorderState {
         start_config.runtime.windows_capture_category_code;
     const int32_t windows_use_communications_device =
         start_config.runtime.windows_use_communications_device;
+    const int32_t windows_voice_processing_mode_code =
+        start_config.runtime.windows_voice_processing_mode_code;
     if (sample_rate_hz == 0 || channel_count == 0 || frames_per_chunk == 0) {
       WriteError("Sample rate, channel count and frames_per_chunk must be > 0.", error_utf8,
                  error_utf8_capacity);
@@ -339,8 +661,9 @@ class WindowsAudioRecorderState {
     const uint32_t effective_period_frames =
         windows_preferred_period_frames > 0 ? windows_preferred_period_frames : frames_per_chunk;
 
-    if (!StartDeviceLocked(sample_rate_hz, channel_count, effective_period_frames, windows_flags,
-                           windows_capture_category_code, windows_use_communications_device,
+    if (!StartDeviceLocked(sample_rate_hz, channel_count, effective_period_frames,
+                           processing_flags, windows_flags, windows_capture_category_code,
+                           windows_use_communications_device, windows_voice_processing_mode_code,
                            input_device_id_utf8, error_utf8, error_utf8_capacity)) {
       return -3;
     }
@@ -398,6 +721,9 @@ class WindowsAudioRecorderState {
       stream_sample_limit_ = 0;
       current_amplitude_dbfs_ = -90.0;
       max_amplitude_dbfs_ = -90.0;
+      active_processing_backend_ = VoiceProcessingBackend::kOff;
+      software_processing_config_ = {};
+      system_dns_available_ = false;
 
       should_stop_device = device_initialized_;
       device_initialized_ = false;
@@ -411,6 +737,7 @@ class WindowsAudioRecorderState {
       data_bytes_written_ = 0;
       sample_rate_hz_ = 0;
       channel_count_ = 0;
+      ResetSoftwareProcessingStateLocked();
     }
 
     if (should_stop_device) {
@@ -474,10 +801,12 @@ class WindowsAudioRecorderState {
     }
 
     const auto sample_count = static_cast<std::size_t>(frame_count) * channel_count_;
-    UpdateAmplitudeLocked(samples, sample_count);
+    const int16_t* processed_samples = MaybeProcessSamplesLocked(samples, sample_count);
+    UpdateAmplitudeLocked(processed_samples, sample_count);
 
     if (mode_ == RecorderMode::kFile && file_ != nullptr) {
-      const auto written = std::fwrite(samples, sizeof(int16_t), sample_count, file_);
+      const auto written =
+          std::fwrite(processed_samples, sizeof(int16_t), sample_count, file_);
       if (written == sample_count) {
         data_bytes_written_ += static_cast<uint32_t>(written * sizeof(int16_t));
       }
@@ -485,7 +814,8 @@ class WindowsAudioRecorderState {
     }
 
     if (mode_ == RecorderMode::kStream) {
-      stream_samples_.insert(stream_samples_.end(), samples, samples + sample_count);
+      stream_samples_.insert(stream_samples_.end(), processed_samples,
+                             processed_samples + sample_count);
       if (stream_samples_.size() > stream_sample_limit_) {
         const auto overflow = stream_samples_.size() - stream_sample_limit_;
         stream_samples_.erase(stream_samples_.begin(), stream_samples_.begin() + overflow);
@@ -600,10 +930,122 @@ class WindowsAudioRecorderState {
     return true;
   }
 
+  void ResetSoftwareProcessingStateLocked() {
+    software_noise_floor_rms_ = 0.015;
+    software_agc_gain_ = 1.0;
+    webrtc_processing_active_ = false;
+    webrtc_processor_.Reset();
+
+    const auto channel_count = std::max<uint32_t>(channel_count_, 1);
+    hpf_prev_input_by_channel_.assign(channel_count, 0.0);
+    hpf_prev_output_by_channel_.assign(channel_count, 0.0);
+    software_frame_buffer_.clear();
+    software_output_buffer_.clear();
+  }
+
+  const int16_t* MaybeProcessSamplesLocked(const int16_t* samples, std::size_t sample_count) {
+    if (samples == nullptr || sample_count == 0 ||
+        active_processing_backend_ != VoiceProcessingBackend::kSoftware) {
+      return samples;
+    }
+
+    if (webrtc_processing_active_) {
+      std::size_t processed_sample_count = 0;
+      std::string webrtc_error;
+      const int16_t* webrtc_processed = webrtc_processor_.ProcessInterleaved(
+          samples, sample_count, &processed_sample_count, &webrtc_error);
+      if (webrtc_processed != nullptr && processed_sample_count == sample_count) {
+        return webrtc_processed;
+      }
+      webrtc_processing_active_ = false;
+    }
+
+    software_frame_buffer_.resize(sample_count);
+    software_output_buffer_.resize(sample_count);
+
+    double sum_squares = 0.0;
+    const auto channel_count = std::max<uint32_t>(channel_count_, 1);
+    constexpr double high_pass_alpha = 0.985;
+
+    for (std::size_t i = 0; i < sample_count; i++) {
+      double value = static_cast<double>(samples[i]) / 32768.0;
+
+      if (software_processing_config_.high_pass_filter) {
+        const std::size_t channel_index = i % channel_count;
+        const double previous_input = hpf_prev_input_by_channel_[channel_index];
+        const double previous_output = hpf_prev_output_by_channel_[channel_index];
+        const double filtered =
+            high_pass_alpha * (previous_output + value - previous_input);
+        hpf_prev_input_by_channel_[channel_index] = value;
+        hpf_prev_output_by_channel_[channel_index] = filtered;
+        value = filtered;
+      }
+
+      software_frame_buffer_[i] = static_cast<float>(value);
+      sum_squares += value * value;
+    }
+
+    double rms =
+        std::sqrt(sum_squares / static_cast<double>(std::max<std::size_t>(sample_count, 1)));
+
+    if (software_processing_config_.noise_suppression) {
+      const double floored_rms = std::max(rms, 0.0025);
+      if (floored_rms <= software_noise_floor_rms_ * 1.1) {
+        software_noise_floor_rms_ =
+            software_noise_floor_rms_ * 0.98 + floored_rms * 0.02;
+      } else {
+        software_noise_floor_rms_ =
+            software_noise_floor_rms_ * 0.999 + floored_rms * 0.001;
+      }
+
+      const double threshold_multiplier =
+          software_processing_config_.strong_isolation ? 3.0 : 2.2;
+      const double threshold = std::max(software_noise_floor_rms_ * threshold_multiplier, 0.01);
+      double suppression_gain = 1.0;
+      if (rms < threshold) {
+        const double ratio = threshold <= 0.0 ? 1.0 : rms / threshold;
+        const double minimum_gain =
+            software_processing_config_.strong_isolation ? 0.08 : 0.2;
+        suppression_gain = std::clamp(ratio, minimum_gain, 1.0);
+      }
+
+      if (suppression_gain < 1.0) {
+        for (std::size_t i = 0; i < sample_count; i++) {
+          software_frame_buffer_[i] *= static_cast<float>(suppression_gain);
+        }
+        rms *= suppression_gain;
+      }
+    }
+
+    if (software_processing_config_.automatic_gain_control) {
+      const double target_rms = software_processing_config_.strong_isolation ? 0.12 : 0.1;
+      const double desired_gain =
+          std::clamp(target_rms / std::max(rms, 0.001), 0.5, 8.0);
+      const double smoothing = desired_gain < software_agc_gain_ ? 0.15 : 0.05;
+      software_agc_gain_ += (desired_gain - software_agc_gain_) * smoothing;
+
+      for (std::size_t i = 0; i < sample_count; i++) {
+        software_frame_buffer_[i] *= static_cast<float>(software_agc_gain_);
+      }
+    }
+
+    for (std::size_t i = 0; i < sample_count; i++) {
+      const double clipped =
+          std::clamp(static_cast<double>(software_frame_buffer_[i]), -1.0, 1.0);
+      const int32_t scaled = static_cast<int32_t>(std::lrint(clipped * 32767.0));
+      software_output_buffer_[i] =
+          static_cast<int16_t>(std::clamp(scaled, -32768, 32767));
+    }
+
+    return software_output_buffer_.data();
+  }
+
   bool StartDeviceLocked(uint32_t sample_rate_hz, uint32_t channel_count,
-                         uint32_t preferred_period_frames, uint32_t windows_flags,
+                         uint32_t preferred_period_frames, uint32_t processing_flags,
+                         uint32_t windows_flags,
                          int32_t windows_capture_category_code,
                          int32_t windows_use_communications_device,
+                         int32_t windows_voice_processing_mode_code,
                          const char* input_device_id_utf8,
                          char* error_utf8, uint32_t error_utf8_capacity) {
     const std::string effective_device_id = TrimAscii(input_device_id_utf8);
@@ -633,32 +1075,82 @@ class WindowsAudioRecorderState {
       selected_device_id_ptr = &selected_device_id;
     }
 
+    VoiceProcessingSelection voice_processing_selection{};
+    std::string voice_processing_reason;
+    if (!ResolveVoiceProcessingSelection(processing_flags, windows_flags,
+                                         windows_voice_processing_mode_code,
+                                         windows_use_communications_device != 0,
+                                         &voice_processing_selection,
+                                         &voice_processing_reason)) {
+      WriteError(voice_processing_reason.empty()
+                     ? "Failed to resolve Windows voice-processing backend."
+                     : voice_processing_reason,
+                 error_utf8, error_utf8_capacity);
+      return false;
+    }
+
+    active_processing_backend_ = voice_processing_selection.backend;
+    software_processing_config_ = voice_processing_selection.software;
+    system_dns_available_ = voice_processing_selection.system_dns_available;
+    webrtc_processing_active_ = false;
+
+    if (active_processing_backend_ == VoiceProcessingBackend::kSoftware &&
+        webrtc_processor_.IsSupported()) {
+      WebRtcProcessingConfig webrtc_config{};
+      webrtc_config.sample_rate_hz = sample_rate_hz;
+      webrtc_config.channel_count = channel_count;
+      webrtc_config.enable_noise_suppression = software_processing_config_.noise_suppression;
+      webrtc_config.enable_automatic_gain_control =
+          software_processing_config_.automatic_gain_control;
+      webrtc_config.enable_high_pass_filter = software_processing_config_.high_pass_filter;
+      webrtc_config.prefer_strong_voice_isolation = software_processing_config_.strong_isolation;
+      std::string webrtc_error;
+      if (webrtc_processor_.Initialize(webrtc_config, &webrtc_error)) {
+        webrtc_processing_active_ = true;
+      }
+    }
+
     ma_device_config config = ma_device_config_init(ma_device_type_capture);
     config.capture.format = ma_format_s16;
     config.capture.channels = channel_count;
     config.capture.pDeviceID = selected_device_id_ptr;
-    if ((windows_flags & 0x01U) != 0U) {
+    if ((windows_flags & kWindowsFlagExclusiveMode) != 0U &&
+        active_processing_backend_ != VoiceProcessingBackend::kSystem) {
       config.capture.shareMode = ma_share_mode_exclusive;
     }
-    if (windows_capture_category_code <= 0) {
+
+    if (active_processing_backend_ == VoiceProcessingBackend::kSystem) {
+      config.capture.shareMode = ma_share_mode_shared;
       config.wasapi.usage = ma_wasapi_usage_default;
-    } else {
-      config.wasapi.usage = ma_wasapi_usage_pro_audio;
-    }
-    if (windows_use_communications_device != 0 && selected_device_id_ptr == nullptr) {
-      // Miniaudio does not expose the Windows "communications role" selector.
-      // Keep automatic routing enabled and rely on the system-default capture endpoint.
+      config.wasapi.noAutoConvertSRC = MA_FALSE;
+      config.wasapi.noDefaultQualitySRC = MA_FALSE;
       config.wasapi.noAutoStreamRouting = MA_FALSE;
+    } else {
+      if (windows_capture_category_code <= 0) {
+        config.wasapi.usage = ma_wasapi_usage_default;
+      } else {
+        config.wasapi.usage = ma_wasapi_usage_pro_audio;
+      }
+      if (windows_use_communications_device != 0 && selected_device_id_ptr == nullptr) {
+        // Miniaudio does not expose the Windows "communications role" selector.
+        // Keep automatic routing enabled and rely on the system-default capture endpoint.
+        config.wasapi.noAutoStreamRouting = MA_FALSE;
+      }
+      if ((windows_flags & kWindowsFlagRawCapture) != 0U) {
+        config.wasapi.noAutoConvertSRC = MA_TRUE;
+        config.wasapi.noDefaultQualitySRC = MA_TRUE;
+        config.wasapi.noAutoStreamRouting = MA_TRUE;
+      }
     }
+
     config.sampleRate = sample_rate_hz;
-    if ((windows_flags & 0x02U) != 0U) {
-      config.wasapi.noAutoConvertSRC = MA_TRUE;
-      config.wasapi.noDefaultQualitySRC = MA_TRUE;
-      config.wasapi.noAutoStreamRouting = MA_TRUE;
+    uint32_t effective_period_frames = preferred_period_frames;
+    if (webrtc_processing_active_ && sample_rate_hz % 100 == 0) {
+      effective_period_frames = sample_rate_hz / 100;
     }
-    if (preferred_period_frames > 0) {
+    if (effective_period_frames > 0) {
       // Keep streaming responsive by requesting a smaller callback period.
-      config.periodSizeInFrames = preferred_period_frames;
+      config.periodSizeInFrames = effective_period_frames;
       config.periods = 2;
       config.performanceProfile = ma_performance_profile_low_latency;
     }
@@ -685,6 +1177,7 @@ class WindowsAudioRecorderState {
     sample_rate_hz_ = sample_rate_hz;
     channel_count_ = channel_count;
     data_bytes_written_ = 0;
+    ResetSoftwareProcessingStateLocked();
     return true;
   }
 
@@ -700,6 +1193,17 @@ class WindowsAudioRecorderState {
   uint32_t data_bytes_written_ = 0;
   double current_amplitude_dbfs_ = -90.0;
   double max_amplitude_dbfs_ = -90.0;
+  VoiceProcessingBackend active_processing_backend_ = VoiceProcessingBackend::kOff;
+  SoftwareVoiceProcessingConfig software_processing_config_{};
+  bool system_dns_available_ = false;
+  double software_noise_floor_rms_ = 0.015;
+  double software_agc_gain_ = 1.0;
+  bool webrtc_processing_active_ = false;
+  WebRtcAudioProcessor webrtc_processor_{};
+  std::vector<double> hpf_prev_input_by_channel_;
+  std::vector<double> hpf_prev_output_by_channel_;
+  std::vector<float> software_frame_buffer_;
+  std::vector<int16_t> software_output_buffer_;
 
   std::deque<int16_t> stream_samples_;
   std::size_t stream_sample_limit_ = 0;

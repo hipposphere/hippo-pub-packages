@@ -49,6 +49,12 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
   int _channelCount = 1;
   int? _bitrateKbps;
   AudioEncoder _selectedEncoder = AudioEncoder.wav;
+  AudioCapturePreset? _audioCapturePreset;
+  bool? _enableNoiseSuppression;
+  bool? _enableEchoCancellation;
+  bool? _enableAutomaticGainControl;
+  bool? _enableHighPassFilter;
+  Duration? _preferredProcessingLatency;
 
   String? _activeOutputPath;
   String? _latestRecordingPath;
@@ -223,6 +229,73 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     );
   }
 
+  AudioProcessingConfig _buildProcessingConfig() {
+    return AudioProcessingConfig(
+      preset: _audioCapturePreset ?? AudioCapturePreset.raw,
+      preferredLatency: _preferredProcessingLatency,
+      apple: AppleAudioProcessingConfig(
+        usePresetDefaults: true,
+        enableNoiseSuppression: _enableNoiseSuppression,
+        enableEchoCancellation: _enableEchoCancellation,
+        enableAutomaticGainControl: _enableAutomaticGainControl,
+        enableHighPassFilter: _enableHighPassFilter,
+      ),
+      windows: WindowsAudioProcessingConfig(
+        usePresetDefaults: true,
+        enableNoiseSuppression: _enableNoiseSuppression,
+        enableEchoCancellation: _enableEchoCancellation,
+        enableAutomaticGainControl: _enableAutomaticGainControl,
+        enableHighPassFilter: _enableHighPassFilter,
+      ),
+    );
+  }
+
+  String _audioCapturePresetLabel(AudioCapturePreset? preset) {
+    if (preset == null) {
+      return 'No preset';
+    }
+    return switch (preset) {
+      AudioCapturePreset.voice => 'Voice',
+      AudioCapturePreset.voiceIsolation => 'Voice isolation',
+      AudioCapturePreset.raw => 'Raw',
+      AudioCapturePreset.music => 'Music',
+    };
+  }
+
+  String _processingSummary(AudioProcessingConfig config) {
+    final platform = _activeProcessingPlatform();
+    final noise = config.resolveNoiseSuppressionForPlatform(platform)
+        ? 'on'
+        : 'off';
+    final echo = config.resolveEchoCancellationForPlatform(platform)
+        ? 'on'
+        : 'off';
+    final agc = config.resolveAutomaticGainControlForPlatform(platform)
+        ? 'on'
+        : 'off';
+    final highPass = config.resolveHighPassFilterForPlatform(platform)
+        ? 'on'
+        : 'off';
+    final latency = config.preferredLatency?.inMilliseconds;
+    final latencyText = latency == null ? 'auto' : '${latency}ms';
+    final platformText = switch (platform) {
+      AudioProcessingPlatform.apple => 'apple',
+      AudioProcessingPlatform.windows => 'windows',
+      AudioProcessingPlatform.generic => 'generic',
+    };
+    return 'platform=$platformText, noise=$noise, echo=$echo, agc=$agc, high-pass=$highPass, latency=$latencyText';
+  }
+
+  AudioProcessingPlatform _activeProcessingPlatform() {
+    if (Platform.isMacOS || Platform.isIOS) {
+      return AudioProcessingPlatform.apple;
+    }
+    if (Platform.isWindows) {
+      return AudioProcessingPlatform.windows;
+    }
+    return AudioProcessingPlatform.generic;
+  }
+
   Future<void> _startRecording() async {
     if (_isRecording) {
       return;
@@ -241,10 +314,16 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     final outputPath =
         '${outputRoot.path}${Platform.pathSeparator}file_recording_${DateTime.now().millisecondsSinceEpoch}.${_encoderFileExtension(_selectedEncoder)}';
 
+    final processingConfig = _buildProcessingConfig();
     final config = AudioRecorderConfig(
       sampleRateHz: _sampleRateHz ?? 16000,
       channelCount: _channelCount,
-      inputDeviceId: _supportsInputSelection ? _selectedInputDevice?.id : null,
+      inputDeviceId: _supportsInputSelection
+          ? ((_selectedInputDevice?.isDefault ?? true)
+                ? null
+                : _selectedInputDevice?.id)
+          : null,
+      processing: processingConfig,
       encoding: _buildEncodingConfig(),
     );
 
@@ -297,6 +376,9 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     _appendLog('Recording started using "$activeInputLabel".');
     _appendLog(
       'Output: $_selectedEncoder (${_sampleRateHz ?? 'auto'} Hz, $_channelCount ch).',
+    );
+    _appendLog(
+      'Processing: preset=${_audioCapturePresetLabel(_audioCapturePreset)}, ${_processingSummary(processingConfig)}.',
     );
   }
 
@@ -814,6 +896,178 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                 style: theme.textTheme.bodySmall,
               ),
             ],
+            const Divider(height: 24),
+            Text('Audio processing', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              'Configure denoising, echo cancellation, and voice-isolation presets.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Demo defaults: Apple/Windows apply preset defaults unless an override is set.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            ExampleDropdownFormField<AudioCapturePreset?>(
+              initialValue: _audioCapturePreset,
+              decoration: const InputDecoration(
+                labelText: 'Processing preset',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              options: [
+                const ExampleDropdownOption<AudioCapturePreset?>(
+                  value: null,
+                  label: 'No preset',
+                ),
+                ...AudioCapturePreset.values.map(
+                  (preset) => ExampleDropdownOption<AudioCapturePreset?>(
+                    value: preset,
+                    label: _audioCapturePresetLabel(preset),
+                  ),
+                ),
+              ],
+              onChanged: _isRecording
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _audioCapturePreset = value;
+                      });
+                    },
+            ),
+            const SizedBox(height: 12),
+            ExampleDropdownFormField<bool?>(
+              initialValue: _enableNoiseSuppression,
+              decoration: const InputDecoration(
+                labelText: 'Noise suppression',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              options: const [
+                ExampleDropdownOption<bool?>(
+                  value: null,
+                  label: 'Auto (preset)',
+                ),
+                ExampleDropdownOption<bool?>(value: true, label: 'Enabled'),
+                ExampleDropdownOption<bool?>(value: false, label: 'Disabled'),
+              ],
+              onChanged: _isRecording
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _enableNoiseSuppression = value;
+                      });
+                    },
+            ),
+            const SizedBox(height: 12),
+            ExampleDropdownFormField<bool?>(
+              initialValue: _enableEchoCancellation,
+              decoration: const InputDecoration(
+                labelText: 'Echo cancellation',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              options: const [
+                ExampleDropdownOption<bool?>(
+                  value: null,
+                  label: 'Auto (preset)',
+                ),
+                ExampleDropdownOption<bool?>(value: true, label: 'Enabled'),
+                ExampleDropdownOption<bool?>(value: false, label: 'Disabled'),
+              ],
+              onChanged: _isRecording
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _enableEchoCancellation = value;
+                      });
+                    },
+            ),
+            const SizedBox(height: 12),
+            ExampleDropdownFormField<bool?>(
+              initialValue: _enableAutomaticGainControl,
+              decoration: const InputDecoration(
+                labelText: 'Automatic gain control',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              options: const [
+                ExampleDropdownOption<bool?>(
+                  value: null,
+                  label: 'Auto (preset)',
+                ),
+                ExampleDropdownOption<bool?>(value: true, label: 'Enabled'),
+                ExampleDropdownOption<bool?>(value: false, label: 'Disabled'),
+              ],
+              onChanged: _isRecording
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _enableAutomaticGainControl = value;
+                      });
+                    },
+            ),
+            const SizedBox(height: 12),
+            ExampleDropdownFormField<bool?>(
+              initialValue: _enableHighPassFilter,
+              decoration: const InputDecoration(
+                labelText: 'High-pass filter',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              options: const [
+                ExampleDropdownOption<bool?>(
+                  value: null,
+                  label: 'Auto (preset)',
+                ),
+                ExampleDropdownOption<bool?>(value: true, label: 'Enabled'),
+                ExampleDropdownOption<bool?>(value: false, label: 'Disabled'),
+              ],
+              onChanged: _isRecording
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _enableHighPassFilter = value;
+                      });
+                    },
+            ),
+            const SizedBox(height: 12),
+            ExampleDropdownFormField<Duration?>(
+              initialValue: _preferredProcessingLatency,
+              decoration: const InputDecoration(
+                labelText: 'Preferred latency',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              options: const [
+                ExampleDropdownOption<Duration?>(value: null, label: 'Auto'),
+                ExampleDropdownOption<Duration?>(
+                  value: Duration(milliseconds: 10),
+                  label: '10 ms',
+                ),
+                ExampleDropdownOption<Duration?>(
+                  value: Duration(milliseconds: 20),
+                  label: '20 ms',
+                ),
+                ExampleDropdownOption<Duration?>(
+                  value: Duration(milliseconds: 40),
+                  label: '40 ms',
+                ),
+              ],
+              onChanged: _isRecording
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _preferredProcessingLatency = value;
+                      });
+                    },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Effective processing: ${_processingSummary(_buildProcessingConfig())}',
+              style: theme.textTheme.bodySmall,
+            ),
           ],
         ),
       ),

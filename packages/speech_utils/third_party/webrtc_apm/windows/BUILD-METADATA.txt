@@ -1,0 +1,16 @@
+Dependency: WebRTC AudioProcessing (APM)
+Target platform: Windows x64
+Consumer: speech_utils native recorder
+Discovery: hook/src/windows_webrtc_apm_pipeline.dart
+
+Required include root:
+- include/webrtc-audio-processing-1/modules/audio_processing/include/audio_processing.h
+  (or include/modules/audio_processing/include/audio_processing.h)
+
+Required import library:
+- lib/webrtc-audio-processing-1.lib
+  (or compatible webrtc_audio_processing*.lib / audio_processing*.lib variant)
+
+Optional runtime DLL:
+- bin/webrtc-audio-processing*.dll
+- bin/webrtc-audio-coding*.dll

@@ -1,0 +1,10 @@
+prefix=C:/Users/cleme/workspace/stream_vc/webrtc_audio_processing/webrtc-audio-processing-1.3/../win_webrtc
+includedir=${prefix}/include
+libdir=${prefix}/lib
+
+Name: webrtc-audio-processing-1
+Description: WebRTC Audio Processing library
+Version: 1.3
+Libs: -L${libdir} -lwebrtc-audio-processing-1
+Libs.private: -lwinmm
+Cflags: -I${includedir}/webrtc-audio-processing-1 -DWEBRTC_LIBRARY_IMPL -DWEBRTC_WIN -D_WIN32 -U__STRICT_ANSI__ -D__STDC_FORMAT_MACROS=1 -DNOMINMAX -D_USE_MATH_DEFINES

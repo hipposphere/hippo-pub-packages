@@ -12,10 +12,13 @@ struct RecorderRuntimeConfig {
   double preferred_latency_seconds;
   double apple_preferred_io_buffer_duration_seconds;
   double apple_preferred_input_gain;
+  uint32_t apple_file_bitrate_bps;
+  int32_t apple_file_encoder_code;
   uint32_t windows_preferred_period_frames;
   uint32_t windows_flags;
   int32_t windows_capture_category_code;
   int32_t windows_use_communications_device;
+  int32_t windows_voice_processing_mode_code;
 };
 
 struct RecorderStartConfig {

@@ -1,0 +1,21 @@
+WebRTC AudioProcessing Windows Vendored Profile
+==============================================
+
+This directory is intended to hold a vendored WebRTC AudioProcessing SDK used
+by `speech_utils` Windows native recorder bindings.
+
+The hook expects this SDK under:
+- `third_party/webrtc_apm/windows`
+
+Current vendored source archive:
+- `https://github.com/balacoon/webrtc_audio_processing/releases/download/1.3/win_webrtc.tar.gz`
+
+Required artifacts:
+- `include/webrtc-audio-processing-1/modules/audio_processing/include/audio_processing.h`
+  (or `include/modules/audio_processing/include/audio_processing.h`)
+- `lib/webrtc-audio-processing-1.lib`
+  (or `webrtc_audio_processing*.lib` / `audio_processing*.lib`)
+
+Optional runtime artifact (if linking against a DLL import library):
+- `bin/webrtc-audio-processing-*.dll`
+- `bin/webrtc-audio-coding-*.dll` (dependency runtime)

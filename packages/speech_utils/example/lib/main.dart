@@ -96,7 +96,7 @@ class _SpeechUtilsHomePage extends StatelessWidget {
           _ExamplePageCard(
             title: 'File Recorder (start/stop)',
             description:
-                'Direct capture with start/stop lifecycle and configurable codec, sample rate, channels, bitrate, and device selection.',
+                'Direct capture with start/stop lifecycle and configurable codec, sample rate, channels, bitrate, device selection, and audio processing.',
             icon: Icons.mic_external_on,
             onOpen: () {
               Navigator.of(context).push(
@@ -113,7 +113,7 @@ class _SpeechUtilsHomePage extends StatelessWidget {
           _ExamplePageCard(
             title: 'Integrated VAD + Compression',
             description:
-                'Live stream segmentation, synthetic checks, snippet conversion, and full-recording AAC.',
+                'Live stream segmentation, synthetic checks, snippet conversion, full-recording AAC, and audio processing controls.',
             icon: Icons.hub,
             onOpen: () {
               Navigator.of(context).push(
@@ -131,7 +131,7 @@ class _SpeechUtilsHomePage extends StatelessWidget {
           _ExamplePageCard(
             title: 'Simple Recorder + Waveform',
             description:
-                'Focused recording page with loudness, speech-threshold detection, device selection, and WAV playback.',
+                'Focused recording page with loudness, speech-threshold detection, device selection, audio processing controls, and WAV playback.',
             icon: Icons.multitrack_audio,
             onOpen: () {
               Navigator.of(context).push(

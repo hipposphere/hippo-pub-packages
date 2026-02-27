@@ -15,6 +15,11 @@ Flutter example app for `speech_utils`.
 - Input routing:
   - list available native input devices
   - pass selected device ID via `AudioRecorderConfig.inputDeviceId` where supported
+- Audio processing configuration:
+  - processing preset selector (`voice`, `voiceIsolation`, `raw`, `music`)
+  - per-feature overrides for noise suppression, echo cancellation, AGC, and high-pass filter
+  - platform-resolved processing preview (`apple` / `windows` / `generic`) in logs and UI
+  - preferred processing latency hint
 - Live UI:
   - real-time waveform while recording
   - speech/silence indicator from VAD frames (integrated page) and RMS-threshold detection (simple page)
@@ -65,6 +70,7 @@ Use:
   - `RMS` and `dBFS` should rise when speaking.
 - Playback controls on each finished snippet (and whole recording after stop).
 - `AAC options` to enable/disable automatic snippet or whole-recording conversion and compare file-size changes.
+- `Audio processing` controls to tune noise cancellation / voice isolation behavior for each recorder mode.
 - `VAD tuning` sliders to adjust live speech detection sensitivity.
 - `Run Synthetic API Checks` to test all package functions.
 

@@ -51,10 +51,13 @@ final class _NativeRecorderRuntimeConfig {
     required this.preferredLatencySeconds,
     required this.applePreferredIoBufferDurationSeconds,
     required this.applePreferredInputGain,
+    required this.appleFileBitrateBps,
+    required this.appleFileEncoderCode,
     required this.windowsPreferredPeriodFrames,
     required this.windowsFlags,
     required this.windowsCaptureCategoryCode,
     required this.windowsUseCommunicationsDevice,
+    required this.windowsVoiceProcessingModeCode,
   });
 
   final int processingFlags;
@@ -63,10 +66,13 @@ final class _NativeRecorderRuntimeConfig {
   final double preferredLatencySeconds;
   final double applePreferredIoBufferDurationSeconds;
   final double applePreferredInputGain;
+  final int appleFileBitrateBps;
+  final int appleFileEncoderCode;
   final int windowsPreferredPeriodFrames;
   final int windowsFlags;
   final int windowsCaptureCategoryCode;
   final int windowsUseCommunicationsDevice;
+  final int windowsVoiceProcessingModeCode;
 }
 
 typedef NativeAudioRecorderAvailabilityFn = bool Function();
@@ -228,7 +234,11 @@ final class NativeAudioRecorder {
         supportsEchoCancellation: true,
         supportsVoiceIsolation: true,
       ),
-      NativeAudioRecorderPlatform.windows ||
+      NativeAudioRecorderPlatform.windows => const NativeAudioRecorderCapabilities(
+        supportsNoiseCancellation: true,
+        supportsEchoCancellation: false,
+        supportsVoiceIsolation: true,
+      ),
       NativeAudioRecorderPlatform.unsupported => const NativeAudioRecorderCapabilities(
         supportsNoiseCancellation: false,
         supportsEchoCancellation: false,
@@ -243,8 +253,8 @@ final class NativeAudioRecorder {
   /// `startFileRecording(...)`/`startPcmStream(...)`; no input selection is
   /// stored internally.
   ///
-  /// On Apple platforms this is implemented by the native AVFoundation capture
-  /// backend using per-start configuration.
+  /// On Apple platforms this is implemented by the native AVAudioEngine
+  /// recorder backend using per-start configuration.
   bool get supportsInputSelection {
     return _platform == NativeAudioRecorderPlatform.macOS ||
         _platform == NativeAudioRecorderPlatform.windows ||
@@ -299,7 +309,7 @@ final class NativeAudioRecorder {
     return _amplitudeController!.stream;
   }
 
-  /// Starts file-based recording with native platform capture backends.
+  /// Starts file-based recording with native platform recorder backends.
   ///
   /// Output format is controlled by [config.encoding].
   Future<void> startFileRecording({
@@ -883,7 +893,9 @@ final class NativeAudioRecorder {
     required AudioRecorderConfig config,
   }) {
     final isAppleAac =
-        _platform == NativeAudioRecorderPlatform.macOS && config.encoding.encoder.isAac;
+        (_platform == NativeAudioRecorderPlatform.macOS ||
+            _platform == NativeAudioRecorderPlatform.iOS) &&
+        config.encoding.encoder.isAac;
     if (!isAppleAac) {
       return false;
     }
@@ -893,22 +905,10 @@ final class NativeAudioRecorder {
       throw ArgumentError.value(
         outputPath,
         'outputPath',
-        'macOS direct AAC recording requires an .m4a output path.',
+        'AAC recording on Apple platforms requires an .m4a output path.',
       );
     }
-
-    if (_wantsVoiceProcessing(config.processing)) {
-      return false;
-    }
-
     return true;
-  }
-
-  bool _wantsVoiceProcessing(AudioProcessingConfig processing) {
-    return processing.effectiveNoiseSuppression ||
-        processing.effectiveEchoCancellation ||
-        processing.effectiveAutomaticGainControl ||
-        processing.preset == AudioCapturePreset.voiceIsolation;
   }
 
   void _validateVadCaptureConfig({
@@ -1577,6 +1577,12 @@ final class _NativeRecorderRuntimeConfigFfi extends ffi.Struct {
   external double applePreferredInputGain;
 
   @ffi.Uint32()
+  external int appleFileBitrateBps;
+
+  @ffi.Int32()
+  external int appleFileEncoderCode;
+
+  @ffi.Uint32()
   external int windowsPreferredPeriodFrames;
 
   @ffi.Uint32()
@@ -1587,6 +1593,9 @@ final class _NativeRecorderRuntimeConfigFfi extends ffi.Struct {
 
   @ffi.Int32()
   external int windowsUseCommunicationsDevice;
+
+  @ffi.Int32()
+  external int windowsVoiceProcessingModeCode;
 }
 
 final class _NativeRecorderStartConfigFfi extends ffi.Struct {
@@ -1648,11 +1657,15 @@ void _runRecorderStartFile(
     startConfig.runtime.applePreferredIoBufferDurationSeconds =
         runtimeConfig.applePreferredIoBufferDurationSeconds;
     startConfig.runtime.applePreferredInputGain = runtimeConfig.applePreferredInputGain;
+    startConfig.runtime.appleFileBitrateBps = runtimeConfig.appleFileBitrateBps;
+    startConfig.runtime.appleFileEncoderCode = runtimeConfig.appleFileEncoderCode;
     startConfig.runtime.windowsPreferredPeriodFrames = runtimeConfig.windowsPreferredPeriodFrames;
     startConfig.runtime.windowsFlags = runtimeConfig.windowsFlags;
     startConfig.runtime.windowsCaptureCategoryCode = runtimeConfig.windowsCaptureCategoryCode;
     startConfig.runtime.windowsUseCommunicationsDevice =
         runtimeConfig.windowsUseCommunicationsDevice;
+    startConfig.runtime.windowsVoiceProcessingModeCode =
+        runtimeConfig.windowsVoiceProcessingModeCode;
 
     final code = fn(startConfigPtr.cast<ffi.Void>(), errorPtr, _recorderErrorBufferBytes);
     _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
@@ -1694,11 +1707,15 @@ void _runRecorderStartStream(
     startConfig.runtime.applePreferredIoBufferDurationSeconds =
         runtimeConfig.applePreferredIoBufferDurationSeconds;
     startConfig.runtime.applePreferredInputGain = runtimeConfig.applePreferredInputGain;
+    startConfig.runtime.appleFileBitrateBps = runtimeConfig.appleFileBitrateBps;
+    startConfig.runtime.appleFileEncoderCode = runtimeConfig.appleFileEncoderCode;
     startConfig.runtime.windowsPreferredPeriodFrames = runtimeConfig.windowsPreferredPeriodFrames;
     startConfig.runtime.windowsFlags = runtimeConfig.windowsFlags;
     startConfig.runtime.windowsCaptureCategoryCode = runtimeConfig.windowsCaptureCategoryCode;
     startConfig.runtime.windowsUseCommunicationsDevice =
         runtimeConfig.windowsUseCommunicationsDevice;
+    startConfig.runtime.windowsVoiceProcessingModeCode =
+        runtimeConfig.windowsVoiceProcessingModeCode;
 
     final code = fn(startConfigPtr.cast<ffi.Void>(), errorPtr, _recorderErrorBufferBytes);
     _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
@@ -1846,27 +1863,39 @@ const int _appleCategoryOptionDefaultToSpeaker = 1 << 2;
 const int _appleCategoryOptionMixWithOthers = 1 << 3;
 const int _appleCategoryOptionDuckOthers = 1 << 4;
 
+const int _appleFileEncoderAacLc = 0;
+const int _appleFileEncoderAacHe = 1;
+const int _appleFileEncoderAacEld = 2;
+
 const int _windowsFlagExclusiveMode = 1 << 0;
 const int _windowsFlagRawCapture = 1 << 1;
+const int _windowsVoiceProcessingModeAuto = 0;
+const int _windowsVoiceProcessingModeSystem = 1;
+const int _windowsVoiceProcessingModeSoftware = 2;
+const int _windowsVoiceProcessingModeOff = 3;
 
 _NativeRecorderRuntimeConfig _buildNativeRecorderRuntimeConfig({
   required AudioRecorderConfig config,
   required NativeAudioRecorderPlatform platform,
 }) {
   final processing = config.processing;
-  final presetFlags = _processingPresetFlags(processing.preset);
-  var processingFlags = presetFlags;
+  final isApplePlatform =
+      platform == NativeAudioRecorderPlatform.macOS || platform == NativeAudioRecorderPlatform.iOS;
+  final processingPlatform = isApplePlatform
+      ? AudioProcessingPlatform.apple
+      : AudioProcessingPlatform.windows;
+  var processingFlags = _processingPresetFlags(processing.preset);
 
-  if (processing.effectiveNoiseSuppression) {
+  if (processing.resolveNoiseSuppressionForPlatform(processingPlatform)) {
     processingFlags |= _processingFlagNoiseSuppression;
   }
-  if (processing.effectiveEchoCancellation) {
+  if (processing.resolveEchoCancellationForPlatform(processingPlatform)) {
     processingFlags |= _processingFlagEchoCancellation;
   }
-  if (processing.effectiveAutomaticGainControl) {
+  if (processing.resolveAutomaticGainControlForPlatform(processingPlatform)) {
     processingFlags |= _processingFlagAutomaticGainControl;
   }
-  if (processing.effectiveHighPassFilter) {
+  if (processing.resolveHighPassFilterForPlatform(processingPlatform)) {
     processingFlags |= _processingFlagHighPassFilter;
   }
 
@@ -1907,6 +1936,12 @@ _NativeRecorderRuntimeConfig _buildNativeRecorderRuntimeConfig({
 
   final applePreferredIoDuration = apple?.preferredIoBufferDuration ?? preferredLatency;
   final applePreferredInputGain = apple?.preferredInputGain ?? -1.0;
+  final appleFileBitrateBps = isApplePlatform && config.encoding.encoder.isAac
+      ? _resolveEncodingBitrateBps(config.encoding)
+      : 0;
+  final appleFileEncoderCode = isApplePlatform
+      ? _encodeAppleFileEncoder(config.encoding.encoder)
+      : _appleFileEncoderAacLc;
 
   return _NativeRecorderRuntimeConfig(
     processingFlags: processingFlags,
@@ -1919,11 +1954,26 @@ _NativeRecorderRuntimeConfig _buildNativeRecorderRuntimeConfig({
         ? 0.0
         : applePreferredIoDuration.inMicroseconds / Duration.microsecondsPerSecond,
     applePreferredInputGain: applePreferredInputGain,
+    appleFileBitrateBps: appleFileBitrateBps,
+    appleFileEncoderCode: appleFileEncoderCode,
     windowsPreferredPeriodFrames: windowsPreferredPeriodFrames,
     windowsFlags: windowsFlags,
     windowsCaptureCategoryCode: _encodeWindowsCaptureCategory(windows?.captureCategory),
     windowsUseCommunicationsDevice: windows?.useCommunicationsDevice == true ? 1 : 0,
+    windowsVoiceProcessingModeCode: _encodeWindowsVoiceProcessingMode(windows?.voiceProcessingMode),
   );
+}
+
+int _encodeAppleFileEncoder(AudioEncoder encoder) {
+  return switch (encoder) {
+    AudioEncoder.aacHe => _appleFileEncoderAacHe,
+    AudioEncoder.aacEld => _appleFileEncoderAacEld,
+    AudioEncoder.aacLc ||
+    AudioEncoder.wav ||
+    AudioEncoder.flac ||
+    AudioEncoder.opus ||
+    AudioEncoder.pcm16bits => _appleFileEncoderAacLc,
+  };
 }
 
 int _processingPresetFlags(AudioCapturePreset preset) {
@@ -1953,6 +2003,16 @@ int _encodeWindowsCaptureCategory(WindowsCaptureCategory? category) {
     WindowsCaptureCategory.media => 0,
     WindowsCaptureCategory.communications => 1,
     WindowsCaptureCategory.speech => 2,
+  };
+}
+
+int _encodeWindowsVoiceProcessingMode(WindowsVoiceProcessingMode? mode) {
+  return switch (mode) {
+    null => _windowsVoiceProcessingModeAuto,
+    WindowsVoiceProcessingMode.auto => _windowsVoiceProcessingModeAuto,
+    WindowsVoiceProcessingMode.system => _windowsVoiceProcessingModeSystem,
+    WindowsVoiceProcessingMode.software => _windowsVoiceProcessingModeSoftware,
+    WindowsVoiceProcessingMode.off => _windowsVoiceProcessingModeOff,
   };
 }
 

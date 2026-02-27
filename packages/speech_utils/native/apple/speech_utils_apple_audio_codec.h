@@ -2,7 +2,6 @@
 #define SPEECH_UTILS_APPLE_AUDIO_CODEC_H_
 
 #include <cstdint>
-#include <string>
 
 namespace speech_utils::apple_audio_codec {
 

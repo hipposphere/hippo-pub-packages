@@ -46,12 +46,12 @@ void main() {
       expect(intermediateWavBytes.sublist(44), orderedEquals(pcm));
     });
 
-    test('throws UnsupportedError on unsupported platform', () {
+    test('throws NativeAudioEncoderUnsupportedPlatformException on unsupported platform', () {
       final encoder = NativeAudioEncoder(platform: NativeAudioEncoderPlatform.unsupported);
 
       expect(
         () => encoder.encodeAudioFileToAac(inputPath: 'in.wav', outputPath: 'out.m4a'),
-        throwsA(isA<UnsupportedError>()),
+        throwsA(isA<NativeAudioEncoderUnsupportedPlatformException>()),
       );
     });
 

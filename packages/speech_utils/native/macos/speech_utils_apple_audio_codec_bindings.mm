@@ -1,17 +1,11 @@
 #include "speech_utils_apple_audio_codec.h"
 
-#if defined(SPEECH_UTILS_APPLE_AUDIO_CODEC_TARGET_IOS)
-#define SPEECH_UTILS_APPLE_AUDIO_CODEC_SYMBOL(name) speech_utils_ios_##name
-#define SPEECH_UTILS_APPLE_AUDIO_CODEC_PLATFORM_NAME "iOS"
-#elif defined(SPEECH_UTILS_APPLE_AUDIO_CODEC_TARGET_MACOS)
-#define SPEECH_UTILS_APPLE_AUDIO_CODEC_SYMBOL(name) speech_utils_macos_##name
-#define SPEECH_UTILS_APPLE_AUDIO_CODEC_PLATFORM_NAME "macOS"
-#else
-#error "Define SPEECH_UTILS_APPLE_AUDIO_CODEC_TARGET_IOS or SPEECH_UTILS_APPLE_AUDIO_CODEC_TARGET_MACOS"
-#endif
+namespace {
+constexpr const char* kPlatformName = "macOS";
+}  // namespace
 
 extern "C" __attribute__((visibility("default"))) int32_t
-SPEECH_UTILS_APPLE_AUDIO_CODEC_SYMBOL(encode_audio_file_to_aac)(
+speech_utils_macos_encode_audio_file_to_aac(
     const char* input_path_utf8,
     const char* output_path_utf8,
     uint32_t bitrate_bps,
@@ -22,13 +16,13 @@ SPEECH_UTILS_APPLE_AUDIO_CODEC_SYMBOL(encode_audio_file_to_aac)(
       output_path_utf8,
       bitrate_bps,
       true,
-      SPEECH_UTILS_APPLE_AUDIO_CODEC_PLATFORM_NAME,
+      kPlatformName,
       error_utf8,
       error_utf8_capacity);
 }
 
 extern "C" __attribute__((visibility("default"))) int32_t
-SPEECH_UTILS_APPLE_AUDIO_CODEC_SYMBOL(read_audio_metadata)(
+speech_utils_macos_read_audio_metadata(
     const char* input_path_utf8,
     int64_t* out_duration_micros,
     int32_t* out_sample_rate_hz,

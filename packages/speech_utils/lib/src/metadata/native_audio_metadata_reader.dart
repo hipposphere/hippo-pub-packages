@@ -7,29 +7,17 @@ import '../generated/audio_encoder/android_audio_encoder_bindings.dart' as andro
 import '../generated/metadata/apple_audio_metadata_bindings.dart' as apple_metadata_bindings;
 import '../generated/audio_encoder/windows_audio_encoder_bindings.dart' as windows_bindings;
 import '../models/audio_metadata.dart';
+import '../utils/pcm16_audio_utils.dart';
+
+part 'errors/native_audio_metadata_reader_exceptions.dart';
 
 typedef NativeAudioMetadataReadFn = AudioMetadata Function(String inputPath);
 typedef NativeAudioMetadataAvailabilityFn = bool Function();
 
 enum NativeAudioMetadataPlatform { macOS, windows, android, iOS, unsupported }
 
-final class AudioMetadataException implements Exception {
-  AudioMetadataException(this.message, {this.errorCode, this.details});
-
-  final String message;
-  final int? errorCode;
-  final String? details;
-
-  @override
-  String toString() {
-    final parts = <String>[
-      message,
-      if (errorCode != null) 'errorCode=$errorCode',
-      if (details != null && details!.isNotEmpty) 'details=$details',
-    ];
-    return 'AudioMetadataException: ${parts.join(' | ')}';
-  }
-}
+const _unsupportedNativeAudioMetadataReaderMessage =
+    'NativeAudioMetadataReader is currently supported on macOS, Windows, Android, and iOS.';
 
 /// Reads media metadata using bundled native platform APIs via FFI.
 final class NativeAudioMetadataReader {
@@ -84,9 +72,10 @@ final class NativeAudioMetadataReader {
       NativeAudioMetadataPlatform.windows => _windowsReadFn(inputPath),
       NativeAudioMetadataPlatform.android => _androidReadFn(inputPath),
       NativeAudioMetadataPlatform.iOS => _iosReadFn(inputPath),
-      NativeAudioMetadataPlatform.unsupported => throw UnsupportedError(
-        'NativeAudioMetadataReader is currently supported on macOS, Windows, Android, and iOS.',
-      ),
+      NativeAudioMetadataPlatform.unsupported =>
+        throw const NativeAudioMetadataUnsupportedPlatformException(
+          _unsupportedNativeAudioMetadataReaderMessage,
+        ),
     };
 
     if (metadata.duration < Duration.zero) {
@@ -96,14 +85,14 @@ final class NativeAudioMetadataReader {
       );
     }
 
-    return AudioMetadata(
+    return _buildAudioMetadata(
       duration: metadata.duration,
-      sampleRateHz: _toOptionalPositive(metadata.sampleRateHz),
-      channelCount: _toOptionalPositive(metadata.channelCount),
-      bitrateBps: _toOptionalPositive(metadata.bitrateBps),
-      containerFormat: _toOptionalText(metadata.containerFormat),
-      codec: _toOptionalText(metadata.codec),
-      codecProfile: _toOptionalText(metadata.codecProfile),
+      sampleRateHz: metadata.sampleRateHz,
+      channelCount: metadata.channelCount,
+      bitrateBps: metadata.bitrateBps,
+      containerFormat: metadata.containerFormat,
+      codec: metadata.codec,
+      codecProfile: metadata.codecProfile,
     );
   }
 
@@ -114,29 +103,11 @@ final class NativeAudioMetadataReader {
 
   void _ensureSupportedPlatform() {
     if (_platform == NativeAudioMetadataPlatform.unsupported) {
-      throw UnsupportedError(
-        'NativeAudioMetadataReader is currently supported on macOS, Windows, Android, and iOS.',
+      throw const NativeAudioMetadataUnsupportedPlatformException(
+        _unsupportedNativeAudioMetadataReaderMessage,
       );
     }
   }
-}
-
-int? _toOptionalPositive(int? value) {
-  if (value == null || value <= 0) {
-    return null;
-  }
-  return value;
-}
-
-String? _toOptionalText(String? value) {
-  if (value == null) {
-    return null;
-  }
-  final normalized = value.trim();
-  if (normalized.isEmpty) {
-    return null;
-  }
-  return normalized;
 }
 
 NativeAudioMetadataPlatform _detectNativeAudioMetadataPlatform() {
@@ -157,6 +128,26 @@ NativeAudioMetadataPlatform _detectNativeAudioMetadataPlatform() {
 
 const _metadataErrorBufferBytes = 4096;
 const _metadataTextBufferBytes = 256;
+
+AudioMetadata _buildAudioMetadata({
+  required Duration duration,
+  required int? sampleRateHz,
+  required int? channelCount,
+  required int? bitrateBps,
+  required String? containerFormat,
+  required String? codec,
+  required String? codecProfile,
+}) {
+  return AudioMetadata(
+    duration: duration,
+    sampleRateHz: Pcm16AudioUtils.toOptionalPositive(sampleRateHz),
+    channelCount: Pcm16AudioUtils.toOptionalPositive(channelCount),
+    bitrateBps: Pcm16AudioUtils.toOptionalPositive(bitrateBps),
+    containerFormat: Pcm16AudioUtils.toOptionalText(containerFormat),
+    codec: Pcm16AudioUtils.toOptionalText(codec),
+    codecProfile: Pcm16AudioUtils.toOptionalText(codecProfile),
+  );
+}
 
 bool _isAppleAudioMetadataAvailableViaFfi() {
   return true;
@@ -243,14 +234,14 @@ AudioMetadata _readAudioMetadataViaAppleFfi({
       );
     }
 
-    return AudioMetadata(
+    return _buildAudioMetadata(
       duration: Duration(microseconds: durationMicros),
-      sampleRateHz: _toOptionalPositive(outSampleRatePtr.value),
-      channelCount: _toOptionalPositive(outChannelCountPtr.value),
-      bitrateBps: _toOptionalPositive(outBitratePtr.value),
-      containerFormat: _toOptionalText(containerFormat),
-      codec: _toOptionalText(codec),
-      codecProfile: _toOptionalText(codecProfile),
+      sampleRateHz: outSampleRatePtr.value,
+      channelCount: outChannelCountPtr.value,
+      bitrateBps: outBitratePtr.value,
+      containerFormat: containerFormat,
+      codec: codec,
+      codecProfile: codecProfile,
     );
   } finally {
     calloc.free(inputPathPtr);
@@ -329,14 +320,14 @@ AudioMetadata _readAudioMetadataViaWindowsFfi(String inputPath) {
       );
     }
 
-    return AudioMetadata(
+    return _buildAudioMetadata(
       duration: Duration(microseconds: durationMicros),
-      sampleRateHz: _toOptionalPositive(outSampleRatePtr.value),
-      channelCount: _toOptionalPositive(outChannelCountPtr.value),
-      bitrateBps: _toOptionalPositive(outBitratePtr.value),
-      containerFormat: _toOptionalText(containerFormat),
-      codec: _toOptionalText(codec),
-      codecProfile: _toOptionalText(codecProfile),
+      sampleRateHz: outSampleRatePtr.value,
+      channelCount: outChannelCountPtr.value,
+      bitrateBps: outBitratePtr.value,
+      containerFormat: containerFormat,
+      codec: codec,
+      codecProfile: codecProfile,
     );
   } finally {
     calloc.free(inputPathPtr);
@@ -415,14 +406,14 @@ AudioMetadata _readAudioMetadataViaAndroidFfi(String inputPath) {
       );
     }
 
-    return AudioMetadata(
+    return _buildAudioMetadata(
       duration: Duration(microseconds: durationMicros),
-      sampleRateHz: _toOptionalPositive(outSampleRatePtr.value),
-      channelCount: _toOptionalPositive(outChannelCountPtr.value),
-      bitrateBps: _toOptionalPositive(outBitratePtr.value),
-      containerFormat: _toOptionalText(containerFormat),
-      codec: _toOptionalText(codec),
-      codecProfile: _toOptionalText(codecProfile),
+      sampleRateHz: outSampleRatePtr.value,
+      channelCount: outChannelCountPtr.value,
+      bitrateBps: outBitratePtr.value,
+      containerFormat: containerFormat,
+      codec: codec,
+      codecProfile: codecProfile,
     );
   } finally {
     calloc.free(inputPathPtr);

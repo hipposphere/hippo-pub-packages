@@ -29,13 +29,13 @@ std::string TrimAscii(const char* utf8);
 bool EnsureMicrophonePermission(int32_t* out_has_permission, bool request_if_needed,
                                 char* out_error_utf8, uint32_t out_error_capacity);
 
-NSString* ResolveIosSessionMode(int32_t apple_session_mode_code, int32_t processing_flags);
+NSString* ResolveIosSessionMode(int32_t ios_session_mode_code, int32_t processing_flags);
 
-AVAudioSessionCategoryOptions ResolveIosCategoryOptions(uint32_t apple_category_options_flags);
+AVAudioSessionCategoryOptions ResolveIosCategoryOptions(uint32_t ios_category_options_flags);
 
 bool RequiresVoiceProcessing(int32_t processing_flags);
 
-AudioFormatID ResolveAppleAacFormatId(int32_t apple_file_encoder_code);
+AudioFormatID ResolveAppleAacFormatId(int32_t file_encoder_code);
 
 uint32_t ResolveAppleAacBitrate(uint32_t requested_bitrate_bps);
 

@@ -11,18 +11,20 @@ void main() {
         processing: const AudioProcessingConfig(
           preset: AudioCapturePreset.voiceIsolation,
           preferredLatency: Duration(milliseconds: 40),
-          apple: AppleAudioProcessingConfig(usePresetDefaults: true, enableNoiseSuppression: true),
           windows: WindowsAudioProcessingConfig(
             usePresetDefaults: true,
             enableNoiseSuppression: true,
           ),
         ),
-        appleConfig: const AppleAudioRecorderConfig(
-          sessionMode: AppleAudioSessionMode.voiceChat,
+        iosConfig: const IosAudioRecorderConfig(
+          sessionMode: IosAudioSessionMode.voiceChat,
           allowBluetoothInput: true,
           defaultToSpeaker: true,
           preferredInputGain: 0.8,
           preferredIoBufferDuration: Duration(milliseconds: 10),
+        ),
+        macosConfig: const MacosAudioRecorderConfig(
+          processingQueueDuration: Duration(milliseconds: 50),
         ),
         windowsConfig: const WindowsAudioRecorderConfig(
           captureCategory: WindowsCaptureCategory.communications,
@@ -33,9 +35,9 @@ void main() {
         ),
       );
 
-      expect(config.processing.apple.enableNoiseSuppression, isTrue);
       expect(config.processing.windows.enableNoiseSuppression, isTrue);
-      expect(config.appleConfig, isNotNull);
+      expect(config.iosConfig, isNotNull);
+      expect(config.macosConfig, isNotNull);
       expect(config.windowsConfig, isNotNull);
       expect(() => config.validate(), returnsNormally);
     });
@@ -48,9 +50,17 @@ void main() {
       expect(() => config.validate(), throwsArgumentError);
     });
 
-    test('rejects invalid Apple input gain', () {
+    test('rejects invalid iOS input gain', () {
       final config = AudioRecorderConfig(
-        appleConfig: const AppleAudioRecorderConfig(preferredInputGain: 1.1),
+        iosConfig: const IosAudioRecorderConfig(preferredInputGain: 1.1),
+      );
+
+      expect(() => config.validate(), throwsArgumentError);
+    });
+
+    test('rejects invalid macOS processing queue duration', () {
+      final config = AudioRecorderConfig(
+        macosConfig: const MacosAudioRecorderConfig(processingQueueDuration: Duration.zero),
       );
 
       expect(() => config.validate(), throwsArgumentError);
@@ -64,97 +74,41 @@ void main() {
       expect(() => config.validate(), throwsArgumentError);
     });
 
-    test('voice preset defaults to voice-oriented processing flags', () {
-      const processing = AudioProcessingConfig(preset: AudioCapturePreset.voice);
+    test('iOS and macOS per-feature processing toggles resolve off for all presets', () {
+      const presets = <AudioCapturePreset>[
+        AudioCapturePreset.voice,
+        AudioCapturePreset.voiceIsolation,
+        AudioCapturePreset.raw,
+        AudioCapturePreset.music,
+      ];
 
-      expect(processing.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.apple), isTrue);
-      expect(processing.resolveEchoCancellationForPlatform(AudioProcessingPlatform.apple), isTrue);
-      expect(
-        processing.resolveAutomaticGainControlForPlatform(AudioProcessingPlatform.apple),
-        isFalse,
-      );
-      expect(processing.resolveHighPassFilterForPlatform(AudioProcessingPlatform.apple), isFalse);
+      for (final preset in presets) {
+        final processing = AudioProcessingConfig(preset: preset);
+        expect(processing.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.ios), isFalse);
+        expect(processing.resolveEchoCancellationForPlatform(AudioProcessingPlatform.ios), isFalse);
+        expect(
+          processing.resolveAutomaticGainControlForPlatform(AudioProcessingPlatform.ios),
+          isFalse,
+        );
+        expect(processing.resolveHighPassFilterForPlatform(AudioProcessingPlatform.ios), isFalse);
+        expect(
+          processing.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.macos),
+          isFalse,
+        );
+        expect(
+          processing.resolveEchoCancellationForPlatform(AudioProcessingPlatform.macos),
+          isFalse,
+        );
+        expect(
+          processing.resolveAutomaticGainControlForPlatform(AudioProcessingPlatform.macos),
+          isFalse,
+        );
+        expect(processing.resolveHighPassFilterForPlatform(AudioProcessingPlatform.macos), isFalse);
+      }
     });
 
-    test('voice-isolation preset keeps voice defaults enabled', () {
+    test('Windows preset defaults apply for voice and voice-isolation', () {
       const processing = AudioProcessingConfig(preset: AudioCapturePreset.voiceIsolation);
-
-      expect(processing.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.apple), isTrue);
-      expect(processing.resolveEchoCancellationForPlatform(AudioProcessingPlatform.apple), isTrue);
-      expect(
-        processing.resolveAutomaticGainControlForPlatform(AudioProcessingPlatform.apple),
-        isFalse,
-      );
-      expect(processing.resolveHighPassFilterForPlatform(AudioProcessingPlatform.apple), isFalse);
-    });
-
-    test('raw and music presets default to no optional processing', () {
-      const raw = AudioProcessingConfig(preset: AudioCapturePreset.raw);
-      const music = AudioProcessingConfig(preset: AudioCapturePreset.music);
-
-      expect(raw.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.apple), isFalse);
-      expect(raw.resolveEchoCancellationForPlatform(AudioProcessingPlatform.apple), isFalse);
-      expect(raw.resolveAutomaticGainControlForPlatform(AudioProcessingPlatform.apple), isFalse);
-      expect(raw.resolveHighPassFilterForPlatform(AudioProcessingPlatform.apple), isFalse);
-
-      expect(music.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.apple), isFalse);
-      expect(music.resolveEchoCancellationForPlatform(AudioProcessingPlatform.apple), isFalse);
-      expect(music.resolveAutomaticGainControlForPlatform(AudioProcessingPlatform.apple), isFalse);
-      expect(music.resolveHighPassFilterForPlatform(AudioProcessingPlatform.apple), isFalse);
-    });
-
-    test('platform overrides can disable voice defaults', () {
-      const processing = AudioProcessingConfig(
-        preset: AudioCapturePreset.voice,
-        apple: AppleAudioProcessingConfig(
-          usePresetDefaults: true,
-          enableNoiseSuppression: false,
-          enableEchoCancellation: false,
-          enableAutomaticGainControl: false,
-          enableHighPassFilter: false,
-        ),
-      );
-
-      expect(processing.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.apple), isFalse);
-      expect(processing.resolveEchoCancellationForPlatform(AudioProcessingPlatform.apple), isFalse);
-      expect(
-        processing.resolveAutomaticGainControlForPlatform(AudioProcessingPlatform.apple),
-        isFalse,
-      );
-      expect(processing.resolveHighPassFilterForPlatform(AudioProcessingPlatform.apple), isFalse);
-    });
-
-    test('platform overrides can opt in on raw preset', () {
-      const processing = AudioProcessingConfig(
-        preset: AudioCapturePreset.raw,
-        apple: AppleAudioProcessingConfig(
-          usePresetDefaults: true,
-          enableNoiseSuppression: true,
-          enableEchoCancellation: true,
-          enableAutomaticGainControl: true,
-          enableHighPassFilter: true,
-        ),
-      );
-
-      expect(processing.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.apple), isTrue);
-      expect(processing.resolveEchoCancellationForPlatform(AudioProcessingPlatform.apple), isTrue);
-      expect(
-        processing.resolveAutomaticGainControlForPlatform(AudioProcessingPlatform.apple),
-        isTrue,
-      );
-      expect(processing.resolveHighPassFilterForPlatform(AudioProcessingPlatform.apple), isTrue);
-    });
-
-    test('platform resolution uses preset defaults for Apple and Windows', () {
-      const processing = AudioProcessingConfig(preset: AudioCapturePreset.voiceIsolation);
-
-      expect(processing.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.apple), isTrue);
-      expect(processing.resolveEchoCancellationForPlatform(AudioProcessingPlatform.apple), isTrue);
-      expect(
-        processing.resolveAutomaticGainControlForPlatform(AudioProcessingPlatform.apple),
-        isFalse,
-      );
-      expect(processing.resolveHighPassFilterForPlatform(AudioProcessingPlatform.apple), isFalse);
 
       expect(
         processing.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.windows),
@@ -171,30 +125,114 @@ void main() {
       expect(processing.resolveHighPassFilterForPlatform(AudioProcessingPlatform.windows), isTrue);
     });
 
-    test('platform overrides can opt in independently per platform', () {
+    test('Windows overrides can disable voice defaults', () {
       const processing = AudioProcessingConfig(
-        preset: AudioCapturePreset.raw,
-        apple: AppleAudioProcessingConfig(enableNoiseSuppression: true),
+        preset: AudioCapturePreset.voice,
+        windows: WindowsAudioProcessingConfig(
+          usePresetDefaults: true,
+          enableNoiseSuppression: false,
+          enableEchoCancellation: false,
+          enableAutomaticGainControl: false,
+          enableHighPassFilter: false,
+        ),
       );
 
-      expect(processing.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.apple), isTrue);
       expect(
         processing.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.windows),
         isFalse,
       );
+      expect(
+        processing.resolveEchoCancellationForPlatform(AudioProcessingPlatform.windows),
+        isFalse,
+      );
+      expect(
+        processing.resolveAutomaticGainControlForPlatform(AudioProcessingPlatform.windows),
+        isFalse,
+      );
+      expect(processing.resolveHighPassFilterForPlatform(AudioProcessingPlatform.windows), isFalse);
     });
 
-    test('platform usePresetDefaults can disable preset application', () {
+    test('Windows overrides can opt in on raw preset', () {
       const processing = AudioProcessingConfig(
-        preset: AudioCapturePreset.voiceIsolation,
-        apple: AppleAudioProcessingConfig(usePresetDefaults: false),
+        preset: AudioCapturePreset.raw,
+        windows: WindowsAudioProcessingConfig(
+          usePresetDefaults: true,
+          enableNoiseSuppression: true,
+          enableEchoCancellation: true,
+          enableAutomaticGainControl: true,
+          enableHighPassFilter: true,
+        ),
       );
 
-      expect(processing.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.apple), isFalse);
       expect(
         processing.resolveNoiseSuppressionForPlatform(AudioProcessingPlatform.windows),
         isTrue,
       );
+      expect(
+        processing.resolveEchoCancellationForPlatform(AudioProcessingPlatform.windows),
+        isTrue,
+      );
+      expect(
+        processing.resolveAutomaticGainControlForPlatform(AudioProcessingPlatform.windows),
+        isTrue,
+      );
+      expect(processing.resolveHighPassFilterForPlatform(AudioProcessingPlatform.windows), isTrue);
+    });
+
+    test('AudioProcessingConfig supports nested windows override construction', () {
+      final withOverrides = const AudioProcessingConfig(
+        preset: AudioCapturePreset.music,
+        windows: WindowsAudioProcessingConfig(
+          usePresetDefaults: false,
+          enableNoiseSuppression: true,
+          enableEchoCancellation: false,
+        ),
+      );
+
+      expect(withOverrides.preset, equals(AudioCapturePreset.music));
+      expect(withOverrides.windows.usePresetDefaults, isFalse);
+      expect(withOverrides.windows.enableNoiseSuppression, isTrue);
+      expect(withOverrides.windows.enableEchoCancellation, isFalse);
+    });
+
+    test('AudioEncodingConfig supports explicit bitrate clearing via constructor', () {
+      const base = AudioEncodingConfig(encoder: AudioEncoder.aacLc, bitrateBps: 64000);
+      const withoutBitrate = AudioEncodingConfig(encoder: AudioEncoder.aacLc);
+      const withEncoder = AudioEncodingConfig(
+        encoder: AudioEncoder.wav,
+        bitrateBps: 64000,
+      );
+
+      expect(withoutBitrate.bitrateBps, isNull);
+      expect(withoutBitrate.encoder, equals(AudioEncoder.aacLc));
+      expect(withEncoder.encoder, equals(AudioEncoder.wav));
+      expect(withEncoder.bitrateBps, base.bitrateBps);
+    });
+
+    test('AudioRecorderConfig supports targeted immutable updates via constructor', () {
+      final base = AudioRecorderConfig(
+        sampleRateHz: 48000,
+        channelCount: 2,
+        framesPerChunk: 1024,
+        inputDeviceId: 'mic-1',
+        processing: const AudioProcessingConfig(preset: AudioCapturePreset.music),
+        encoding: const AudioEncodingConfig(encoder: AudioEncoder.aacLc, bitrateBps: 64000),
+      );
+
+      final withOverrides = AudioRecorderConfig(
+        sampleRateHz: 16000,
+        channelCount: base.channelCount,
+        framesPerChunk: base.framesPerChunk,
+        processing: const AudioProcessingConfig(preset: AudioCapturePreset.music),
+        encoding: const AudioEncodingConfig(encoder: AudioEncoder.wav),
+      );
+
+      expect(withOverrides.sampleRateHz, equals(16000));
+      expect(withOverrides.channelCount, equals(2));
+      expect(withOverrides.framesPerChunk, equals(1024));
+      expect(withOverrides.inputDeviceId, isNull);
+      expect(withOverrides.processing.preset, equals(AudioCapturePreset.music));
+      expect(withOverrides.encoding.encoder, equals(AudioEncoder.wav));
     });
   });
 }

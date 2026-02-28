@@ -81,13 +81,13 @@ void main() {
       );
     });
 
-    test('throws UnsupportedError on unsupported platform', () async {
+    test('throws NativeAudioMetadataUnsupportedPlatformException on unsupported platform', () async {
       final reader = NativeAudioMetadataReader(platform: NativeAudioMetadataPlatform.unsupported);
 
       expect(await reader.isAvailable(), isFalse);
       expect(
         () => reader.readAudioMetadata(inputPath: 'clip.m4a'),
-        throwsA(isA<UnsupportedError>()),
+        throwsA(isA<NativeAudioMetadataUnsupportedPlatformException>()),
       );
     });
 

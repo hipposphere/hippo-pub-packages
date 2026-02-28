@@ -8,6 +8,9 @@ import 'aac_encoder.dart';
 import '../generated/audio_encoder/android_audio_encoder_bindings.dart' as android_bindings;
 import '../generated/audio_encoder/apple_audio_encoder_bindings.dart' as apple_bindings;
 import '../generated/audio_encoder/windows_audio_encoder_bindings.dart' as windows_bindings;
+import '../utils/pcm16_audio_utils.dart';
+
+part 'errors/native_audio_encoder_exceptions.dart';
 
 typedef WindowsNativeAacEncodeFn =
     void Function({required String inputPath, required String outputPath, required int bitrateBps});
@@ -30,6 +33,11 @@ typedef IosNativeAacEncodeFn =
 typedef IosNativeAacAvailabilityFn = bool Function();
 
 enum NativeAudioEncoderPlatform { macOS, windows, android, iOS, unsupported }
+
+const _unsupportedNativeAudioEncoderMessage =
+    'NativeAudioEncoder is currently supported on macOS (AVFoundation), '
+    'Windows (FFmpeg/libavcodec), Android (NDK MediaCodec), and '
+    'iOS (AVFoundation).';
 
 /// AAC encoder that uses native platform tooling:
 /// - macOS: bundled native AVFoundation bridge via Dart FFI
@@ -230,10 +238,8 @@ final class NativeAudioEncoder implements AacEncoder {
 
   void _ensureSupportedPlatform() {
     if (_platform == NativeAudioEncoderPlatform.unsupported) {
-      throw UnsupportedError(
-        'NativeAudioEncoder is currently supported on macOS (AVFoundation), '
-        'Windows (FFmpeg/libavcodec), Android (NDK MediaCodec), and '
-        'iOS (AVFoundation).',
+      throw const NativeAudioEncoderUnsupportedPlatformException(
+        _unsupportedNativeAudioEncoderMessage,
       );
     }
   }
@@ -286,7 +292,7 @@ Future<void> _writePcm16BytesAsWav({
   final output = File(wavOutputPath);
   final sink = output.openWrite();
   sink.add(
-    _buildPcm16WavHeader(
+    Pcm16AudioUtils.buildPcm16WavHeader(
       sampleRateHz: sampleRateHz,
       channelCount: channelCount,
       pcmDataByteLength: pcm16leBytes.length,
@@ -306,7 +312,7 @@ Future<void> _writePcm16FileAsWav({
   final output = File(wavOutputPath);
   final sink = output.openWrite();
   sink.add(
-    _buildPcm16WavHeader(
+    Pcm16AudioUtils.buildPcm16WavHeader(
       sampleRateHz: sampleRateHz,
       channelCount: channelCount,
       pcmDataByteLength: inputPcmByteLength,
@@ -314,41 +320,6 @@ Future<void> _writePcm16FileAsWav({
   );
   await sink.addStream(inputFile.openRead());
   await sink.close();
-}
-
-Uint8List _buildPcm16WavHeader({
-  required int sampleRateHz,
-  required int channelCount,
-  required int pcmDataByteLength,
-}) {
-  final header = Uint8List(44);
-  final data = ByteData.sublistView(header);
-
-  void writeAscii(int offset, String value) {
-    for (var i = 0; i < value.length; i++) {
-      header[offset + i] = value.codeUnitAt(i);
-    }
-  }
-
-  final byteRate = sampleRateHz * channelCount * 2;
-  final blockAlign = channelCount * 2;
-  final riffChunkSize = 36 + pcmDataByteLength;
-
-  writeAscii(0, 'RIFF');
-  data.setUint32(4, riffChunkSize, Endian.little);
-  writeAscii(8, 'WAVE');
-  writeAscii(12, 'fmt ');
-  data.setUint32(16, 16, Endian.little);
-  data.setUint16(20, 1, Endian.little);
-  data.setUint16(22, channelCount, Endian.little);
-  data.setUint32(24, sampleRateHz, Endian.little);
-  data.setUint32(28, byteRate, Endian.little);
-  data.setUint16(32, blockAlign, Endian.little);
-  data.setUint16(34, 16, Endian.little);
-  writeAscii(36, 'data');
-  data.setUint32(40, pcmDataByteLength, Endian.little);
-
-  return header;
 }
 
 const _nativeErrorBufferBytes = 4096;

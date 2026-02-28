@@ -7,6 +7,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:speech_utils/speech_utils.dart';
+import 'package:speech_utils_example/widgets/audio_processing_card.dart';
 import 'package:speech_utils_example/widgets/example_dropdown_form_field.dart';
 import 'package:speech_utils_example/widgets/live_waveform.dart';
 import 'package:speech_utils_example/widgets/theme_controls.dart';
@@ -99,12 +100,8 @@ class _IntegratedVadCompressionPageState
   int? _sampleRateHz;
   int _channelCount = 1;
   int? _bitrateKbps;
-  AudioCapturePreset? _audioCapturePreset;
-  bool? _enableNoiseSuppression;
-  bool? _enableEchoCancellation;
-  bool? _enableAutomaticGainControl;
-  bool? _enableHighPassFilter;
-  Duration? _preferredProcessingLatency;
+  AudioProcessingController _processingController =
+      const AudioProcessingController();
 
   PauseSplitOptions get _splitOptions => PauseSplitOptions(
     sampleRateHz: _sampleRateHz ?? 16000,
@@ -322,73 +319,6 @@ class _IntegratedVadCompressionPageState
     };
   }
 
-  AudioProcessingConfig _buildProcessingConfig() {
-    return AudioProcessingConfig(
-      preset: _audioCapturePreset ?? AudioCapturePreset.raw,
-      preferredLatency: _preferredProcessingLatency,
-      apple: AppleAudioProcessingConfig(
-        usePresetDefaults: true,
-        enableNoiseSuppression: _enableNoiseSuppression,
-        enableEchoCancellation: _enableEchoCancellation,
-        enableAutomaticGainControl: _enableAutomaticGainControl,
-        enableHighPassFilter: _enableHighPassFilter,
-      ),
-      windows: WindowsAudioProcessingConfig(
-        usePresetDefaults: true,
-        enableNoiseSuppression: _enableNoiseSuppression,
-        enableEchoCancellation: _enableEchoCancellation,
-        enableAutomaticGainControl: _enableAutomaticGainControl,
-        enableHighPassFilter: _enableHighPassFilter,
-      ),
-    );
-  }
-
-  String _audioCapturePresetLabel(AudioCapturePreset? preset) {
-    if (preset == null) {
-      return 'No preset';
-    }
-    return switch (preset) {
-      AudioCapturePreset.voice => 'Voice',
-      AudioCapturePreset.voiceIsolation => 'Voice isolation',
-      AudioCapturePreset.raw => 'Raw',
-      AudioCapturePreset.music => 'Music',
-    };
-  }
-
-  String _processingSummary(AudioProcessingConfig config) {
-    final platform = _activeProcessingPlatform();
-    final noise = config.resolveNoiseSuppressionForPlatform(platform)
-        ? 'on'
-        : 'off';
-    final echo = config.resolveEchoCancellationForPlatform(platform)
-        ? 'on'
-        : 'off';
-    final agc = config.resolveAutomaticGainControlForPlatform(platform)
-        ? 'on'
-        : 'off';
-    final highPass = config.resolveHighPassFilterForPlatform(platform)
-        ? 'on'
-        : 'off';
-    final latency = config.preferredLatency?.inMilliseconds;
-    final latencyText = latency == null ? 'auto' : '${latency}ms';
-    final platformText = switch (platform) {
-      AudioProcessingPlatform.apple => 'apple',
-      AudioProcessingPlatform.windows => 'windows',
-      AudioProcessingPlatform.generic => 'generic',
-    };
-    return 'platform=$platformText, noise=$noise, echo=$echo, agc=$agc, high-pass=$highPass, latency=$latencyText';
-  }
-
-  AudioProcessingPlatform _activeProcessingPlatform() {
-    if (Platform.isMacOS || Platform.isIOS) {
-      return AudioProcessingPlatform.apple;
-    }
-    if (Platform.isWindows) {
-      return AudioProcessingPlatform.windows;
-    }
-    return AudioProcessingPlatform.generic;
-  }
-
   SpeechVadConfig _buildSpeechVadConfig({required bool preferTenVad}) {
     final energy = EnergyVadConfig(
       primaryRmsThreshold: _energyPrimaryRmsThreshold,
@@ -582,7 +512,10 @@ class _IntegratedVadCompressionPageState
               ? null
               : _selectedInputDevice?.id)
         : null;
-    final processingConfig = _buildProcessingConfig();
+    final processingController = _processingController;
+    final processingConfig = processingController.buildProcessingConfig();
+    final iosConfig = processingController.buildIosRecorderConfig();
+    final macosConfig = processingController.buildMacosRecorderConfig();
     late final VadCaptureSession capture;
     try {
       capture = await _recorder.startVadCapture(
@@ -594,6 +527,8 @@ class _IntegratedVadCompressionPageState
             framesPerChunk: 256,
             inputDeviceId: inputDeviceId,
             processing: processingConfig,
+            iosConfig: iosConfig,
+            macosConfig: macosConfig,
             encoding: const AudioEncodingConfig(encoder: AudioEncoder.wav),
           ),
           vad: vadConfig,
@@ -646,7 +581,7 @@ class _IntegratedVadCompressionPageState
       );
     }
     _appendLog(
-      'Processing: preset=${_audioCapturePresetLabel(_audioCapturePreset)}, ${_processingSummary(processingConfig)}.',
+      'Processing: preset=${processingController.capturePresetLabel}, ${processingController.processingSummary()}.',
     );
 
     _liveSegmentSubscription = capture.segments.listen(
@@ -1320,176 +1255,14 @@ class _IntegratedVadCompressionPageState
                     },
             ),
             const Divider(height: 24),
-            Text('Audio processing', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(
-              'Configure denoising, echo cancellation, and voice-isolation presets.',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Demo defaults: Apple/Windows apply preset defaults unless an override is set.',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            ExampleDropdownFormField<AudioCapturePreset?>(
-              initialValue: _audioCapturePreset,
-              decoration: const InputDecoration(
-                labelText: 'Processing preset',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              options: [
-                const ExampleDropdownOption<AudioCapturePreset?>(
-                  value: null,
-                  label: 'No preset',
-                ),
-                ...AudioCapturePreset.values.map(
-                  (preset) => ExampleDropdownOption<AudioCapturePreset?>(
-                    value: preset,
-                    label: _audioCapturePresetLabel(preset),
-                  ),
-                ),
-              ],
-              onChanged: _isLiveStreaming
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _audioCapturePreset = value;
-                      });
-                    },
-            ),
-            const SizedBox(height: 12),
-            ExampleDropdownFormField<bool?>(
-              initialValue: _enableNoiseSuppression,
-              decoration: const InputDecoration(
-                labelText: 'Noise suppression',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              options: const [
-                ExampleDropdownOption<bool?>(
-                  value: null,
-                  label: 'Auto (preset)',
-                ),
-                ExampleDropdownOption<bool?>(value: true, label: 'Enabled'),
-                ExampleDropdownOption<bool?>(value: false, label: 'Disabled'),
-              ],
-              onChanged: _isLiveStreaming
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _enableNoiseSuppression = value;
-                      });
-                    },
-            ),
-            const SizedBox(height: 12),
-            ExampleDropdownFormField<bool?>(
-              initialValue: _enableEchoCancellation,
-              decoration: const InputDecoration(
-                labelText: 'Echo cancellation',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              options: const [
-                ExampleDropdownOption<bool?>(
-                  value: null,
-                  label: 'Auto (preset)',
-                ),
-                ExampleDropdownOption<bool?>(value: true, label: 'Enabled'),
-                ExampleDropdownOption<bool?>(value: false, label: 'Disabled'),
-              ],
-              onChanged: _isLiveStreaming
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _enableEchoCancellation = value;
-                      });
-                    },
-            ),
-            const SizedBox(height: 12),
-            ExampleDropdownFormField<bool?>(
-              initialValue: _enableAutomaticGainControl,
-              decoration: const InputDecoration(
-                labelText: 'Automatic gain control',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              options: const [
-                ExampleDropdownOption<bool?>(
-                  value: null,
-                  label: 'Auto (preset)',
-                ),
-                ExampleDropdownOption<bool?>(value: true, label: 'Enabled'),
-                ExampleDropdownOption<bool?>(value: false, label: 'Disabled'),
-              ],
-              onChanged: _isLiveStreaming
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _enableAutomaticGainControl = value;
-                      });
-                    },
-            ),
-            const SizedBox(height: 12),
-            ExampleDropdownFormField<bool?>(
-              initialValue: _enableHighPassFilter,
-              decoration: const InputDecoration(
-                labelText: 'High-pass filter',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              options: const [
-                ExampleDropdownOption<bool?>(
-                  value: null,
-                  label: 'Auto (preset)',
-                ),
-                ExampleDropdownOption<bool?>(value: true, label: 'Enabled'),
-                ExampleDropdownOption<bool?>(value: false, label: 'Disabled'),
-              ],
-              onChanged: _isLiveStreaming
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _enableHighPassFilter = value;
-                      });
-                    },
-            ),
-            const SizedBox(height: 12),
-            ExampleDropdownFormField<Duration?>(
-              initialValue: _preferredProcessingLatency,
-              decoration: const InputDecoration(
-                labelText: 'Preferred latency',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              options: const [
-                ExampleDropdownOption<Duration?>(value: null, label: 'Auto'),
-                ExampleDropdownOption<Duration?>(
-                  value: Duration(milliseconds: 10),
-                  label: '10 ms',
-                ),
-                ExampleDropdownOption<Duration?>(
-                  value: Duration(milliseconds: 20),
-                  label: '20 ms',
-                ),
-                ExampleDropdownOption<Duration?>(
-                  value: Duration(milliseconds: 40),
-                  label: '40 ms',
-                ),
-              ],
-              onChanged: _isLiveStreaming
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _preferredProcessingLatency = value;
-                      });
-                    },
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Effective processing: ${_processingSummary(_buildProcessingConfig())}',
-              style: theme.textTheme.bodySmall,
+            AudioProcessingCard(
+              controller: _processingController,
+              enabled: !_isLiveStreaming,
+              onChanged: (controller) {
+                setState(() {
+                  _processingController = controller;
+                });
+              },
             ),
             const Divider(height: 24),
             Text('VAD tuning', style: theme.textTheme.titleMedium),

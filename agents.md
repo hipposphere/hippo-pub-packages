@@ -27,3 +27,7 @@ For more information, see the project README or the documentation for each packa
 ## Refactorings
 
 - Do not add legacy/manual fallback methods. Embrace Breaking Changes for an improved code basis and cleaner code quality.
+
+## Dart Analysis
+
+- After Dart/Flutter code changes, run `dart analyze` in the affected package (or workspace scope if requested) and resolve reported issues.

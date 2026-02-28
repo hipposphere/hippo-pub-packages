@@ -30,7 +30,7 @@ final class WindowsWebRtcApmSdk {
   final List<File> runtimeDlls;
 }
 
-Future<WindowsWebRtcApmSdk> requireVendoredWindowsWebRtcApmSdk(BuildInput input) async {
+WindowsWebRtcApmSdk requireVendoredWindowsWebRtcApmSdk(BuildInput input) {
   final rootDir = Directory.fromUri(input.packageRoot.resolve('third_party/webrtc_apm/windows'));
   if (!rootDir.existsSync()) {
     throw StateError('Missing vendored WebRTC APM SDK directory at ${rootDir.path}.');

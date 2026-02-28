@@ -16,20 +16,22 @@ part 'session.dart';
 typedef SpeechRecorderCallback = void Function(SpeechRecorderSession session);
 
 class SpeechRecorderController {
-  static const _streamingSegmentDrainTimeout = Duration(seconds: 2);
+  // VAD stop may include synchronous segment encoding work before stream close.
+  static const _streamingSegmentDrainTimeout = Duration(seconds: 15);
 
   final Future<SpeechRecorderOptions> Function() optionsBuilder;
   final SpeechRecorderCallback? _onSessionStarted;
   final SpeechRecorderCallback? _onSessionFinished;
+  final NativeAudioRecorder _recorder;
 
   SpeechRecorderController({
     required this.optionsBuilder,
     SpeechRecorderCallback? onSessionStarted,
     SpeechRecorderCallback? onSessionFinished,
+    NativeAudioRecorder? audioRecorder,
   }) : _onSessionStarted = onSessionStarted,
-       _onSessionFinished = onSessionFinished;
-
-  final NativeAudioRecorder _recorder = NativeAudioRecorder();
+       _onSessionFinished = onSessionFinished,
+       _recorder = audioRecorder ?? NativeAudioRecorder();
 
   NativeAudioRecorder get audioRecorder => _recorder;
 

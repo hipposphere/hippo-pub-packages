@@ -5,12 +5,13 @@ import 'dart:math' as math;
 
 import 'package:speech_utils/speech_utils.dart';
 import 'package:test/test.dart';
+import 'fakes/native_audio_recorder_platform_implementation.dart';
 
 void main() {
   group('NativeAudioRecorder', () {
     test('supportsInputSelection reports capability by platform', () {
       NativeAudioRecorder recorderFor(NativeAudioRecorderPlatform platform) {
-        return NativeAudioRecorder(
+        return recorderFixture(
           platform: platform,
           availabilityFn: () => true,
           hasPermissionFn: () => true,
@@ -44,7 +45,7 @@ void main() {
 
     test('getCapabilities returns current enhancement support by platform', () async {
       NativeAudioRecorder recorderFor(NativeAudioRecorderPlatform platform) {
-        return NativeAudioRecorder(
+        return recorderFixture(
           platform: platform,
           availabilityFn: () => true,
           hasPermissionFn: () => true,
@@ -77,19 +78,19 @@ void main() {
         expect(capabilities.supportsVoiceIsolation, isFalse);
       }
 
-      Future<void> expectAllTrue(NativeAudioRecorderPlatform platform) async {
+      Future<void> expectNoiseEchoOffVoiceIsolationOn(NativeAudioRecorderPlatform platform) async {
         final capabilities = await recorderFor(platform).getCapabilities();
-        expect(capabilities.supportsNoiseCancellation, isTrue);
-        expect(capabilities.supportsEchoCancellation, isTrue);
+        expect(capabilities.supportsNoiseCancellation, isFalse);
+        expect(capabilities.supportsEchoCancellation, isFalse);
         expect(capabilities.supportsVoiceIsolation, isTrue);
       }
 
-      await expectAllTrue(NativeAudioRecorderPlatform.macOS);
+      await expectNoiseEchoOffVoiceIsolationOn(NativeAudioRecorderPlatform.macOS);
       final winCap = await recorderFor(NativeAudioRecorderPlatform.windows).getCapabilities();
       expect(winCap.supportsNoiseCancellation, isTrue);
       expect(winCap.supportsEchoCancellation, isFalse);
       expect(winCap.supportsVoiceIsolation, isTrue);
-      await expectAllTrue(NativeAudioRecorderPlatform.iOS);
+      await expectNoiseEchoOffVoiceIsolationOn(NativeAudioRecorderPlatform.iOS);
       await expectAllFalse(NativeAudioRecorderPlatform.unsupported);
     });
 
@@ -100,7 +101,7 @@ void main() {
       String? usedInputDeviceId;
       var stopCalls = 0;
 
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.macOS,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -151,7 +152,7 @@ void main() {
       var stopCalls = 0;
       String? usedInputDeviceId;
 
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.windows,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -201,7 +202,7 @@ void main() {
     });
 
     test('throws when starting while already running', () async {
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.macOS,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -230,27 +231,30 @@ void main() {
 
       expect(
         () => recorder.startFileRecording(outputPath: '/tmp/other.wav'),
-        throwsA(isA<StateError>()),
+        throwsA(isA<NativeAudioRecorderBusyException>()),
       );
     });
 
     test('unsupported platform reports unavailable and throws', () async {
-      final recorder = NativeAudioRecorder(platform: NativeAudioRecorderPlatform.unsupported);
+      final recorder = recorderFixture(platform: NativeAudioRecorderPlatform.unsupported);
 
       expect(await recorder.isAvailable(), isFalse);
       expect(
         () => recorder.startFileRecording(outputPath: '/tmp/file.wav'),
-        throwsA(isA<UnsupportedError>()),
+        throwsA(isA<NativeAudioRecorderUnsupportedPlatformException>()),
       );
-      expect(() => recorder.startPcmStream(), throwsA(isA<UnsupportedError>()));
-      expect(() => recorder.reset(), throwsA(isA<UnsupportedError>()));
+      expect(
+        () => recorder.startPcmStream(),
+        throwsA(isA<NativeAudioRecorderUnsupportedPlatformException>()),
+      );
+      expect(() => recorder.reset(), throwsA(isA<NativeAudioRecorderUnsupportedPlatformException>()));
     });
 
     test('reset invokes native reset path and closes stream', () async {
       var resetCalls = 0;
       var stopCalls = 0;
 
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.windows,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -290,7 +294,7 @@ void main() {
     test('AudioRecorderConfig.inputDeviceId is forwarded to native start calls', () async {
       String? usedInputDeviceId;
 
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.windows,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -330,7 +334,7 @@ void main() {
     });
 
     test('startFileRecording rejects unsupported encoding for native file output', () {
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.macOS,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -373,7 +377,7 @@ void main() {
         late String nativeOutputPath;
         var stopCalls = 0;
 
-        final recorder = NativeAudioRecorder(
+        final recorder = recorderFixture(
           platform: NativeAudioRecorderPlatform.macOS,
           availabilityFn: () => true,
           hasPermissionFn: () => true,
@@ -432,7 +436,7 @@ void main() {
         late String nativeOutputPath;
         var stopCalls = 0;
 
-        final recorder = NativeAudioRecorder(
+        final recorder = recorderFixture(
           platform: NativeAudioRecorderPlatform.macOS,
           availabilityFn: () => true,
           hasPermissionFn: () => true,
@@ -489,7 +493,7 @@ void main() {
       late String nativeOutputPath;
       var stopCalls = 0;
 
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.iOS,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -540,7 +544,7 @@ void main() {
     });
 
     test('startFileRecording rejects non-m4a output for macOS AAC recording', () {
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.macOS,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -577,7 +581,7 @@ void main() {
     });
 
     test('startFileRecording rejects non-m4a output for iOS AAC recording', () {
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.iOS,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -617,7 +621,7 @@ void main() {
       final chunk = Uint8List.view(Int16List.fromList(<int>[12000, -12000, 9000, -9000]).buffer);
       var readCalls = 0;
 
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.windows,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -659,7 +663,7 @@ void main() {
 
     test('onAmplitudeChanged polls native amplitude in file mode', () async {
       var readAmplitudeCalls = 0;
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.macOS,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -701,7 +705,7 @@ void main() {
 
     test('startVadCapture rejects unsupported segment encoders', () async {
       final outputDir = await Directory.systemTemp.createTemp('vad-capture-unsupported-');
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.windows,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -751,7 +755,7 @@ void main() {
       );
 
       var emittedChunk = false;
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.windows,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -820,7 +824,7 @@ void main() {
       );
 
       var emittedChunk = false;
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.windows,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -886,7 +890,7 @@ void main() {
       final fakeAacEncoder = _FakeAacEncoder();
 
       var emittedChunk = false;
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.windows,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -966,7 +970,7 @@ void main() {
       );
 
       var emittedChunk = false;
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.windows,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
@@ -1047,7 +1051,7 @@ void main() {
       final fakeAacEncoder = _FakeAacEncoder(failOnEncodeCalls: {1});
 
       var emittedChunk = false;
-      final recorder = NativeAudioRecorder(
+      final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.windows,
         availabilityFn: () => true,
         hasPermissionFn: () => true,

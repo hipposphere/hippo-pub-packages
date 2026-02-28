@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:cross_file/cross_file.dart';
 
+import '../utils/pcm16_audio_utils.dart';
+
 /// A zero-copy view over a PCM16 snippet.
 ///
 /// The snippet references the source buffer and only materializes views for
@@ -79,7 +81,7 @@ final class Pcm16Snippet {
     final file = File(path);
     final sink = file.openWrite();
     sink.add(
-      _buildPcm16WavHeader(
+      Pcm16AudioUtils.buildPcm16WavHeader(
         sampleRateHz: sampleRateHz,
         channelCount: channelCount,
         pcmDataByteLength: byteLength,
@@ -89,39 +91,4 @@ final class Pcm16Snippet {
     await sink.close();
     return XFile(path, mimeType: 'audio/wav');
   }
-}
-
-Uint8List _buildPcm16WavHeader({
-  required int sampleRateHz,
-  required int channelCount,
-  required int pcmDataByteLength,
-}) {
-  final header = Uint8List(44);
-  final data = ByteData.sublistView(header);
-
-  void writeAscii(int offset, String value) {
-    for (var i = 0; i < value.length; i++) {
-      header[offset + i] = value.codeUnitAt(i);
-    }
-  }
-
-  final byteRate = sampleRateHz * channelCount * 2;
-  final blockAlign = channelCount * 2;
-  final riffChunkSize = 36 + pcmDataByteLength;
-
-  writeAscii(0, 'RIFF');
-  data.setUint32(4, riffChunkSize, Endian.little);
-  writeAscii(8, 'WAVE');
-  writeAscii(12, 'fmt ');
-  data.setUint32(16, 16, Endian.little);
-  data.setUint16(20, 1, Endian.little);
-  data.setUint16(22, channelCount, Endian.little);
-  data.setUint32(24, sampleRateHz, Endian.little);
-  data.setUint32(28, byteRate, Endian.little);
-  data.setUint16(32, blockAlign, Endian.little);
-  data.setUint16(34, 16, Endian.little);
-  writeAscii(36, 'data');
-  data.setUint32(40, pcmDataByteLength, Endian.little);
-
-  return header;
 }

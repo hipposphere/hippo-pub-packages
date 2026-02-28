@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:speech_recorder/speech_recorder.dart';
 
 const _streamingSplitOptions = PauseSplitOptions(
@@ -34,6 +35,7 @@ class _Bloc extends BlocBase {
   final recordingsSubject = DataSubject<List<_RecordingCardData>>.seeded([]);
   final preferTenVadSubject = DataSubject<bool>.seeded(true);
   final tenThresholdSubject = DataSubject<double>.seeded(0.45);
+  final outputDirectorySubject = DataSubject<String?>.seeded(null);
 
   int _recordingCounter = 0;
   int? _activeRecordingId;
@@ -41,10 +43,13 @@ class _Bloc extends BlocBase {
   late final SpeechRecorderController controller;
 
   _Bloc() {
+    unawaited(_prepareOutputDirectory());
     controller = SpeechRecorderController(
       optionsBuilder: () async {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final path = 'tmp/streaming_recording_$timestamp.m4a';
+        final outputDirectory = await _prepareOutputDirectory();
+        final path =
+            '${outputDirectory.path}${Platform.pathSeparator}streaming_recording_$timestamp.m4a';
         final vadConfig = _buildVadConfig();
         return SpeechRecorderOptions(
           path: path,
@@ -67,6 +72,18 @@ class _Bloc extends BlocBase {
   }
 
   static _Bloc of(BuildContext context) => BlocProvider.of<_Bloc>(context);
+
+  Future<Directory> _prepareOutputDirectory() async {
+    final tempDirectory = await getTemporaryDirectory();
+    final outputDirectory = Directory(
+      '${tempDirectory.path}${Platform.pathSeparator}speech_recorder_example',
+    );
+    await outputDirectory.create(recursive: true);
+    if (outputDirectorySubject.value != outputDirectory.path) {
+      outputDirectorySubject.add(outputDirectory.path);
+    }
+    return outputDirectory;
+  }
 
   SpeechVadConfig _buildVadConfig() {
     final threshold = tenThresholdSubject.value;
@@ -167,6 +184,7 @@ class _Bloc extends BlocBase {
     recordingsSubject.close();
     preferTenVadSubject.close();
     tenThresholdSubject.close();
+    outputDirectorySubject.close();
     unawaited(controller.dispose());
   }
 }
@@ -249,6 +267,33 @@ class _ConfigCard extends StatelessWidget {
           Text(
             'Energy VAD thresholds: primary 0.006, secondary 0.004',
             style: textTheme.bodySmall,
+          ),
+          Gap(8),
+          DataSubjectBuilder(
+            subject: bloc.outputDirectorySubject,
+            builder: (context, outputDirectory) {
+              if (outputDirectory == null) {
+                return Text(
+                  'Output directory: resolving...',
+                  style: textTheme.bodySmall,
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Output directory (segments + recordings):',
+                    style: textTheme.bodySmall,
+                  ),
+                  SelectableText(
+                    outputDirectory,
+                    style: textTheme.bodySmall?.copyWith(
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           Gap(8),
           DataSubjectBuilder(

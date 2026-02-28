@@ -29,6 +29,7 @@ import 'voice_segment.dart';
 
 part 'native_audio_recorder_platform_builders.dart';
 part 'native_audio_recorder_platform_implementations.dart';
+part 'errors/native_audio_recorder_exceptions.dart';
 part 'implementations/native_audio_recorder_platform_implementation_macos.dart';
 part 'implementations/native_audio_recorder_platform_implementation_windows.dart';
 part 'implementations/native_audio_recorder_platform_implementation_ios.dart';
@@ -718,7 +719,7 @@ final class NativeAudioRecorder {
 
   void _ensureIdle() {
     if (_mode != _RecorderMode.stopped) {
-      throw StateError('Recorder is already running. Call stop() first.');
+      throw NativeAudioRecorderBusyException('Recorder is already running. Call stop() first.');
     }
   }
 
@@ -810,7 +811,9 @@ final class NativeAudioRecorder {
       case AudioEncoder.aacHe:
       case AudioEncoder.aacEld:
         if (audioEncoder == null) {
-          throw StateError('AAC encoder is required for AAC segment output.');
+          throw NativeAudioRecorderInvalidStateException(
+            'AAC encoder is required for AAC segment output.',
+          );
         }
         await audioEncoder.encodePcm16BytesToAac(
           pcm16leBytes: snippet.asBytesView(),
@@ -908,7 +911,9 @@ final class NativeAudioRecorder {
       case AudioEncoder.aacHe:
       case AudioEncoder.aacEld:
         if (audioEncoder == null) {
-          throw StateError('AAC encoder is required for AAC full-recording output.');
+          throw NativeAudioRecorderInvalidStateException(
+            'AAC encoder is required for AAC full-recording output.',
+          );
         }
         await audioEncoder.encodePcm16BytesToAac(
           pcm16leBytes: pcm16leBytes,
@@ -1010,7 +1015,9 @@ final class NativeAudioRecorder {
       );
       if (!config.encoding.encoder.supportsNativeStartFile && !useAppleDirectAacStart) {
         if (tempWavPath == null) {
-          throw StateError('Missing temporary WAV recording for encoded output.');
+          throw NativeAudioRecorderInvalidStateException(
+            'Missing temporary WAV recording for encoded output.',
+          );
         }
         final audioEncoder = config.encoding.audioEncoder ?? NativeAudioEncoder();
         await audioEncoder.encodeAudioFileToAac(
@@ -1207,23 +1214,5 @@ final class _VadCaptureSessionImpl implements VadCaptureSession {
   @override
   Future<void> cancel() {
     return _cancelFuture ??= _cancelFn();
-  }
-}
-
-final class AudioRecorderException implements Exception {
-  AudioRecorderException(this.message, {this.errorCode, this.details});
-
-  final String message;
-  final int? errorCode;
-  final String? details;
-
-  @override
-  String toString() {
-    final detailsText = <String>[
-      message,
-      if (errorCode != null) 'errorCode=$errorCode',
-      if (details != null && details!.isNotEmpty) 'details=$details',
-    ];
-    return 'AudioRecorderException: ${detailsText.join(' | ')}';
   }
 }

@@ -9,28 +9,15 @@ import '../generated/audio_encoder/windows_audio_encoder_bindings.dart' as windo
 import '../models/audio_metadata.dart';
 import '../utils/pcm16_audio_utils.dart';
 
+part 'errors/native_audio_metadata_reader_exceptions.dart';
+
 typedef NativeAudioMetadataReadFn = AudioMetadata Function(String inputPath);
 typedef NativeAudioMetadataAvailabilityFn = bool Function();
 
 enum NativeAudioMetadataPlatform { macOS, windows, android, iOS, unsupported }
 
-final class AudioMetadataException implements Exception {
-  AudioMetadataException(this.message, {this.errorCode, this.details});
-
-  final String message;
-  final int? errorCode;
-  final String? details;
-
-  @override
-  String toString() {
-    final parts = <String>[
-      message,
-      if (errorCode != null) 'errorCode=$errorCode',
-      if (details != null && details!.isNotEmpty) 'details=$details',
-    ];
-    return 'AudioMetadataException: ${parts.join(' | ')}';
-  }
-}
+const _unsupportedNativeAudioMetadataReaderMessage =
+    'NativeAudioMetadataReader is currently supported on macOS, Windows, Android, and iOS.';
 
 /// Reads media metadata using bundled native platform APIs via FFI.
 final class NativeAudioMetadataReader {
@@ -85,9 +72,10 @@ final class NativeAudioMetadataReader {
       NativeAudioMetadataPlatform.windows => _windowsReadFn(inputPath),
       NativeAudioMetadataPlatform.android => _androidReadFn(inputPath),
       NativeAudioMetadataPlatform.iOS => _iosReadFn(inputPath),
-      NativeAudioMetadataPlatform.unsupported => throw UnsupportedError(
-        'NativeAudioMetadataReader is currently supported on macOS, Windows, Android, and iOS.',
-      ),
+      NativeAudioMetadataPlatform.unsupported =>
+        throw const NativeAudioMetadataUnsupportedPlatformException(
+          _unsupportedNativeAudioMetadataReaderMessage,
+        ),
     };
 
     if (metadata.duration < Duration.zero) {
@@ -115,8 +103,8 @@ final class NativeAudioMetadataReader {
 
   void _ensureSupportedPlatform() {
     if (_platform == NativeAudioMetadataPlatform.unsupported) {
-      throw UnsupportedError(
-        'NativeAudioMetadataReader is currently supported on macOS, Windows, Android, and iOS.',
+      throw const NativeAudioMetadataUnsupportedPlatformException(
+        _unsupportedNativeAudioMetadataReaderMessage,
       );
     }
   }

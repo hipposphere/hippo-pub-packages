@@ -10,6 +10,8 @@ import '../generated/audio_encoder/apple_audio_encoder_bindings.dart' as apple_b
 import '../generated/audio_encoder/windows_audio_encoder_bindings.dart' as windows_bindings;
 import '../utils/pcm16_audio_utils.dart';
 
+part 'errors/native_audio_encoder_exceptions.dart';
+
 typedef WindowsNativeAacEncodeFn =
     void Function({required String inputPath, required String outputPath, required int bitrateBps});
 
@@ -31,6 +33,11 @@ typedef IosNativeAacEncodeFn =
 typedef IosNativeAacAvailabilityFn = bool Function();
 
 enum NativeAudioEncoderPlatform { macOS, windows, android, iOS, unsupported }
+
+const _unsupportedNativeAudioEncoderMessage =
+    'NativeAudioEncoder is currently supported on macOS (AVFoundation), '
+    'Windows (FFmpeg/libavcodec), Android (NDK MediaCodec), and '
+    'iOS (AVFoundation).';
 
 /// AAC encoder that uses native platform tooling:
 /// - macOS: bundled native AVFoundation bridge via Dart FFI
@@ -231,10 +238,8 @@ final class NativeAudioEncoder implements AacEncoder {
 
   void _ensureSupportedPlatform() {
     if (_platform == NativeAudioEncoderPlatform.unsupported) {
-      throw UnsupportedError(
-        'NativeAudioEncoder is currently supported on macOS (AVFoundation), '
-        'Windows (FFmpeg/libavcodec), Android (NDK MediaCodec), and '
-        'iOS (AVFoundation).',
+      throw const NativeAudioEncoderUnsupportedPlatformException(
+        _unsupportedNativeAudioEncoderMessage,
       );
     }
   }

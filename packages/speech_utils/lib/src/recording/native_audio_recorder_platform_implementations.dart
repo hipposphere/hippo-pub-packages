@@ -57,7 +57,7 @@ abstract class NativeAudioRecorderPlatformImplementation {
 
   void ensureSupported() {
     if (platform == NativeAudioRecorderPlatform.unsupported) {
-      throw UnsupportedError(_unsupportedAudioRecorderMessage);
+      throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
     }
   }
 }
@@ -80,42 +80,42 @@ final class _UnsupportedNativeAudioRecorderPlatformImplementation
 
   @override
   bool hasPermission() {
-    throw UnsupportedError(_unsupportedAudioRecorderMessage);
+    throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 
   @override
   bool requestPermission() {
-    throw UnsupportedError(_unsupportedAudioRecorderMessage);
+    throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 
   @override
   List<InputDevice> listInputDevices() {
-    throw UnsupportedError(_unsupportedAudioRecorderMessage);
+    throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 
   @override
   void startFile({required String outputPath, required AudioRecorderConfig config}) {
-    throw UnsupportedError(_unsupportedAudioRecorderMessage);
+    throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 
   @override
   void startStream({required AudioRecorderConfig config}) {
-    throw UnsupportedError(_unsupportedAudioRecorderMessage);
+    throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 
   @override
   Uint8List readStream({required int maxSamples}) {
-    throw UnsupportedError(_unsupportedAudioRecorderMessage);
+    throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 
   @override
   void stop() {
-    throw UnsupportedError(_unsupportedAudioRecorderMessage);
+    throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 
   @override
   void reset() {
-    throw UnsupportedError(_unsupportedAudioRecorderMessage);
+    throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 
   @override

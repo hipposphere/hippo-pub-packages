@@ -64,28 +64,7 @@ extension AudioEncoderCapabilities on AudioEncoder {
 enum AudioCapturePreset { voice, voiceIsolation, raw, music }
 
 /// Platform scope used to resolve runtime processing toggles.
-enum AudioProcessingPlatform { apple, windows, generic }
-
-/// Apple-specific processing overrides nested under [AudioProcessingConfig].
-///
-/// By default, Apple capture applies preset defaults when no explicit override
-/// is provided.
-final class AppleAudioProcessingConfig {
-  const AppleAudioProcessingConfig({
-    this.usePresetDefaults = true,
-    this.enableNoiseSuppression,
-    this.enableEchoCancellation,
-    this.enableAutomaticGainControl,
-    this.enableHighPassFilter,
-  });
-
-  /// Whether preset defaults should be used when no explicit toggle is provided.
-  final bool usePresetDefaults;
-  final bool? enableNoiseSuppression;
-  final bool? enableEchoCancellation;
-  final bool? enableAutomaticGainControl;
-  final bool? enableHighPassFilter;
-}
+enum AudioProcessingPlatform { ios, macos, windows, generic }
 
 /// Windows-specific processing overrides nested under [AudioProcessingConfig].
 ///
@@ -113,20 +92,18 @@ final class WindowsAudioProcessingConfig {
 /// subset depending on OS capabilities and active audio route.
 ///
 /// [preset] defines default behavior for optional processing switches, while
-/// per-platform overrides are configured via [apple] and [windows].
+/// per-platform feature overrides are configured via [windows].
 ///
 /// Preset defaults:
-/// - [AudioCapturePreset.voice]: noise suppression, echo cancellation,
-///   automatic gain control, and high-pass filter enabled.
-/// - [AudioCapturePreset.voiceIsolation]: same defaults as voice plus a
-///   stronger voice-isolation request where available.
+/// - [AudioCapturePreset.voice]: voice-oriented processing hints enabled.
+/// - [AudioCapturePreset.voiceIsolation]: stronger voice-isolation hint where
+///   available.
 /// - [AudioCapturePreset.raw]: all optional processing disabled.
 /// - [AudioCapturePreset.music]: all optional processing disabled.
 final class AudioProcessingConfig {
   const AudioProcessingConfig({
     this.preset = AudioCapturePreset.voice,
     this.preferredLatency,
-    this.apple = const AppleAudioProcessingConfig(),
     this.windows = const WindowsAudioProcessingConfig(),
   });
 
@@ -135,64 +112,73 @@ final class AudioProcessingConfig {
   /// Preferred end-to-end capture latency.
   final Duration? preferredLatency;
 
-  /// Apple-specific processing overrides.
-  final AppleAudioProcessingConfig apple;
-
   /// Windows-specific processing overrides.
   final WindowsAudioProcessingConfig windows;
 
   /// Resolves noise suppression after applying platform-specific overrides.
+  ///
+  /// Apple capture is session-mode driven, so this always returns `false` for
+  /// [AudioProcessingPlatform.ios] and [AudioProcessingPlatform.macos].
   bool resolveNoiseSuppressionForPlatform(AudioProcessingPlatform platform) {
+    if (platform == AudioProcessingPlatform.ios || platform == AudioProcessingPlatform.macos) {
+      return false;
+    }
     return _resolveProcessingToggleForPlatform(
       platform: platform,
-      appleOverride: apple.enableNoiseSuppression,
       windowsOverride: windows.enableNoiseSuppression,
-      applePresetDefault: _applePresetNoiseSuppressionDefault(preset),
       windowsPresetDefault: _windowsPresetNoiseSuppressionDefault(preset),
       genericPresetDefault: _presetNoiseSuppressionDefault(preset),
-      appleUsePresetDefaults: apple.usePresetDefaults,
       windowsUsePresetDefaults: windows.usePresetDefaults,
     );
   }
 
   /// Resolves echo cancellation after applying platform-specific overrides.
+  ///
+  /// Apple capture is session-mode driven, so this always returns `false` for
+  /// [AudioProcessingPlatform.ios] and [AudioProcessingPlatform.macos].
   bool resolveEchoCancellationForPlatform(AudioProcessingPlatform platform) {
+    if (platform == AudioProcessingPlatform.ios || platform == AudioProcessingPlatform.macos) {
+      return false;
+    }
     return _resolveProcessingToggleForPlatform(
       platform: platform,
-      appleOverride: apple.enableEchoCancellation,
       windowsOverride: windows.enableEchoCancellation,
-      applePresetDefault: _applePresetEchoCancellationDefault(preset),
       windowsPresetDefault: _windowsPresetEchoCancellationDefault(preset),
       genericPresetDefault: _presetEchoCancellationDefault(preset),
-      appleUsePresetDefaults: apple.usePresetDefaults,
       windowsUsePresetDefaults: windows.usePresetDefaults,
     );
   }
 
   /// Resolves AGC after applying platform-specific overrides.
+  ///
+  /// Apple capture is session-mode driven, so this always returns `false` for
+  /// [AudioProcessingPlatform.ios] and [AudioProcessingPlatform.macos].
   bool resolveAutomaticGainControlForPlatform(AudioProcessingPlatform platform) {
+    if (platform == AudioProcessingPlatform.ios || platform == AudioProcessingPlatform.macos) {
+      return false;
+    }
     return _resolveProcessingToggleForPlatform(
       platform: platform,
-      appleOverride: apple.enableAutomaticGainControl,
       windowsOverride: windows.enableAutomaticGainControl,
-      applePresetDefault: _applePresetAutomaticGainControlDefault(preset),
       windowsPresetDefault: _windowsPresetAutomaticGainControlDefault(preset),
       genericPresetDefault: _presetAutomaticGainControlDefault(preset),
-      appleUsePresetDefaults: apple.usePresetDefaults,
       windowsUsePresetDefaults: windows.usePresetDefaults,
     );
   }
 
   /// Resolves high-pass filtering after applying platform-specific overrides.
+  ///
+  /// Apple capture is session-mode driven, so this always returns `false` for
+  /// [AudioProcessingPlatform.ios] and [AudioProcessingPlatform.macos].
   bool resolveHighPassFilterForPlatform(AudioProcessingPlatform platform) {
+    if (platform == AudioProcessingPlatform.ios || platform == AudioProcessingPlatform.macos) {
+      return false;
+    }
     return _resolveProcessingToggleForPlatform(
       platform: platform,
-      appleOverride: apple.enableHighPassFilter,
       windowsOverride: windows.enableHighPassFilter,
-      applePresetDefault: _applePresetHighPassFilterDefault(preset),
       windowsPresetDefault: _windowsPresetHighPassFilterDefault(preset),
       genericPresetDefault: _presetHighPassFilterDefault(preset),
-      appleUsePresetDefaults: apple.usePresetDefaults,
       windowsUsePresetDefaults: windows.usePresetDefaults,
     );
   }
@@ -236,34 +222,6 @@ bool _presetHighPassFilterDefault(AudioCapturePreset preset) {
   };
 }
 
-bool _applePresetNoiseSuppressionDefault(AudioCapturePreset preset) {
-  return switch (preset) {
-    AudioCapturePreset.voice || AudioCapturePreset.voiceIsolation => true,
-    AudioCapturePreset.raw || AudioCapturePreset.music => false,
-  };
-}
-
-bool _applePresetEchoCancellationDefault(AudioCapturePreset preset) {
-  return switch (preset) {
-    AudioCapturePreset.voice || AudioCapturePreset.voiceIsolation => true,
-    AudioCapturePreset.raw || AudioCapturePreset.music => false,
-  };
-}
-
-bool _applePresetAutomaticGainControlDefault(AudioCapturePreset preset) {
-  return switch (preset) {
-    AudioCapturePreset.voice || AudioCapturePreset.voiceIsolation => false,
-    AudioCapturePreset.raw || AudioCapturePreset.music => false,
-  };
-}
-
-bool _applePresetHighPassFilterDefault(AudioCapturePreset preset) {
-  return switch (preset) {
-    AudioCapturePreset.voice || AudioCapturePreset.voiceIsolation => false,
-    AudioCapturePreset.raw || AudioCapturePreset.music => false,
-  };
-}
-
 bool _windowsPresetNoiseSuppressionDefault(AudioCapturePreset preset) {
   return _presetNoiseSuppressionDefault(preset);
 }
@@ -282,20 +240,15 @@ bool _windowsPresetHighPassFilterDefault(AudioCapturePreset preset) {
 
 bool _resolveProcessingToggleForPlatform({
   required AudioProcessingPlatform platform,
-  required bool? appleOverride,
   required bool? windowsOverride,
-  required bool applePresetDefault,
   required bool windowsPresetDefault,
   required bool genericPresetDefault,
-  required bool appleUsePresetDefaults,
   required bool windowsUsePresetDefaults,
 }) {
   switch (platform) {
-    case AudioProcessingPlatform.apple:
-      if (appleOverride != null) {
-        return appleOverride;
-      }
-      return appleUsePresetDefaults ? applePresetDefault : false;
+    case AudioProcessingPlatform.ios:
+    case AudioProcessingPlatform.macos:
+      return false;
     case AudioProcessingPlatform.windows:
       if (windowsOverride != null) {
         return windowsOverride;
@@ -306,12 +259,12 @@ bool _resolveProcessingToggleForPlatform({
   }
 }
 
-enum AppleAudioSessionMode { defaultMode, voiceChat, videoChat, measurement, gameChat, spokenAudio }
+enum IosAudioSessionMode { defaultMode, voiceChat, videoChat, measurement, gameChat, spokenAudio }
 
-/// Apple-specific capture preferences (iOS/macOS).
-final class AppleAudioRecorderConfig {
-  const AppleAudioRecorderConfig({
-    this.sessionMode = AppleAudioSessionMode.voiceChat,
+/// iOS-specific capture preferences.
+final class IosAudioRecorderConfig {
+  const IosAudioRecorderConfig({
+    this.sessionMode,
     this.allowBluetoothInput = true,
     this.allowBluetoothA2dp = false,
     this.defaultToSpeaker = true,
@@ -321,7 +274,10 @@ final class AppleAudioRecorderConfig {
     this.preferredIoBufferDuration,
   });
 
-  final AppleAudioSessionMode sessionMode;
+  /// Preferred Apple audio session mode.
+  ///
+  /// If omitted, recorder runtime derives a mode from [AudioProcessingConfig.preset].
+  final IosAudioSessionMode? sessionMode;
   final bool allowBluetoothInput;
   final bool allowBluetoothA2dp;
   final bool defaultToSpeaker;
@@ -331,7 +287,7 @@ final class AppleAudioRecorderConfig {
   /// iOS-only input gain hint in [0.0, 1.0].
   final double? preferredInputGain;
 
-  /// iOS/macOS I/O buffer duration hint.
+  /// iOS I/O buffer duration hint.
   final Duration? preferredIoBufferDuration;
 
   void validate() {
@@ -347,6 +303,27 @@ final class AppleAudioRecorderConfig {
       throw ArgumentError.value(
         preferredIoBufferDuration,
         'preferredIoBufferDuration',
+        'Must be > Duration.zero when provided',
+      );
+    }
+  }
+}
+
+/// macOS-specific capture preferences.
+final class MacosAudioRecorderConfig {
+  const MacosAudioRecorderConfig({this.processingQueueDuration});
+
+  /// Preferred recorder processing queue budget.
+  ///
+  /// This controls how much captured audio can be queued for native processing
+  /// before overload protection triggers.
+  final Duration? processingQueueDuration;
+
+  void validate() {
+    if (processingQueueDuration != null && processingQueueDuration! <= Duration.zero) {
+      throw ArgumentError.value(
+        processingQueueDuration,
+        'processingQueueDuration',
         'Must be > Duration.zero when provided',
       );
     }
@@ -427,7 +404,8 @@ final class AudioRecorderConfig {
     this.framesPerChunk = 1024,
     this.inputDeviceId,
     this.processing = const AudioProcessingConfig(),
-    this.appleConfig,
+    this.iosConfig,
+    this.macosConfig,
     this.windowsConfig,
     this.encoding = const AudioEncodingConfig(),
   });
@@ -447,8 +425,11 @@ final class AudioRecorderConfig {
   /// Cross-platform processing preferences (best effort).
   final AudioProcessingConfig processing;
 
-  /// Optional Apple-specific recorder preferences.
-  final AppleAudioRecorderConfig? appleConfig;
+  /// Optional iOS-specific recorder preferences.
+  final IosAudioRecorderConfig? iosConfig;
+
+  /// Optional macOS-specific recorder preferences.
+  final MacosAudioRecorderConfig? macosConfig;
 
   /// Optional Windows-specific recorder preferences.
   final WindowsAudioRecorderConfig? windowsConfig;
@@ -470,7 +451,8 @@ final class AudioRecorderConfig {
       throw ArgumentError.value(inputDeviceId, 'inputDeviceId', 'Must not be blank');
     }
     processing.validate();
-    appleConfig?.validate();
+    iosConfig?.validate();
+    macosConfig?.validate();
     windowsConfig?.validate();
     encoding.validate();
   }

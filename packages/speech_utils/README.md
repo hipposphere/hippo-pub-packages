@@ -150,7 +150,7 @@ await recorder.stop();
 supports `AudioEncoder.wav`, `AudioEncoder.pcm16bits`,
 `AudioEncoder.aacLc`, `AudioEncoder.aacHe`, and `AudioEncoder.aacEld`.
 For AAC outputs on Apple platforms (`macOS`/`iOS`), recording writes directly to `.m4a`
-through the native AVAudioEngine capture path. Non-Apple platforms keep the WAV-then-encode
+through the native AVCaptureSession capture path. Non-Apple platforms keep the WAV-then-encode
 finalization path on `stop()`.
 
 Input device discovery/selection:
@@ -182,12 +182,6 @@ await recorder.startFileRecording(
     channelCount: 1,
     processing: AudioProcessingConfig(
       preset: AudioCapturePreset.voiceIsolation,
-      apple: AppleAudioProcessingConfig(
-        usePresetDefaults: true,
-        enableNoiseSuppression: true,
-        enableEchoCancellation: true,
-        enableAutomaticGainControl: true,
-      ),
       windows: WindowsAudioProcessingConfig(
         usePresetDefaults: true,
         enableNoiseSuppression: true,
@@ -195,10 +189,13 @@ await recorder.startFileRecording(
         enableAutomaticGainControl: true,
       ),
     ),
-    appleConfig: AppleAudioRecorderConfig(
-      sessionMode: AppleAudioSessionMode.voiceChat,
+    iosConfig: IosAudioRecorderConfig(
+      sessionMode: IosAudioSessionMode.voiceChat,
       allowBluetoothInput: true,
       defaultToSpeaker: true,
+    ),
+    macosConfig: MacosAudioRecorderConfig(
+      processingQueueDuration: Duration(milliseconds: 40),
     ),
     windowsConfig: WindowsAudioRecorderConfig(
       captureCategory: WindowsCaptureCategory.communications,
@@ -208,14 +205,15 @@ await recorder.startFileRecording(
 );
 ```
 
-`processing`, `appleConfig`, and `windowsConfig` are best-effort hints and may
+`processing`, `iosConfig`, `macosConfig`, and `windowsConfig` are best-effort hints and may
 be applied partially depending on platform/backend capabilities.
-`processing.preferredLatency` is mapped to native capture buffering where
-possible (Apple I/O buffer hint and Windows period-size hint).
-On Apple platforms, stream/WAV capture uses `AVAudioEngine` and enables
-voice-processing features when suppression/cancellation hints are requested.
-`AudioCapturePreset.voice` and `AudioCapturePreset.voiceIsolation` also request
-Apple voice-processing intent in the native backend.
+`processing.preferredLatency` is mapped to native capture buffering where possible
+(iOS I/O buffer hint, macOS recorder queue budget, and Windows period-size hint).
+On iOS and macOS, stream/WAV capture uses `AVCaptureSession`. iOS processing is
+session-mode driven via `IosAudioRecorderConfig.sessionMode` (for example
+`voiceChat` or `measurement`). If `sessionMode` is omitted, mode selection falls
+back to `AudioProcessingConfig.preset`. Per-feature suppression/cancellation
+toggles are not applied on iOS/macOS recorder backends.
 
 Stream mode:
 

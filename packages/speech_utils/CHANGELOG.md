@@ -41,9 +41,16 @@
   - macOS (AVFoundation)
   - Windows (miniaudio)
   - iOS (AVFoundation)
-- Add Apple `AVAudioEngine` voice-processing backend for recorder stream/WAV
-  capture when processing hints request noise suppression, echo cancellation,
-  AGC, or voice-isolation presets.
+- Breaking: replace Apple recorder backend implementation from `AVAudioEngine`
+  to `AVCaptureSession` (`AVCaptureAudioDataOutput`) for stream/WAV capture.
+- Breaking: iOS recorder processing is now session-mode driven
+  (`IosAudioRecorderConfig.sessionMode`) instead of per-feature
+  suppression/cancellation toggles.
+- Breaking: remove `AppleAudioProcessingConfig` from `AudioProcessingConfig`.
+  Apple processing configuration now lives in platform configs:
+  `IosAudioRecorderConfig` and `MacosAudioRecorderConfig`.
+- Change: `IosAudioRecorderConfig.sessionMode` is now optional; when omitted,
+  iOS mode falls back to `AudioProcessingConfig.preset`.
 - Switch Windows native AAC/metadata FFI backend to FFmpeg (`libavcodec`/`libavformat`).
 - Bundle Windows FFmpeg runtime DLLs from `third_party/ffmpeg/windows/bin` automatically in hook builds.
 - Add Windows minimal-FFmpeg CI pipeline to generate required `include/lib/bin`

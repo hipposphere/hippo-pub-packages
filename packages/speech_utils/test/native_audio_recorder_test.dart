@@ -77,19 +77,19 @@ void main() {
         expect(capabilities.supportsVoiceIsolation, isFalse);
       }
 
-      Future<void> expectAllTrue(NativeAudioRecorderPlatform platform) async {
+      Future<void> expectNoiseEchoOffVoiceIsolationOn(NativeAudioRecorderPlatform platform) async {
         final capabilities = await recorderFor(platform).getCapabilities();
-        expect(capabilities.supportsNoiseCancellation, isTrue);
-        expect(capabilities.supportsEchoCancellation, isTrue);
+        expect(capabilities.supportsNoiseCancellation, isFalse);
+        expect(capabilities.supportsEchoCancellation, isFalse);
         expect(capabilities.supportsVoiceIsolation, isTrue);
       }
 
-      await expectAllTrue(NativeAudioRecorderPlatform.macOS);
+      await expectNoiseEchoOffVoiceIsolationOn(NativeAudioRecorderPlatform.macOS);
       final winCap = await recorderFor(NativeAudioRecorderPlatform.windows).getCapabilities();
       expect(winCap.supportsNoiseCancellation, isTrue);
       expect(winCap.supportsEchoCancellation, isFalse);
       expect(winCap.supportsVoiceIsolation, isTrue);
-      await expectAllTrue(NativeAudioRecorderPlatform.iOS);
+      await expectNoiseEchoOffVoiceIsolationOn(NativeAudioRecorderPlatform.iOS);
       await expectAllFalse(NativeAudioRecorderPlatform.unsupported);
     });
 

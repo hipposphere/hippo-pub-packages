@@ -22,10 +22,15 @@ const _androidAudioEncoderAssetName =
     'src/generated/audio_encoder/android_audio_encoder_bindings.dart';
 const _androidAudioEncoderLibraryBaseName = 'speech_utils_android_audio_encoder';
 const _appleAudioEncoderAssetName = 'src/generated/audio_encoder/apple_audio_encoder_bindings.dart';
-const _appleAudioCodecBindingsSource = 'native/apple/speech_utils_apple_audio_codec_bindings.mm';
-const _appleAudioCodecSharedSources = <String>[
-  'native/apple/speech_utils_apple_audio_codec_bindings.mm',
-  'native/apple/speech_utils_apple_audio_codec.mm',
+const _iosAudioCodecBindingsSource = 'native/ios/speech_utils_apple_audio_codec_bindings.mm';
+const _iosAudioCodecSources = <String>[
+  'native/ios/speech_utils_apple_audio_codec_bindings.mm',
+  'native/ios/speech_utils_apple_audio_codec.mm',
+];
+const _macosAudioCodecBindingsSource = 'native/macos/speech_utils_apple_audio_codec_bindings.mm';
+const _macosAudioCodecSources = <String>[
+  'native/macos/speech_utils_apple_audio_codec_bindings.mm',
+  'native/macos/speech_utils_apple_audio_codec.mm',
 ];
 const _iosAudioEncoderLibraryBaseName = 'speech_utils_ios_audio_encoder';
 const _macosAudioEncoderLibraryBaseName = 'speech_utils_macos_audio_encoder';
@@ -141,14 +146,10 @@ Future<void> buildIosAudioEncoderAsset(BuildInput input, BuildOutputBuilder outp
     return;
   }
 
+  requireSourceFile(input, relativePath: _iosAudioCodecBindingsSource, label: 'iOS audio encoder');
   requireSourceFile(
     input,
-    relativePath: _appleAudioCodecBindingsSource,
-    label: 'iOS audio encoder',
-  );
-  requireSourceFile(
-    input,
-    relativePath: 'native/apple/speech_utils_apple_audio_codec.mm',
+    relativePath: 'native/ios/speech_utils_apple_audio_codec.mm',
     label: 'iOS audio encoder',
   );
 
@@ -156,10 +157,9 @@ Future<void> buildIosAudioEncoderAsset(BuildInput input, BuildOutputBuilder outp
     name: _iosAudioEncoderLibraryBaseName,
     assetName: _appleAudioEncoderAssetName,
     language: Language.objectiveC,
-    sources: _appleAudioCodecSharedSources,
+    sources: _iosAudioCodecSources,
     std: 'c++17',
     flags: appleObjectiveCArcFlags,
-    defines: const {'SPEECH_UTILS_APPLE_AUDIO_CODEC_TARGET_IOS': '1'},
     frameworks: appleCommonFrameworks,
     libraries: appleCommonLibraries,
   ).run(input: input, output: output);
@@ -172,12 +172,12 @@ Future<void> buildMacosAudioEncoderAsset(BuildInput input, BuildOutputBuilder ou
 
   requireSourceFile(
     input,
-    relativePath: _appleAudioCodecBindingsSource,
+    relativePath: _macosAudioCodecBindingsSource,
     label: 'macOS audio encoder',
   );
   requireSourceFile(
     input,
-    relativePath: 'native/apple/speech_utils_apple_audio_codec.mm',
+    relativePath: 'native/macos/speech_utils_apple_audio_codec.mm',
     label: 'macOS audio encoder',
   );
 
@@ -185,10 +185,9 @@ Future<void> buildMacosAudioEncoderAsset(BuildInput input, BuildOutputBuilder ou
     name: _macosAudioEncoderLibraryBaseName,
     assetName: _appleAudioEncoderAssetName,
     language: Language.objectiveC,
-    sources: _appleAudioCodecSharedSources,
+    sources: _macosAudioCodecSources,
     std: 'c++17',
     flags: appleObjectiveCArcFlags,
-    defines: const {'SPEECH_UTILS_APPLE_AUDIO_CODEC_TARGET_MACOS': '1'},
     frameworks: appleCommonFrameworks,
     libraries: appleCommonLibraries,
   ).run(input: input, output: output);

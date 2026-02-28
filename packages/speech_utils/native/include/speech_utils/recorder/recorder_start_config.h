@@ -7,13 +7,14 @@ namespace speech_utils::recorder {
 
 struct RecorderRuntimeConfig {
   int32_t processing_flags;
-  int32_t apple_session_mode_code;
-  uint32_t apple_category_options_flags;
+  int32_t ios_session_mode_code;
+  uint32_t ios_category_options_flags;
   double preferred_latency_seconds;
-  double apple_preferred_io_buffer_duration_seconds;
-  double apple_preferred_input_gain;
-  uint32_t apple_file_bitrate_bps;
-  int32_t apple_file_encoder_code;
+  double ios_preferred_io_buffer_duration_seconds;
+  double ios_preferred_input_gain;
+  uint32_t file_bitrate_bps;
+  int32_t file_encoder_code;
+  double macos_processing_queue_duration_seconds;
   uint32_t windows_preferred_period_frames;
   uint32_t windows_flags;
   int32_t windows_capture_category_code;

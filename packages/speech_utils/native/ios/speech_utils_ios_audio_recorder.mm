@@ -1,4 +1,4 @@
-#include "../apple/speech_utils_apple_audio_recorder_api.h"
+#include "speech_utils_apple_audio_recorder_api.h"
 
 extern "C" __attribute__((visibility("default"))) int32_t
 speech_utils_ios_audio_recorder_has_permission(int32_t* out_has_permission, char* error_utf8,

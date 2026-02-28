@@ -17,8 +17,9 @@ Flutter example app for `speech_utils`.
   - pass selected device ID via `AudioRecorderConfig.inputDeviceId` where supported
 - Audio processing configuration:
   - processing preset selector (`voice`, `voiceIsolation`, `raw`, `music`)
-  - per-feature overrides for noise suppression, echo cancellation, AGC, and high-pass filter
-  - platform-resolved processing preview (`apple` / `windows` / `generic`) in logs and UI
+  - iOS session-mode selection (`voiceChat`, `measurement`, etc.) + macOS queue-duration hint
+  - per-feature overrides for noise suppression, echo cancellation, AGC, and high-pass filter (Windows/generic)
+  - platform-resolved processing preview (`ios` / `macos` / `windows` / `generic`) in logs and UI
   - preferred processing latency hint
 - Live UI:
   - real-time waveform while recording

@@ -27,6 +27,13 @@ import '../generated/recorder/macos_audio_recorder_bindings.dart' as macos_bindi
 import '../generated/recorder/windows_audio_recorder_bindings.dart' as windows_bindings;
 import 'voice_segment.dart';
 
+part 'native_audio_recorder_platform_builders.dart';
+part 'native_audio_recorder_platform_implementations.dart';
+part 'implementations/native_audio_recorder_platform_implementation_macos.dart';
+part 'implementations/native_audio_recorder_platform_implementation_windows.dart';
+part 'implementations/native_audio_recorder_platform_implementation_ios.dart';
+part 'implementations/native_audio_recorder_platform_ffi.dart';
+
 enum NativeAudioRecorderPlatform { macOS, windows, iOS, unsupported }
 
 /// Recorder enhancement capabilities currently implemented by this package.
@@ -78,30 +85,6 @@ final class _NativeRecorderRuntimeConfig {
   final int windowsVoiceProcessingModeCode;
 }
 
-typedef NativeAudioRecorderAvailabilityFn = bool Function();
-typedef NativeAudioRecorderPermissionFn = bool Function();
-typedef NativeAudioRecorderRequestPermissionFn = bool Function();
-typedef NativeAudioRecorderListInputDevicesFn = List<InputDevice> Function();
-typedef NativeAudioRecorderStartFileFn =
-    void Function({
-      required String outputPath,
-      required int sampleRateHz,
-      required int channelCount,
-      required String? inputDeviceId,
-    });
-typedef NativeAudioRecorderStartPcmStreamFn =
-    void Function({
-      required int sampleRateHz,
-      required int channelCount,
-      required int framesPerChunk,
-      required String? inputDeviceId,
-    });
-typedef NativeAudioRecorderReadPcmStreamFn = Uint8List Function({required int maxSamples});
-typedef NativeAudioRecorderStopFn = void Function();
-typedef NativeAudioRecorderResetFn = void Function();
-typedef NativeAudioRecorderIsRecordingFn = bool Function();
-typedef NativeAudioRecorderGetAmplitudeFn = Amplitude Function();
-
 enum _RecorderMode { stopped, file, stream }
 
 /// FFI-based microphone recorder backed by platform-native implementations.
@@ -110,74 +93,26 @@ enum _RecorderMode { stopped, file, stream }
 /// - macOS/iOS: AVFoundation
 /// - Windows: miniaudio
 final class NativeAudioRecorder {
-  NativeAudioRecorder({
-    NativeAudioRecorderPlatform? platform,
-    NativeAudioRecorderAvailabilityFn? availabilityFn,
-    NativeAudioRecorderPermissionFn? hasPermissionFn,
-    NativeAudioRecorderRequestPermissionFn? requestPermissionFn,
-    NativeAudioRecorderListInputDevicesFn? listInputDevicesFn,
-    NativeAudioRecorderStartFileFn? startFileFn,
-    NativeAudioRecorderStartPcmStreamFn? startPcmStreamFn,
-    NativeAudioRecorderReadPcmStreamFn? readPcmStreamFn,
-    NativeAudioRecorderStopFn? stopFn,
-    NativeAudioRecorderResetFn? resetFn,
-    NativeAudioRecorderIsRecordingFn? isRecordingFn,
-    NativeAudioRecorderGetAmplitudeFn? getAmplitudeFn,
+  /// Uses platform detection to select the default backend.
+  NativeAudioRecorder()
+      : this._(
+          platformImplementation: _resolveNativeAudioRecorderPlatformImplementation(
+            platform: _detectNativeAudioRecorderPlatform(),
+            platformImplementation: null,
+          ),
+        );
+
+  /// Uses a custom platform backend.
+  NativeAudioRecorder.custom({
+    required NativeAudioRecorderPlatformImplementation platformImplementation,
   }) : this._(
-         platform: platform ?? _detectNativeAudioRecorderPlatform(),
-         availabilityFn: availabilityFn,
-         hasPermissionFn: hasPermissionFn,
-         requestPermissionFn: requestPermissionFn,
-         listInputDevicesFn: listInputDevicesFn,
-         startFileFn: startFileFn,
-         startPcmStreamFn: startPcmStreamFn,
-         readPcmStreamFn: readPcmStreamFn,
-         stopFn: stopFn,
-         resetFn: resetFn,
-         isRecordingFn: isRecordingFn,
-         getAmplitudeFn: getAmplitudeFn,
-       );
+          platformImplementation: platformImplementation,
+        );
 
-  NativeAudioRecorder._({
-    required NativeAudioRecorderPlatform platform,
-    NativeAudioRecorderAvailabilityFn? availabilityFn,
-    NativeAudioRecorderPermissionFn? hasPermissionFn,
-    NativeAudioRecorderRequestPermissionFn? requestPermissionFn,
-    NativeAudioRecorderListInputDevicesFn? listInputDevicesFn,
-    NativeAudioRecorderStartFileFn? startFileFn,
-    NativeAudioRecorderStartPcmStreamFn? startPcmStreamFn,
-    NativeAudioRecorderReadPcmStreamFn? readPcmStreamFn,
-    NativeAudioRecorderStopFn? stopFn,
-    NativeAudioRecorderResetFn? resetFn,
-    NativeAudioRecorderIsRecordingFn? isRecordingFn,
-    NativeAudioRecorderGetAmplitudeFn? getAmplitudeFn,
-  }) : _platform = platform,
-       _availabilityFn = availabilityFn ?? _resolveAvailabilityFn(platform),
-       _hasPermissionFn = hasPermissionFn ?? _resolveHasPermissionFn(platform),
-       _requestPermissionFn = requestPermissionFn ?? _resolveRequestPermissionFn(platform),
-       _listInputDevicesFn = listInputDevicesFn ?? _resolveListInputDevicesFn(platform),
-       _startFileFn = startFileFn,
-       _startPcmStreamFn = startPcmStreamFn,
-       _usesDefaultReadPcmStreamFn = readPcmStreamFn == null,
-       _readPcmStreamFn = readPcmStreamFn ?? _resolveReadPcmStreamFn(platform),
-       _stopFn = stopFn ?? _resolveStopFn(platform),
-       _resetFn = resetFn ?? _resolveResetFn(platform),
-       _isRecordingFn = isRecordingFn ?? _resolveIsRecordingFn(platform),
-       _getAmplitudeFn = getAmplitudeFn ?? _resolveGetAmplitudeFn(platform);
+  NativeAudioRecorder._({required NativeAudioRecorderPlatformImplementation platformImplementation})
+      : _platformImplementation = platformImplementation;
 
-  final NativeAudioRecorderPlatform _platform;
-  final NativeAudioRecorderAvailabilityFn _availabilityFn;
-  final NativeAudioRecorderPermissionFn _hasPermissionFn;
-  final NativeAudioRecorderRequestPermissionFn _requestPermissionFn;
-  final NativeAudioRecorderListInputDevicesFn _listInputDevicesFn;
-  final NativeAudioRecorderStartFileFn? _startFileFn;
-  final NativeAudioRecorderStartPcmStreamFn? _startPcmStreamFn;
-  final bool _usesDefaultReadPcmStreamFn;
-  final NativeAudioRecorderReadPcmStreamFn _readPcmStreamFn;
-  final NativeAudioRecorderStopFn _stopFn;
-  final NativeAudioRecorderResetFn _resetFn;
-  final NativeAudioRecorderIsRecordingFn _isRecordingFn;
-  final NativeAudioRecorderGetAmplitudeFn _getAmplitudeFn;
+  final NativeAudioRecorderPlatformImplementation _platformImplementation;
 
   _RecorderMode _mode = _RecorderMode.stopped;
   Timer? _streamTimer;
@@ -196,66 +131,42 @@ final class NativeAudioRecorder {
   bool _stopping = false;
   bool _nativeAmplitudePollInFlight = false;
   bool _streamDrainInFlight = false;
-  ffi.Pointer<ffi.Int16>? _streamReadSamplesPtr;
-  ffi.Pointer<ffi.Uint32>? _streamReadSamplesWrittenPtr;
-  ffi.Pointer<ffi.Char>? _streamReadErrorPtr;
-  int _streamReadBufferCapacitySamples = 0;
 
   static const _defaultReadSampleCapacity = 4096;
   static const _maxReadIterationsPerDrain = 3;
 
-  NativeAudioRecorderPlatform get platform => _platform;
+  NativeAudioRecorderPlatform get platform => _platformImplementation.platform;
 
   bool get isRecording {
     if (_mode == _RecorderMode.stopped) {
       return false;
     }
     try {
-      return _isRecordingFn();
+      return _platformImplementation.isRecording();
     } on Object {
       return true;
     }
   }
 
   Future<bool> isAvailable() async {
-    if (_platform == NativeAudioRecorderPlatform.unsupported) {
-      return false;
-    }
-    return _availabilityFn();
+    return _platformImplementation.isAvailable();
   }
 
   Future<bool> hasPermission() async {
     _ensureSupportedPlatform();
-    return _hasPermissionFn();
+    return _platformImplementation.hasPermission();
   }
 
   Future<bool> requestPermission() async {
     _ensureSupportedPlatform();
-    return _requestPermissionFn();
+    return _platformImplementation.requestPermission();
   }
 
   /// Returns recorder enhancement capabilities for the current platform.
   ///
   /// These values reflect what this library currently implements.
   Future<NativeAudioRecorderCapabilities> getCapabilities() async {
-    return switch (_platform) {
-      NativeAudioRecorderPlatform.macOS ||
-      NativeAudioRecorderPlatform.iOS => const NativeAudioRecorderCapabilities(
-        supportsNoiseCancellation: false,
-        supportsEchoCancellation: false,
-        supportsVoiceIsolation: true,
-      ),
-      NativeAudioRecorderPlatform.windows => const NativeAudioRecorderCapabilities(
-        supportsNoiseCancellation: true,
-        supportsEchoCancellation: false,
-        supportsVoiceIsolation: true,
-      ),
-      NativeAudioRecorderPlatform.unsupported => const NativeAudioRecorderCapabilities(
-        supportsNoiseCancellation: false,
-        supportsEchoCancellation: false,
-        supportsVoiceIsolation: false,
-      ),
-    };
+    return _platformImplementation.capabilities;
   }
 
   /// Whether this platform can route capture to a specific input-device ID.
@@ -267,14 +178,12 @@ final class NativeAudioRecorder {
   /// On Apple platforms this is implemented by the native AVCaptureSession
   /// recorder backend using per-start configuration.
   bool get supportsInputSelection {
-    return _platform == NativeAudioRecorderPlatform.macOS ||
-        _platform == NativeAudioRecorderPlatform.windows ||
-        _platform == NativeAudioRecorderPlatform.iOS;
+    return _platformImplementation.supportsInputSelection;
   }
 
   Future<List<InputDevice>> listInputDevices() async {
     _ensureSupportedPlatform();
-    return _listInputDevicesFn();
+    return _platformImplementation.listInputDevices();
   }
 
   /// Returns the most recent recorder amplitude estimate in dBFS.
@@ -284,7 +193,7 @@ final class NativeAudioRecorder {
   Future<Amplitude> getAmplitude() async {
     if (_mode == _RecorderMode.file) {
       try {
-        final amplitude = _getAmplitudeFn();
+        final amplitude = _platformImplementation.getAmplitude();
         _currentAmplitudeDbfs = amplitude.current;
         if (amplitude.max > _maxAmplitudeDbfs) {
           _maxAmplitudeDbfs = amplitude.max;
@@ -359,21 +268,10 @@ final class NativeAudioRecorder {
     }
 
     try {
-      final startFileFn = _startFileFn;
-      if (startFileFn != null) {
-        startFileFn(
-          outputPath: nativeOutputPath,
-          sampleRateHz: config.sampleRateHz,
-          channelCount: config.channelCount,
-          inputDeviceId: config.inputDeviceId,
-        );
-      } else {
-        _startNativeFile(
-          outputPath: nativeOutputPath,
-          config: config,
-          runtimeConfig: _buildNativeRecorderRuntimeConfig(config: config, platform: _platform),
-        );
-      }
+      _platformImplementation.startFile(
+        outputPath: nativeOutputPath,
+        config: config,
+      );
       _mode = _RecorderMode.file;
       _restartNativeAmplitudePollingIfNeeded();
     } on Object {
@@ -411,25 +309,11 @@ final class NativeAudioRecorder {
     _nativeAmplitudeTimer?.cancel();
     _nativeAmplitudeTimer = null;
 
-    final startPcmStreamFn = _startPcmStreamFn;
-    if (startPcmStreamFn != null) {
-      startPcmStreamFn(
-        sampleRateHz: config.sampleRateHz,
-        channelCount: config.channelCount,
-        framesPerChunk: config.framesPerChunk,
-        inputDeviceId: config.inputDeviceId,
-      );
-    } else {
-      _startNativeStream(
-        config: config,
-        runtimeConfig: _buildNativeRecorderRuntimeConfig(config: config, platform: _platform),
-      );
-    }
+    _platformImplementation.startStream(config: config);
 
     _mode = _RecorderMode.stream;
     _streamReadSampleCapacity = readSampleCapacity;
     _streamDrainInFlight = false;
-    _prepareStreamReadBuffersIfNeeded(readSampleCapacity);
 
     final controller = StreamController<Uint8List>(
       onCancel: () async {
@@ -681,7 +565,7 @@ final class NativeAudioRecorder {
     Object? stopError;
     StackTrace? stopStackTrace;
     try {
-      _stopFn();
+      _platformImplementation.stop();
     } on Object catch (error, stackTrace) {
       stopError = error;
       stopStackTrace = stackTrace;
@@ -702,7 +586,7 @@ final class NativeAudioRecorder {
     _streamReadSampleCapacity = _defaultReadSampleCapacity;
     _lastAmplitudeEmissionAt = null;
     _streamDrainInFlight = false;
-    _releaseStreamReadBuffers();
+
 
     final controller = _streamController;
     _streamController = null;
@@ -750,7 +634,7 @@ final class NativeAudioRecorder {
     Object? resetError;
     StackTrace? resetStackTrace;
     try {
-      _resetFn();
+      _platformImplementation.reset();
     } on Object catch (error, stackTrace) {
       resetError = error;
       resetStackTrace = stackTrace;
@@ -761,7 +645,7 @@ final class NativeAudioRecorder {
     _streamReadSampleCapacity = _defaultReadSampleCapacity;
     _lastAmplitudeEmissionAt = null;
     _streamDrainInFlight = false;
-    _releaseStreamReadBuffers();
+
 
     final controller = _streamController;
     _streamController = null;
@@ -825,99 +709,11 @@ final class NativeAudioRecorder {
   }
 
   Uint8List _readPcmStreamChunk({required int maxSamples}) {
-    if (!_usesDefaultReadPcmStreamFn) {
-      return _readPcmStreamFn(maxSamples: maxSamples);
-    }
-
-    _prepareStreamReadBuffersIfNeeded(maxSamples);
-    final outSamplesPtr = _streamReadSamplesPtr;
-    final outSamplesWrittenPtr = _streamReadSamplesWrittenPtr;
-    final errorPtr = _streamReadErrorPtr;
-    if (outSamplesPtr == null || outSamplesWrittenPtr == null || errorPtr == null) {
-      throw StateError('Native stream read buffers are not initialized.');
-    }
-
-    return _runRecorderReadStreamWithBuffers(
-      _nativeReadStreamFnForPlatform(),
-      maxSamples: maxSamples,
-      outSamplesPtr: outSamplesPtr,
-      outSamplesWrittenPtr: outSamplesWrittenPtr,
-      errorPtr: errorPtr,
-      operation: _nativeReadStreamOperationForPlatform(),
-    );
-  }
-
-  void _prepareStreamReadBuffersIfNeeded(int requiredSampleCapacity) {
-    if (!_usesDefaultReadPcmStreamFn) {
-      return;
-    }
-
-    if (_streamReadBufferCapacitySamples >= requiredSampleCapacity &&
-        _streamReadSamplesPtr != null &&
-        _streamReadSamplesWrittenPtr != null &&
-        _streamReadErrorPtr != null) {
-      return;
-    }
-
-    _releaseStreamReadBuffers();
-
-    _streamReadSamplesPtr = calloc<ffi.Int16>(requiredSampleCapacity);
-    _streamReadSamplesWrittenPtr = calloc<ffi.Uint32>();
-    _streamReadErrorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
-    _streamReadBufferCapacitySamples = requiredSampleCapacity;
-  }
-
-  void _releaseStreamReadBuffers() {
-    final samplesPtr = _streamReadSamplesPtr;
-    if (samplesPtr != null) {
-      calloc.free(samplesPtr);
-    }
-    _streamReadSamplesPtr = null;
-
-    final samplesWrittenPtr = _streamReadSamplesWrittenPtr;
-    if (samplesWrittenPtr != null) {
-      calloc.free(samplesWrittenPtr);
-    }
-    _streamReadSamplesWrittenPtr = null;
-
-    final errorPtr = _streamReadErrorPtr;
-    if (errorPtr != null) {
-      calloc.free(errorPtr);
-    }
-    _streamReadErrorPtr = null;
-    _streamReadBufferCapacitySamples = 0;
-  }
-
-  _NativeReadStreamFn _nativeReadStreamFnForPlatform() {
-    return switch (_platform) {
-      NativeAudioRecorderPlatform.macOS =>
-        macos_bindings.speech_utils_macos_audio_recorder_read_stream_pcm16,
-      NativeAudioRecorderPlatform.windows =>
-        windows_bindings.speech_utils_windows_audio_recorder_read_stream_pcm16,
-      NativeAudioRecorderPlatform.iOS =>
-        ios_bindings.speech_utils_ios_audio_recorder_read_stream_pcm16,
-      NativeAudioRecorderPlatform.unsupported => throw UnsupportedError(
-        'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
-      ),
-    };
-  }
-
-  String _nativeReadStreamOperationForPlatform() {
-    return switch (_platform) {
-      NativeAudioRecorderPlatform.macOS => 'macOS stream read',
-      NativeAudioRecorderPlatform.windows => 'Windows stream read',
-      NativeAudioRecorderPlatform.iOS => 'iOS stream read',
-      NativeAudioRecorderPlatform.unsupported =>
-        'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
-    };
+    return _platformImplementation.readStream(maxSamples: maxSamples);
   }
 
   void _ensureSupportedPlatform() {
-    if (_platform == NativeAudioRecorderPlatform.unsupported) {
-      throw UnsupportedError(
-        'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
-      );
-    }
+    _platformImplementation.ensureSupported();
   }
 
   void _ensureIdle() {
@@ -926,86 +722,13 @@ final class NativeAudioRecorder {
     }
   }
 
-  void _startNativeFile({
-    required String outputPath,
-    required AudioRecorderConfig config,
-    required _NativeRecorderRuntimeConfig runtimeConfig,
-  }) {
-    switch (_platform) {
-      case NativeAudioRecorderPlatform.macOS:
-        _startMacosAudioRecorderFileViaFfi(
-          outputPath: outputPath,
-          sampleRateHz: config.sampleRateHz,
-          channelCount: config.channelCount,
-          inputDeviceId: config.inputDeviceId,
-          runtimeConfig: runtimeConfig,
-        );
-      case NativeAudioRecorderPlatform.windows:
-        _startWindowsAudioRecorderFileViaFfi(
-          outputPath: outputPath,
-          sampleRateHz: config.sampleRateHz,
-          channelCount: config.channelCount,
-          inputDeviceId: config.inputDeviceId,
-          runtimeConfig: runtimeConfig,
-        );
-      case NativeAudioRecorderPlatform.iOS:
-        _startIosAudioRecorderFileViaFfi(
-          outputPath: outputPath,
-          sampleRateHz: config.sampleRateHz,
-          channelCount: config.channelCount,
-          inputDeviceId: config.inputDeviceId,
-          runtimeConfig: runtimeConfig,
-        );
-      case NativeAudioRecorderPlatform.unsupported:
-        throw UnsupportedError(
-          'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
-        );
-    }
-  }
-
-  void _startNativeStream({
-    required AudioRecorderConfig config,
-    required _NativeRecorderRuntimeConfig runtimeConfig,
-  }) {
-    switch (_platform) {
-      case NativeAudioRecorderPlatform.macOS:
-        _startMacosAudioRecorderStreamViaFfi(
-          sampleRateHz: config.sampleRateHz,
-          channelCount: config.channelCount,
-          framesPerChunk: config.framesPerChunk,
-          inputDeviceId: config.inputDeviceId,
-          runtimeConfig: runtimeConfig,
-        );
-      case NativeAudioRecorderPlatform.windows:
-        _startWindowsAudioRecorderStreamViaFfi(
-          sampleRateHz: config.sampleRateHz,
-          channelCount: config.channelCount,
-          framesPerChunk: config.framesPerChunk,
-          inputDeviceId: config.inputDeviceId,
-          runtimeConfig: runtimeConfig,
-        );
-      case NativeAudioRecorderPlatform.iOS:
-        _startIosAudioRecorderStreamViaFfi(
-          sampleRateHz: config.sampleRateHz,
-          channelCount: config.channelCount,
-          framesPerChunk: config.framesPerChunk,
-          inputDeviceId: config.inputDeviceId,
-          runtimeConfig: runtimeConfig,
-        );
-      case NativeAudioRecorderPlatform.unsupported:
-        throw UnsupportedError(
-          'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
-        );
-    }
-  }
-
   bool _shouldUseNativeAppleDirectAacStart({
     required String outputPath,
     required AudioRecorderConfig config,
   }) {
     final isAppleAac =
-        (_platform == NativeAudioRecorderPlatform.macOS ||
-            _platform == NativeAudioRecorderPlatform.iOS) &&
+        (platform == NativeAudioRecorderPlatform.macOS ||
+            platform == NativeAudioRecorderPlatform.iOS) &&
         config.encoding.encoder.isAac;
     if (!isAppleAac) {
       return false;
@@ -1503,924 +1226,4 @@ final class AudioRecorderException implements Exception {
     ];
     return 'AudioRecorderException: ${detailsText.join(' | ')}';
   }
-}
-
-NativeAudioRecorderPlatform _detectNativeAudioRecorderPlatform() {
-  if (Platform.isMacOS) {
-    return NativeAudioRecorderPlatform.macOS;
-  }
-  if (Platform.isWindows) {
-    return NativeAudioRecorderPlatform.windows;
-  }
-  if (Platform.isIOS) {
-    return NativeAudioRecorderPlatform.iOS;
-  }
-  return NativeAudioRecorderPlatform.unsupported;
-}
-
-NativeAudioRecorderAvailabilityFn _resolveAvailabilityFn(NativeAudioRecorderPlatform platform) {
-  return switch (platform) {
-    NativeAudioRecorderPlatform.macOS => () => true,
-    NativeAudioRecorderPlatform.windows => _isWindowsAudioRecorderAvailableViaFfi,
-    NativeAudioRecorderPlatform.iOS => () => true,
-    NativeAudioRecorderPlatform.unsupported => () => false,
-  };
-}
-
-NativeAudioRecorderPermissionFn _resolveHasPermissionFn(NativeAudioRecorderPlatform platform) {
-  return switch (platform) {
-    NativeAudioRecorderPlatform.macOS => _hasMacosMicrophonePermissionViaFfi,
-    NativeAudioRecorderPlatform.windows => _hasWindowsMicrophonePermissionViaFfi,
-    NativeAudioRecorderPlatform.iOS => _hasIosMicrophonePermissionViaFfi,
-    NativeAudioRecorderPlatform.unsupported => () => false,
-  };
-}
-
-NativeAudioRecorderRequestPermissionFn _resolveRequestPermissionFn(
-  NativeAudioRecorderPlatform platform,
-) {
-  return switch (platform) {
-    NativeAudioRecorderPlatform.macOS => _requestMacosMicrophonePermissionViaFfi,
-    NativeAudioRecorderPlatform.windows => _requestWindowsMicrophonePermissionViaFfi,
-    NativeAudioRecorderPlatform.iOS => _requestIosMicrophonePermissionViaFfi,
-    NativeAudioRecorderPlatform.unsupported => () => false,
-  };
-}
-
-NativeAudioRecorderListInputDevicesFn _resolveListInputDevicesFn(
-  NativeAudioRecorderPlatform platform,
-) {
-  return switch (platform) {
-    NativeAudioRecorderPlatform.macOS => _listMacosAudioRecorderInputDevicesViaFfi,
-    NativeAudioRecorderPlatform.windows => _listWindowsAudioRecorderInputDevicesViaFfi,
-    NativeAudioRecorderPlatform.iOS => _listIosAudioRecorderInputDevicesViaFfi,
-    NativeAudioRecorderPlatform.unsupported => () => const <InputDevice>[],
-  };
-}
-
-NativeAudioRecorderReadPcmStreamFn _resolveReadPcmStreamFn(NativeAudioRecorderPlatform platform) {
-  return switch (platform) {
-    NativeAudioRecorderPlatform.macOS => _readMacosAudioRecorderStreamViaFfi,
-    NativeAudioRecorderPlatform.windows => _readWindowsAudioRecorderStreamViaFfi,
-    NativeAudioRecorderPlatform.iOS => _readIosAudioRecorderStreamViaFfi,
-    NativeAudioRecorderPlatform.unsupported => ({required maxSamples}) => throw UnsupportedError(
-      'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
-    ),
-  };
-}
-
-NativeAudioRecorderStopFn _resolveStopFn(NativeAudioRecorderPlatform platform) {
-  return switch (platform) {
-    NativeAudioRecorderPlatform.macOS => _stopMacosAudioRecorderViaFfi,
-    NativeAudioRecorderPlatform.windows => _stopWindowsAudioRecorderViaFfi,
-    NativeAudioRecorderPlatform.iOS => _stopIosAudioRecorderViaFfi,
-    NativeAudioRecorderPlatform.unsupported => () => throw UnsupportedError(
-      'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
-    ),
-  };
-}
-
-NativeAudioRecorderResetFn _resolveResetFn(NativeAudioRecorderPlatform platform) {
-  return switch (platform) {
-    NativeAudioRecorderPlatform.macOS => _resetMacosAudioRecorderViaFfi,
-    NativeAudioRecorderPlatform.windows => _resetWindowsAudioRecorderViaFfi,
-    NativeAudioRecorderPlatform.iOS => _resetIosAudioRecorderViaFfi,
-    NativeAudioRecorderPlatform.unsupported => () => throw UnsupportedError(
-      'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.',
-    ),
-  };
-}
-
-NativeAudioRecorderIsRecordingFn _resolveIsRecordingFn(NativeAudioRecorderPlatform platform) {
-  return switch (platform) {
-    NativeAudioRecorderPlatform.macOS => _isMacosAudioRecorderRunningViaFfi,
-    NativeAudioRecorderPlatform.windows => _isWindowsAudioRecorderRunningViaFfi,
-    NativeAudioRecorderPlatform.iOS => _isIosAudioRecorderRunningViaFfi,
-    NativeAudioRecorderPlatform.unsupported => () => false,
-  };
-}
-
-NativeAudioRecorderGetAmplitudeFn _resolveGetAmplitudeFn(NativeAudioRecorderPlatform platform) {
-  return switch (platform) {
-    NativeAudioRecorderPlatform.macOS => _getMacosAudioRecorderAmplitudeViaFfi,
-    NativeAudioRecorderPlatform.windows => _getWindowsAudioRecorderAmplitudeViaFfi,
-    NativeAudioRecorderPlatform.iOS => _getIosAudioRecorderAmplitudeViaFfi,
-    NativeAudioRecorderPlatform.unsupported => () => const Amplitude(current: -90.0, max: -90.0),
-  };
-}
-
-typedef _NativeBoolOutFn = int Function(ffi.Pointer<ffi.Int32>, ffi.Pointer<ffi.Char>, int);
-typedef _NativeStartFileFn = int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Char>, int);
-typedef _NativeStartStreamFn = int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Char>, int);
-typedef _NativeReadStreamFn =
-    int Function(ffi.Pointer<ffi.Int16>, int, ffi.Pointer<ffi.Uint32>, ffi.Pointer<ffi.Char>, int);
-typedef _NativeStopFn = int Function(ffi.Pointer<ffi.Char>, int);
-typedef _NativeListInputDevicesFn =
-    int Function(ffi.Pointer<ffi.Char>, int, ffi.Pointer<ffi.Char>, int);
-typedef _NativeGetAmplitudeFn =
-    int Function(ffi.Pointer<ffi.Double>, ffi.Pointer<ffi.Double>, ffi.Pointer<ffi.Char>, int);
-
-const _recorderErrorBufferBytes = 4096;
-
-final class _NativeRecorderRuntimeConfigFfi extends ffi.Struct {
-  @ffi.Int32()
-  external int processingFlags;
-
-  @ffi.Int32()
-  external int iosSessionModeCode;
-
-  @ffi.Uint32()
-  external int iosCategoryOptionsFlags;
-
-  @ffi.Double()
-  external double preferredLatencySeconds;
-
-  @ffi.Double()
-  external double iosPreferredIoBufferDurationSeconds;
-
-  @ffi.Double()
-  external double iosPreferredInputGain;
-
-  @ffi.Uint32()
-  external int fileBitrateBps;
-
-  @ffi.Int32()
-  external int fileEncoderCode;
-
-  @ffi.Double()
-  external double macosProcessingQueueDurationSeconds;
-
-  @ffi.Uint32()
-  external int windowsPreferredPeriodFrames;
-
-  @ffi.Uint32()
-  external int windowsFlags;
-
-  @ffi.Int32()
-  external int windowsCaptureCategoryCode;
-
-  @ffi.Int32()
-  external int windowsUseCommunicationsDevice;
-
-  @ffi.Int32()
-  external int windowsVoiceProcessingModeCode;
-}
-
-final class _NativeRecorderStartConfigFfi extends ffi.Struct {
-  @ffi.Uint32()
-  external int sampleRateHz;
-
-  @ffi.Uint32()
-  external int channelCount;
-
-  @ffi.Uint32()
-  external int framesPerChunk;
-
-  external ffi.Pointer<ffi.Char> outputPathUtf8;
-
-  external ffi.Pointer<ffi.Char> inputDeviceIdUtf8;
-
-  external _NativeRecorderRuntimeConfigFfi runtime;
-}
-
-bool _runRecorderBoolCall(_NativeBoolOutFn fn, {required String operation}) {
-  final outBoolPtr = calloc<ffi.Int32>();
-  final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
-  try {
-    final code = fn(outBoolPtr, errorPtr, _recorderErrorBufferBytes);
-    _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
-    return outBoolPtr.value != 0;
-  } finally {
-    calloc.free(outBoolPtr);
-    calloc.free(errorPtr);
-  }
-}
-
-void _runRecorderStartFile(
-  _NativeStartFileFn fn, {
-  required String outputPath,
-  required int sampleRateHz,
-  required int channelCount,
-  required String? inputDeviceId,
-  required _NativeRecorderRuntimeConfig runtimeConfig,
-  required String operation,
-}) {
-  final outputPathPtr = outputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-  final inputDeviceIdPtr = (inputDeviceId == null || inputDeviceId.trim().isEmpty)
-      ? ffi.nullptr
-      : inputDeviceId.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-  final startConfigPtr = calloc<_NativeRecorderStartConfigFfi>();
-  final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
-  try {
-    final startConfig = startConfigPtr.ref;
-    startConfig.sampleRateHz = sampleRateHz;
-    startConfig.channelCount = channelCount;
-    startConfig.framesPerChunk = 0;
-    startConfig.outputPathUtf8 = outputPathPtr;
-    startConfig.inputDeviceIdUtf8 = inputDeviceIdPtr;
-    startConfig.runtime.processingFlags = runtimeConfig.processingFlags;
-    startConfig.runtime.iosSessionModeCode = runtimeConfig.iosSessionModeCode;
-    startConfig.runtime.iosCategoryOptionsFlags = runtimeConfig.iosCategoryOptionsFlags;
-    startConfig.runtime.preferredLatencySeconds = runtimeConfig.preferredLatencySeconds;
-    startConfig.runtime.iosPreferredIoBufferDurationSeconds =
-        runtimeConfig.iosPreferredIoBufferDurationSeconds;
-    startConfig.runtime.iosPreferredInputGain = runtimeConfig.iosPreferredInputGain;
-    startConfig.runtime.fileBitrateBps = runtimeConfig.fileBitrateBps;
-    startConfig.runtime.fileEncoderCode = runtimeConfig.fileEncoderCode;
-    startConfig.runtime.macosProcessingQueueDurationSeconds =
-        runtimeConfig.macosProcessingQueueDurationSeconds;
-    startConfig.runtime.windowsPreferredPeriodFrames = runtimeConfig.windowsPreferredPeriodFrames;
-    startConfig.runtime.windowsFlags = runtimeConfig.windowsFlags;
-    startConfig.runtime.windowsCaptureCategoryCode = runtimeConfig.windowsCaptureCategoryCode;
-    startConfig.runtime.windowsUseCommunicationsDevice =
-        runtimeConfig.windowsUseCommunicationsDevice;
-    startConfig.runtime.windowsVoiceProcessingModeCode =
-        runtimeConfig.windowsVoiceProcessingModeCode;
-
-    final code = fn(startConfigPtr.cast<ffi.Void>(), errorPtr, _recorderErrorBufferBytes);
-    _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
-  } finally {
-    calloc.free(startConfigPtr);
-    calloc.free(outputPathPtr);
-    if (inputDeviceIdPtr != ffi.nullptr) {
-      calloc.free(inputDeviceIdPtr);
-    }
-    calloc.free(errorPtr);
-  }
-}
-
-void _runRecorderStartStream(
-  _NativeStartStreamFn fn, {
-  required int sampleRateHz,
-  required int channelCount,
-  required int framesPerChunk,
-  required String? inputDeviceId,
-  required _NativeRecorderRuntimeConfig runtimeConfig,
-  required String operation,
-}) {
-  final inputDeviceIdPtr = (inputDeviceId == null || inputDeviceId.trim().isEmpty)
-      ? ffi.nullptr
-      : inputDeviceId.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-  final startConfigPtr = calloc<_NativeRecorderStartConfigFfi>();
-  final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
-  try {
-    final startConfig = startConfigPtr.ref;
-    startConfig.sampleRateHz = sampleRateHz;
-    startConfig.channelCount = channelCount;
-    startConfig.framesPerChunk = framesPerChunk;
-    startConfig.outputPathUtf8 = ffi.nullptr;
-    startConfig.inputDeviceIdUtf8 = inputDeviceIdPtr;
-    startConfig.runtime.processingFlags = runtimeConfig.processingFlags;
-    startConfig.runtime.iosSessionModeCode = runtimeConfig.iosSessionModeCode;
-    startConfig.runtime.iosCategoryOptionsFlags = runtimeConfig.iosCategoryOptionsFlags;
-    startConfig.runtime.preferredLatencySeconds = runtimeConfig.preferredLatencySeconds;
-    startConfig.runtime.iosPreferredIoBufferDurationSeconds =
-        runtimeConfig.iosPreferredIoBufferDurationSeconds;
-    startConfig.runtime.iosPreferredInputGain = runtimeConfig.iosPreferredInputGain;
-    startConfig.runtime.fileBitrateBps = runtimeConfig.fileBitrateBps;
-    startConfig.runtime.fileEncoderCode = runtimeConfig.fileEncoderCode;
-    startConfig.runtime.macosProcessingQueueDurationSeconds =
-        runtimeConfig.macosProcessingQueueDurationSeconds;
-    startConfig.runtime.windowsPreferredPeriodFrames = runtimeConfig.windowsPreferredPeriodFrames;
-    startConfig.runtime.windowsFlags = runtimeConfig.windowsFlags;
-    startConfig.runtime.windowsCaptureCategoryCode = runtimeConfig.windowsCaptureCategoryCode;
-    startConfig.runtime.windowsUseCommunicationsDevice =
-        runtimeConfig.windowsUseCommunicationsDevice;
-    startConfig.runtime.windowsVoiceProcessingModeCode =
-        runtimeConfig.windowsVoiceProcessingModeCode;
-
-    final code = fn(startConfigPtr.cast<ffi.Void>(), errorPtr, _recorderErrorBufferBytes);
-    _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
-  } finally {
-    calloc.free(startConfigPtr);
-    if (inputDeviceIdPtr != ffi.nullptr) {
-      calloc.free(inputDeviceIdPtr);
-    }
-    calloc.free(errorPtr);
-  }
-}
-
-List<InputDevice> _runRecorderListInputDevices(
-  _NativeListInputDevicesFn fn, {
-  required String operation,
-}) {
-  const outputCapacity = 64 * 1024;
-  final outputPtr = calloc<ffi.Char>(outputCapacity);
-  final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
-  try {
-    final code = fn(outputPtr, outputCapacity, errorPtr, _recorderErrorBufferBytes);
-    _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
-
-    final jsonText = outputPtr.cast<Utf8>().toDartString();
-    if (jsonText.trim().isEmpty) {
-      return const <InputDevice>[];
-    }
-
-    final decoded = jsonDecode(jsonText);
-    if (decoded is! List) {
-      throw const FormatException('Native input-device payload is not a JSON list.');
-    }
-
-    final devices = <InputDevice>[];
-    for (final item in decoded) {
-      if (item is! Map<String, Object?>) {
-        continue;
-      }
-      final device = InputDevice.fromJson(item);
-      if (device.id.trim().isEmpty) {
-        continue;
-      }
-      devices.add(device);
-    }
-    return devices;
-  } finally {
-    calloc.free(outputPtr);
-    calloc.free(errorPtr);
-  }
-}
-
-Uint8List _runRecorderReadStream(
-  _NativeReadStreamFn fn, {
-  required int maxSamples,
-  required String operation,
-}) {
-  final outSamplesPtr = calloc<ffi.Int16>(maxSamples);
-  final outSamplesWrittenPtr = calloc<ffi.Uint32>();
-  final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
-
-  try {
-    return _runRecorderReadStreamWithBuffers(
-      fn,
-      maxSamples: maxSamples,
-      outSamplesPtr: outSamplesPtr,
-      outSamplesWrittenPtr: outSamplesWrittenPtr,
-      errorPtr: errorPtr,
-      operation: operation,
-    );
-  } finally {
-    calloc.free(outSamplesPtr);
-    calloc.free(outSamplesWrittenPtr);
-    calloc.free(errorPtr);
-  }
-}
-
-Uint8List _runRecorderReadStreamWithBuffers(
-  _NativeReadStreamFn fn, {
-  required int maxSamples,
-  required ffi.Pointer<ffi.Int16> outSamplesPtr,
-  required ffi.Pointer<ffi.Uint32> outSamplesWrittenPtr,
-  required ffi.Pointer<ffi.Char> errorPtr,
-  required String operation,
-}) {
-  final code = fn(
-    outSamplesPtr,
-    maxSamples,
-    outSamplesWrittenPtr,
-    errorPtr,
-    _recorderErrorBufferBytes,
-  );
-  _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
-
-  final sampleCount = math.min(outSamplesWrittenPtr.value, maxSamples);
-  if (sampleCount <= 0) {
-    return Uint8List(0);
-  }
-
-  final bytes = Uint8List(sampleCount * 2);
-  final dst = bytes.buffer.asInt16List();
-  final src = outSamplesPtr.asTypedList(sampleCount);
-  dst.setRange(0, sampleCount, src);
-  return bytes;
-}
-
-void _runRecorderStop(_NativeStopFn fn, {required String operation}) {
-  final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
-  try {
-    final code = fn(errorPtr, _recorderErrorBufferBytes);
-    _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
-  } finally {
-    calloc.free(errorPtr);
-  }
-}
-
-void _runRecorderReset(_NativeStopFn fn, {required String operation}) {
-  final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
-  try {
-    final code = fn(errorPtr, _recorderErrorBufferBytes);
-    _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
-  } finally {
-    calloc.free(errorPtr);
-  }
-}
-
-Amplitude _runRecorderGetAmplitude(_NativeGetAmplitudeFn fn, {required String operation}) {
-  final outCurrentPtr = calloc<ffi.Double>();
-  final outMaxPtr = calloc<ffi.Double>();
-  final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
-  try {
-    final code = fn(outCurrentPtr, outMaxPtr, errorPtr, _recorderErrorBufferBytes);
-    _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
-    return Amplitude(
-      current: _sanitizeDbfs(outCurrentPtr.value),
-      max: _sanitizeDbfs(outMaxPtr.value),
-    );
-  } finally {
-    calloc.free(outCurrentPtr);
-    calloc.free(outMaxPtr);
-    calloc.free(errorPtr);
-  }
-}
-
-double _sanitizeDbfs(double value) {
-  if (value.isNaN || value.isInfinite) {
-    return -90.0;
-  }
-  return (value.clamp(-90.0, 0.0) as num).toDouble();
-}
-
-const int _processingFlagNoiseSuppression = 1 << 0;
-const int _processingFlagEchoCancellation = 1 << 1;
-const int _processingFlagAutomaticGainControl = 1 << 2;
-const int _processingFlagHighPassFilter = 1 << 3;
-const int _processingFlagPresetVoice = 1 << 4;
-const int _processingFlagPresetVoiceIsolation = 1 << 5;
-const int _processingFlagPresetRaw = 1 << 6;
-const int _processingFlagPresetMusic = 1 << 7;
-
-const int _iosCategoryOptionAllowBluetooth = 1 << 0;
-const int _iosCategoryOptionAllowBluetoothA2dp = 1 << 1;
-const int _iosCategoryOptionDefaultToSpeaker = 1 << 2;
-const int _iosCategoryOptionMixWithOthers = 1 << 3;
-const int _iosCategoryOptionDuckOthers = 1 << 4;
-
-const int _fileEncoderAacLc = 0;
-
-const int _windowsFlagExclusiveMode = 1 << 0;
-const int _windowsFlagRawCapture = 1 << 1;
-const int _windowsVoiceProcessingModeAuto = 0;
-const int _windowsVoiceProcessingModeSystem = 1;
-const int _windowsVoiceProcessingModeSoftware = 2;
-const int _windowsVoiceProcessingModeOff = 3;
-
-_NativeRecorderRuntimeConfig _buildNativeRecorderRuntimeConfig({
-  required AudioRecorderConfig config,
-  required NativeAudioRecorderPlatform platform,
-}) {
-  final processing = config.processing;
-  final isIosPlatform = platform == NativeAudioRecorderPlatform.iOS;
-  final isMacosPlatform = platform == NativeAudioRecorderPlatform.macOS;
-  final isApplePlatform = isIosPlatform || isMacosPlatform;
-  final processingPlatform = switch (platform) {
-    NativeAudioRecorderPlatform.iOS => AudioProcessingPlatform.ios,
-    NativeAudioRecorderPlatform.macOS => AudioProcessingPlatform.macos,
-    NativeAudioRecorderPlatform.windows => AudioProcessingPlatform.windows,
-    NativeAudioRecorderPlatform.unsupported => AudioProcessingPlatform.generic,
-  };
-  var processingFlags = _processingPresetFlags(processing.preset);
-
-  if (!isApplePlatform) {
-    if (processing.resolveNoiseSuppressionForPlatform(processingPlatform)) {
-      processingFlags |= _processingFlagNoiseSuppression;
-    }
-    if (processing.resolveEchoCancellationForPlatform(processingPlatform)) {
-      processingFlags |= _processingFlagEchoCancellation;
-    }
-    if (processing.resolveAutomaticGainControlForPlatform(processingPlatform)) {
-      processingFlags |= _processingFlagAutomaticGainControl;
-    }
-    if (processing.resolveHighPassFilterForPlatform(processingPlatform)) {
-      processingFlags |= _processingFlagHighPassFilter;
-    }
-  }
-
-  final ios = config.iosConfig;
-  var iosCategoryOptionsFlags = 0;
-  if (isIosPlatform) {
-    if (ios?.allowBluetoothInput ?? false) {
-      iosCategoryOptionsFlags |= _iosCategoryOptionAllowBluetooth;
-    }
-    if (ios?.allowBluetoothA2dp ?? false) {
-      iosCategoryOptionsFlags |= _iosCategoryOptionAllowBluetoothA2dp;
-    }
-    if (ios?.defaultToSpeaker ?? false) {
-      iosCategoryOptionsFlags |= _iosCategoryOptionDefaultToSpeaker;
-    }
-    if (ios?.mixWithOthers ?? false) {
-      iosCategoryOptionsFlags |= _iosCategoryOptionMixWithOthers;
-    }
-    if (ios?.duckOthers ?? false) {
-      iosCategoryOptionsFlags |= _iosCategoryOptionDuckOthers;
-    }
-  }
-
-  final macos = config.macosConfig;
-  final windows = config.windowsConfig;
-  var windowsFlags = 0;
-  if (windows?.useExclusiveMode ?? false) {
-    windowsFlags |= _windowsFlagExclusiveMode;
-  }
-  if (windows?.useRawCapture ?? false) {
-    windowsFlags |= _windowsFlagRawCapture;
-  }
-
-  final preferredLatency = processing.preferredLatency;
-  final windowsTargetDuration = windows?.targetBufferDuration ?? preferredLatency;
-  final windowsPreferredPeriodFrames = windowsTargetDuration == null
-      ? 0
-      : (((windowsTargetDuration.inMicroseconds * config.sampleRateHz) ~/
-                Duration.microsecondsPerSecond)
-            .clamp(0, 0x7fffffff));
-
-  final iosPreferredIoDuration = ios?.preferredIoBufferDuration ?? preferredLatency;
-  final iosPreferredInputGain = ios?.preferredInputGain ?? -1.0;
-  final iosSessionMode = ios?.sessionMode ?? _defaultIosSessionModeForPreset(processing.preset);
-  final macosQueueDuration = macos?.processingQueueDuration ?? preferredLatency;
-  final fileBitrateBps = isApplePlatform && config.encoding.encoder.isAac
-      ? _resolveEncodingBitrateBps(config.encoding)
-      : 0;
-  final fileEncoderCode = isApplePlatform
-      ? _encodeFileEncoder(config.encoding.encoder)
-      : _fileEncoderAacLc;
-
-  return _NativeRecorderRuntimeConfig(
-    processingFlags: processingFlags,
-    iosSessionModeCode: isIosPlatform ? _encodeIosSessionMode(iosSessionMode) : 0,
-    iosCategoryOptionsFlags: iosCategoryOptionsFlags,
-    preferredLatencySeconds: preferredLatency == null
-        ? 0.0
-        : preferredLatency.inMicroseconds / Duration.microsecondsPerSecond,
-    iosPreferredIoBufferDurationSeconds: !isIosPlatform || iosPreferredIoDuration == null
-        ? 0.0
-        : iosPreferredIoDuration.inMicroseconds / Duration.microsecondsPerSecond,
-    iosPreferredInputGain: isIosPlatform ? iosPreferredInputGain : -1.0,
-    fileBitrateBps: fileBitrateBps,
-    fileEncoderCode: fileEncoderCode,
-    macosProcessingQueueDurationSeconds: !isMacosPlatform || macosQueueDuration == null
-        ? 0.0
-        : macosQueueDuration.inMicroseconds / Duration.microsecondsPerSecond,
-    windowsPreferredPeriodFrames: windowsPreferredPeriodFrames,
-    windowsFlags: windowsFlags,
-    windowsCaptureCategoryCode: _encodeWindowsCaptureCategory(windows?.captureCategory),
-    windowsUseCommunicationsDevice: windows?.useCommunicationsDevice == true ? 1 : 0,
-    windowsVoiceProcessingModeCode: _encodeWindowsVoiceProcessingMode(windows?.voiceProcessingMode),
-  );
-}
-
-IosAudioSessionMode _defaultIosSessionModeForPreset(AudioCapturePreset preset) {
-  return switch (preset) {
-    AudioCapturePreset.voice || AudioCapturePreset.voiceIsolation => IosAudioSessionMode.voiceChat,
-    AudioCapturePreset.raw || AudioCapturePreset.music => IosAudioSessionMode.measurement,
-  };
-}
-
-int _encodeFileEncoder(AudioEncoder encoder) {
-  return switch (encoder) {
-    // Direct native AAC recording on Apple backends uses AAC-LC for stability.
-    AudioEncoder.aacHe => _fileEncoderAacLc,
-    AudioEncoder.aacEld => _fileEncoderAacLc,
-    AudioEncoder.aacLc ||
-    AudioEncoder.wav ||
-    AudioEncoder.flac ||
-    AudioEncoder.opus ||
-    AudioEncoder.pcm16bits => _fileEncoderAacLc,
-  };
-}
-
-int _processingPresetFlags(AudioCapturePreset preset) {
-  return switch (preset) {
-    AudioCapturePreset.voice => _processingFlagPresetVoice,
-    AudioCapturePreset.voiceIsolation => _processingFlagPresetVoiceIsolation,
-    AudioCapturePreset.raw => _processingFlagPresetRaw,
-    AudioCapturePreset.music => _processingFlagPresetMusic,
-  };
-}
-
-int _encodeIosSessionMode(IosAudioSessionMode? mode) {
-  return switch (mode) {
-    null => 0,
-    IosAudioSessionMode.defaultMode => 0,
-    IosAudioSessionMode.voiceChat => 1,
-    IosAudioSessionMode.videoChat => 2,
-    IosAudioSessionMode.measurement => 3,
-    IosAudioSessionMode.gameChat => 4,
-    IosAudioSessionMode.spokenAudio => 5,
-  };
-}
-
-int _encodeWindowsCaptureCategory(WindowsCaptureCategory? category) {
-  return switch (category) {
-    null => 2,
-    WindowsCaptureCategory.media => 0,
-    WindowsCaptureCategory.communications => 1,
-    WindowsCaptureCategory.speech => 2,
-  };
-}
-
-int _encodeWindowsVoiceProcessingMode(WindowsVoiceProcessingMode? mode) {
-  return switch (mode) {
-    null => _windowsVoiceProcessingModeAuto,
-    WindowsVoiceProcessingMode.auto => _windowsVoiceProcessingModeAuto,
-    WindowsVoiceProcessingMode.system => _windowsVoiceProcessingModeSystem,
-    WindowsVoiceProcessingMode.software => _windowsVoiceProcessingModeSoftware,
-    WindowsVoiceProcessingMode.off => _windowsVoiceProcessingModeOff,
-  };
-}
-
-void _throwRecorderExceptionIfNeeded({
-  required int code,
-  required ffi.Pointer<ffi.Char> errorPtr,
-  required String operation,
-}) {
-  if (code == 0) {
-    return;
-  }
-  final details = errorPtr.cast<Utf8>().toDartString();
-  throw AudioRecorderException(
-    '$operation failed',
-    errorCode: code,
-    details: details.isEmpty ? null : details,
-  );
-}
-
-bool _hasMacosMicrophonePermissionViaFfi() {
-  return _runRecorderBoolCall(
-    macos_bindings.speech_utils_macos_audio_recorder_has_permission,
-    operation: 'macOS microphone permission check',
-  );
-}
-
-bool _requestMacosMicrophonePermissionViaFfi() {
-  return _runRecorderBoolCall(
-    macos_bindings.speech_utils_macos_audio_recorder_request_permission,
-    operation: 'macOS microphone permission request',
-  );
-}
-
-void _startMacosAudioRecorderFileViaFfi({
-  required String outputPath,
-  required int sampleRateHz,
-  required int channelCount,
-  required String? inputDeviceId,
-  required _NativeRecorderRuntimeConfig runtimeConfig,
-}) {
-  _runRecorderStartFile(
-    macos_bindings.speech_utils_macos_audio_recorder_start_file,
-    outputPath: outputPath,
-    sampleRateHz: sampleRateHz,
-    channelCount: channelCount,
-    inputDeviceId: inputDeviceId,
-    runtimeConfig: runtimeConfig,
-    operation: 'macOS file recording start',
-  );
-}
-
-void _startMacosAudioRecorderStreamViaFfi({
-  required int sampleRateHz,
-  required int channelCount,
-  required int framesPerChunk,
-  required String? inputDeviceId,
-  required _NativeRecorderRuntimeConfig runtimeConfig,
-}) {
-  _runRecorderStartStream(
-    macos_bindings.speech_utils_macos_audio_recorder_start_stream,
-    sampleRateHz: sampleRateHz,
-    channelCount: channelCount,
-    framesPerChunk: framesPerChunk,
-    inputDeviceId: inputDeviceId,
-    runtimeConfig: runtimeConfig,
-    operation: 'macOS stream recording start',
-  );
-}
-
-List<InputDevice> _listMacosAudioRecorderInputDevicesViaFfi() {
-  return _runRecorderListInputDevices(
-    macos_bindings.speech_utils_macos_audio_recorder_list_input_devices_json,
-    operation: 'macOS input device listing',
-  );
-}
-
-Uint8List _readMacosAudioRecorderStreamViaFfi({required int maxSamples}) {
-  return _runRecorderReadStream(
-    macos_bindings.speech_utils_macos_audio_recorder_read_stream_pcm16,
-    maxSamples: maxSamples,
-    operation: 'macOS stream read',
-  );
-}
-
-void _stopMacosAudioRecorderViaFfi() {
-  _runRecorderStop(
-    macos_bindings.speech_utils_macos_audio_recorder_stop,
-    operation: 'macOS recording stop',
-  );
-}
-
-void _resetMacosAudioRecorderViaFfi() {
-  _runRecorderReset(
-    macos_bindings.speech_utils_macos_audio_recorder_reset,
-    operation: 'macOS recorder reset',
-  );
-}
-
-bool _isMacosAudioRecorderRunningViaFfi() {
-  return _runRecorderBoolCall(
-    macos_bindings.speech_utils_macos_audio_recorder_is_recording,
-    operation: 'macOS recorder state read',
-  );
-}
-
-Amplitude _getMacosAudioRecorderAmplitudeViaFfi() {
-  return _runRecorderGetAmplitude(
-    macos_bindings.speech_utils_macos_audio_recorder_get_amplitude,
-    operation: 'macOS recorder amplitude read',
-  );
-}
-
-bool _isWindowsAudioRecorderAvailableViaFfi() {
-  return true;
-}
-
-bool _hasWindowsMicrophonePermissionViaFfi() {
-  return _runRecorderBoolCall(
-    windows_bindings.speech_utils_windows_audio_recorder_has_permission,
-    operation: 'Windows microphone permission check',
-  );
-}
-
-bool _requestWindowsMicrophonePermissionViaFfi() {
-  return _runRecorderBoolCall(
-    windows_bindings.speech_utils_windows_audio_recorder_request_permission,
-    operation: 'Windows microphone permission request',
-  );
-}
-
-void _startWindowsAudioRecorderFileViaFfi({
-  required String outputPath,
-  required int sampleRateHz,
-  required int channelCount,
-  required String? inputDeviceId,
-  required _NativeRecorderRuntimeConfig runtimeConfig,
-}) {
-  _runRecorderStartFile(
-    windows_bindings.speech_utils_windows_audio_recorder_start_file,
-    outputPath: outputPath,
-    sampleRateHz: sampleRateHz,
-    channelCount: channelCount,
-    inputDeviceId: inputDeviceId,
-    runtimeConfig: runtimeConfig,
-    operation: 'Windows file recording start',
-  );
-}
-
-void _startWindowsAudioRecorderStreamViaFfi({
-  required int sampleRateHz,
-  required int channelCount,
-  required int framesPerChunk,
-  required String? inputDeviceId,
-  required _NativeRecorderRuntimeConfig runtimeConfig,
-}) {
-  _runRecorderStartStream(
-    windows_bindings.speech_utils_windows_audio_recorder_start_stream,
-    sampleRateHz: sampleRateHz,
-    channelCount: channelCount,
-    framesPerChunk: framesPerChunk,
-    inputDeviceId: inputDeviceId,
-    runtimeConfig: runtimeConfig,
-    operation: 'Windows stream recording start',
-  );
-}
-
-List<InputDevice> _listWindowsAudioRecorderInputDevicesViaFfi() {
-  return _runRecorderListInputDevices(
-    windows_bindings.speech_utils_windows_audio_recorder_list_input_devices_json,
-    operation: 'Windows input device listing',
-  );
-}
-
-Uint8List _readWindowsAudioRecorderStreamViaFfi({required int maxSamples}) {
-  return _runRecorderReadStream(
-    windows_bindings.speech_utils_windows_audio_recorder_read_stream_pcm16,
-    maxSamples: maxSamples,
-    operation: 'Windows stream read',
-  );
-}
-
-void _stopWindowsAudioRecorderViaFfi() {
-  _runRecorderStop(
-    windows_bindings.speech_utils_windows_audio_recorder_stop,
-    operation: 'Windows recording stop',
-  );
-}
-
-void _resetWindowsAudioRecorderViaFfi() {
-  _runRecorderReset(
-    windows_bindings.speech_utils_windows_audio_recorder_reset,
-    operation: 'Windows recorder reset',
-  );
-}
-
-bool _isWindowsAudioRecorderRunningViaFfi() {
-  return _runRecorderBoolCall(
-    windows_bindings.speech_utils_windows_audio_recorder_is_recording,
-    operation: 'Windows recorder state read',
-  );
-}
-
-Amplitude _getWindowsAudioRecorderAmplitudeViaFfi() {
-  return _runRecorderGetAmplitude(
-    windows_bindings.speech_utils_windows_audio_recorder_get_amplitude,
-    operation: 'Windows recorder amplitude read',
-  );
-}
-
-bool _hasIosMicrophonePermissionViaFfi() {
-  return _runRecorderBoolCall(
-    ios_bindings.speech_utils_ios_audio_recorder_has_permission,
-    operation: 'iOS microphone permission check',
-  );
-}
-
-bool _requestIosMicrophonePermissionViaFfi() {
-  return _runRecorderBoolCall(
-    ios_bindings.speech_utils_ios_audio_recorder_request_permission,
-    operation: 'iOS microphone permission request',
-  );
-}
-
-void _startIosAudioRecorderFileViaFfi({
-  required String outputPath,
-  required int sampleRateHz,
-  required int channelCount,
-  required String? inputDeviceId,
-  required _NativeRecorderRuntimeConfig runtimeConfig,
-}) {
-  _runRecorderStartFile(
-    ios_bindings.speech_utils_ios_audio_recorder_start_file,
-    outputPath: outputPath,
-    sampleRateHz: sampleRateHz,
-    channelCount: channelCount,
-    inputDeviceId: inputDeviceId,
-    runtimeConfig: runtimeConfig,
-    operation: 'iOS file recording start',
-  );
-}
-
-void _startIosAudioRecorderStreamViaFfi({
-  required int sampleRateHz,
-  required int channelCount,
-  required int framesPerChunk,
-  required String? inputDeviceId,
-  required _NativeRecorderRuntimeConfig runtimeConfig,
-}) {
-  _runRecorderStartStream(
-    ios_bindings.speech_utils_ios_audio_recorder_start_stream,
-    sampleRateHz: sampleRateHz,
-    channelCount: channelCount,
-    framesPerChunk: framesPerChunk,
-    inputDeviceId: inputDeviceId,
-    runtimeConfig: runtimeConfig,
-    operation: 'iOS stream recording start',
-  );
-}
-
-List<InputDevice> _listIosAudioRecorderInputDevicesViaFfi() {
-  return _runRecorderListInputDevices(
-    ios_bindings.speech_utils_ios_audio_recorder_list_input_devices_json,
-    operation: 'iOS input device listing',
-  );
-}
-
-Uint8List _readIosAudioRecorderStreamViaFfi({required int maxSamples}) {
-  return _runRecorderReadStream(
-    ios_bindings.speech_utils_ios_audio_recorder_read_stream_pcm16,
-    maxSamples: maxSamples,
-    operation: 'iOS stream read',
-  );
-}
-
-void _stopIosAudioRecorderViaFfi() {
-  _runRecorderStop(
-    ios_bindings.speech_utils_ios_audio_recorder_stop,
-    operation: 'iOS recording stop',
-  );
-}
-
-void _resetIosAudioRecorderViaFfi() {
-  _runRecorderReset(
-    ios_bindings.speech_utils_ios_audio_recorder_reset,
-    operation: 'iOS recorder reset',
-  );
-}
-
-bool _isIosAudioRecorderRunningViaFfi() {
-  return _runRecorderBoolCall(
-    ios_bindings.speech_utils_ios_audio_recorder_is_recording,
-    operation: 'iOS recorder state read',
-  );
-}
-
-Amplitude _getIosAudioRecorderAmplitudeViaFfi() {
-  return _runRecorderGetAmplitude(
-    ios_bindings.speech_utils_ios_audio_recorder_get_amplitude,
-    operation: 'iOS recorder amplitude read',
-  );
 }

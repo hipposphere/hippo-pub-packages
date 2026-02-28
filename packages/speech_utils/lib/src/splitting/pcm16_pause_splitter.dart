@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import '../models/pause_split_options.dart';
 import '../models/pcm16_snippet.dart';
 import '../vad/vad_backend.dart';
+import '../utils/pcm16_audio_utils.dart';
 import 'pause_split_frame_policy.dart';
 
 /// Splits PCM16 streams into snippets whenever silence is detected.
@@ -43,19 +44,11 @@ final class Pcm16PauseSplitter {
       );
     }
 
-    final absoluteByteOffset = pcm16leBytes.offsetInBytes + byteOffset;
-    final effectiveByteCount = effectiveByteLength ~/ 2;
-    final samples = absoluteByteOffset.isEven
-        ? Int16List.view(pcm16leBytes.buffer, absoluteByteOffset, effectiveByteCount)
-        : Int16List.view(
-            _copyAlignedBytes(
-              sourceBytes: pcm16leBytes,
-              sourceStartOffset: byteOffset,
-              byteLength: effectiveByteLength,
-            ).buffer,
-            0,
-            effectiveByteCount,
-          );
+    final samples = Pcm16AudioUtils.asAlignedInt16List(
+      pcm16leBytes,
+      byteOffset: byteOffset,
+      byteLength: effectiveByteLength,
+    );
     final framePolicy = PauseSplitFramePolicy.fromOptions(options);
     final frameSampleCount = framePolicy.frameSampleCount;
     final totalFrames = samples.length ~/ frameSampleCount;
@@ -173,14 +166,4 @@ int _clampInt(int value, int min, int max) {
     return max;
   }
   return value;
-}
-
-Uint8List _copyAlignedBytes({
-  required Uint8List sourceBytes,
-  required int sourceStartOffset,
-  required int byteLength,
-}) {
-  final aligned = Uint8List(byteLength);
-  aligned.setRange(0, byteLength, sourceBytes, sourceStartOffset);
-  return aligned;
 }

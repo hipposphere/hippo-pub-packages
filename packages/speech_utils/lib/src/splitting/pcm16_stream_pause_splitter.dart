@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import '../models/pause_split_options.dart';
 import '../models/pcm16_snippet.dart';
 import '../vad/vad_backend.dart';
+import '../utils/pcm16_audio_utils.dart';
 import 'pause_split_frame_policy.dart';
 
 /// Stateful splitter for live PCM16 streams.
@@ -38,7 +39,7 @@ final class Pcm16StreamPauseSplitter {
       return const [];
     }
 
-    final workingBytes = _ensureEvenByteOffset(_mergeWithLeftover(chunk));
+    final workingBytes = Pcm16AudioUtils.ensureEvenByteOffset(_mergeWithLeftover(chunk));
     final fullFrameCount = workingBytes.length ~/ _framePolicy.frameByteCount;
     final emitted = <Pcm16Snippet>[];
 
@@ -79,7 +80,7 @@ final class Pcm16StreamPauseSplitter {
   }
 
   void _consumeFrame(Uint8List frameBytes, List<Pcm16Snippet> emitted) {
-    final alignedFrameBytes = _ensureEvenByteOffset(frameBytes);
+    final alignedFrameBytes = Pcm16AudioUtils.ensureEvenByteOffset(frameBytes);
     final frameSamples = Int16List.view(
       alignedFrameBytes.buffer,
       alignedFrameBytes.offsetInBytes,
@@ -214,29 +215,6 @@ final class Pcm16StreamPauseSplitter {
   }
 }
 
-Uint8List _ensureEvenByteOffset(Uint8List bytes) {
-  if (bytes.offsetInBytes.isEven) {
-    return bytes;
-  }
-
-  final aligned = Uint8List(bytes.lengthInBytes);
-  aligned.setRange(0, aligned.lengthInBytes, bytes);
-  return aligned;
-}
-
 Uint8List _flattenFrames(List<Uint8List> frames, {Uint8List? trailingPartialBytes}) {
-  final totalFrameBytes = frames.fold<int>(0, (sum, frame) => sum + frame.lengthInBytes);
-  final trailingBytesLength = trailingPartialBytes?.lengthInBytes ?? 0;
-  final flattened = Uint8List(totalFrameBytes + trailingBytesLength);
-
-  var offset = 0;
-  for (final frame in frames) {
-    flattened.setRange(offset, offset + frame.lengthInBytes, frame);
-    offset += frame.lengthInBytes;
-  }
-  if (trailingPartialBytes != null && trailingPartialBytes.isNotEmpty) {
-    flattened.setRange(offset, offset + trailingPartialBytes.lengthInBytes, trailingPartialBytes);
-  }
-
-  return flattened;
+  return Pcm16AudioUtils.concatByteBlocks(frames, trailing: trailingPartialBytes);
 }

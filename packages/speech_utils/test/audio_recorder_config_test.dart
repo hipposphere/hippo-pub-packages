@@ -178,5 +178,61 @@ void main() {
       );
       expect(processing.resolveHighPassFilterForPlatform(AudioProcessingPlatform.windows), isTrue);
     });
+
+    test('AudioProcessingConfig supports nested windows override construction', () {
+      final withOverrides = const AudioProcessingConfig(
+        preset: AudioCapturePreset.music,
+        windows: WindowsAudioProcessingConfig(
+          usePresetDefaults: false,
+          enableNoiseSuppression: true,
+          enableEchoCancellation: false,
+        ),
+      );
+
+      expect(withOverrides.preset, equals(AudioCapturePreset.music));
+      expect(withOverrides.windows.usePresetDefaults, isFalse);
+      expect(withOverrides.windows.enableNoiseSuppression, isTrue);
+      expect(withOverrides.windows.enableEchoCancellation, isFalse);
+    });
+
+    test('AudioEncodingConfig supports explicit bitrate clearing via constructor', () {
+      const base = AudioEncodingConfig(encoder: AudioEncoder.aacLc, bitrateBps: 64000);
+      const withoutBitrate = AudioEncodingConfig(encoder: AudioEncoder.aacLc);
+      const withEncoder = AudioEncodingConfig(
+        encoder: AudioEncoder.wav,
+        bitrateBps: 64000,
+      );
+
+      expect(withoutBitrate.bitrateBps, isNull);
+      expect(withoutBitrate.encoder, equals(AudioEncoder.aacLc));
+      expect(withEncoder.encoder, equals(AudioEncoder.wav));
+      expect(withEncoder.bitrateBps, base.bitrateBps);
+    });
+
+    test('AudioRecorderConfig supports targeted immutable updates via constructor', () {
+      final base = AudioRecorderConfig(
+        sampleRateHz: 48000,
+        channelCount: 2,
+        framesPerChunk: 1024,
+        inputDeviceId: 'mic-1',
+        processing: const AudioProcessingConfig(preset: AudioCapturePreset.music),
+        encoding: const AudioEncodingConfig(encoder: AudioEncoder.aacLc, bitrateBps: 64000),
+      );
+
+      final withOverrides = AudioRecorderConfig(
+        sampleRateHz: 16000,
+        channelCount: base.channelCount,
+        framesPerChunk: base.framesPerChunk,
+        processing: const AudioProcessingConfig(preset: AudioCapturePreset.music),
+        encoding: const AudioEncodingConfig(encoder: AudioEncoder.wav),
+      );
+
+      expect(withOverrides.sampleRateHz, equals(16000));
+      expect(withOverrides.channelCount, equals(2));
+      expect(withOverrides.framesPerChunk, equals(1024));
+      expect(withOverrides.inputDeviceId, isNull);
+      expect(withOverrides.processing.preset, equals(AudioCapturePreset.music));
+      expect(withOverrides.encoding.encoder, equals(AudioEncoder.wav));
+    });
   });
 }

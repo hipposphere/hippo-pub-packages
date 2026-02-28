@@ -19,6 +19,7 @@ import '../models/pcm16_snippet.dart';
 import '../models/voice_activity_metadata.dart';
 import '../models/input_device.dart';
 import '../splitting/pcm16_stream_pause_splitter.dart';
+import '../utils/pcm16_audio_utils.dart';
 import '../vad/speech_vad_config.dart';
 import 'audio_recorder_config.dart';
 import '../generated/recorder/ios_audio_recorder_bindings.dart' as ios_bindings;
@@ -576,8 +577,8 @@ final class NativeAudioRecorder {
             levelsController.add(
               VadLevelSample(
                 at: now,
-                rms: _pcm16Rms(chunk),
-                dbfs: _pcm16Dbfs(chunk),
+                rms: Pcm16AudioUtils.rms(chunk),
+                dbfs: Pcm16AudioUtils.dbfs(chunk),
                 hasSpeechFrame: currentChunkHasSpeech,
               ),
             );
@@ -1376,7 +1377,7 @@ final class NativeAudioRecorder {
       return;
     }
 
-    final dbfs = _pcm16Dbfs(pcm16leBytes);
+    final dbfs = Pcm16AudioUtils.dbfs(pcm16leBytes, silenceDbfs: Pcm16AudioUtils.minDbfs);
     _currentAmplitudeDbfs = dbfs;
     if (dbfs > _maxAmplitudeDbfs) {
       _maxAmplitudeDbfs = dbfs;
@@ -1410,52 +1411,6 @@ final class NativeAudioRecorder {
     amplitudeController.add(Amplitude(current: _currentAmplitudeDbfs, max: _maxAmplitudeDbfs));
   }
 
-  double _pcm16Dbfs(Uint8List pcm16leBytes) {
-    final sampleCount = pcm16leBytes.lengthInBytes ~/ 2;
-    if (sampleCount <= 0) {
-      return -90.0;
-    }
-
-    final samples = Int16List.view(pcm16leBytes.buffer, pcm16leBytes.offsetInBytes, sampleCount);
-    var sumSquares = 0.0;
-    for (final sample in samples) {
-      final normalized = sample / 32768.0;
-      sumSquares += normalized * normalized;
-    }
-    if (sumSquares <= 0) {
-      return -90.0;
-    }
-
-    final rms = math.sqrt(sumSquares / sampleCount);
-    if (rms <= 0) {
-      return -90.0;
-    }
-
-    final dbfs = 20.0 * math.log(rms) / math.ln10;
-    if (dbfs.isNaN || dbfs.isInfinite) {
-      return -90.0;
-    }
-
-    return (dbfs.clamp(-90.0, 0.0) as num).toDouble();
-  }
-
-  double _pcm16Rms(Uint8List pcm16leBytes) {
-    final sampleCount = pcm16leBytes.lengthInBytes ~/ 2;
-    if (sampleCount <= 0) {
-      return 0.0;
-    }
-
-    final samples = Int16List.view(pcm16leBytes.buffer, pcm16leBytes.offsetInBytes, sampleCount);
-    var sumSquares = 0.0;
-    for (final sample in samples) {
-      final normalized = sample / 32768.0;
-      sumSquares += normalized * normalized;
-    }
-    if (sumSquares <= 0) {
-      return 0.0;
-    }
-    return math.sqrt(sumSquares / sampleCount);
-  }
 }
 
 int _resolveEncodingBitrateBps(AudioEncodingConfig encoding) {

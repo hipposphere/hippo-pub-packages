@@ -43,7 +43,15 @@ void main() {
 
       final snippets = SpeechUtils.splitPcm16OnSilence(
         pcm16leBytes: bytes,
-        options: options.copyWith(minSilenceDuration: const Duration(milliseconds: 100)),
+        options: PauseSplitOptions(
+          sampleRateHz: options.sampleRateHz,
+          channelCount: options.channelCount,
+          frameDuration: options.frameDuration,
+          minSpeechDuration: options.minSpeechDuration,
+          minSilenceDuration: const Duration(milliseconds: 100),
+          preSpeechPadding: options.preSpeechPadding,
+          postSpeechPadding: options.postSpeechPadding,
+        ),
         vadBackend: const EnergyVadBackend(),
       );
 
@@ -95,28 +103,6 @@ void main() {
       expect(snippets[1].duration.inMilliseconds, inInclusiveRange(340, 460));
     });
   });
-}
-
-extension on PauseSplitOptions {
-  PauseSplitOptions copyWith({
-    int? sampleRateHz,
-    int? channelCount,
-    Duration? frameDuration,
-    Duration? minSpeechDuration,
-    Duration? minSilenceDuration,
-    Duration? preSpeechPadding,
-    Duration? postSpeechPadding,
-  }) {
-    return PauseSplitOptions(
-      sampleRateHz: sampleRateHz ?? this.sampleRateHz,
-      channelCount: channelCount ?? this.channelCount,
-      frameDuration: frameDuration ?? this.frameDuration,
-      minSpeechDuration: minSpeechDuration ?? this.minSpeechDuration,
-      minSilenceDuration: minSilenceDuration ?? this.minSilenceDuration,
-      preSpeechPadding: preSpeechPadding ?? this.preSpeechPadding,
-      postSpeechPadding: postSpeechPadding ?? this.postSpeechPadding,
-    );
-  }
 }
 
 Int16List _sineWave({

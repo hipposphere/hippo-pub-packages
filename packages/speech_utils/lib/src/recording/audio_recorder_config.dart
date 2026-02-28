@@ -84,6 +84,7 @@ final class WindowsAudioProcessingConfig {
   final bool? enableEchoCancellation;
   final bool? enableAutomaticGainControl;
   final bool? enableHighPassFilter;
+
 }
 
 /// Cross-platform capture-processing preferences.
@@ -456,6 +457,7 @@ final class AudioRecorderConfig {
     windowsConfig?.validate();
     encoding.validate();
   }
+
 }
 
 /// Snapshot amplitude values produced by recorder pipelines.

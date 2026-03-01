@@ -23,6 +23,7 @@ workspace:
   - packages/hippo_bluetooth_client_builder
   - packages/hippo_bluetooth_client/example
   - packages/hippo_components
+  - packages/hippo_components/example
   - packages/hippo_ui
   - packages/hippo_utils
   - packages/hotkey_api

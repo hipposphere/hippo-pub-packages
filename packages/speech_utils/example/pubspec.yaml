@@ -14,7 +14,7 @@ dependencies:
     path: ../
   hippo_components:
     path: ../../hippo_components
-  audioplayers: ^6.5.1
+  audioplayers: ^6.6.0
   path_provider: ^2.1.5
   cupertino_icons: ^1.0.8
 

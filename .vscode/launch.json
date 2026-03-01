@@ -50,6 +50,12 @@
             "type": "dart",
         },
         {
+            "name": "hippo_components (example)",
+            "cwd": "${workspaceFolder}/packages/hippo_components/example",
+            "request": "launch",
+            "type": "dart",
+        },
+        {
             "name": "hippo_ui (widgets preview)",
             "cwd": "${workspaceFolder}/packages/hippo_ui",
             "type": "node",

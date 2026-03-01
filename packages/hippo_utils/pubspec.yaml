@@ -28,7 +28,7 @@ dependencies:
   intl: any
   isoweek: ^1.1.4
   file_saver: ^0.3.1
-  audioplayers: ^6.5.1
+  audioplayers: ^6.6.0
   audioplayers_web: ^5.1.1
   file_selector: ^1.1.0
   share_plus: ^12.0.1

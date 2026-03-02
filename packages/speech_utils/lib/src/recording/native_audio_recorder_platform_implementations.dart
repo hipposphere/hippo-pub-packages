@@ -1,9 +1,12 @@
 part of 'native_audio_recorder.dart';
 
 const _unsupportedAudioRecorderMessage =
-    'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.';
+    'NativeAudioRecorder is currently supported on Android, macOS, Windows, and iOS.';
 
 NativeAudioRecorderPlatform _detectNativeAudioRecorderPlatform() {
+  if (Platform.isAndroid) {
+    return NativeAudioRecorderPlatform.android;
+  }
   if (Platform.isMacOS) {
     return NativeAudioRecorderPlatform.macOS;
   }
@@ -24,6 +27,8 @@ NativeAudioRecorderPlatformImplementation _resolveNativeAudioRecorderPlatformImp
     return platformImplementation;
   }
   return switch (platform) {
+    NativeAudioRecorderPlatform.android =>
+      const _AndroidNativeAudioRecorderPlatformImplementation(),
     NativeAudioRecorderPlatform.macOS => const _MacosNativeAudioRecorderPlatformImplementation(),
     NativeAudioRecorderPlatform.windows => const _WindowsNativeAudioRecorderPlatformImplementation(),
     NativeAudioRecorderPlatform.iOS => const _IosNativeAudioRecorderPlatformImplementation(),

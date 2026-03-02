@@ -4,9 +4,11 @@ import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:cross_file/cross_file.dart';
 import 'package:ffi/ffi.dart';
+import 'package:jni/jni.dart';
 import 'package:path/path.dart' as path;
 
 import '../encoding/aac_encoder.dart';
@@ -22,6 +24,7 @@ import '../splitting/pcm16_stream_pause_splitter.dart';
 import '../utils/pcm16_audio_utils.dart';
 import '../vad/speech_vad_config.dart';
 import 'audio_recorder_config.dart';
+import '../generated/recorder/android_jni_bindings.dart' as android_jni;
 import '../generated/recorder/ios_audio_recorder_bindings.dart' as ios_bindings;
 import '../generated/recorder/macos_audio_recorder_bindings.dart' as macos_bindings;
 import '../generated/recorder/windows_audio_recorder_bindings.dart' as windows_bindings;
@@ -33,9 +36,10 @@ part 'errors/native_audio_recorder_exceptions.dart';
 part 'implementations/native_audio_recorder_platform_implementation_macos.dart';
 part 'implementations/native_audio_recorder_platform_implementation_windows.dart';
 part 'implementations/native_audio_recorder_platform_implementation_ios.dart';
+part 'implementations/native_audio_recorder_platform_implementation_android.dart';
 part 'implementations/native_audio_recorder_platform_ffi.dart';
 
-enum NativeAudioRecorderPlatform { macOS, windows, iOS, unsupported }
+enum NativeAudioRecorderPlatform { android, macOS, windows, iOS, unsupported }
 
 /// Recorder enhancement capabilities currently implemented by this package.
 ///
@@ -91,6 +95,7 @@ enum _RecorderMode { stopped, file, stream }
 /// FFI-based microphone recorder backed by platform-native implementations.
 ///
 /// Current native backends:
+/// - Android: AudioRecord (JNI)
 /// - macOS/iOS: AVFoundation
 /// - Windows: miniaudio
 final class NativeAudioRecorder {

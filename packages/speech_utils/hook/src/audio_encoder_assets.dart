@@ -35,6 +35,19 @@ const _macosAudioCodecSources = <String>[
 const _iosAudioEncoderLibraryBaseName = 'speech_utils_ios_audio_encoder';
 const _macosAudioEncoderLibraryBaseName = 'speech_utils_macos_audio_encoder';
 
+String _androidTargetTripleForArchitecture(Architecture architecture) {
+  return switch (architecture) {
+    Architecture.arm => 'armv7a-linux-androideabi',
+    Architecture.arm64 => 'aarch64-linux-android',
+    Architecture.ia32 => 'i686-linux-android',
+    Architecture.x64 => 'x86_64-linux-android',
+    Architecture.riscv64 => 'riscv64-linux-android',
+    _ => throw UnsupportedError(
+      'Unsupported Android architecture for audio encoder: $architecture',
+    ),
+  };
+}
+
 Future<void> buildWindowsAudioEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
   if (!matchesTarget(input, os: OS.windows, arch: Architecture.x64)) {
     return;
@@ -129,14 +142,19 @@ Future<void> buildAndroidAudioEncoderAsset(BuildInput input, BuildOutputBuilder 
 
   final targetNdkApi = input.config.code.android.targetNdkApi;
   final effectiveNdkApi = targetNdkApi < 26 ? 26 : targetNdkApi;
+  final androidTargetTriple = _androidTargetTripleForArchitecture(
+    input.config.code.targetArchitecture,
+  );
   await CBuilder.library(
     name: _androidAudioEncoderLibraryBaseName,
     assetName: _androidAudioEncoderAssetName,
     language: Language.cpp,
     sources: ['native/android/speech_utils_android_audio_encoder.cpp'],
     std: 'c++17',
-    flags: ['-O2'],
-    defines: {'__ANDROID_API__': '$effectiveNdkApi'},
+    flags: [
+      '-O2',
+      '--target=$androidTargetTriple$effectiveNdkApi',
+    ],
     libraries: ['android', 'mediandk', 'log'],
   ).run(input: input, output: output);
 }

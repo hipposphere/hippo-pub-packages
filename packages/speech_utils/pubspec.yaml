@@ -17,10 +17,12 @@ dependencies:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.0
   hooks: ^1.0.1
+  jni: ^0.15.2
   native_toolchain_c: ^0.17.4
   path: ^1.9.1
 
 dev_dependencies:
   ffigen: ^20.1.1
+  jnigen: ^0.15.0
   lints: ^6.1.0
   test: ^1.26.0

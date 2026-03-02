@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:speech_utils/speech_utils.dart';
 
 const _unsupportedAudioRecorderMessage =
-    'NativeAudioRecorder is currently supported on macOS, Windows, and iOS.';
+    'NativeAudioRecorder is currently supported on Android, macOS, Windows, and iOS.';
 
 typedef StartFileHook = void Function({
   required String outputPath,
@@ -44,6 +44,11 @@ NativeAudioRecorder recorderFixture({
       platform: platform,
       supportsInputSelection: !isUnsupportedPlatform,
       capabilities: switch (platform) {
+        NativeAudioRecorderPlatform.android => const NativeAudioRecorderCapabilities(
+          supportsNoiseCancellation: false,
+          supportsEchoCancellation: false,
+          supportsVoiceIsolation: false,
+        ),
         NativeAudioRecorderPlatform.macOS => const NativeAudioRecorderCapabilities(
           supportsNoiseCancellation: false,
           supportsEchoCancellation: false,

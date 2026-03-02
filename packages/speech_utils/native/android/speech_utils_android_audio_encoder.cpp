@@ -4,12 +4,15 @@
 #include <media/NdkMediaMuxer.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <cctype>
 #include <cstdint>
 #include <cstring>
+#include <fcntl.h>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 namespace {
@@ -238,6 +241,13 @@ int32_t EncodePcm16WavToAacM4a(const WavPcmData& wav, const char* output_path_ut
   bool muxer_started = false;
   int32_t track_index = -1;
   int32_t result_code = 0;
+  media_status_t status = AMEDIA_OK;
+  int output_fd = -1;
+  int32_t bytes_per_frame = 0;
+  std::size_t consumed = 0;
+  int64_t frames_submitted = 0;
+  bool input_eos = false;
+  bool output_eos = false;
 
   codec = AMediaCodec_createEncoderByType(kAacMimeType);
   if (codec == nullptr) {
@@ -264,8 +274,7 @@ int32_t EncodePcm16WavToAacM4a(const WavPcmData& wav, const char* output_path_ut
   AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_AAC_PROFILE, 2);  // AAC LC.
   AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_MAX_INPUT_SIZE, 16384);
 
-  media_status_t status =
-      AMediaCodec_configure(codec, format, nullptr, nullptr, AMEDIACODEC_CONFIGURE_FLAG_ENCODE);
+  status = AMediaCodec_configure(codec, format, nullptr, nullptr, AMEDIACODEC_CONFIGURE_FLAG_ENCODE);
   if (status != AMEDIA_OK) {
     if (error != nullptr) {
       std::ostringstream ss;
@@ -288,7 +297,19 @@ int32_t EncodePcm16WavToAacM4a(const WavPcmData& wav, const char* output_path_ut
   }
   codec_started = true;
 
-  muxer = AMediaMuxer_new(output_path_utf8, AMEDIAMUXER_OUTPUT_FORMAT_MPEG_4);
+  output_fd = ::open(output_path_utf8, O_CREAT | O_TRUNC | O_RDWR, 0666);
+  if (output_fd < 0) {
+    if (error != nullptr) {
+      std::ostringstream ss;
+      ss << "Failed to open AAC output file: errno=" << errno << " (" << std::strerror(errno)
+         << ").";
+      *error = ss.str();
+    }
+    result_code = -4;
+    goto cleanup;
+  }
+
+  muxer = AMediaMuxer_new(output_fd, AMEDIAMUXER_OUTPUT_FORMAT_MPEG_4);
   if (muxer == nullptr) {
     if (error != nullptr) {
       *error = "Failed to create AMediaMuxer.";
@@ -297,7 +318,7 @@ int32_t EncodePcm16WavToAacM4a(const WavPcmData& wav, const char* output_path_ut
     goto cleanup;
   }
 
-  const int32_t bytes_per_frame = static_cast<int32_t>((wav.bits_per_sample / 8) * wav.channels);
+  bytes_per_frame = static_cast<int32_t>((wav.bits_per_sample / 8) * wav.channels);
   if (bytes_per_frame <= 0) {
     if (error != nullptr) {
       *error = "Invalid bytes-per-frame computed from WAV metadata.";
@@ -305,11 +326,6 @@ int32_t EncodePcm16WavToAacM4a(const WavPcmData& wav, const char* output_path_ut
     result_code = -5;
     goto cleanup;
   }
-
-  std::size_t consumed = 0;
-  int64_t frames_submitted = 0;
-  bool input_eos = false;
-  bool output_eos = false;
 
   while (!output_eos) {
     if (!input_eos) {
@@ -475,6 +491,9 @@ cleanup:
   }
   if (format != nullptr) {
     AMediaFormat_delete(format);
+  }
+  if (output_fd >= 0) {
+    ::close(output_fd);
   }
 
   return result_code;

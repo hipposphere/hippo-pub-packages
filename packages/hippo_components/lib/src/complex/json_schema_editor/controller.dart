@@ -154,12 +154,15 @@ class JsonSchemaEditorController {
       return;
     }
 
-    final nextProperties = Map<String, JsonSchemaNode>.from(target.properties);
-    final node = nextProperties.remove(trimmedCurrentKey);
-    if (node == null) {
-      return;
-    }
-    nextProperties[trimmedNextKey] = node;
+    final nextProperties = Map<String, JsonSchemaNode>.fromEntries(
+      target.properties.entries.map((entry) {
+        if (entry.key == trimmedCurrentKey) {
+          return MapEntry(trimmedNextKey, entry.value);
+        }
+        return entry;
+      }),
+    );
+
     final nextRequired = Set<String>.from(target.required)..remove(trimmedCurrentKey);
     if (target.required.contains(trimmedCurrentKey)) {
       nextRequired.add(trimmedNextKey);

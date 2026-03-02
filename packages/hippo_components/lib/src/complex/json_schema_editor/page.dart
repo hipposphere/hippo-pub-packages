@@ -26,7 +26,7 @@ class JsonSchemaEditorPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(flex: 2, child: JsonSchemaEditor(controller: controller)),
-                const VerticalDivider(),
+                const VerticalDivider(thickness: 0.5, width: 0.5),
                 Expanded(
                   child: SingleChildScrollView(
                     child: _PreviewAndDiagnostics(controller: controller),

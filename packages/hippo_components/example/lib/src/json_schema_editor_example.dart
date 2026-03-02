@@ -46,12 +46,14 @@ class JsonSchemaEditorExample extends StatelessWidget {
           ),
           JsonSchemaEditorExtensionField(
             key: 'x-object-label',
+            description: 'Label for object nodes',
             valueType: JsonSchemaEditorExtensionFieldType.string,
             defaultValue: 'object-level',
             applicableNodeTypes: const {JsonSchemaNodeType.object},
           ),
           JsonSchemaEditorExtensionField(
             key: 'x-string-label',
+            description: 'Label for string nodes',
             valueType: JsonSchemaEditorExtensionFieldType.string,
             defaultValue: 'string-level',
             applicableNodeTypes: const {JsonSchemaNodeType.string},

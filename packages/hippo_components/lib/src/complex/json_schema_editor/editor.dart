@@ -11,7 +11,58 @@ import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
+import 'widgets/json_schema_editor_extension_badge.dart';
+import 'widgets/json_schema_editor_info_icon.dart';
+import 'widgets/json_schema_editor_text_field.dart';
 import 'widgets/json_schema_validation_panel.dart';
+
+String? _extensionDescriptionForKey(String? key, List<JsonSchemaEditorExtensionField> extensions) {
+  if (key == null) {
+    return null;
+  }
+  final trimmedKey = key.trim();
+  for (final extension in extensions) {
+    if (extension.key.trim() == trimmedKey) {
+      return extension.normalizedDescription;
+    }
+  }
+  return null;
+}
+
+String? _schemaTypeHelp(JsonSchemaNodeType type) {
+  return switch (type) {
+    JsonSchemaNodeType.string => 'String: text value (e.g., names, labels, IDs).',
+    JsonSchemaNodeType.integer => 'Integer: whole number without decimals.',
+    JsonSchemaNodeType.number => 'Number: numeric value, including decimals.',
+    JsonSchemaNodeType.boolean => 'Boolean: true/false value.',
+    JsonSchemaNodeType.object => 'Object: map with named properties.',
+    JsonSchemaNodeType.array => 'Array: ordered list of items.',
+  };
+}
+
+const _jsonSchemaHelpByKeyword = {
+  'default': 'Default value used when the field is not supplied.',
+  'type': 'Type of JSON value this node validates.',
+  'title': 'Optional human-readable name for this schema node.',
+  'description': 'Optional description shown in docs and editor tooling.',
+  'minLength': 'Minimum number of characters allowed in the string.',
+  'maxLength': 'Maximum number of characters allowed in the string.',
+  'pattern': 'Regular expression pattern the string must match.',
+  'enum': 'Allowed set of string values. Only one of these values is valid.',
+  'minimum': 'Smallest allowed numeric value.',
+  'maximum': 'Largest allowed numeric value.',
+  'exclusiveMinimum': 'If true, value must be greater than minimum.',
+  'exclusiveMaximum': 'If true, value must be less than maximum.',
+  'multipleOf': 'Value must be a multiple of this number.',
+  'minItems': 'Minimum number of items required in the array.',
+  'maxItems': 'Maximum number of items allowed in the array.',
+  'uniqueItems': 'All items must be unique across the array.',
+  'additionalProperties': 'Allow properties not listed under "Properties" for this object.',
+  'required': 'Whether this property must appear in the object.',
+  'propertyKey': 'Property identifier used as key in the object.',
+  'extensionField': 'Additional schema metadata entries (commonly namespaced as extension keys).',
+  'properties': 'Property definitions for fields contained in the object.',
+};
 
 class JsonSchemaEditor extends StatelessWidget {
   const JsonSchemaEditor({
@@ -118,23 +169,33 @@ class _SchemaNodeEditor extends StatelessWidget {
     }
     if (configuredExtensionLookup.isNotEmpty) {
       for (final entry in node.extensions.entries) {
-        if (!configuredExtensionLookup.containsKey(entry.key)) {
-          extensionEntries.add(
-            _ExtensionRowData(
-              key: entry.key,
-              value: entry.value,
-              isConfigured: false,
-              isImplemented: true,
-              field: null,
-            ),
-          );
+        final trimmedKey = entry.key.trim();
+        if (trimmedKey.isEmpty || configuredExtensionLookup.containsKey(trimmedKey)) {
+          continue;
         }
+        final configuredField = _findConfiguredExtensionForKey(
+          key: trimmedKey,
+          extensions: configuredExtensions,
+        );
+        extensionEntries.add(
+          _ExtensionRowData(
+            key: trimmedKey,
+            value: entry.value,
+            isConfigured: configuredField != null,
+            isImplemented: true,
+            field: configuredField,
+          ),
+        );
       }
     } else {
       for (final entry in node.extensions.entries) {
+        final trimmedKey = entry.key.trim();
+        if (trimmedKey.isEmpty) {
+          continue;
+        }
         extensionEntries.add(
           _ExtensionRowData(
-            key: entry.key,
+            key: trimmedKey,
             value: entry.value,
             isConfigured: false,
             isImplemented: true,
@@ -156,11 +217,30 @@ class _SchemaNodeEditor extends StatelessWidget {
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text(_typeLabel(node.type), style: Theme.of(context).textTheme.titleSmall),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_typeLabel(node.type), style: Theme.of(context).textTheme.titleSmall),
+                    const Gap(4),
+                    JsonSchemaEditorInfoIcon(message: _schemaTypeHelp(node.type)),
+                  ],
+                ),
                 DropdownButton<JsonSchemaNodeType>(
                   value: node.type,
                   items: JsonSchemaNodeType.values
-                      .map((type) => DropdownMenuItem(value: type, child: Text(_typeLabel(type))))
+                      .map(
+                        (type) => DropdownMenuItem(
+                          value: type,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_typeLabel(type)),
+                              const Gap(4),
+                              JsonSchemaEditorInfoIcon(message: _schemaTypeHelp(type)),
+                            ],
+                          ),
+                        ),
+                      )
                       .toList(),
                   onChanged: (value) {
                     final nextType = value;
@@ -174,9 +254,10 @@ class _SchemaNodeEditor extends StatelessWidget {
               ],
             ),
             const Gap(12),
-            _SchemaTextField(
+            JsonSchemaEditorTextField(
               value: node.title,
               hint: 'Title',
+              helpText: _jsonSchemaHelpByKeyword['title'],
               onChanged: (value) => controller.updateNode(
                 path: path,
                 updater: (JsonSchemaNode current) => current.copyWith(title: value.trim()),
@@ -187,10 +268,11 @@ class _SchemaNodeEditor extends StatelessWidget {
               ),
             ),
             const Gap(6),
-            _SchemaTextField(
+            JsonSchemaEditorTextField(
               value: node.description,
               hint: 'Description',
               maxLines: 3,
+              helpText: _jsonSchemaHelpByKeyword['description'],
               onChanged: (value) => controller.updateNode(
                 path: path,
                 updater: (JsonSchemaNode current) => current.copyWith(description: value),
@@ -205,9 +287,16 @@ class _SchemaNodeEditor extends StatelessWidget {
               ...nodeDiagnostics.map((item) => JsonSchemaWarningBadge(message: item.message)),
             ],
             if (extensionEntries.isNotEmpty ||
-                (configuredExtensions.isNotEmpty && controller.extensionOptions.allowAddExtensions)) ...[
+                (configuredExtensions.isNotEmpty &&
+                    controller.extensionOptions.allowAddExtensions)) ...[
               const Gap(12),
-              const Text('Extensions'),
+              Row(
+                children: [
+                  const Text('Extensions'),
+                  const Gap(4),
+                  JsonSchemaEditorInfoIcon(message: _jsonSchemaHelpByKeyword['extensionField']),
+                ],
+              ),
               const Gap(8),
               ...extensionEntries.map(
                 (entry) => _ExtensionNodeEditor(
@@ -382,7 +471,12 @@ class _ExtensionNodeEditor extends StatelessWidget {
           Row(
             children: [
               Expanded(child: Text(extensionKey, style: Theme.of(context).textTheme.titleSmall)),
-              _ExtensionStateBadge(isConfigured: isConfigured, isImplemented: isImplemented),
+              if (extensionField?.normalizedDescription != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: JsonSchemaEditorInfoIcon(message: extensionField!.normalizedDescription),
+                ),
+              JsonSchemaExtensionStateBadge(isConfigured: isConfigured, isImplemented: isImplemented),
             ],
           ),
           const Gap(8),
@@ -480,6 +574,10 @@ class _AddExtensionNodeField extends StatelessWidget {
           content: StatefulBuilder(
             builder: (context, setDialogState) {
               final trimmedKey = keyController.text.trim();
+              final configuredDescription = _extensionDescriptionForKey(
+                trimmedKey,
+                availableConfiguredExtensions,
+              );
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -511,11 +609,44 @@ class _AddExtensionNodeField extends StatelessWidget {
                   const Gap(8),
                   TextField(
                     controller: keyController,
-                    decoration: const InputDecoration(labelText: 'Extension key'),
-                    onChanged: (_) => setDialogState(() {
-                      selectedConfiguredKey = null;
-                    }),
+                      decoration: InputDecoration(
+                      labelText: 'Extension key',
+                      suffix: configuredDescription == null
+                          ? null
+                          : Padding(
+                              padding: const EdgeInsets.only(right: 16.0),
+                              child: JsonSchemaEditorInfoIcon(message: configuredDescription),
+                            ),
+                    ),
+                    onChanged: (value) {
+                      final discoveredField = _findConfiguredExtensionForKey(
+                        key: value,
+                        extensions: availableConfiguredExtensions,
+                      );
+                      setDialogState(() {
+                        selectedConfiguredKey = discoveredField?.key.trim();
+                      });
+                    },
                   ),
+                  if (configuredDescription != null) ...[
+                    const Gap(8),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          JsonSchemaEditorInfoIcon(message: configuredDescription),
+                          const Gap(4),
+                          Expanded(
+                            child: Text(
+                              configuredDescription,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   if (trimmedKey.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -537,13 +668,10 @@ class _AddExtensionNodeField extends StatelessWidget {
                   return;
                 }
 
-                JsonSchemaEditorExtensionField? field;
-                for (final extension in availableConfiguredExtensions) {
-                  if (extension.key.trim() == finalKey) {
-                    field = extension;
-                    break;
-                  }
-                }
+                final field = _findConfiguredExtensionForKey(
+                  key: finalKey,
+                  extensions: availableConfiguredExtensions,
+                );
 
                 onAdd(finalKey, field);
                 Navigator.of(dialogContext).pop();
@@ -595,71 +723,26 @@ JsonSchemaEditorExtensionFieldType _resolveExtensionFieldType({
   return JsonSchemaEditorExtensionFieldType.string;
 }
 
-class _ExtensionStateBadge extends StatelessWidget {
-  const _ExtensionStateBadge({required this.isConfigured, required this.isImplemented});
-
-  final bool isConfigured;
-  final bool isImplemented;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    if (!isConfigured) {
-      return _ChipLabel(
-        label: 'not implemented',
-        icon: Icons.extension,
-        color: colorScheme.errorContainer,
-        textColor: colorScheme.onErrorContainer,
-      );
-    }
-    if (isImplemented) {
-      return _ChipLabel(
-        label: 'implemented',
-        icon: Icons.check_circle,
-        color: colorScheme.secondaryContainer,
-        textColor: colorScheme.onSecondaryContainer,
-      );
-    }
-    return _ChipLabel(
-      label: 'not implemented',
-      icon: Icons.warning_amber,
-      color: colorScheme.surfaceContainerHighest,
-      textColor: colorScheme.onSurfaceVariant,
-    );
+JsonSchemaEditorExtensionField? _findConfiguredExtensionForKey({
+  required String? key,
+  required List<JsonSchemaEditorExtensionField> extensions,
+}) {
+  if (key == null) {
+    return null;
   }
+  final trimmedKey = key.trim();
+  if (trimmedKey.isEmpty) {
+    return null;
+  }
+
+  for (final extension in extensions) {
+    if (extension.key.trim() == trimmedKey) {
+      return extension;
+    }
+  }
+  return null;
 }
 
-class _ChipLabel extends StatelessWidget {
-  const _ChipLabel({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.textColor,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-  final Color textColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: textColor),
-            const Gap(4),
-            Text(label, style: TextStyle(color: textColor, fontSize: 12)),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _BooleanExtensionNodeField extends StatelessWidget {
   const _BooleanExtensionNodeField({
@@ -713,7 +796,7 @@ class _StringExtensionNodeField extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _SchemaTextField(
+          child: JsonSchemaEditorTextField(
             value: extensionValue,
             hint: extensionKey,
             onChanged: (value) =>
@@ -805,7 +888,7 @@ class _NumberExtensionNodeField extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _SchemaTextField(
+          child: JsonSchemaEditorTextField(
             value: value,
             hint: extensionKey,
             keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
@@ -851,9 +934,10 @@ class _StringNodeEditor extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (featureOptions.stringMinLength) ...[
-          _SchemaTextField(
+          JsonSchemaEditorTextField(
             value: node.minLength?.toString(),
             hint: 'Min length',
+            helpText: _jsonSchemaHelpByKeyword['minLength'],
             keyboardType: const TextInputType.numberWithOptions(),
             onChanged: (value) => _updateInt(
               value,
@@ -870,9 +954,10 @@ class _StringNodeEditor extends StatelessWidget {
           const Gap(6),
         ],
         if (featureOptions.stringMaxLength) ...[
-          _SchemaTextField(
+          JsonSchemaEditorTextField(
             value: node.maxLength?.toString(),
             hint: 'Max length',
+            helpText: _jsonSchemaHelpByKeyword['maxLength'],
             keyboardType: const TextInputType.numberWithOptions(),
             onChanged: (value) => _updateInt(
               value,
@@ -889,9 +974,10 @@ class _StringNodeEditor extends StatelessWidget {
           const Gap(6),
         ],
         if (featureOptions.stringPattern) ...[
-          _SchemaTextField(
+          JsonSchemaEditorTextField(
             value: node.pattern,
             hint: 'Pattern (RegExp)',
+            helpText: _jsonSchemaHelpByKeyword['pattern'],
             onChanged: (value) => controller.updateNode(
               path: path,
               updater: (JsonSchemaStringNode node) => node.copyWith(pattern: value),
@@ -904,9 +990,10 @@ class _StringNodeEditor extends StatelessWidget {
           const Gap(6),
         ],
         if (featureOptions.stringEnum) ...[
-          _SchemaTextField(
+          JsonSchemaEditorTextField(
             value: _stringEnumInput(node.enumValues),
             hint: 'Enum (comma/line list)',
+            helpText: _jsonSchemaHelpByKeyword['enum'],
             maxLines: 3,
             onChanged: (value) => _updateStringList(
               value,
@@ -953,9 +1040,10 @@ class _NumberNodeEditor extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (featureOptions.numberMinimum) ...[
-          _SchemaTextField(
+          JsonSchemaEditorTextField(
             value: node.minimum?.toString(),
             hint: 'Minimum',
+            helpText: _jsonSchemaHelpByKeyword['minimum'],
             keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
             onChanged: (value) => _updateDouble(
               value,
@@ -972,9 +1060,10 @@ class _NumberNodeEditor extends StatelessWidget {
           const Gap(6),
         ],
         if (featureOptions.numberMaximum) ...[
-          _SchemaTextField(
+          JsonSchemaEditorTextField(
             value: node.maximum?.toString(),
             hint: 'Maximum',
+            helpText: _jsonSchemaHelpByKeyword['maximum'],
             keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
             onChanged: (value) => _updateDouble(
               value,
@@ -993,7 +1082,14 @@ class _NumberNodeEditor extends StatelessWidget {
         if (featureOptions.numberExclusiveMinimum) ...[
           CheckboxListTile(
             value: node.exclusiveMinimum ?? false,
-            title: const Text('exclusiveMinimum'),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('exclusiveMinimum'),
+                const Gap(4),
+          JsonSchemaEditorInfoIcon(message: _jsonSchemaHelpByKeyword['exclusiveMinimum']),
+              ],
+            ),
             onChanged: (value) => controller.updateNode(
               path: path,
               updater: (JsonSchemaNumberNode node) => node.copyWith(exclusiveMinimum: value),
@@ -1004,7 +1100,14 @@ class _NumberNodeEditor extends StatelessWidget {
         if (featureOptions.numberExclusiveMaximum) ...[
           CheckboxListTile(
             value: node.exclusiveMaximum ?? false,
-            title: const Text('exclusiveMaximum'),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('exclusiveMaximum'),
+                const Gap(4),
+                JsonSchemaEditorInfoIcon(message: _jsonSchemaHelpByKeyword['exclusiveMaximum']),
+              ],
+            ),
             onChanged: (value) => controller.updateNode(
               path: path,
               updater: (JsonSchemaNumberNode node) => node.copyWith(exclusiveMaximum: value),
@@ -1013,9 +1116,10 @@ class _NumberNodeEditor extends StatelessWidget {
           ),
         ],
         if (featureOptions.numberMultipleOf) ...[
-          _SchemaTextField(
+          JsonSchemaEditorTextField(
             value: node.multipleOf?.toString(),
             hint: 'multipleOf',
+            helpText: _jsonSchemaHelpByKeyword['multipleOf'],
             keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: false),
             onChanged: (value) => _updateDouble(
               value,
@@ -1074,6 +1178,8 @@ class _BooleanNodeEditor extends StatelessWidget {
               },
             ),
             const Text('Default'),
+            const Gap(4),
+          JsonSchemaEditorInfoIcon(message: _jsonSchemaHelpByKeyword['default']),
             const Spacer(),
             if (node.defaultValue != null)
               IconButton(
@@ -1126,7 +1232,14 @@ class _ObjectNodeEditor extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Text('Properties'),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Properties'),
+                const Gap(4),
+                JsonSchemaEditorInfoIcon(message: _jsonSchemaHelpByKeyword['properties']),
+              ],
+            ),
             const Spacer(),
             if (featureOptions.objectAdditionalProperties) ...[
               Checkbox(
@@ -1138,6 +1251,8 @@ class _ObjectNodeEditor extends StatelessWidget {
                 ),
               ),
               const Text('Allow additional properties'),
+              const Gap(4),
+              JsonSchemaEditorInfoIcon(message: _jsonSchemaHelpByKeyword['additionalProperties']),
               const Spacer(),
             ],
             const Spacer(),
@@ -1177,10 +1292,22 @@ class _ObjectNodeEditor extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: _SchemaTextField(
+                      child: JsonSchemaEditorTextField(
                         value: entry.key,
                         hint: 'Property key',
-                        onChanged: (value) {},
+                        helpText: _jsonSchemaHelpByKeyword['propertyKey'],
+                        onChanged: (value) {
+                          final nextKey = value.trim();
+                          if (nextKey.isEmpty || nextKey == entry.key) {
+                            return;
+                          }
+                          controller.renameProperty(
+                            objectPath: path,
+                            currentKey: entry.key,
+                            nextKey: nextKey,
+                          );
+                        },
+                        debounceDelay: const Duration(milliseconds: 450),
                         onSubmitted: (value) {
                           final nextKey = value.trim();
                           if (nextKey.isEmpty || nextKey == entry.key) {
@@ -1205,6 +1332,8 @@ class _ObjectNodeEditor extends StatelessWidget {
                       ),
                     ),
                     const Text('Required'),
+                    const Gap(4),
+                    JsonSchemaEditorInfoIcon(message: _jsonSchemaHelpByKeyword['required']),
                     IconButton(
                       onPressed: () => controller.removeProperty(objectPath: path, key: entry.key),
                       icon: const Icon(Icons.delete_outline),
@@ -1255,9 +1384,10 @@ class _ArrayNodeEditor extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (featureOptions.arrayMinItems) ...[
-          _SchemaTextField(
+          JsonSchemaEditorTextField(
             value: node.minItems?.toString(),
             hint: 'Min items',
+            helpText: _jsonSchemaHelpByKeyword['minItems'],
             keyboardType: const TextInputType.numberWithOptions(),
             onChanged: (value) => _updateInt(
               value,
@@ -1274,9 +1404,10 @@ class _ArrayNodeEditor extends StatelessWidget {
           const Gap(6),
         ],
         if (featureOptions.arrayMaxItems) ...[
-          _SchemaTextField(
+          JsonSchemaEditorTextField(
             value: node.maxItems?.toString(),
             hint: 'Max items',
+            helpText: _jsonSchemaHelpByKeyword['maxItems'],
             keyboardType: const TextInputType.numberWithOptions(),
             onChanged: (value) => _updateInt(
               value,
@@ -1295,7 +1426,14 @@ class _ArrayNodeEditor extends StatelessWidget {
         if (featureOptions.arrayUniqueItems) ...[
           CheckboxListTile(
             value: node.uniqueItems ?? false,
-            title: const Text('Unique items'),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Unique items'),
+                const Gap(4),
+                JsonSchemaEditorInfoIcon(message: _jsonSchemaHelpByKeyword['uniqueItems']),
+              ],
+            ),
             onChanged: (value) {
               if (value == null) {
                 return;
@@ -1326,71 +1464,6 @@ class _ArrayNodeEditor extends StatelessWidget {
   }
 }
 
-class _SchemaTextField extends StatefulWidget {
-  const _SchemaTextField({
-    required this.value,
-    required this.hint,
-    required this.onChanged,
-    this.onSubmitted,
-    this.onCleared,
-    this.keyboardType,
-    this.maxLines = 1,
-  });
-
-  final String? value;
-  final String hint;
-  final ValueChanged<String> onChanged;
-  final ValueChanged<String>? onSubmitted;
-  final VoidCallback? onCleared;
-  final TextInputType? keyboardType;
-  final int maxLines;
-
-  @override
-  State<_SchemaTextField> createState() => _SchemaTextFieldState();
-}
-
-class _SchemaTextFieldState extends State<_SchemaTextField> {
-  late TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.value ?? '');
-  }
-
-  @override
-  void didUpdateWidget(covariant _SchemaTextField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.value != oldWidget.value && widget.value != _controller.text) {
-      _controller.text = widget.value ?? '';
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return StyledTextfield(
-      controller: _controller,
-      hint: widget.hint,
-      keyboardType: widget.keyboardType,
-      maxLines: widget.maxLines,
-      onChange: (value) {
-        widget.onChanged(value);
-      },
-      onSubmit: (value) {
-        if (value.trim().isEmpty) {
-          widget.onCleared?.call();
-        }
-        widget.onSubmitted?.call(value);
-      },
-    );
-  }
-}
 
 void _updateInt(String value, void Function(int) onParsed, void Function() onClear) {
   final trimmed = value.trim();

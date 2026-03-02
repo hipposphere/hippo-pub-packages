@@ -21,12 +21,14 @@ class JsonSchemaEditorExtensionField {
   const JsonSchemaEditorExtensionField({
     required this.key,
     this.valueType = JsonSchemaEditorExtensionFieldType.string,
+    this.description,
     this.defaultValue,
     this.enumValues = const [],
     this.applicableNodeTypes = const {},
   });
 
   final String key;
+  final String? description;
   final JsonSchemaEditorExtensionFieldType valueType;
   final Object? defaultValue;
   final List<String> enumValues;
@@ -51,6 +53,14 @@ class JsonSchemaEditorExtensionField {
     return applicableNodeTypes.isEmpty || applicableNodeTypes.contains(type);
   }
 
+  String? get normalizedDescription {
+    final rawDescription = description;
+    if (rawDescription == null) {
+      return null;
+    }
+    final trimmed = rawDescription.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
 }
 
 @immutable

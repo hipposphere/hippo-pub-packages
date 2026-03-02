@@ -1,222 +1,109 @@
 import 'package:flutter/material.dart';
-import 'package:hippo_components/hippo_components.dart';
+import 'src/adaptive_detail_container_example.dart';
+import 'src/json_schema_editor_example.dart';
 
 void main() {
-  runApp(const AdaptiveDetailContainerExampleApp());
+  runApp(const HippoComponentsExampleApp());
 }
 
-class Folder {
-  final String id;
-  final String title;
-  final String description;
-
-  const Folder({
-    required this.id,
-    required this.title,
-    required this.description,
-  });
-}
-
-const folders = [
-  Folder(
-    id: 'alpha',
-    title: 'Alpha Report',
-    description: 'Shows how the adaptive container handles desktop and mobile layout.',
-  ),
-  Folder(
-    id: 'bravo',
-    title: 'Bravo Notes',
-    description: 'Select another item from the list to replace the current detail route.',
-  ),
-  Folder(
-    id: 'charlie',
-    title: 'Charlie Inbox',
-    description: 'On mobile, selection pushes a detail route and back pops to the list.',
-  ),
-  Folder(
-    id: 'delta',
-    title: 'Delta Timeline',
-    description: 'A sample secondary item used for quick route updates.',
-  ),
-];
-
-class AdaptiveDetailContainerExampleApp extends StatelessWidget {
-  const AdaptiveDetailContainerExampleApp({super.key});
+class HippoComponentsExampleApp extends StatelessWidget {
+  const HippoComponentsExampleApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Adaptive Detail Container Example',
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.deepPurple),
-      home: const AdaptiveDetailContainerExamplePage(),
+      title: 'Hippo Components Examples',
+      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo),
+      home: const ExampleCatalogPage(),
     );
   }
 }
 
-class AdaptiveDetailContainerExamplePage extends StatefulWidget {
-  const AdaptiveDetailContainerExamplePage({super.key});
+class ExampleCatalogPage extends StatelessWidget {
+  const ExampleCatalogPage({super.key});
+
+  static final _examples = <_ExampleEntry>[
+    _ExampleEntry(
+      title: 'Adaptive Detail Container',
+      description:
+          'Navigate between list and detail panes with adaptive behavior for mobile and desktop.',
+      builder: (_) => const AdaptiveDetailContainerExamplePage(),
+    ),
+    _ExampleEntry(
+      title: 'JSON Schema Editor',
+      description:
+          'Edit a JSON Schema and preview/validate fields in an interactive example.',
+      builder: (_) => const JsonSchemaEditorExample(),
+    ),
+  ];
 
   @override
-  State<AdaptiveDetailContainerExamplePage> createState() =>
-      _AdaptiveDetailContainerExamplePageState();
-}
-
-class _AdaptiveDetailContainerExamplePageState
-    extends State<AdaptiveDetailContainerExamplePage> {
-  final _controller = AdaptiveDetailController<Folder>();
-
-  Folder _selectAlternative(Folder current) {
-    final index = folders.indexOf(current);
-    final nextIndex = (index + 1) % folders.length;
-    return folders[nextIndex];
-  }
-
-  void _selectFolder(Folder folder) {
-    _controller.selectState(
-      AdaptiveDetailContainerState<Folder>(
-        data: folder,
-        routeName: '/folder/${folder.id}',
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Hippo Components Examples')),
+      body: GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 1,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+          childAspectRatio: 2.6,
+        ),
+        itemCount: _examples.length,
+        itemBuilder: (context, index) {
+          final example = _examples[index];
+          return _ExampleTileCard(entry: example);
+        },
       ),
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return AdaptiveDetailScaffold<Folder>(
-      controller: _controller,
-      desktopBuilder: (context, state) {
-        final selected = state?.data;
-        return Scaffold(
-          appBar: AppBar(title: const Text('Adaptive Detail Container (Desktop)')),
-          body: Row(
-            children: [
-              Expanded(
-                child: FolderList(
-                  folders: folders,
-                  onSelect: _selectFolder,
-                ),
-              ),
-              const VerticalDivider(width: 1),
-              Expanded(
-                child: DetailPanel(
-                  folder: selected,
-                  onBack: null,
-                  onSelectNext: selected == null
-                      ? null
-                      : () => _controller.selectState(
-                            AdaptiveDetailContainerState<Folder>(
-                              data: _selectAlternative(selected),
-                              routeName: '/folder/${_selectAlternative(selected).id}',
-                            ),
-                          ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-      mobileBuilder: (context, state) {
-        if (state == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Adaptive Detail Container (Mobile)')),
-            body: FolderList(
-              folders: folders,
-              onSelect: _selectFolder,
-            ),
-          );
-        }
-
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(state.data.title),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: _controller.goBack,
-            ),
-          ),
-          body: DetailPanel(
-            folder: state.data,
-            onBack: _controller.goBack,
-            onSelectNext: () => _controller.selectState(
-              AdaptiveDetailContainerState<Folder>(
-                data: _selectAlternative(state.data),
-                routeName: '/folder/${_selectAlternative(state.data).id}',
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
 
-class FolderList extends StatelessWidget {
-  const FolderList({required this.folders, required this.onSelect, super.key});
-
-  final List<Folder> folders;
-  final ValueChanged<Folder> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      itemCount: folders.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final folder = folders[index];
-        return ListTile(
-          title: Text(folder.title),
-          subtitle: Text(folder.description),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => onSelect(folder),
-        );
-      },
-    );
-  }
-}
-
-class DetailPanel extends StatelessWidget {
-  const DetailPanel({
-    required this.folder,
-    required this.onSelectNext,
-    this.onBack,
-    super.key,
+class _ExampleEntry {
+  const _ExampleEntry({
+    required this.title,
+    required this.description,
+    required this.builder,
   });
 
-  final Folder? folder;
-  final VoidCallback? onBack;
-  final VoidCallback? onSelectNext;
+  final String title;
+  final String description;
+  final WidgetBuilder builder;
+}
+
+class _ExampleTileCard extends StatelessWidget {
+  const _ExampleTileCard({required this.entry});
+
+  final _ExampleEntry entry;
 
   @override
   Widget build(BuildContext context) {
-    if (folder == null) {
-      return const Center(child: Text('Select an item from the list.'));
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Card(
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: entry.builder,
+            ),
+          );
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(folder!.title, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 12),
-              Text(folder!.description),
-              const SizedBox(height: 24),
-              if (onBack != null)
-                ElevatedButton(
-                  onPressed: onBack,
-                  child: const Text('Go back'),
-                ),
-              const SizedBox(height: 24),
-              if (onSelectNext != null) ...[
-                ElevatedButton(
-                  onPressed: onSelectNext,
-                  child: const Text('Open another item'),
-                ),
-              ],
+              Text(
+                entry.title,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                entry.description,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ],
           ),
         ),

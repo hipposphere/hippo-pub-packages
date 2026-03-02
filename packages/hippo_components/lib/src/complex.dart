@@ -10,3 +10,6 @@
 export 'complex/year_heatmap.dart';
 export 'complex/stacked_bar_chart.dart';
 export 'complex/onboarding/onboarding.dart';
+
+export 'complex/json_schema_editor/controller.dart';
+export 'complex/json_schema_editor/editor.dart';

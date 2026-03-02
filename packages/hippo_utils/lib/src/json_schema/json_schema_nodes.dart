@@ -15,6 +15,53 @@ import 'package:hippo_utils/hippo_utils.dart';
 
 enum JsonSchemaNodeType { string, number, integer, boolean, object, array }
 
+const _jsonSchemaStringNodeReservedKeys = <String>{
+  'type',
+  'title',
+  'description',
+  'minLength',
+  'maxLength',
+  'pattern',
+  'enum',
+};
+
+const _jsonSchemaNumberNodeReservedKeys = <String>{
+  'type',
+  'title',
+  'description',
+  'minimum',
+  'maximum',
+  'exclusiveMinimum',
+  'exclusiveMaximum',
+  'multipleOf',
+};
+
+const _jsonSchemaBooleanNodeReservedKeys = <String>{
+  'type',
+  'title',
+  'description',
+  'default',
+};
+
+const _jsonSchemaObjectNodeReservedKeys = <String>{
+  'type',
+  'title',
+  'description',
+  'properties',
+  'required',
+  'additionalProperties',
+};
+
+const _jsonSchemaArrayNodeReservedKeys = <String>{
+  'type',
+  'title',
+  'description',
+  'items',
+  'minItems',
+  'maxItems',
+  'uniqueItems',
+};
+
 @immutable
 class JsonSchemaModel {
   const JsonSchemaModel._(this.raw);
@@ -106,17 +153,23 @@ extension JsonSchemaNodeTypeJson on JsonSchemaNodeType {
 }
 
 sealed class JsonSchemaNode {
-  const JsonSchemaNode({required this.type, this.title, this.description});
+  const JsonSchemaNode({
+    required this.type,
+    this.title,
+    this.description,
+    Map<String, dynamic>? extensions,
+  }) : extensions = extensions ?? const {};
 
   final JsonSchemaNodeType type;
   final String? title;
   final String? description;
+  final Map<String, dynamic> extensions;
 
   Map<String, dynamic> toJson();
 
   JsonSchema toSchema() => JsonSchema.fromNode(this);
 
-  JsonSchemaNode copyWith({String? title, String? description});
+  JsonSchemaNode copyWith({String? title, String? description, Map<String, dynamic>? extensions, bool clearExtensions = false});
 
   static JsonSchemaNode fromJson(Map<String, dynamic>? raw) {
     if (raw == null || raw.isEmpty) {
@@ -176,6 +229,7 @@ class JsonSchemaStringNode extends JsonSchemaNode {
   const JsonSchemaStringNode({
     super.title,
     super.description,
+    super.extensions,
     this.minLength,
     this.maxLength,
     this.pattern,
@@ -188,9 +242,12 @@ class JsonSchemaStringNode extends JsonSchemaNode {
   final List<String>? enumValues;
 
   factory JsonSchemaStringNode._fromJson(Map<String, dynamic> raw) {
+    final extensions = _readExtensions(raw, _jsonSchemaStringNodeReservedKeys);
+
     return JsonSchemaStringNode(
       title: _readOptionalString(raw, 'title'),
       description: _readOptionalString(raw, 'description'),
+      extensions: extensions,
       minLength: _readOptionalInt(raw, 'minLength'),
       maxLength: _readOptionalInt(raw, 'maxLength'),
       pattern: _readOptionalString(raw, 'pattern'),
@@ -200,7 +257,8 @@ class JsonSchemaStringNode extends JsonSchemaNode {
 
   @override
   Map<String, dynamic> toJson() {
-    return _omitNulls({
+    return _appendExtensions(
+      _omitNulls({
       'type': type.toJsonType(),
       'title': title?.trim(),
       'description': description?.trim(),
@@ -210,7 +268,9 @@ class JsonSchemaStringNode extends JsonSchemaNode {
       'enum': enumValues == null || enumValues!.isEmpty
           ? null
           : enumValues!.map((entry) => entry.trim()).where((entry) => entry.isNotEmpty).toList(),
-    });
+      }),
+      extensions,
+    );
   }
 
   @override
@@ -221,6 +281,8 @@ class JsonSchemaStringNode extends JsonSchemaNode {
     int? maxLength,
     String? pattern,
     List<String>? enumValues,
+    Map<String, dynamic>? extensions,
+    bool clearExtensions = false,
     bool clearTitle = false,
     bool clearDescription = false,
     bool clearMinLength = false,
@@ -235,6 +297,7 @@ class JsonSchemaStringNode extends JsonSchemaNode {
       maxLength: clearMaxLength ? null : (maxLength ?? this.maxLength),
       pattern: clearPattern ? null : (pattern ?? this.pattern),
       enumValues: clearEnumValues ? null : (enumValues ?? this.enumValues),
+      extensions: clearExtensions ? const {} : (extensions ?? this.extensions),
     );
   }
 }
@@ -244,6 +307,7 @@ class JsonSchemaNumberNode extends JsonSchemaNode {
   const JsonSchemaNumberNode({
     super.title,
     super.description,
+    super.extensions,
     required this.numberType,
     this.minimum,
     this.maximum,
@@ -262,6 +326,7 @@ class JsonSchemaNumberNode extends JsonSchemaNode {
   const JsonSchemaNumberNode.number({
     super.title,
     super.description,
+    super.extensions,
     this.minimum,
     this.maximum,
     this.exclusiveMinimum,
@@ -273,6 +338,7 @@ class JsonSchemaNumberNode extends JsonSchemaNode {
   const JsonSchemaNumberNode.integer({
     super.title,
     super.description,
+    super.extensions,
     this.minimum,
     this.maximum,
     this.exclusiveMinimum,
@@ -282,10 +348,13 @@ class JsonSchemaNumberNode extends JsonSchemaNode {
        super(type: JsonSchemaNodeType.integer);
 
   factory JsonSchemaNumberNode._fromJson(Map<String, dynamic> raw, JsonSchemaNodeType numberType) {
+    final extensions = _readExtensions(raw, _jsonSchemaNumberNodeReservedKeys);
+
     return JsonSchemaNumberNode(
       numberType: numberType,
       title: _readOptionalString(raw, 'title'),
       description: _readOptionalString(raw, 'description'),
+      extensions: extensions,
       minimum: _readOptionalDouble(raw, 'minimum'),
       maximum: _readOptionalDouble(raw, 'maximum'),
       exclusiveMinimum: _readOptionalBool(raw, 'exclusiveMinimum'),
@@ -296,7 +365,8 @@ class JsonSchemaNumberNode extends JsonSchemaNode {
 
   @override
   Map<String, dynamic> toJson() {
-    return _omitNulls({
+    return _appendExtensions(
+      _omitNulls({
       'type': type.toJsonType(),
       'title': title?.trim(),
       'description': description?.trim(),
@@ -305,7 +375,9 @@ class JsonSchemaNumberNode extends JsonSchemaNode {
       'exclusiveMinimum': exclusiveMinimum,
       'exclusiveMaximum': exclusiveMaximum,
       'multipleOf': multipleOf,
-    });
+      }),
+      extensions,
+    );
   }
 
   @override
@@ -318,6 +390,8 @@ class JsonSchemaNumberNode extends JsonSchemaNode {
     bool? exclusiveMaximum,
     double? multipleOf,
     JsonSchemaNodeType? numberType,
+    Map<String, dynamic>? extensions,
+    bool clearExtensions = false,
     bool clearTitle = false,
     bool clearDescription = false,
     bool clearMinimum = false,
@@ -340,6 +414,7 @@ class JsonSchemaNumberNode extends JsonSchemaNode {
             ? null
             : (exclusiveMaximum ?? this.exclusiveMaximum),
         multipleOf: clearMultipleOf ? null : (multipleOf ?? this.multipleOf),
+        extensions: clearExtensions ? const {} : (extensions ?? this.extensions),
       ),
       JsonSchemaNodeType.integer => JsonSchemaNumberNode.integer(
         title: clearTitle ? null : (title ?? this.title),
@@ -353,6 +428,7 @@ class JsonSchemaNumberNode extends JsonSchemaNode {
             ? null
             : (exclusiveMaximum ?? this.exclusiveMaximum),
         multipleOf: clearMultipleOf ? null : (multipleOf ?? this.multipleOf),
+        extensions: clearExtensions ? const {} : (extensions ?? this.extensions),
       ),
       JsonSchemaNodeType.object => throw StateError(
         'Number nodes cannot have type ${JsonSchemaNodeType.object}.',
@@ -372,27 +448,37 @@ class JsonSchemaNumberNode extends JsonSchemaNode {
 
 @immutable
 class JsonSchemaBooleanNode extends JsonSchemaNode {
-  const JsonSchemaBooleanNode({super.title, super.description, this.defaultValue})
-    : super(type: JsonSchemaNodeType.boolean);
+  const JsonSchemaBooleanNode({
+    super.title,
+    super.description,
+    super.extensions,
+    this.defaultValue,
+  }) : super(type: JsonSchemaNodeType.boolean);
 
   final bool? defaultValue;
 
   factory JsonSchemaBooleanNode._fromJson(Map<String, dynamic> raw) {
+    final extensions = _readExtensions(raw, _jsonSchemaBooleanNodeReservedKeys);
+
     return JsonSchemaBooleanNode(
       title: _readOptionalString(raw, 'title'),
       description: _readOptionalString(raw, 'description'),
+      extensions: extensions,
       defaultValue: _readOptionalBool(raw, 'default'),
     );
   }
 
   @override
   Map<String, dynamic> toJson() {
-    return _omitNulls({
+    return _appendExtensions(
+      _omitNulls({
       'type': type.toJsonType(),
       'title': title?.trim(),
       'description': description?.trim(),
       'default': defaultValue,
-    });
+    }),
+    extensions,
+    );
   }
 
   @override
@@ -400,13 +486,16 @@ class JsonSchemaBooleanNode extends JsonSchemaNode {
     String? title,
     String? description,
     bool? defaultValue,
+    Map<String, dynamic>? extensions,
     bool clearTitle = false,
     bool clearDescription = false,
     bool clearDefaultValue = false,
+    bool clearExtensions = false,
   }) {
     return JsonSchemaBooleanNode(
       title: clearTitle ? null : (title ?? this.title),
       description: clearDescription ? null : (description ?? this.description),
+      extensions: clearExtensions ? const {} : (extensions ?? this.extensions),
       defaultValue: clearDefaultValue ? null : (defaultValue ?? this.defaultValue),
     );
   }
@@ -417,6 +506,7 @@ class JsonSchemaObjectNode extends JsonSchemaNode {
   const JsonSchemaObjectNode({
     super.title,
     super.description,
+    super.extensions,
     this.properties = const {},
     this.required = const {},
     this.additionalProperties = true,
@@ -429,10 +519,12 @@ class JsonSchemaObjectNode extends JsonSchemaNode {
   factory JsonSchemaObjectNode._fromJson(Map<String, dynamic> raw) {
     final properties = _readProperties(raw['properties']);
     final required = _readRequired(raw['required']);
+    final extensions = _readExtensions(raw, _jsonSchemaObjectNodeReservedKeys);
 
     return JsonSchemaObjectNode(
       title: _readOptionalString(raw, 'title'),
       description: _readOptionalString(raw, 'description'),
+      extensions: extensions,
       properties: properties,
       required: required,
       additionalProperties: _readOptionalBool(raw, 'additionalProperties') ?? true,
@@ -443,7 +535,8 @@ class JsonSchemaObjectNode extends JsonSchemaNode {
   Map<String, dynamic> toJson() {
     final requiredList = required.where((entry) => properties.containsKey(entry)).toList()..sort();
 
-    return _omitNulls({
+    return _appendExtensions(
+      _omitNulls({
       'type': 'object',
       'title': title?.trim(),
       'description': description?.trim(),
@@ -452,7 +545,9 @@ class JsonSchemaObjectNode extends JsonSchemaNode {
           : properties.map((key, value) => MapEntry(key, value.toJson())),
       'required': requiredList.isEmpty ? null : requiredList,
       'additionalProperties': additionalProperties ? null : false,
-    });
+      }),
+      extensions,
+    );
   }
 
   @override
@@ -462,11 +557,13 @@ class JsonSchemaObjectNode extends JsonSchemaNode {
     Map<String, JsonSchemaNode>? properties,
     Set<String>? required,
     bool? additionalProperties,
+    Map<String, dynamic>? extensions,
     bool clearTitle = false,
     bool clearDescription = false,
     bool clearProperties = false,
     bool clearRequired = false,
     bool clearAdditionalProperties = false,
+    bool clearExtensions = false,
   }) {
     return JsonSchemaObjectNode(
       title: clearTitle ? null : (title ?? this.title),
@@ -476,6 +573,7 @@ class JsonSchemaObjectNode extends JsonSchemaNode {
       additionalProperties: clearAdditionalProperties
           ? true
           : (additionalProperties ?? this.additionalProperties),
+      extensions: clearExtensions ? const {} : (extensions ?? this.extensions),
     );
   }
 }
@@ -485,6 +583,7 @@ class JsonSchemaArrayNode extends JsonSchemaNode {
   const JsonSchemaArrayNode({
     super.title,
     super.description,
+    super.extensions,
     required this.items,
     this.minItems,
     this.maxItems,
@@ -508,9 +607,12 @@ class JsonSchemaArrayNode extends JsonSchemaNode {
     } else {
       parsedItems = const JsonSchemaStringNode();
     }
+    final extensions = _readExtensions(raw, _jsonSchemaArrayNodeReservedKeys);
+
     return JsonSchemaArrayNode(
       title: _readOptionalString(raw, 'title'),
       description: _readOptionalString(raw, 'description'),
+      extensions: extensions,
       items: parsedItems,
       minItems: _readOptionalInt(raw, 'minItems'),
       maxItems: _readOptionalInt(raw, 'maxItems'),
@@ -520,7 +622,8 @@ class JsonSchemaArrayNode extends JsonSchemaNode {
 
   @override
   Map<String, dynamic> toJson() {
-    return _omitNulls({
+    return _appendExtensions(
+      _omitNulls({
       'type': 'array',
       'title': title?.trim(),
       'description': description?.trim(),
@@ -528,7 +631,9 @@ class JsonSchemaArrayNode extends JsonSchemaNode {
       'minItems': minItems,
       'maxItems': maxItems,
       'uniqueItems': uniqueItems,
-    });
+      }),
+      extensions,
+    );
   }
 
   @override
@@ -539,12 +644,14 @@ class JsonSchemaArrayNode extends JsonSchemaNode {
     int? minItems,
     int? maxItems,
     bool? uniqueItems,
+    Map<String, dynamic>? extensions,
     bool clearTitle = false,
     bool clearDescription = false,
     bool clearItems = false,
     bool clearMinItems = false,
     bool clearMaxItems = false,
     bool clearUniqueItems = false,
+    bool clearExtensions = false,
   }) {
     return JsonSchemaArrayNode(
       title: clearTitle ? null : (title ?? this.title),
@@ -553,6 +660,7 @@ class JsonSchemaArrayNode extends JsonSchemaNode {
       minItems: clearMinItems ? null : (minItems ?? this.minItems),
       maxItems: clearMaxItems ? null : (maxItems ?? this.maxItems),
       uniqueItems: clearUniqueItems ? null : (uniqueItems ?? this.uniqueItems),
+      extensions: clearExtensions ? const {} : (extensions ?? this.extensions),
     );
   }
 }
@@ -801,4 +909,68 @@ Map<String, Object?> _omitNulls(Map<String, Object?> raw) {
     output[entry.key] = value;
   }
   return output;
+}
+
+Map<String, dynamic> _readExtensions(
+  Map<String, dynamic> raw,
+  Set<String> reservedKeys,
+) {
+  final extensionEntries = <String, dynamic>{};
+  for (final entry in raw.entries) {
+    if (reservedKeys.contains(entry.key.toString())) {
+      continue;
+    }
+    extensionEntries[entry.key.toString()] = entry.value;
+  }
+  return _normalizeCustomProperties(extensionEntries);
+}
+
+Map<String, dynamic> _normalizeCustomProperties(Map<String, dynamic> values) {
+  if (values.isEmpty) {
+    return const {};
+  }
+  final normalized = <String, dynamic>{};
+  for (final entry in values.entries) {
+    final key = entry.key.toString().trim();
+    if (key.isEmpty) {
+      continue;
+    }
+    final value = _cloneExtensionValue(entry.value);
+    if (value == null) {
+      continue;
+    }
+    normalized[key] = value;
+  }
+  if (normalized.isEmpty) {
+    return const {};
+  }
+  return Map.unmodifiable(normalized);
+}
+
+Map<String, Object?> _appendExtensions(
+  Map<String, Object?> raw,
+  Map<String, dynamic> extensions,
+) {
+  final output = <String, Object?>{};
+  output.addAll(raw);
+  output.addAll(_normalizeCustomProperties(extensions));
+  return _omitNulls(output);
+}
+
+Object? _cloneExtensionValue(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is Map) {
+    final normalized = <String, dynamic>{};
+    for (final entry in value.entries) {
+      normalized[entry.key.toString()] = _cloneExtensionValue(entry.value);
+    }
+    return Map.unmodifiable(normalized);
+  }
+  if (value is List) {
+    final cloned = value.map((entry) => _cloneExtensionValue(entry)).toList(growable: false);
+    return List.unmodifiable(cloned);
+  }
+  return value;
 }

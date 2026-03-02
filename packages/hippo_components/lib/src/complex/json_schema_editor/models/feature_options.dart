@@ -10,6 +10,114 @@
 
 import 'package:flutter/foundation.dart';
 
+import 'package:hippo_utils/hippo_utils.dart';
+
+enum JsonSchemaEditorExtensionFieldType { string, number, boolean, stringEnum }
+
+@immutable
+class JsonSchemaEditorExtensionField {
+  /// `applicableNodeTypes` allows scoping this extension to specific node kinds.
+  /// Empty set means all node types.
+  const JsonSchemaEditorExtensionField({
+    required this.key,
+    this.valueType = JsonSchemaEditorExtensionFieldType.string,
+    this.defaultValue,
+    this.enumValues = const [],
+    this.applicableNodeTypes = const {},
+  });
+
+  final String key;
+  final JsonSchemaEditorExtensionFieldType valueType;
+  final Object? defaultValue;
+  final List<String> enumValues;
+  final Set<JsonSchemaNodeType> applicableNodeTypes;
+
+  bool get isString => valueType == JsonSchemaEditorExtensionFieldType.string;
+  bool get isStringEnum => valueType == JsonSchemaEditorExtensionFieldType.stringEnum;
+  bool get isNumber => valueType == JsonSchemaEditorExtensionFieldType.number;
+  bool get isBoolean => valueType == JsonSchemaEditorExtensionFieldType.boolean;
+
+  List<String> get availableEnumValues {
+    if (!isStringEnum) {
+      return const [];
+    }
+    if (enumValues.isEmpty) {
+      return const [];
+    }
+    return List.unmodifiable(enumValues);
+  }
+
+  bool supportsNodeType(JsonSchemaNodeType type) {
+    return applicableNodeTypes.isEmpty || applicableNodeTypes.contains(type);
+  }
+
+}
+
+@immutable
+class JsonSchemaEditorExtensionOptions {
+  /// Describes which extension keys are editable for each node type and optional
+  /// default values to prefill in the editor UI.
+  /// Applies recursively to all node kinds (object, string, number, boolean, array).
+  const JsonSchemaEditorExtensionOptions({
+    this.configurableExtensionsForAllNodeTypes = const [],
+    this.configurableExtensions = const {},
+    this.allowAddExtensions = true,
+  });
+
+  static const JsonSchemaEditorExtensionOptions none = JsonSchemaEditorExtensionOptions();
+
+  final List<JsonSchemaEditorExtensionField> configurableExtensionsForAllNodeTypes;
+  final Map<JsonSchemaNodeType, List<JsonSchemaEditorExtensionField>> configurableExtensions;
+  final bool allowAddExtensions;
+
+  List<JsonSchemaEditorExtensionField> extensionsForNodeType(JsonSchemaNodeType type) {
+    final merged = <String, JsonSchemaEditorExtensionField>{};
+
+    for (final field in configurableExtensionsForAllNodeTypes) {
+      if (!field.supportsNodeType(type)) {
+        continue;
+      }
+      final key = field.key.trim();
+      if (key.isNotEmpty) {
+        merged[key] = field;
+      }
+    }
+
+    final specific = configurableExtensions[type] ?? const [];
+    for (final field in specific) {
+      if (!field.supportsNodeType(type)) {
+        continue;
+      }
+      final key = field.key.trim();
+      if (key.isNotEmpty) {
+        merged[key] = field;
+      }
+    }
+
+    return List.unmodifiable(merged.values);
+  }
+
+  List<String> extensionKeysForNodeType(JsonSchemaNodeType type) {
+    return extensionsForNodeType(type)
+        .map((item) => item.key)
+        .where((key) => key.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  bool isConfiguredForNodeType(JsonSchemaNodeType type, String key) {
+    return extensionKeysForNodeType(type).contains(key);
+  }
+
+  Object? defaultValueFor(JsonSchemaNodeType type, String key) {
+    for (final field in extensionsForNodeType(type)) {
+      if (field.key == key) {
+        return field.defaultValue;
+      }
+    }
+    return null;
+  }
+}
+
 @immutable
 class JsonSchemaEditorFeatureOptions {
   const JsonSchemaEditorFeatureOptions({

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
-import 'package:hippo_components/src/container/page_container/page_container.dart';
-import 'package:hippo_components/src/complex/json_schema_editor/controller.dart';
-import 'package:hippo_components/src/complex/json_schema_editor/editor.dart';
 import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_validation_panel.dart';
 import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_visualization_panel.dart';
 
@@ -21,6 +19,9 @@ class JsonSchemaEditorPage extends StatelessWidget {
         if (isDesktop) {
           return PageContainer(
             title: title,
+            actions: [
+              PageHeaderTextAction(icon: Icon(Icons.save_outlined), label: context.cl.actions_save),
+            ],
             body: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -38,6 +39,9 @@ class JsonSchemaEditorPage extends StatelessWidget {
 
         return TabbedPageContainer(
           title: title,
+          actions: [
+            PageHeaderTextAction(icon: Icon(Icons.save_outlined), label: context.cl.actions_save),
+          ],
           tabs: const [
             Tab(text: 'Editor'),
             Tab(text: 'Vorschau'),

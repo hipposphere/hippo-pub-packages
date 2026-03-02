@@ -110,5 +110,129 @@ void main() {
       final nested = schema.properties['nested'] as JsonSchemaObjectNode;
       expect(nested.required, contains('flag'));
     });
+
+    test('stores additional extension fields on a node', () {
+      final controller = JsonSchemaEditorController();
+
+      controller.setNodeField(
+        path: const JsonSchemaPath.root(),
+        key: 'x-token',
+        value: const {'enum': ['read', 'write']},
+      );
+
+      expect(controller.schema.extensions['x-token'], isA<Map>());
+      expect((controller.schema.extensions['x-token'] as Map)['enum'], equals(['read', 'write']));
+
+      controller.removeNodeField(
+        path: const JsonSchemaPath.root(),
+        key: 'x-token',
+      );
+      expect(controller.schema.extensions.containsKey('x-token'), isFalse);
+    });
+
+    test('filters configured extensions by node type', () {
+      final controller = JsonSchemaEditorController(
+        extensionOptions: JsonSchemaEditorExtensionOptions(
+          configurableExtensionsForAllNodeTypes: [
+            const JsonSchemaEditorExtensionField(
+              key: 'x-shared',
+              valueType: JsonSchemaEditorExtensionFieldType.string,
+            ),
+            JsonSchemaEditorExtensionField(
+              key: 'x-obj-only',
+              valueType: JsonSchemaEditorExtensionFieldType.string,
+              applicableNodeTypes: const {JsonSchemaNodeType.object},
+            ),
+            JsonSchemaEditorExtensionField(
+              key: 'x-number-only',
+              valueType: JsonSchemaEditorExtensionFieldType.number,
+              applicableNodeTypes: const {JsonSchemaNodeType.number},
+            ),
+          ],
+        ),
+      );
+
+      final objectExtensions = controller
+          .getConfiguredExtensions(JsonSchemaNodeType.object)
+          .map((entry) => entry.key)
+          .toSet();
+      final stringExtensions = controller
+          .getConfiguredExtensions(JsonSchemaNodeType.string)
+          .map((entry) => entry.key)
+          .toSet();
+      final numberExtensions = controller
+          .getConfiguredExtensions(JsonSchemaNodeType.number)
+          .map((entry) => entry.key)
+          .toSet();
+
+      expect(objectExtensions, contains('x-shared'));
+      expect(objectExtensions, contains('x-obj-only'));
+      expect(objectExtensions, isNot(contains('x-number-only')));
+
+      expect(stringExtensions, contains('x-shared'));
+      expect(stringExtensions, isNot(contains('x-obj-only')));
+      expect(stringExtensions, isNot(contains('x-number-only')));
+
+      expect(numberExtensions, contains('x-shared'));
+      expect(numberExtensions, contains('x-number-only'));
+      expect(numberExtensions, isNot(contains('x-obj-only')));
+    });
+
+    test('supports extensions on nested non-object nodes', () {
+      final controller = JsonSchemaEditorController(
+        initialSchema: JsonSchema.fromNode(
+          const JsonSchemaObjectNode(
+            properties: {
+              'name': JsonSchemaStringNode(extensions: {'x-token': 'token'}),
+              'enabled': JsonSchemaBooleanNode(extensions: {'x-enabled': false}),
+              'count': JsonSchemaNumberNode.number(extensions: {'x-priority': 1}),
+              'list': JsonSchemaArrayNode(
+                items: JsonSchemaStringNode(extensions: {'x-token': 'item'}),
+                extensions: {'x-token': 'list'},
+              ),
+            },
+          ),
+        ),
+      );
+
+      final schema = controller.schema as JsonSchemaObjectNode;
+      final nameNode = schema.properties['name'] as JsonSchemaStringNode;
+      final boolNode = schema.properties['enabled'] as JsonSchemaBooleanNode;
+      final numberNode = schema.properties['count'] as JsonSchemaNumberNode;
+      final arrayNode = schema.properties['list'] as JsonSchemaArrayNode;
+      final nestedItemNode = arrayNode.items as JsonSchemaStringNode;
+
+      expect(nameNode.extensions['x-token'], equals('token'));
+      expect(boolNode.extensions['x-enabled'], isFalse);
+      expect(numberNode.extensions['x-priority'], equals(1));
+      expect(arrayNode.extensions['x-token'], equals('list'));
+      expect(nestedItemNode.extensions['x-token'], equals('item'));
+
+      controller.setNodeField(
+        path: const JsonSchemaPath.root().childProperty('name'),
+        key: 'x-token',
+        value: 'admin',
+      );
+      controller.setNodeField(
+        path: const JsonSchemaPath.root().childProperty('count'),
+        key: 'x-priority',
+        value: 10,
+      );
+      controller.setNodeField(
+        path: const JsonSchemaPath.root().childProperty('enabled'),
+        key: 'x-enabled',
+        value: true,
+      );
+      final updatedNameNode =
+          (controller.schema as JsonSchemaObjectNode).properties['name'] as JsonSchemaStringNode;
+      final updatedCountNode =
+          (controller.schema as JsonSchemaObjectNode).properties['count'] as JsonSchemaNumberNode;
+      final updatedBoolNode =
+          (controller.schema as JsonSchemaObjectNode).properties['enabled'] as JsonSchemaBooleanNode;
+
+      expect(updatedNameNode.extensions['x-token'], equals('admin'));
+      expect(updatedCountNode.extensions['x-priority'], equals(10));
+      expect(updatedBoolNode.extensions['x-enabled'], isTrue);
+    });
   });
 }

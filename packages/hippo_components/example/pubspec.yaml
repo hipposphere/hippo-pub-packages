@@ -13,6 +13,8 @@ dependencies:
     sdk: flutter
   hippo_components:
     path: ../
+  hippo_utils:
+    path: ../../hippo_utils
 
 dev_dependencies:
   flutter_test:
@@ -21,4 +23,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-

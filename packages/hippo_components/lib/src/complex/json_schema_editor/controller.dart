@@ -15,6 +15,8 @@ class JsonSchemaEditorController {
     JsonSchema? initialSchema,
     void Function(JsonSchemaNode schema, List<JsonSchemaDiagnostic> diagnostics)? onSchemaChanged,
     JsonSchemaEditorFeatureOptions featureOptions = JsonSchemaEditorFeatureOptions.allEnabled,
+    // Controls which extension fields are shown as editable fields per node type.
+    JsonSchemaEditorExtensionOptions extensionOptions = JsonSchemaEditorExtensionOptions.none,
   }) {
     final start = _normalizeNodeWithOptions(
       initialSchema?.node ?? const JsonSchemaObjectNode(),
@@ -24,6 +26,7 @@ class JsonSchemaEditorController {
       initialSchema: start,
       onSchemaChanged: onSchemaChanged,
       featureOptions: featureOptions,
+      extensionOptions: extensionOptions,
     );
   }
 
@@ -31,6 +34,7 @@ class JsonSchemaEditorController {
     required JsonSchemaNode initialSchema,
     this.onSchemaChanged,
     this.featureOptions = JsonSchemaEditorFeatureOptions.allEnabled,
+    this.extensionOptions = JsonSchemaEditorExtensionOptions.none,
   }) : schemaSubject = DataSubject.seeded(initialSchema),
        jsonSchemaSubject = DataSubject.seeded(
          JsonSchema.fromNode((initialSchema)),
@@ -44,6 +48,7 @@ class JsonSchemaEditorController {
   final void Function(JsonSchemaNode schema, List<JsonSchemaDiagnostic> diagnostics)?
   onSchemaChanged;
   final JsonSchemaEditorFeatureOptions featureOptions;
+  final JsonSchemaEditorExtensionOptions extensionOptions;
 
   late JsonSchemaNode _initialSchema;
   late JsonSchema _initialJsonSchema;
@@ -59,6 +64,12 @@ class JsonSchemaEditorController {
   JsonSchema get initialJsonSchema => _initialJsonSchema;
 
   List<JsonSchemaDiagnostic> get diagnostics => diagnosticsSubject.value;
+  List<JsonSchemaEditorExtensionField> getConfiguredExtensions(JsonSchemaNodeType type) {
+    return List.unmodifiable(extensionOptions.extensionsForNodeType(type));
+  }
+
+  List<String> getConfiguredExtensionKeys(JsonSchemaNodeType type) =>
+      extensionOptions.extensionKeysForNodeType(type);
 
   void setRoot(JsonSchemaNode next) {
     _apply(_normalizeNode(next));
@@ -213,6 +224,42 @@ class JsonSchemaEditorController {
     );
   }
 
+  void setNodeField({required JsonSchemaPath path, required String key, required Object? value}) {
+    final trimmedKey = key.trim();
+    if (trimmedKey.isEmpty) {
+      return;
+    }
+    updateNode<JsonSchemaNode>(
+      path: path,
+      updater: (JsonSchemaNode node) {
+        final nextExtensions = Map<String, dynamic>.from(node.extensions);
+        nextExtensions[trimmedKey] = value;
+        return node.copyWith(extensions: nextExtensions);
+      },
+    );
+  }
+
+  void removeNodeField({required JsonSchemaPath path, required String key}) {
+    final trimmedKey = key.trim();
+    if (trimmedKey.isEmpty) {
+      return;
+    }
+    updateNode<JsonSchemaNode>(
+      path: path,
+      updater: (JsonSchemaNode node) {
+        if (!node.extensions.containsKey(trimmedKey)) {
+          return node;
+        }
+        final nextExtensions = Map<String, dynamic>.from(node.extensions)..remove(trimmedKey);
+        return node.copyWith(extensions: nextExtensions);
+      },
+    );
+  }
+
+  void clearNodeFields({required JsonSchemaPath path}) {
+    updateNode<JsonSchemaNode>(path: path, updater: (JsonSchemaNode node) => node.copyWith(clearExtensions: true));
+  }
+
   void reset() {
     setRoot(_initialSchema);
   }
@@ -265,6 +312,7 @@ class JsonSchemaEditorController {
           node.required,
         ).where((key) => node.properties.containsKey(key)).toSet(),
         additionalProperties: options.objectAdditionalProperties ? node.additionalProperties : true,
+        extensions: node.extensions,
       ),
       JsonSchemaArrayNode() => JsonSchemaArrayNode(
         title: _trimOrNull(node.title),
@@ -273,6 +321,7 @@ class JsonSchemaEditorController {
         minItems: options.arrayMinItems ? node.minItems : null,
         maxItems: options.arrayMaxItems ? node.maxItems : null,
         uniqueItems: options.arrayUniqueItems ? node.uniqueItems : null,
+        extensions: node.extensions,
       ),
       JsonSchemaStringNode() => JsonSchemaStringNode(
         title: _trimOrNull(node.title),
@@ -281,6 +330,7 @@ class JsonSchemaEditorController {
         maxLength: options.stringMaxLength ? node.maxLength : null,
         pattern: options.stringPattern ? _trimOrNull(node.pattern) : null,
         enumValues: options.stringEnum ? node.enumValues : null,
+        extensions: node.extensions,
       ),
       JsonSchemaNumberNode() => JsonSchemaNumberNode(
         numberType: node.numberType,
@@ -291,10 +341,12 @@ class JsonSchemaEditorController {
         exclusiveMinimum: options.numberExclusiveMinimum ? node.exclusiveMinimum : null,
         exclusiveMaximum: options.numberExclusiveMaximum ? node.exclusiveMaximum : null,
         multipleOf: options.numberMultipleOf ? node.multipleOf : null,
+        extensions: node.extensions,
       ),
       JsonSchemaBooleanNode() => JsonSchemaBooleanNode(
         title: _trimOrNull(node.title),
         description: _trimOrNull(node.description),
+        extensions: node.extensions,
         defaultValue: node.defaultValue,
       ),
     };

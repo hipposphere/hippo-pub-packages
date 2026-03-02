@@ -86,8 +86,18 @@ void _validateBooleanNode({
   required JsonSchemaPath path,
   required List<JsonSchemaDiagnostic> diagnostics,
 }) {
-  if (node.defaultValue == null) {
+  final rawDefault = node.toJson()['default'];
+  if (rawDefault == null) {
     return;
+  }
+  if (rawDefault is! bool) {
+    diagnostics.add(
+      JsonSchemaDiagnostic(
+        path: path,
+        message: 'Boolean default value must be true or false.',
+        severity: JsonSchemaDiagnosticSeverity.warning,
+      ),
+    );
   }
 
   // No validation warnings for boolean defaults in this initial version.

@@ -12,10 +12,9 @@ class HippoComponentsExampleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
+    return App(
+      brightness: .light,
       title: 'Hippo Components Examples',
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo),
       home: const ExampleCatalogPage(),
     );
   }

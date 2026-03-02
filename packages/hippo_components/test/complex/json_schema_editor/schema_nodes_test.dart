@@ -120,5 +120,22 @@ void main() {
       expect(json['minItems'], 1);
       expect(json['maxItems'], 10);
     });
+
+    test('keeps unknown extension fields', () {
+      final source = <String, dynamic>{
+        'type': 'string',
+        'title': 'Tokenized',
+        'x-token': {'enum': ['read', 'write']},
+      };
+      final node = JsonSchemaNode.fromJson(source);
+
+      expect(node, isA<JsonSchemaStringNode>());
+      expect((node as JsonSchemaStringNode).extensions['x-token'], isA<Map>());
+      expect((node.extensions['x-token'] as Map)['enum'], equals(['read', 'write']));
+
+      final json = node.toJson();
+      expect(json['x-token'], isA<Map>());
+      expect((json['x-token'] as Map)['enum'], equals(['read', 'write']));
+    });
   });
 }

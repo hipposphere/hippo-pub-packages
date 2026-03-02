@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hippo_components/hippo_components.dart';
 import 'src/adaptive_detail_container_example.dart';
 import 'src/json_schema_editor_example.dart';
 
@@ -32,8 +33,7 @@ class ExampleCatalogPage extends StatelessWidget {
     ),
     _ExampleEntry(
       title: 'JSON Schema Editor',
-      description:
-          'Edit a JSON Schema and preview/validate fields in an interactive example.',
+      description: 'Edit a JSON Schema and preview/validate fields in an interactive example.',
       builder: (_) => const JsonSchemaEditorExample(),
     ),
   ];
@@ -42,30 +42,25 @@ class ExampleCatalogPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Hippo Components Examples')),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 1,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: 2.6,
-        ),
-        itemCount: _examples.length,
-        itemBuilder: (context, index) {
-          final example = _examples[index];
-          return _ExampleTileCard(entry: example);
-        },
+      body: CustomScrollView(
+        slivers: [
+          SliverGap(16),
+          LimitedSliverPadded(
+            sliver: SliverBodyListItems(
+              items: _examples,
+              spacing: 8,
+              itemBuilder: (context, entry) => _ExampleTileCard(entry: entry),
+            ),
+          ),
+          SliverGap(16),
+        ],
       ),
     );
   }
 }
 
 class _ExampleEntry {
-  const _ExampleEntry({
-    required this.title,
-    required this.description,
-    required this.builder,
-  });
+  const _ExampleEntry({required this.title, required this.description, required this.builder});
 
   final String title;
   final String description;
@@ -83,11 +78,7 @@ class _ExampleTileCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: entry.builder,
-            ),
-          );
+          Navigator.of(context).push(MaterialPageRoute(builder: entry.builder));
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -95,15 +86,9 @@ class _ExampleTileCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                entry.title,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              Text(entry.title, style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 8),
-              Text(
-                entry.description,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              Text(entry.description, style: Theme.of(context).textTheme.bodyMedium),
             ],
           ),
         ),

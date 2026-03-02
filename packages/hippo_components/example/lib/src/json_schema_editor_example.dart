@@ -7,9 +7,10 @@ class JsonSchemaEditorExample extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = JsonSchemaEditorController();
-    return PageContainer(
+
+    return JsonSchemaEditorPage(
       title: 'JSON Schema Editor',
-      body: JsonSchemaEditor(controller: controller),
+      controller: controller,
     );
   }
 }

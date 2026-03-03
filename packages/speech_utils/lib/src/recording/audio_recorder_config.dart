@@ -267,7 +267,7 @@ final class IosAudioRecorderConfig {
     this.sessionMode,
     this.allowBluetoothInput = true,
     this.allowBluetoothA2dp = false,
-    this.defaultToSpeaker = true,
+    this.defaultToSpeaker = false,
     this.mixWithOthers = false,
     this.duckOthers = false,
     this.preferredInputGain,

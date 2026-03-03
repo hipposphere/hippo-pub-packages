@@ -192,7 +192,7 @@ await recorder.startFileRecording(
     iosConfig: IosAudioRecorderConfig(
       sessionMode: IosAudioSessionMode.voiceChat,
       allowBluetoothInput: true,
-      defaultToSpeaker: true,
+      defaultToSpeaker: false,
     ),
     macosConfig: MacosAudioRecorderConfig(
       processingQueueDuration: Duration(milliseconds: 40),

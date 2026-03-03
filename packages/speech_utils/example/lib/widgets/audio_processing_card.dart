@@ -86,7 +86,7 @@ final class AudioProcessingController {
       sessionMode: supportsIosSessionMode ? iosSessionMode : null,
       allowBluetoothInput: true,
       allowBluetoothA2dp: false,
-      defaultToSpeaker: true,
+      defaultToSpeaker: false,
       mixWithOthers: presetValue == AudioCapturePreset.music,
       duckOthers: false,
       preferredIoBufferDuration: preferredLatency,

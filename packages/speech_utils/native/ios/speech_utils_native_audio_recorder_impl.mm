@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "speech_utils_native_audio_recorder_api.h"
+#include "speech_utils_native_audio_codec.h"
 #include "speech_utils_native_audio_recorder_common.h"
 #include "speech_utils_native_audio_recorder_wav.h"
 
@@ -141,6 +142,20 @@ double FindNearestConverterValue(NSArray<NSNumber*>* values, double requested) {
     }
   }
   return best_value;
+}
+
+NSString* BuildAacFallbackWavPath(NSString* output_path) {
+  if (output_path == nil || output_path.length == 0) {
+    return nil;
+  }
+  NSString* parent = output_path.stringByDeletingLastPathComponent;
+  NSString* stem = output_path.lastPathComponent.stringByDeletingPathExtension;
+  if (parent.length == 0 || stem.length == 0) {
+    return nil;
+  }
+  NSString* fallback_name = [NSString stringWithFormat:@".%@.%@.fallback.wav", stem,
+                                                       NSUUID.UUID.UUIDString];
+  return [parent stringByAppendingPathComponent:fallback_name];
 }
 
 NSDictionary<NSString*, id>* BuildAacRecorderSettings(uint32_t sample_rate_hz,
@@ -402,6 +417,10 @@ class NativeAudioRecorder {
     int32_t deferred_code = 0;
     std::string deferred_error;
     uint64_t processed_sample_count = 0;
+    bool should_transcode_fallback_wav_to_aac = false;
+    std::string fallback_wav_input_path;
+    std::string fallback_aac_output_path;
+    uint32_t fallback_aac_bitrate_bps = 0;
 
     {
       std::lock_guard<std::mutex> lock(mutex_);
@@ -444,6 +463,10 @@ class NativeAudioRecorder {
 
       deferred_code = deferred_error_code_;
       deferred_error = deferred_error_;
+      should_transcode_fallback_wav_to_aac = fallback_aac_transcode_pending_;
+      fallback_wav_input_path = fallback_wav_input_path_;
+      fallback_aac_output_path = fallback_aac_output_path_;
+      fallback_aac_bitrate_bps = fallback_aac_bitrate_bps_;
 
       stream_engine_ = nil;
       file_recorder_ = nil;
@@ -458,6 +481,10 @@ class NativeAudioRecorder {
       max_dbfs_ = -90.0;
       deferred_error_code_ = 0;
       deferred_error_.clear();
+      fallback_aac_transcode_pending_ = false;
+      fallback_wav_input_path_.clear();
+      fallback_aac_output_path_.clear();
+      fallback_aac_bitrate_bps_ = 0;
     }
 
     const bool uses_native_file_recorder = file_recorder != nil && file_sink == FileSink::kAacM4A;
@@ -481,6 +508,28 @@ class NativeAudioRecorder {
         (void)FinalizeWavHeader(pcm_file, data_bytes_for_header, sample_rate_hz, channel_count);
       }
       std::fclose(pcm_file);
+    }
+
+    if (should_transcode_fallback_wav_to_aac && deferred_code == 0) {
+      if (fallback_wav_input_path.empty() || fallback_aac_output_path.empty()) {
+        deferred_code = -42;
+        deferred_error = "Fallback AAC transcoding metadata is missing.";
+      } else {
+        char codec_error[1024] = {0};
+        const int32_t codec_code = speech_utils::apple_audio_codec::EncodeAudioFileToAac(
+            fallback_wav_input_path.c_str(), fallback_aac_output_path.c_str(), fallback_aac_bitrate_bps,
+            /*use_source_format_hint=*/true, "iOS", codec_error, sizeof(codec_error));
+        if (codec_code != 0) {
+          deferred_code = -42;
+          deferred_error = "Fallback AAC transcoding failed";
+          if (codec_error[0] != '\0') {
+            deferred_error.append(": ");
+            deferred_error.append(codec_error);
+          }
+        } else {
+          std::remove(fallback_wav_input_path.c_str());
+        }
+      }
     }
 
     [AVAudioSession.sharedInstance setActive:NO error:nil];
@@ -700,12 +749,21 @@ class NativeAudioRecorder {
 
     const std::string trimmed_device_id = TrimWhitespace(TrimAscii(config.input_device_id_utf8));
 
+    const bool use_simple_file_session = (mode == RecorderMode::kFile && sink == FileSink::kAacM4A);
+    const int32_t ios_session_mode_code =
+        use_simple_file_session ? 0 : config.runtime.ios_session_mode_code;
+    const double preferred_latency_seconds =
+        use_simple_file_session ? 0.0 : config.runtime.preferred_latency_seconds;
+    const double preferred_io_buffer_duration_seconds =
+        use_simple_file_session ? 0.0 : config.runtime.ios_preferred_io_buffer_duration_seconds;
+    const double preferred_input_gain =
+        use_simple_file_session ? -1.0 : config.runtime.ios_preferred_input_gain;
+
     if (!ConfigureIosRecorderSession(
-            config.sample_rate_hz, config.runtime.processing_flags,
-            config.runtime.ios_session_mode_code, config.runtime.ios_category_options_flags,
-            config.runtime.preferred_latency_seconds,
-            config.runtime.ios_preferred_io_buffer_duration_seconds,
-            config.runtime.ios_preferred_input_gain, error_utf8, error_utf8_capacity)) {
+            config.sample_rate_hz, config.runtime.processing_flags, ios_session_mode_code,
+            config.runtime.ios_category_options_flags, preferred_latency_seconds,
+            preferred_io_buffer_duration_seconds, preferred_input_gain, error_utf8,
+            error_utf8_capacity)) {
       return -7;
     }
 
@@ -796,13 +854,6 @@ class NativeAudioRecorder {
 
     if (mode == RecorderMode::kFile && sink == FileSink::kAacM4A) {
       AVAudioSession* audio_session = AVAudioSession.sharedInstance;
-      NSError* session_mode_error = nil;
-      if (![audio_session setMode:AVAudioSessionModeDefault error:&session_mode_error]) {
-        WriteNSError(session_mode_error, "Failed to set AVAudioSession mode for AAC file recording",
-                     error_utf8, error_utf8_capacity);
-        return -16;
-      }
-      [audio_session setActive:YES error:nil];
 
       const NSInteger max_input_channels = audio_session.maximumInputNumberOfChannels;
       if (max_input_channels > 0) {
@@ -840,9 +891,137 @@ class NativeAudioRecorder {
       const bool started = [file_recorder record];
       if (!started) {
         if (!prepared) {
-          std::string message = BuildAacPrepareFailureMessage(recorder_settings, output_url);
-          message.append(" record()=false");
-          WriteError(message, error_utf8, error_utf8_capacity);
+          NSString* fallback_wav_path = BuildAacFallbackWavPath(output_path);
+          const char* fallback_wav_path_fs = fallback_wav_path.fileSystemRepresentation;
+          if (fallback_wav_path == nil || fallback_wav_path.length == 0 ||
+              fallback_wav_path_fs == nullptr || fallback_wav_path_fs[0] == '\0') {
+            std::string message = BuildAacPrepareFailureMessage(recorder_settings, output_url);
+            message.append(" record()=false fallback=failed(path)");
+            WriteError(message, error_utf8, error_utf8_capacity);
+            return -16;
+          }
+
+          FILE* fallback_pcm_file = std::fopen(fallback_wav_path_fs, "wb");
+          if (fallback_pcm_file == nullptr) {
+            std::string message = BuildAacPrepareFailureMessage(recorder_settings, output_url);
+            message.append(" record()=false fallback=failed(open wav)");
+            WriteError(message, error_utf8, error_utf8_capacity);
+            return -16;
+          }
+          if (!WriteWavHeaderPlaceholder(fallback_pcm_file, config.sample_rate_hz,
+                                         config.channel_count)) {
+            std::fclose(fallback_pcm_file);
+            std::string message = BuildAacPrepareFailureMessage(recorder_settings, output_url);
+            message.append(" record()=false fallback=failed(write wav header)");
+            WriteError(message, error_utf8, error_utf8_capacity);
+            return -16;
+          }
+
+          AVAudioEngine* fallback_engine = [[AVAudioEngine alloc] init];
+          if (fallback_engine == nil) {
+            std::fclose(fallback_pcm_file);
+            std::string message = BuildAacPrepareFailureMessage(recorder_settings, output_url);
+            message.append(" record()=false fallback=failed(init engine)");
+            WriteError(message, error_utf8, error_utf8_capacity);
+            return -16;
+          }
+
+          AVAudioInputNode* input_node = fallback_engine.inputNode;
+          AVAudioFormat* source_format = [input_node inputFormatForBus:0];
+          if (source_format == nil) {
+            std::fclose(fallback_pcm_file);
+            std::string message = BuildAacPrepareFailureMessage(recorder_settings, output_url);
+            message.append(" record()=false fallback=failed(input format)");
+            WriteError(message, error_utf8, error_utf8_capacity);
+            return -16;
+          }
+
+          AVAudioConverter* fallback_converter =
+              [[AVAudioConverter alloc] initFromFormat:source_format toFormat:target_format];
+          if (fallback_converter != nil) {
+            fallback_converter.sampleRateConverterQuality = AVAudioQualityHigh;
+            if (@available(iOS 13.0, *)) {
+              fallback_converter.primeMethod = AVAudioConverterPrimeMethod_None;
+            }
+          }
+
+          const AVAudioFrameCount tap_frames =
+              static_cast<AVAudioFrameCount>(std::max<uint32_t>(64, frames_per_chunk));
+          NativeAudioRecorder* callback_self = this;
+          [input_node installTapOnBus:0
+                           bufferSize:tap_frames
+                               format:source_format
+                                block:^(AVAudioPCMBuffer* buffer, AVAudioTime* when) {
+                                  (void)when;
+                                  if (callback_self != nullptr) {
+                                    callback_self->HandleEngineBuffer(buffer);
+                                  }
+                                }];
+
+          [fallback_engine prepare];
+          NSError* engine_error = nil;
+          if (![fallback_engine startAndReturnError:&engine_error]) {
+            [input_node removeTapOnBus:0];
+            std::fclose(fallback_pcm_file);
+            std::string message = BuildAacPrepareFailureMessage(recorder_settings, output_url);
+            message.append(" record()=false fallback=failed(start engine): ");
+            if (engine_error != nil && engine_error.localizedDescription != nil) {
+              message.append(Utf8OrFallback(engine_error.localizedDescription, "unknown"));
+            } else {
+              message.append("unknown");
+            }
+            WriteError(message, error_utf8, error_utf8_capacity);
+            return -16;
+          }
+
+          const char* fallback_wav_utf8 = fallback_wav_path.UTF8String;
+          const char* output_path_utf8 = output_path.UTF8String;
+          if (fallback_wav_utf8 == nullptr || output_path_utf8 == nullptr) {
+            [input_node removeTapOnBus:0];
+            [fallback_engine stop];
+            std::fclose(fallback_pcm_file);
+            WriteError("Fallback AAC capture path UTF-8 conversion failed.", error_utf8,
+                       error_utf8_capacity);
+            return -16;
+          }
+
+          {
+            std::lock_guard<std::mutex> lock(mutex_);
+            mode_ = RecorderMode::kFile;
+            file_sink_ = FileSink::kWav;
+            stream_engine_ = fallback_engine;
+            file_recorder_ = nil;
+            target_format_ = target_format;
+            pcm_converter_ = fallback_converter;
+            sample_rate_hz_ = config.sample_rate_hz;
+            channel_count_ = config.channel_count;
+            stream_samples_.clear();
+            stream_sample_limit_ = std::max<std::size_t>(
+                static_cast<std::size_t>(config.sample_rate_hz) * config.channel_count * 5,
+                static_cast<std::size_t>(frames_per_chunk) * config.channel_count * 16);
+            pending_sample_limit_.store(
+                std::max<std::size_t>(
+                    static_cast<std::size_t>(config.sample_rate_hz) * config.channel_count * 2,
+                    static_cast<std::size_t>(frames_per_chunk) * config.channel_count * 32),
+                std::memory_order_release);
+            pending_samples_.store(0, std::memory_order_release);
+            processed_sample_count_.store(0, std::memory_order_release);
+
+            pcm_file_ = fallback_pcm_file;
+            wav_data_bytes_ = 0;
+
+            deferred_error_code_ = 0;
+            deferred_error_.clear();
+            fallback_aac_transcode_pending_ = true;
+            fallback_wav_input_path_ = fallback_wav_utf8;
+            fallback_aac_output_path_ = output_path_utf8;
+            fallback_aac_bitrate_bps_ = config.runtime.file_bitrate_bps;
+            current_dbfs_ = -90.0;
+            max_dbfs_ = -90.0;
+          }
+
+          accepting_samples_.store(true, std::memory_order_release);
+          return 0;
         } else {
           WriteError("AVAudioRecorder failed to start AAC output.", error_utf8,
                      error_utf8_capacity);
@@ -871,6 +1050,10 @@ class NativeAudioRecorder {
 
         deferred_error_code_ = 0;
         deferred_error_.clear();
+        fallback_aac_transcode_pending_ = false;
+        fallback_wav_input_path_.clear();
+        fallback_aac_output_path_.clear();
+        fallback_aac_bitrate_bps_ = 0;
         current_dbfs_ = -90.0;
         max_dbfs_ = -90.0;
       }
@@ -958,6 +1141,10 @@ class NativeAudioRecorder {
 
         deferred_error_code_ = 0;
         deferred_error_.clear();
+        fallback_aac_transcode_pending_ = false;
+        fallback_wav_input_path_.clear();
+        fallback_aac_output_path_.clear();
+        fallback_aac_bitrate_bps_ = 0;
         current_dbfs_ = -90.0;
         max_dbfs_ = -90.0;
       }
@@ -1112,6 +1299,10 @@ class NativeAudioRecorder {
 
   int32_t deferred_error_code_ = 0;
   std::string deferred_error_;
+  bool fallback_aac_transcode_pending_ = false;
+  std::string fallback_wav_input_path_;
+  std::string fallback_aac_output_path_;
+  uint32_t fallback_aac_bitrate_bps_ = 0;
 };
 
 namespace {

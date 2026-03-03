@@ -1,16 +1,13 @@
 #import "speech_utils_ios_audio_recorder_session.h"
 
-#import <TargetConditionals.h>
-
-#if TARGET_OS_IPHONE
 #import <AVFoundation/AVFoundation.h>
-#endif
 
+#include <algorithm>
 #include <cmath>
 
-#import "speech_utils_apple_audio_recorder_common.h"
+#import "speech_utils_native_audio_recorder_common.h"
 
-namespace speech_utils::apple_recorder {
+namespace speech_utils::native_recorder {
 
 bool ConfigureIosRecorderSession(uint32_t sample_rate_hz, int32_t processing_flags,
                                  int32_t ios_session_mode_code,
@@ -19,7 +16,6 @@ bool ConfigureIosRecorderSession(uint32_t sample_rate_hz, int32_t processing_fla
                                  double ios_preferred_io_buffer_duration_seconds,
                                  double ios_preferred_input_gain, char* error_utf8,
                                  uint32_t error_utf8_capacity) {
-#if TARGET_OS_IPHONE
   AVAudioSession* audio_session = AVAudioSession.sharedInstance;
   NSError* session_error = nil;
 
@@ -37,7 +33,9 @@ bool ConfigureIosRecorderSession(uint32_t sample_rate_hz, int32_t processing_fla
   }
 
   if (sample_rate_hz > 0) {
-    [audio_session setPreferredSampleRate:static_cast<double>(sample_rate_hz) error:nil];
+    const double preferred_sample_rate =
+        std::min<double>(static_cast<double>(sample_rate_hz), 48000.0);
+    [audio_session setPreferredSampleRate:preferred_sample_rate error:nil];
   }
 
   const double io_buffer_duration =
@@ -60,23 +58,10 @@ bool ConfigureIosRecorderSession(uint32_t sample_rate_hz, int32_t processing_fla
   }
 
   return true;
-#else
-  (void)sample_rate_hz;
-  (void)processing_flags;
-  (void)ios_session_mode_code;
-  (void)ios_category_options_flags;
-  (void)preferred_latency_seconds;
-  (void)ios_preferred_io_buffer_duration_seconds;
-  (void)ios_preferred_input_gain;
-  (void)error_utf8;
-  (void)error_utf8_capacity;
-  return true;
-#endif
 }
 
 bool SelectIosInputDeviceByUid(NSString* input_uid, char* error_utf8,
                                uint32_t error_utf8_capacity) {
-#if TARGET_OS_IPHONE
   if (input_uid == nil || input_uid.length == 0) {
     AVAudioSession* audio_session = AVAudioSession.sharedInstance;
     NSError* session_error = nil;
@@ -112,12 +97,6 @@ bool SelectIosInputDeviceByUid(NSString* input_uid, char* error_utf8,
   }
 
   return true;
-#else
-  (void)input_uid;
-  (void)error_utf8;
-  (void)error_utf8_capacity;
-  return true;
-#endif
 }
 
-}  // namespace speech_utils::apple_recorder
+}  // namespace speech_utils::native_recorder

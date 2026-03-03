@@ -149,9 +149,9 @@ await recorder.stop();
 `startFileRecording()` output encoding is controlled by `AudioRecorderConfig.encoding` and
 supports `AudioEncoder.wav`, `AudioEncoder.pcm16bits`,
 `AudioEncoder.aacLc`, `AudioEncoder.aacHe`, and `AudioEncoder.aacEld`.
-For AAC outputs on Apple platforms (`macOS`/`iOS`), recording writes directly to `.m4a`
-through the native AVCaptureSession capture path. Non-Apple platforms keep the WAV-then-encode
-finalization path on `stop()`.
+For AAC outputs on Apple platforms (`macOS`/`iOS`), recording writes directly to `.m4a`.
+On iOS this is backed by `AVAudioRecorder` (AAC-LC), while non-Apple platforms keep the
+WAV-then-encode finalization path on `stop()`.
 
 Input device discovery/selection:
 
@@ -209,11 +209,11 @@ await recorder.startFileRecording(
 be applied partially depending on platform/backend capabilities.
 `processing.preferredLatency` is mapped to native capture buffering where possible
 (iOS I/O buffer hint, macOS recorder queue budget, and Windows period-size hint).
-On iOS and macOS, stream/WAV capture uses `AVCaptureSession`. iOS processing is
-session-mode driven via `IosAudioRecorderConfig.sessionMode` (for example
-`voiceChat` or `measurement`). If `sessionMode` is omitted, mode selection falls
-back to `AudioProcessingConfig.preset`. Per-feature suppression/cancellation
-toggles are not applied on iOS/macOS recorder backends.
+On iOS, stream capture and PCM/WAV file capture use `AVAudioEngine` input taps.
+iOS processing is session-mode driven via `IosAudioRecorderConfig.sessionMode`
+(for example `voiceChat` or `measurement`). If `sessionMode` is omitted, mode
+selection defaults to `defaultMode`. Per-feature suppression/cancellation toggles
+are not applied on iOS/macOS recorder backends.
 
 Stream mode:
 

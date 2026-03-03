@@ -23,15 +23,15 @@ const _androidAudioEncoderAssetName =
 const _androidAudioEncoderLibraryBaseName = 'speech_utils_android_audio_encoder';
 const _androidCxxRuntimeAssetName = 'src/generated/audio_encoder/android_cxx_runtime_bindings.dart';
 const _appleAudioEncoderAssetName = 'src/generated/audio_encoder/apple_audio_encoder_bindings.dart';
-const _iosAudioCodecBindingsSource = 'native/ios/speech_utils_apple_audio_codec_bindings.mm';
+const _iosAudioCodecBindingsSource = 'native/ios/speech_utils_native_audio_codec_bindings.mm';
 const _iosAudioCodecSources = <String>[
-  'native/ios/speech_utils_apple_audio_codec_bindings.mm',
-  'native/ios/speech_utils_apple_audio_codec.mm',
+  'native/ios/speech_utils_native_audio_codec_bindings.mm',
+  'native/ios/speech_utils_native_audio_codec.mm',
 ];
-const _macosAudioCodecBindingsSource = 'native/macos/speech_utils_apple_audio_codec_bindings.mm';
+const _macosAudioCodecBindingsSource = 'native/macos/speech_utils_native_audio_codec_bindings.mm';
 const _macosAudioCodecSources = <String>[
-  'native/macos/speech_utils_apple_audio_codec_bindings.mm',
-  'native/macos/speech_utils_apple_audio_codec.mm',
+  'native/macos/speech_utils_native_audio_codec_bindings.mm',
+  'native/macos/speech_utils_native_audio_codec.mm',
 ];
 const _iosAudioEncoderLibraryBaseName = 'speech_utils_ios_audio_encoder';
 const _macosAudioEncoderLibraryBaseName = 'speech_utils_macos_audio_encoder';
@@ -224,7 +224,7 @@ Future<void> buildIosAudioEncoderAsset(BuildInput input, BuildOutputBuilder outp
   );
   requireSourceFile(
     input,
-    relativePath: 'native/ios/speech_utils_apple_audio_codec.mm',
+    relativePath: 'native/ios/speech_utils_native_audio_codec.mm',
     label: 'iOS audio encoder',
     output: output,
   );
@@ -254,7 +254,7 @@ Future<void> buildMacosAudioEncoderAsset(BuildInput input, BuildOutputBuilder ou
   );
   requireSourceFile(
     input,
-    relativePath: 'native/macos/speech_utils_apple_audio_codec.mm',
+    relativePath: 'native/macos/speech_utils_native_audio_codec.mm',
     label: 'macOS audio encoder',
     output: output,
   );

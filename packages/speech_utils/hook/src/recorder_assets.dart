@@ -24,16 +24,16 @@ const _iosAudioRecorderLibraryBaseName = 'speech_utils_ios_audio_recorder';
 const _macosAudioRecorderAssetName = 'src/generated/recorder/macos_audio_recorder_bindings.dart';
 const _macosAudioRecorderLibraryBaseName = 'speech_utils_macos_audio_recorder';
 const _iosAudioRecorderSources = <String>[
-  'native/ios/speech_utils_apple_audio_recorder_impl.mm',
+  'native/ios/speech_utils_native_audio_recorder_impl.mm',
   'native/ios/speech_utils_ios_audio_recorder_session.mm',
-  'native/ios/speech_utils_apple_audio_recorder_wav.mm',
-  'native/ios/speech_utils_apple_audio_codec.mm',
+  'native/ios/speech_utils_native_audio_recorder_wav.mm',
+  'native/ios/speech_utils_native_audio_codec.mm',
   'native/ios/speech_utils_ios_audio_recorder.mm',
 ];
 const _macosAudioRecorderSources = <String>[
-  'native/macos/speech_utils_apple_audio_recorder_impl.mm',
-  'native/macos/speech_utils_apple_audio_recorder_wav.mm',
-  'native/macos/speech_utils_apple_audio_codec.mm',
+  'native/macos/speech_utils_native_audio_recorder_impl.mm',
+  'native/macos/speech_utils_native_audio_recorder_wav.mm',
+  'native/macos/speech_utils_native_audio_codec.mm',
   'native/macos/speech_utils_macos_audio_recorder.mm',
 ];
 

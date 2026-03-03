@@ -18,18 +18,16 @@
 #include <string>
 #include <vector>
 
-#include "speech_utils_apple_audio_recorder_api.h"
-#include "speech_utils_apple_audio_recorder_common.h"
-#include "speech_utils_apple_audio_recorder_wav.h"
+#include "speech_utils_native_audio_recorder_api.h"
+#include "speech_utils_native_audio_recorder_common.h"
+#include "speech_utils_native_audio_recorder_wav.h"
 
-#include "speech_utils_ios_audio_recorder_session.h"
 
 @class SpeechUtilsAudioSampleBufferDelegate;
-@class SpeechUtilsAudioFileRecordingDelegate;
 
-namespace speech_utils::apple_recorder {
+namespace speech_utils::native_recorder {
 
-class AppleCaptureSessionRecorder;
+class NativeCaptureSessionRecorder;
 
 namespace {
 
@@ -37,8 +35,8 @@ enum class RecorderMode { kStopped, kFile, kStream };
 
 enum class FileSink { kNone, kWav, kPcm16, kAacM4A };
 
-constexpr const char* kRecorderCaptureQueueLabel = "speech_utils.apple_recorder.capture";
-constexpr const char* kRecorderProcessingQueueLabel = "speech_utils.apple_recorder.processing";
+constexpr const char* kRecorderCaptureQueueLabel = "speech_utils.native_recorder.capture";
+constexpr const char* kRecorderProcessingQueueLabel = "speech_utils.native_recorder.processing";
 
 bool WriteJsonArray(NSArray<NSDictionary<NSString*, id>*>* payload, char* out_json_utf8,
                     uint32_t out_json_capacity, char* error_utf8,
@@ -222,7 +220,7 @@ NSDictionary<NSString*, id>* BuildCaptureAacFileOutputSettings(uint32_t sample_r
                                                                 uint32_t bitrate_bps) {
   const uint32_t channels = std::max<uint32_t>(1, std::min<uint32_t>(channel_count, 2));
   const double sample_rate = sample_rate_hz > 0 ? static_cast<double>(sample_rate_hz) : 44100.0;
-  const uint32_t bitrate = ResolveAppleAacBitrate(bitrate_bps);
+  const uint32_t bitrate = ResolveNativeAacBitrate(bitrate_bps);
 
   return @{
     AVFormatIDKey : @(static_cast<UInt32>(kAudioFormatMPEG4AAC)),
@@ -231,6 +229,83 @@ NSDictionary<NSString*, id>* BuildCaptureAacFileOutputSettings(uint32_t sample_r
     AVEncoderBitRateKey : @(static_cast<NSInteger>(bitrate)),
     AVEncoderAudioQualityKey : @(AVAudioQualityHigh),
   };
+}
+
+bool CreateAacOutputFile(NSString* output_path, uint32_t sample_rate_hz, uint32_t channel_count,
+                         uint32_t bitrate_bps, int32_t encoder_code, ExtAudioFileRef* out_file,
+                         char* error_utf8, uint32_t error_utf8_capacity) {
+  if (out_file == nullptr) {
+    WriteError("AAC output file pointer is null.", error_utf8, error_utf8_capacity);
+    return false;
+  }
+  *out_file = nullptr;
+
+  if (output_path == nil || output_path.length == 0) {
+    WriteError("Output path is missing.", error_utf8, error_utf8_capacity);
+    return false;
+  }
+  if (sample_rate_hz == 0 || channel_count == 0) {
+    WriteError("AAC output sample rate and channel count must be > 0.", error_utf8,
+               error_utf8_capacity);
+    return false;
+  }
+
+  NSURL* output_url = [NSURL fileURLWithPath:output_path];
+  if (output_url == nil) {
+    WriteError("Failed to create AAC output URL.", error_utf8, error_utf8_capacity);
+    return false;
+  }
+
+  AudioStreamBasicDescription destination_format{};
+  destination_format.mSampleRate = static_cast<Float64>(sample_rate_hz);
+  destination_format.mFormatID = ResolveNativeAacFormatId(encoder_code);
+  destination_format.mChannelsPerFrame = channel_count;
+  destination_format.mFramesPerPacket = 1024;
+
+  ExtAudioFileRef output_file = nullptr;
+  OSStatus status = ExtAudioFileCreateWithURL((__bridge CFURLRef)output_url, kAudioFileM4AType,
+                                              &destination_format, nullptr,
+                                              kAudioFileFlags_EraseFile, &output_file);
+  if (status != noErr || output_file == nullptr) {
+    WriteError(OsStatusToString("Failed to create AAC output file", status), error_utf8,
+               error_utf8_capacity);
+    return false;
+  }
+
+  AudioStreamBasicDescription client_format{};
+  client_format.mSampleRate = static_cast<Float64>(sample_rate_hz);
+  client_format.mFormatID = kAudioFormatLinearPCM;
+  client_format.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked;
+  client_format.mBitsPerChannel = 16;
+  client_format.mChannelsPerFrame = channel_count;
+  client_format.mFramesPerPacket = 1;
+  client_format.mBytesPerFrame = channel_count * sizeof(int16_t);
+  client_format.mBytesPerPacket = client_format.mBytesPerFrame;
+
+  status = ExtAudioFileSetProperty(output_file, kExtAudioFileProperty_ClientDataFormat,
+                                   static_cast<UInt32>(sizeof(client_format)), &client_format);
+  if (status != noErr) {
+    (void)ExtAudioFileDispose(output_file);
+    WriteError(OsStatusToString("Failed to configure AAC client PCM format", status), error_utf8,
+               error_utf8_capacity);
+    return false;
+  }
+
+  const UInt32 resolved_bitrate = ResolveNativeAacBitrate(bitrate_bps);
+  if (resolved_bitrate > 0) {
+    AudioConverterRef converter = nullptr;
+    UInt32 converter_size = static_cast<UInt32>(sizeof(converter));
+    status = ExtAudioFileGetProperty(output_file, kExtAudioFileProperty_AudioConverter,
+                                     &converter_size, &converter);
+    if (status == noErr && converter != nullptr) {
+      (void)AudioConverterSetProperty(converter, kAudioConverterEncodeBitRate,
+                                      static_cast<UInt32>(sizeof(resolved_bitrate)),
+                                      &resolved_bitrate);
+    }
+  }
+
+  *out_file = output_file;
+  return true;
 }
 
 #if !TARGET_OS_IPHONE
@@ -269,31 +344,31 @@ AVCaptureDevice* ResolveMacosCaptureDevice(NSString* input_uid, char* error_utf8
 
 }  // namespace
 
-}  // namespace speech_utils::apple_recorder
+}  // namespace speech_utils::native_recorder
 
 @interface SpeechUtilsAudioSampleBufferDelegate
     : NSObject <AVCaptureAudioDataOutputSampleBufferDelegate>
 
-- (instancetype)initWithRecorder:(speech_utils::apple_recorder::AppleCaptureSessionRecorder*)recorder;
+- (instancetype)initWithRecorder:(speech_utils::native_recorder::NativeCaptureSessionRecorder*)recorder;
 
 @end
 
 @interface SpeechUtilsAudioFileRecordingDelegate : NSObject <AVCaptureFileOutputRecordingDelegate>
 
-- (instancetype)initWithRecorder:(speech_utils::apple_recorder::AppleCaptureSessionRecorder*)recorder;
+- (instancetype)initWithRecorder:(speech_utils::native_recorder::NativeCaptureSessionRecorder*)recorder;
 
 @end
 
-namespace speech_utils::apple_recorder {
+namespace speech_utils::native_recorder {
 
-class AppleCaptureSessionRecorder {
+class NativeCaptureSessionRecorder {
  public:
-  AppleCaptureSessionRecorder() {
+  NativeCaptureSessionRecorder() {
     capture_queue_ = dispatch_queue_create(kRecorderCaptureQueueLabel, DISPATCH_QUEUE_SERIAL);
     processing_queue_ = dispatch_queue_create(kRecorderProcessingQueueLabel, DISPATCH_QUEUE_SERIAL);
   }
 
-  ~AppleCaptureSessionRecorder() {
+  ~NativeCaptureSessionRecorder() {
     char sink[1] = {0};
     (void)Stop(sink, sizeof(sink));
   }
@@ -436,6 +511,7 @@ class AppleCaptureSessionRecorder {
     FileSink file_sink = FileSink::kNone;
 
     FILE* pcm_file = nullptr;
+    ExtAudioFileRef aac_file = nullptr;
     uint32_t wav_data_bytes = 0;
     uint32_t sample_rate_hz = 0;
     uint32_t channel_count = 0;
@@ -485,6 +561,7 @@ class AppleCaptureSessionRecorder {
       file_sink = file_sink_;
 
       pcm_file = pcm_file_;
+      aac_file = aac_file_;
       wav_data_bytes = wav_data_bytes_;
       sample_rate_hz = sample_rate_hz_;
       channel_count = channel_count_;
@@ -498,10 +575,12 @@ class AppleCaptureSessionRecorder {
       capture_file_output_ = nil;
       capture_delegate_ = nil;
       capture_file_delegate_ = nil;
+      capture_file_stop_semaphore_ = nullptr;
       target_format_ = nil;
       pcm_converter_ = nil;
       file_sink_ = FileSink::kNone;
       pcm_file_ = nullptr;
+      aac_file_ = nullptr;
       wav_data_bytes_ = 0;
       sample_rate_hz_ = 0;
       channel_count_ = 0;
@@ -537,6 +616,15 @@ class AppleCaptureSessionRecorder {
 
     if (file_sink == FileSink::kAacM4A && uses_capture_file_output) {
       // AAC file capture is finalized by AVCaptureAudioFileOutput delegate callback.
+    } else if (file_sink == FileSink::kAacM4A && aac_file != nullptr) {
+      const OSStatus dispose_status = ExtAudioFileDispose(aac_file);
+      if (dispose_status != noErr && deferred_code == 0) {
+        deferred_code = -33;
+        deferred_error = OsStatusToString("Failed to finalize AAC output file", dispose_status);
+      }
+    } else if (file_sink == FileSink::kAacM4A && deferred_code == 0) {
+      deferred_code = -33;
+      deferred_error = "AAC output handle is unavailable.";
     }
 
 #if TARGET_OS_IPHONE
@@ -808,7 +896,7 @@ class AppleCaptureSessionRecorder {
     auto samples = std::make_shared<std::vector<int16_t>>(std::move(captured_samples));
     pending_samples_.fetch_add(samples->size(), std::memory_order_acq_rel);
 
-    AppleCaptureSessionRecorder* callback_self = this;
+    NativeCaptureSessionRecorder* callback_self = this;
     dispatch_async(processing_queue_, ^{
       if (callback_self != nullptr) {
         callback_self->ProcessCapturedSamples(samples);
@@ -818,22 +906,28 @@ class AppleCaptureSessionRecorder {
   }
 
   void HandleFileOutputFinished(NSError* error) {
-    if (error == nil) {
-      return;
+    if (error != nil) {
+      NSNumber* success_value = error.userInfo[AVErrorRecordingSuccessfullyFinishedKey];
+      const bool success = success_value != nil && success_value.boolValue;
+      if (!success) {
+        std::string message("AVCaptureAudioFileOutput failed");
+        if (error.localizedDescription != nil) {
+          message.append(": ");
+          message.append([[error.localizedDescription description] UTF8String]);
+        }
+        MarkDeferredError(-31, message);
+      }
     }
 
-    NSNumber* success_value = error.userInfo[AVErrorRecordingSuccessfullyFinishedKey];
-    const bool success = success_value != nil && success_value.boolValue;
-    if (success) {
-      return;
+    dispatch_semaphore_t stop_semaphore = nullptr;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      stop_semaphore = capture_file_stop_semaphore_;
+      capture_file_stop_semaphore_ = nullptr;
     }
-
-    std::string message("AVCaptureAudioFileOutput failed");
-    if (error.localizedDescription != nil) {
-      message.append(": ");
-      message.append([[error.localizedDescription description] UTF8String]);
+    if (stop_semaphore != nullptr) {
+      dispatch_semaphore_signal(stop_semaphore);
     }
-    MarkDeferredError(-31, message);
   }
 
  private:
@@ -887,24 +981,36 @@ class AppleCaptureSessionRecorder {
     }
 #endif
 
-    AVAudioFormat* target_format =
-        [[AVAudioFormat alloc] initWithCommonFormat:AVAudioPCMFormatInt16
-                                          sampleRate:static_cast<double>(config.sample_rate_hz)
-                                            channels:config.channel_count
-                                         interleaved:NO];
-    if (target_format == nil) {
-      WriteError("Failed to create target PCM16 format.", error_utf8, error_utf8_capacity);
-      return -10;
+    bool use_capture_file_output = false;
+#if !TARGET_OS_IPHONE
+    use_capture_file_output =
+        mode == RecorderMode::kFile && sink == FileSink::kAacM4A;
+#endif
+
+    AVAudioFormat* target_format = nil;
+    if (!use_capture_file_output) {
+      target_format = [[AVAudioFormat alloc] initWithCommonFormat:AVAudioPCMFormatInt16
+                                                        sampleRate:static_cast<double>(config.sample_rate_hz)
+                                                          channels:config.channel_count
+                                                       interleaved:NO];
+      if (target_format == nil) {
+        WriteError("Failed to create target PCM16 format.", error_utf8, error_utf8_capacity);
+        return -10;
+      }
     }
 
-    const bool use_capture_file_output = mode == RecorderMode::kFile && sink == FileSink::kAacM4A;
     FILE* pcm_file = nullptr;
+    ExtAudioFileRef aac_file = nullptr;
     uint32_t wav_data_bytes = 0;
 
     auto ClosePendingOutputs = [&]() {
       if (pcm_file != nullptr) {
         std::fclose(pcm_file);
         pcm_file = nullptr;
+      }
+      if (aac_file != nullptr) {
+        (void)ExtAudioFileDispose(aac_file);
+        aac_file = nullptr;
       }
     };
 
@@ -945,6 +1051,13 @@ class AppleCaptureSessionRecorder {
           WriteError("Failed to write WAV header.", error_utf8, error_utf8_capacity);
           return -15;
         }
+      } else if (sink == FileSink::kAacM4A && !use_capture_file_output) {
+        if (!CreateAacOutputFile(output_path, config.sample_rate_hz, config.channel_count,
+                                 config.runtime.file_bitrate_bps,
+                                 config.runtime.file_encoder_code, &aac_file, error_utf8,
+                                 error_utf8_capacity)) {
+          return -16;
+        }
       }
     }
 
@@ -974,7 +1087,7 @@ class AppleCaptureSessionRecorder {
 
     if (capture_device == nil) {
       ClosePendingOutputs();
-      WriteError("No Apple audio capture device is available.", error_utf8, error_utf8_capacity);
+      WriteError("No audio capture device is available.", error_utf8, error_utf8_capacity);
       return -21;
     }
 
@@ -1106,6 +1219,7 @@ class AppleCaptureSessionRecorder {
       capture_file_output_ = capture_file_output;
       capture_delegate_ = capture_delegate;
       capture_file_delegate_ = capture_file_delegate;
+      capture_file_stop_semaphore_ = nullptr;
       target_format_ = target_format;
       pcm_converter_ = nil;
       sample_rate_hz_ = config.sample_rate_hz;
@@ -1115,15 +1229,26 @@ class AppleCaptureSessionRecorder {
           std::max<std::size_t>(
               static_cast<std::size_t>(config.sample_rate_hz) * config.channel_count * 5,
               static_cast<std::size_t>(frames_per_chunk) * config.channel_count * 16);
-      pending_sample_limit_.store(
+      const std::size_t default_pending_limit =
           std::max<std::size_t>(
               static_cast<std::size_t>(config.sample_rate_hz) * config.channel_count * 2,
-              static_cast<std::size_t>(frames_per_chunk) * config.channel_count * 32),
+              static_cast<std::size_t>(frames_per_chunk) * config.channel_count * 32);
+      const double requested_queue_duration_seconds =
+          config.runtime.macos_processing_queue_duration_seconds;
+      const std::size_t requested_pending_limit =
+          requested_queue_duration_seconds <= 0.0
+              ? 0
+              : static_cast<std::size_t>(std::max<double>(
+                    1.0, requested_queue_duration_seconds * config.sample_rate_hz *
+                             config.channel_count));
+      pending_sample_limit_.store(
+          requested_pending_limit > 0 ? requested_pending_limit : default_pending_limit,
           std::memory_order_release);
       pending_samples_.store(0, std::memory_order_release);
       processed_sample_count_.store(0, std::memory_order_release);
 
       pcm_file_ = pcm_file;
+      aac_file_ = aac_file;
       wav_data_bytes_ = wav_data_bytes;
 
       deferred_error_code_ = 0;
@@ -1148,6 +1273,8 @@ class AppleCaptureSessionRecorder {
     RecorderMode mode = RecorderMode::kStopped;
     FileSink sink = FileSink::kNone;
     FILE* pcm_file = nullptr;
+    ExtAudioFileRef aac_file = nullptr;
+    uint32_t channel_count = 0;
 
     {
       std::lock_guard<std::mutex> lock(mutex_);
@@ -1172,6 +1299,8 @@ class AppleCaptureSessionRecorder {
 
       sink = file_sink_;
       pcm_file = pcm_file_;
+      aac_file = aac_file_;
+      channel_count = channel_count_;
     }
 
     if (mode != RecorderMode::kFile) {
@@ -1179,7 +1308,29 @@ class AppleCaptureSessionRecorder {
     }
 
     if (sink == FileSink::kAacM4A) {
-      // AAC file recording uses AVCaptureAudioFileOutput directly.
+      if (aac_file == nullptr || channel_count == 0) {
+        MarkDeferredError(-30, "AAC output handle is unavailable for recorder file capture.");
+        return;
+      }
+
+      const std::size_t frame_count = sample_count / channel_count;
+      if (frame_count == 0 ||
+          frame_count * static_cast<std::size_t>(channel_count) != sample_count) {
+        MarkDeferredError(-31, "Captured PCM block is not aligned to AAC channel layout.");
+        return;
+      }
+
+      AudioBufferList buffer_list{};
+      buffer_list.mNumberBuffers = 1;
+      buffer_list.mBuffers[0].mNumberChannels = channel_count;
+      buffer_list.mBuffers[0].mData = const_cast<int16_t*>(sample_data);
+      buffer_list.mBuffers[0].mDataByteSize =
+          static_cast<UInt32>(sample_count * sizeof(int16_t));
+      const OSStatus status =
+          ExtAudioFileWrite(aac_file, static_cast<UInt32>(frame_count), &buffer_list);
+      if (status != noErr) {
+        MarkDeferredError(-31, OsStatusToString("Failed to write AAC frames", status));
+      }
       return;
     }
 
@@ -1266,6 +1417,7 @@ class AppleCaptureSessionRecorder {
   AVCaptureAudioFileOutput* capture_file_output_ = nil;
   SpeechUtilsAudioSampleBufferDelegate* capture_delegate_ = nil;
   SpeechUtilsAudioFileRecordingDelegate* capture_file_delegate_ = nil;
+  dispatch_semaphore_t capture_file_stop_semaphore_ = nullptr;
   AVAudioFormat* target_format_ = nil;
   AVAudioConverter* pcm_converter_ = nil;
 
@@ -1276,6 +1428,7 @@ class AppleCaptureSessionRecorder {
   std::size_t stream_sample_limit_ = 0;
 
   FILE* pcm_file_ = nullptr;
+  ExtAudioFileRef aac_file_ = nullptr;
   uint32_t wav_data_bytes_ = 0;
 
   double current_dbfs_ = -90.0;
@@ -1286,16 +1439,16 @@ class AppleCaptureSessionRecorder {
 };
 
 namespace {
-AppleCaptureSessionRecorder g_recorder;
+NativeCaptureSessionRecorder g_recorder;
 }
 
-}  // namespace speech_utils::apple_recorder
+}  // namespace speech_utils::native_recorder
 
 @implementation SpeechUtilsAudioSampleBufferDelegate {
-  speech_utils::apple_recorder::AppleCaptureSessionRecorder* _recorder;
+  speech_utils::native_recorder::NativeCaptureSessionRecorder* _recorder;
 }
 
-- (instancetype)initWithRecorder:(speech_utils::apple_recorder::AppleCaptureSessionRecorder*)recorder {
+- (instancetype)initWithRecorder:(speech_utils::native_recorder::NativeCaptureSessionRecorder*)recorder {
   self = [super init];
   if (self != nil) {
     _recorder = recorder;
@@ -1316,10 +1469,10 @@ AppleCaptureSessionRecorder g_recorder;
 @end
 
 @implementation SpeechUtilsAudioFileRecordingDelegate {
-  speech_utils::apple_recorder::AppleCaptureSessionRecorder* _recorder;
+  speech_utils::native_recorder::NativeCaptureSessionRecorder* _recorder;
 }
 
-- (instancetype)initWithRecorder:(speech_utils::apple_recorder::AppleCaptureSessionRecorder*)recorder {
+- (instancetype)initWithRecorder:(speech_utils::native_recorder::NativeCaptureSessionRecorder*)recorder {
   self = [super init];
   if (self != nil) {
     _recorder = recorder;
@@ -1341,7 +1494,7 @@ AppleCaptureSessionRecorder g_recorder;
 
 @end
 
-namespace speech_utils::apple_recorder {
+namespace speech_utils::native_recorder {
 
 void WriteError(const std::string& message, char* out_error_utf8, uint32_t out_error_capacity) {
   if (out_error_utf8 == nullptr || out_error_capacity == 0) {
@@ -1473,13 +1626,14 @@ bool RequiresVoiceProcessing(int32_t processing_flags) {
   return (processing_flags & mask) != 0;
 }
 
-AudioFormatID ResolveAppleAacFormatId(int32_t file_encoder_code) {
-  // AAC file recording always targets AAC-LC for broad device compatibility.
+AudioFormatID ResolveNativeAacFormatId(int32_t file_encoder_code) {
+  // AVCaptureSession live capture + ExtAudioFile is most reliable with AAC-LC.
+  // Ignore profile hints for direct recorder writes and keep a stable format.
   (void)file_encoder_code;
   return kAudioFormatMPEG4AAC;
 }
 
-uint32_t ResolveAppleAacBitrate(uint32_t requested_bitrate_bps) {
+uint32_t ResolveNativeAacBitrate(uint32_t requested_bitrate_bps) {
   if (requested_bitrate_bps == 0) {
     return 64000;
   }
@@ -1574,4 +1728,4 @@ int32_t GetAmplitude(double* out_current_dbfs, double* out_max_dbfs, char* error
                                  error_utf8_capacity);
 }
 
-}  // namespace speech_utils::apple_recorder
+}  // namespace speech_utils::native_recorder

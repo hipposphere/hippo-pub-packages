@@ -1,5 +1,5 @@
-#ifndef SPEECH_UTILS_APPLE_AUDIO_CODEC_H_
-#define SPEECH_UTILS_APPLE_AUDIO_CODEC_H_
+#ifndef SPEECH_UTILS_NATIVE_AUDIO_CODEC_H_
+#define SPEECH_UTILS_NATIVE_AUDIO_CODEC_H_
 
 #include <cstdint>
 
@@ -20,4 +20,4 @@ int32_t ReadAudioMetadata(const char* input_path_utf8, int64_t* out_duration_mic
 
 }  // namespace speech_utils::apple_audio_codec
 
-#endif  // SPEECH_UTILS_APPLE_AUDIO_CODEC_H_
+#endif  // SPEECH_UTILS_NATIVE_AUDIO_CODEC_H_

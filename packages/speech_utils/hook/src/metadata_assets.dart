@@ -7,15 +7,15 @@ import 'hook_helpers.dart';
 const _appleAudioMetadataAssetName = 'src/generated/metadata/apple_audio_metadata_bindings.dart';
 const _macosAudioMetadataLibraryBaseName = 'speech_utils_macos_audio_metadata';
 const _iosAudioMetadataLibraryBaseName = 'speech_utils_ios_audio_metadata';
-const _iosAudioMetadataBindingsSource = 'native/ios/speech_utils_apple_audio_codec_bindings.mm';
+const _iosAudioMetadataBindingsSource = 'native/ios/speech_utils_native_audio_codec_bindings.mm';
 const _iosAudioMetadataSources = <String>[
-  'native/ios/speech_utils_apple_audio_codec_bindings.mm',
-  'native/ios/speech_utils_apple_audio_codec.mm',
+  'native/ios/speech_utils_native_audio_codec_bindings.mm',
+  'native/ios/speech_utils_native_audio_codec.mm',
 ];
-const _macosAudioMetadataBindingsSource = 'native/macos/speech_utils_apple_audio_codec_bindings.mm';
+const _macosAudioMetadataBindingsSource = 'native/macos/speech_utils_native_audio_codec_bindings.mm';
 const _macosAudioMetadataSources = <String>[
-  'native/macos/speech_utils_apple_audio_codec_bindings.mm',
-  'native/macos/speech_utils_apple_audio_codec.mm',
+  'native/macos/speech_utils_native_audio_codec_bindings.mm',
+  'native/macos/speech_utils_native_audio_codec.mm',
 ];
 
 Future<void> buildMacosAudioMetadataAsset(BuildInput input, BuildOutputBuilder output) async {
@@ -31,7 +31,7 @@ Future<void> buildMacosAudioMetadataAsset(BuildInput input, BuildOutputBuilder o
   );
   requireSourceFile(
     input,
-    relativePath: 'native/macos/speech_utils_apple_audio_codec.mm',
+    relativePath: 'native/macos/speech_utils_native_audio_codec.mm',
     label: 'macOS audio metadata',
     output: output,
   );
@@ -61,7 +61,7 @@ Future<void> buildIosAudioMetadataAsset(BuildInput input, BuildOutputBuilder out
   );
   requireSourceFile(
     input,
-    relativePath: 'native/ios/speech_utils_apple_audio_codec.mm',
+    relativePath: 'native/ios/speech_utils_native_audio_codec.mm',
     label: 'iOS audio metadata',
     output: output,
   );

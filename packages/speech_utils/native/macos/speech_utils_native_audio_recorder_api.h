@@ -1,11 +1,11 @@
-#ifndef SPEECH_UTILS_APPLE_AUDIO_RECORDER_API_H_
-#define SPEECH_UTILS_APPLE_AUDIO_RECORDER_API_H_
+#ifndef SPEECH_UTILS_NATIVE_AUDIO_RECORDER_API_H_
+#define SPEECH_UTILS_NATIVE_AUDIO_RECORDER_API_H_
 
 #include <cstdint>
 
 #include "speech_utils/recorder/recorder_start_config.h"
 
-namespace speech_utils::apple_recorder {
+namespace speech_utils::native_recorder {
 
 int32_t HasPermission(int32_t* out_has_permission, char* error_utf8,
                       uint32_t error_utf8_capacity);
@@ -37,6 +37,6 @@ int32_t IsRecording(int32_t* out_is_recording, char* error_utf8,
 int32_t GetAmplitude(double* out_current_dbfs, double* out_max_dbfs, char* error_utf8,
                      uint32_t error_utf8_capacity);
 
-}  // namespace speech_utils::apple_recorder
+}  // namespace speech_utils::native_recorder
 
-#endif  // SPEECH_UTILS_APPLE_AUDIO_RECORDER_API_H_
+#endif  // SPEECH_UTILS_NATIVE_AUDIO_RECORDER_API_H_

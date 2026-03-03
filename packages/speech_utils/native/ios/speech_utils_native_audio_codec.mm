@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#include "speech_utils_apple_audio_codec.h"
+#include "speech_utils_native_audio_codec.h"
 
 namespace {
 

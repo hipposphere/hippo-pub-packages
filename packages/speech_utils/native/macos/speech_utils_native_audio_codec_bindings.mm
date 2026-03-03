@@ -1,11 +1,11 @@
-#include "speech_utils_apple_audio_codec.h"
+#include "speech_utils_native_audio_codec.h"
 
 namespace {
-constexpr const char* kPlatformName = "iOS";
+constexpr const char* kPlatformName = "macOS";
 }  // namespace
 
 extern "C" __attribute__((visibility("default"))) int32_t
-speech_utils_ios_encode_audio_file_to_aac(
+speech_utils_macos_encode_audio_file_to_aac(
     const char* input_path_utf8,
     const char* output_path_utf8,
     uint32_t bitrate_bps,
@@ -22,7 +22,7 @@ speech_utils_ios_encode_audio_file_to_aac(
 }
 
 extern "C" __attribute__((visibility("default"))) int32_t
-speech_utils_ios_read_audio_metadata(
+speech_utils_macos_read_audio_metadata(
     const char* input_path_utf8,
     int64_t* out_duration_micros,
     int32_t* out_sample_rate_hz,

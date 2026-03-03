@@ -1,9 +1,9 @@
-#import "speech_utils_apple_audio_recorder_wav.h"
+#import "speech_utils_native_audio_recorder_wav.h"
 
 #include <cstdint>
 #include <cstring>
 
-namespace speech_utils::apple_recorder {
+namespace speech_utils::native_recorder {
 
 namespace {
 
@@ -66,4 +66,4 @@ bool FinalizeWavHeader(FILE* file, uint32_t data_bytes_written, uint32_t sample_
   return std::fwrite(&header, sizeof(header), 1, file) == 1;
 }
 
-}  // namespace speech_utils::apple_recorder
+}  // namespace speech_utils::native_recorder

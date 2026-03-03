@@ -7,7 +7,13 @@ import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_sch
 class JsonSchemaEditorPage extends StatelessWidget {
   final String title;
   final JsonSchemaEditorController controller;
-  const JsonSchemaEditorPage({super.key, required this.title, required this.controller});
+  final Future<bool> Function(BuildContext context, JsonSchema schema) onSave;
+  const JsonSchemaEditorPage({
+    super.key,
+    required this.title,
+    required this.controller,
+    required this.onSave,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +26,13 @@ class JsonSchemaEditorPage extends StatelessWidget {
           return PageContainer(
             title: title,
             actions: [
-              PageHeaderTextAction(icon: Icon(Icons.save_outlined), label: context.cl.actions_save),
+              PageHeaderTextAction(
+                onTap: () {
+                  onSave(context, controller.toJsonSchema());
+                },
+                icon: Icon(Icons.save_outlined),
+                label: context.cl.actions_save,
+              ),
             ],
             body: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -63,9 +75,9 @@ class _PreviewAndDiagnostics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DataSubjectBuilder<JsonSchema>(
-      subject: controller.jsonSchemaSubject,
-      builder: (context, schema) {
+    return DataSubjectBuilder<JsonSchemaNode>(
+      subject: controller.schemaSubject,
+      builder: (context, schemaNode) {
         return DataSubjectBuilder<List<JsonSchemaDiagnostic>>(
           subject: controller.diagnosticsSubject,
           builder: (context, diagnostics) {
@@ -73,7 +85,10 @@ class _PreviewAndDiagnostics extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  JsonSchemaVisualizationPanel(controller: controller, schema: schema),
+                  JsonSchemaVisualizationPanel(
+                    controller: controller,
+                    schema: JsonSchema.fromNode(schemaNode),
+                  ),
                   const SizedBox(height: 16),
                   JsonSchemaValidationPanel(diagnostics: diagnostics),
                 ],

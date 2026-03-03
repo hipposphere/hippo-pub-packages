@@ -35,10 +35,7 @@ class JsonSchemaEditorController {
     this.onSchemaChanged,
     this.featureOptions = JsonSchemaEditorFeatureOptions.allEnabled,
     this.extensionOptions = JsonSchemaEditorExtensionOptions.none,
-  }) : schemaSubject = DataSubject.seeded(initialSchema),
-       jsonSchemaSubject = DataSubject.seeded(
-         JsonSchema.fromNode((initialSchema)),
-       ) {
+  }) : schemaSubject = DataSubject.seeded(initialSchema) {
     final parsed = _normalizeNode(initialSchema);
     _initialSchema = parsed;
     _initialJsonSchema = JsonSchema.fromNode(parsed);
@@ -54,11 +51,9 @@ class JsonSchemaEditorController {
   late JsonSchema _initialJsonSchema;
 
   final DataSubject<JsonSchemaNode> schemaSubject;
-  final DataSubject<JsonSchema> jsonSchemaSubject;
   final DataSubject<List<JsonSchemaDiagnostic>> diagnosticsSubject = DataSubject.seeded(const []);
 
   JsonSchemaNode get schema => schemaSubject.value;
-  JsonSchema get jsonSchema => jsonSchemaSubject.value;
 
   JsonSchemaNode get initialSchema => _initialSchema;
   JsonSchema get initialJsonSchema => _initialJsonSchema;
@@ -260,7 +255,10 @@ class JsonSchemaEditorController {
   }
 
   void clearNodeFields({required JsonSchemaPath path}) {
-    updateNode<JsonSchemaNode>(path: path, updater: (JsonSchemaNode node) => node.copyWith(clearExtensions: true));
+    updateNode<JsonSchemaNode>(
+      path: path,
+      updater: (JsonSchemaNode node) => node.copyWith(clearExtensions: true),
+    );
   }
 
   void reset() {
@@ -271,26 +269,27 @@ class JsonSchemaEditorController {
     setRoot(const JsonSchemaObjectNode());
   }
 
+  JsonSchema toJsonSchema() {
+    return JsonSchema.fromNode(schema);
+  }
+
   Map<String, dynamic> toData() {
-    return jsonSchema.map;
+    return toJsonSchema().map;
   }
 
   String toJsonString({bool pretty = true}) {
-    return jsonSchema.toJsonString(pretty: pretty);
+    return toJsonSchema().toJsonString(pretty: pretty);
   }
 
   void dispose() {
     schemaSubject.close();
-    jsonSchemaSubject.close();
     diagnosticsSubject.close();
   }
 
   void _apply(JsonSchemaNode next, {bool notify = true}) {
     final normalized = _normalizeNode(next);
-    final nextJsonSchema = JsonSchema.fromNode(normalized);
     final diagnostics = validateSchema(normalized);
     schemaSubject.add(normalized);
-    jsonSchemaSubject.add(nextJsonSchema);
     diagnosticsSubject.add(List<JsonSchemaDiagnostic>.unmodifiable(diagnostics));
     if (!notify) {
       return;

@@ -88,6 +88,12 @@ class JsonSchemaEditorExample extends StatelessWidget {
       ),
     );
 
-    return JsonSchemaEditorPage(title: 'JSON Schema Editor', controller: controller);
+    return JsonSchemaEditorPage(
+      title: 'JSON Schema Editor',
+      controller: controller,
+      onSave: (context, schema) async {
+        return true;
+      },
+    );
   }
 }

@@ -52,7 +52,12 @@ class JsonSchemaEditorPage extends StatelessWidget {
         return TabbedPageContainer(
           title: title,
           actions: [
-            PageHeaderTextAction(icon: Icon(Icons.save_outlined), label: context.cl.actions_save),
+            PageHeaderTextAction(onTap:(){
+              onSave(context, controller.toJsonSchema()); 
+            },
+            icon: Icon(Icons.save_outlined),
+            label: context.cl.actions_save,
+          ),
           ],
           tabs: const [
             Tab(text: 'Editor'),

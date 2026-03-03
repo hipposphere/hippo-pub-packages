@@ -27,11 +27,13 @@ Future<void> buildMacosAudioMetadataAsset(BuildInput input, BuildOutputBuilder o
     input,
     relativePath: _macosAudioMetadataBindingsSource,
     label: 'macOS audio metadata',
+    output: output,
   );
   requireSourceFile(
     input,
     relativePath: 'native/macos/speech_utils_apple_audio_codec.mm',
     label: 'macOS audio metadata',
+    output: output,
   );
 
   await CBuilder.library(
@@ -55,11 +57,13 @@ Future<void> buildIosAudioMetadataAsset(BuildInput input, BuildOutputBuilder out
     input,
     relativePath: _iosAudioMetadataBindingsSource,
     label: 'iOS audio metadata',
+    output: output,
   );
   requireSourceFile(
     input,
     relativePath: 'native/ios/speech_utils_apple_audio_codec.mm',
     label: 'iOS audio metadata',
+    output: output,
   );
 
   await CBuilder.library(

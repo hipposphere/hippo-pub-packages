@@ -34,12 +34,14 @@ Future<void> buildDesktopAutopasteWindowsAsset(
       input,
       relativePath: source,
       label: 'desktop_autopaste windows',
+      output: output,
     );
   }
   requireSourceFile(
     input,
     relativePath: 'native/include/desktop_autopaste_ffi.h',
     label: 'desktop_autopaste ffi header',
+    output: output,
   );
   final nativeDepsIncludes = requireNativeDepsWindowsIncludeDirs(input);
 
@@ -68,12 +70,17 @@ Future<void> buildDesktopAutopasteMacosAsset(
     input,
     relativePath: 'native/include/desktop_autopaste_ffi.h',
     label: 'desktop_autopaste ffi header',
+    output: output,
   );
+  final sourceFiles = <File>[];
   for (final source in _macosSources) {
-    requireSourceFile(
-      input,
-      relativePath: source,
-      label: 'desktop_autopaste macOS',
+    sourceFiles.add(
+      requireSourceFile(
+        input,
+        relativePath: source,
+        label: 'desktop_autopaste macOS',
+        output: output,
+      ),
     );
   }
 
@@ -86,7 +93,7 @@ Future<void> buildDesktopAutopasteMacosAsset(
   final outputFileName = input.config.code.targetOS.dylibFileName(
     _macosLibraryBaseName,
   );
-  final outputUri = input.outputDirectoryShared.resolve(
+  final outputUri = input.outputDirectory.resolve(
     'desktop_autopaste/$outputFileName',
   );
   final outputFile = File.fromUri(outputUri);
@@ -101,9 +108,7 @@ Future<void> buildDesktopAutopasteMacosAsset(
     'desktop_autopaste',
     '-o',
     outputFile.path,
-    ..._macosSources.map(
-      (source) => File.fromUri(input.packageRoot.resolve(source)).path,
-    ),
+    ...sourceFiles.map((source) => source.path),
     '-framework',
     'AppKit',
     '-framework',

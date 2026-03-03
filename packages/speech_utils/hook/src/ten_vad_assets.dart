@@ -18,9 +18,10 @@ Future<void> bundleTenVadAsset(BuildInput input, BuildOutputBuilder output) asyn
   if (!sourceFile.existsSync()) {
     throw StateError('Missing TEN VAD native library at ${sourceFile.path}.');
   }
+  addFileDependency(output, sourceFile);
 
   final bundledFileName = input.config.code.targetOS.dylibFileName(_tenVadLibraryBaseName);
-  final bundledLibrary = input.outputDirectoryShared.resolve('speech_utils/$bundledFileName');
+  final bundledLibrary = input.outputDirectory.resolve('speech_utils/$bundledFileName');
 
   final bundledFile = File.fromUri(bundledLibrary);
   await _copyLibraryForTarget(input: input, sourceFile: sourceFile, bundledFile: bundledFile);
@@ -52,6 +53,9 @@ Uri? _tenVadSourceLibraryUri(BuildInput input) {
     };
   }
   if (os == OS.iOS) {
+    if (input.config.code.iOS.targetSdk != IOSSdk.iPhoneOS) {
+      return null;
+    }
     return switch (arch) {
       Architecture.arm64 => root.resolve('third_party/ten_vad/lib/ios/ten_vad.framework/ten_vad'),
       _ => null,
@@ -70,7 +74,7 @@ Future<void> _copyLibraryForTarget({
 }) async {
   final os = input.config.code.targetOS;
   if (os != OS.macOS) {
-    copyIfMissing(sourceFile, bundledFile);
+    copyFile(sourceFile, bundledFile);
     return;
   }
 

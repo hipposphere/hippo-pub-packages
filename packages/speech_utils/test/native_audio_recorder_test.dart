@@ -247,7 +247,10 @@ void main() {
         () => recorder.startPcmStream(),
         throwsA(isA<NativeAudioRecorderUnsupportedPlatformException>()),
       );
-      expect(() => recorder.reset(), throwsA(isA<NativeAudioRecorderUnsupportedPlatformException>()));
+      expect(
+        () => recorder.reset(),
+        throwsA(isA<NativeAudioRecorderUnsupportedPlatformException>()),
+      );
     });
 
     test('reset invokes native reset path and closes stream', () async {
@@ -658,6 +661,7 @@ void main() {
 
       expect(amplitude.current, greaterThan(-30));
       expect(amplitude.max, greaterThan(-30));
+      expect(amplitude.isSpeechSegment, isNull);
       await recorder.stop();
     });
 
@@ -699,8 +703,111 @@ void main() {
       expect(readAmplitudeCalls, greaterThan(0));
       expect(amplitude.current, closeTo(-28.5, 0.001));
       expect(amplitude.max, closeTo(-12.0, 0.001));
+      expect(amplitude.isSpeechSegment, isNull);
 
       await recorder.stop();
+    });
+
+    test('startVadCapture exposes speech state on amplitude snapshots', () async {
+      final outputDir = await Directory.systemTemp.createTemp('vad-capture-amplitude-state-');
+      final speechChunk = Uint8List.view(
+        _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 200)).buffer,
+      );
+      final silenceChunk = Uint8List.view(
+        _silence(sampleRateHz: 16000, duration: const Duration(milliseconds: 200)).buffer,
+      );
+
+      var readCalls = 0;
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) {
+          readCalls++;
+          if (readCalls == 1) {
+            return speechChunk;
+          }
+          if (readCalls == 2) {
+            return silenceChunk;
+          }
+          return Uint8List(0);
+        },
+        stopFn: () {},
+        isRecordingFn: () => true,
+      );
+
+      final capture = await recorder.startVadCapture(
+        VadCaptureRequest(
+          split: const PauseSplitOptions(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            frameDuration: Duration(milliseconds: 20),
+            minSpeechDuration: Duration(milliseconds: 60),
+            minSilenceDuration: Duration(milliseconds: 80),
+          ),
+          audio: const AudioRecorderConfig(sampleRateHz: 16000, channelCount: 1),
+          vad: const SpeechVadConfig.energyOnly(),
+          telemetry: const VadCaptureTelemetryConfig(speechHoldDuration: Duration.zero),
+          pollInterval: const Duration(milliseconds: 5),
+          output: VadCaptureOutputConfig(outputDirectory: outputDir),
+        ),
+      );
+
+      Future<void> captureAmplitudeInto(Completer<Amplitude> completer) async {
+        try {
+          completer.complete(await recorder.getAmplitude());
+        } on Object catch (error, stackTrace) {
+          completer.completeError(error, stackTrace);
+        }
+      }
+
+      var sawSpeechEvent = false;
+      final amplitudeDuringSpeechCompleter = Completer<Amplitude>();
+      final amplitudeAfterSilenceCompleter = Completer<Amplitude>();
+      final speechStateSubscription = capture.speechStates.listen((sample) {
+        if (sample.speechDetected && !sawSpeechEvent) {
+          sawSpeechEvent = true;
+          unawaited(captureAmplitudeInto(amplitudeDuringSpeechCompleter));
+          return;
+        }
+        if (!sample.speechDetected &&
+            sawSpeechEvent &&
+            !amplitudeAfterSilenceCompleter.isCompleted) {
+          unawaited(captureAmplitudeInto(amplitudeAfterSilenceCompleter));
+        }
+      });
+
+      final amplitudeDuringSpeech = await amplitudeDuringSpeechCompleter.future.timeout(
+        const Duration(seconds: 1),
+      );
+      final amplitudeAfterSilence = await amplitudeAfterSilenceCompleter.future.timeout(
+        const Duration(seconds: 1),
+      );
+
+      expect(amplitudeDuringSpeech.isSpeechSegment, isTrue);
+      expect(amplitudeAfterSilence.isSpeechSegment, isFalse);
+
+      await capture.stop();
+      final amplitudeAfterStop = await recorder.getAmplitude();
+      expect(amplitudeAfterStop.isSpeechSegment, isNull);
+      await speechStateSubscription.cancel();
+      await outputDir.delete(recursive: true);
     });
 
     test('startVadCapture rejects unsupported segment encoders', () async {

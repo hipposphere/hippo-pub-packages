@@ -60,15 +60,13 @@ enum _AndroidRecorderMode { stopped, file, stream }
 final class _AndroidAudioRecordOpenResult {
   const _AndroidAudioRecordOpenResult({
     required this.audioRecord,
-    required this.readBuffer,
-    required this.readBufferSamples,
+    required this.readBufferBytes,
     required this.sampleRateHz,
     required this.channelCount,
   });
 
   final android_jni.AudioRecord audioRecord;
-  final JShortArray readBuffer;
-  final int readBufferSamples;
+  final int readBufferBytes;
   final int sampleRateHz;
   final int channelCount;
 }
@@ -89,8 +87,8 @@ final class _AndroidJniAudioRecordBackend {
 
   _AndroidRecorderMode _mode = _AndroidRecorderMode.stopped;
   android_jni.AudioRecord? _audioRecord;
-  JShortArray? _readBuffer;
-  int _readBufferSamples = 0;
+  int _readBufferBytes = 0;
+  int _readRequestSamples = 0;
   Timer? _fileDrainTimer;
   RandomAccessFile? _fileOutput;
   bool _fileOutputIsWav = true;
@@ -174,10 +172,10 @@ final class _AndroidJniAudioRecordBackend {
 
     final openResult = _openAudioRecord(config: config, operation: 'Android file recording start');
     _audioRecord = openResult.audioRecord;
-    _readBuffer = openResult.readBuffer;
-    _readBufferSamples = openResult.readBufferSamples;
+    _readBufferBytes = openResult.readBufferBytes;
     _activeSampleRateHz = openResult.sampleRateHz;
     _activeChannelCount = openResult.channelCount;
+    _readRequestSamples = math.max(128, config.framesPerChunk * _activeChannelCount);
     _mode = _AndroidRecorderMode.file;
 
     try {
@@ -205,10 +203,10 @@ final class _AndroidJniAudioRecordBackend {
       operation: 'Android stream recording start',
     );
     _audioRecord = openResult.audioRecord;
-    _readBuffer = openResult.readBuffer;
-    _readBufferSamples = openResult.readBufferSamples;
+    _readBufferBytes = openResult.readBufferBytes;
     _activeSampleRateHz = openResult.sampleRateHz;
     _activeChannelCount = openResult.channelCount;
+    _readRequestSamples = math.max(128, config.framesPerChunk * _activeChannelCount);
     _mode = _AndroidRecorderMode.stream;
   }
 
@@ -268,7 +266,7 @@ final class _AndroidJniAudioRecordBackend {
     try {
       final bytes = _readChunk(
         operation: 'Android file recording read',
-        maxSamples: _readBufferSamples,
+        maxSamples: _readRequestSamples > 0 ? _readRequestSamples : (_readBufferBytes ~/ 2),
       );
       if (bytes.isEmpty) {
         return;
@@ -314,8 +312,7 @@ final class _AndroidJniAudioRecordBackend {
     required int maxSamples,
   }) {
     final audioRecord = _audioRecord;
-    final readBuffer = _readBuffer;
-    if (audioRecord == null || readBuffer == null) {
+    if (audioRecord == null) {
       throw AudioRecorderException(
         '$operation failed',
         errorCode: _errorCodeStreamReadFailed,
@@ -323,30 +320,45 @@ final class _AndroidJniAudioRecordBackend {
       );
     }
 
-    final samplesToRead = math.min(maxSamples, _readBufferSamples);
+    final bufferSampleCapacity = _readBufferBytes ~/ 2;
+    final samplesToRead = math.min(maxSamples, bufferSampleCapacity);
     if (samplesToRead <= 0) {
       return Uint8List(0);
     }
 
-    final samplesRead = audioRecord.read$5(readBuffer, 0, samplesToRead);
-
-    if (samplesRead < 0) {
-      throw AudioRecorderException(
-        '$operation failed',
-        errorCode: _errorCodeStreamReadFailed,
-        details: 'AudioRecord.read returned $samplesRead.',
+    final bytesToRead = samplesToRead * 2;
+    final readBuffer = JByteArray(bytesToRead);
+    try {
+      final bytesRead = audioRecord.read$1(
+        readBuffer,
+        0,
+        bytesToRead,
+        android_jni.AudioRecord.READ_BLOCKING,
       );
-    }
-    if (samplesRead == 0) {
-      return Uint8List(0);
-    }
 
-    final pcmSamples = readBuffer.getRange(0, samplesRead);
-    _updateAmplitude(pcmSamples);
+      if (bytesRead < 0) {
+        throw AudioRecorderException(
+          '$operation failed',
+          errorCode: _errorCodeStreamReadFailed,
+          details: 'AudioRecord.read returned $bytesRead.',
+        );
+      }
+      if (bytesRead == 0) {
+        return Uint8List(0);
+      }
 
-    final bytes = Uint8List(samplesRead * 2);
-    bytes.buffer.asInt16List().setRange(0, samplesRead, pcmSamples);
-    return bytes;
+      final bytesPerFrame = math.max(2, _activeChannelCount * 2);
+      final alignedBytesRead = bytesRead - (bytesRead % bytesPerFrame);
+      if (alignedBytesRead <= 0) {
+        return Uint8List(0);
+      }
+
+      final bytes = Uint8List.fromList(readBuffer.getRange(0, alignedBytesRead));
+      _updateAmplitude(bytes);
+      return bytes;
+    } finally {
+      readBuffer.release();
+    }
   }
 
   _AndroidAudioRecordOpenResult _openAudioRecord({
@@ -367,7 +379,7 @@ final class _AndroidJniAudioRecordBackend {
       sampleRates.add(44100);
     }
 
-    final sources = <int>[_audioSourceMic, _audioSourceVoiceRecognition];
+    final sources = <int>[_audioSourceVoiceRecognition, _audioSourceMic];
     final attemptErrors = <String>[];
 
     for (final sampleRateHz in sampleRates) {
@@ -423,17 +435,16 @@ final class _AndroidJniAudioRecordBackend {
           }
 
           final actualSampleRate = audioRecord.getSampleRate();
-          final readBufferSamples = math.max(
-            requestedBufferBytes ~/ 2,
-            math.max(256, targetFrames * requestedChannelCount),
+          final effectiveChannelCount = requestedChannelCount;
+          final readBufferBytes = math.max(
+            requestedBufferBytes,
+            math.max(512, targetFrames * effectiveChannelCount * 2),
           );
-          final readBuffer = JShortArray(readBufferSamples);
           return _AndroidAudioRecordOpenResult(
             audioRecord: audioRecord,
-            readBuffer: readBuffer,
-            readBufferSamples: readBufferSamples,
+            readBufferBytes: readBufferBytes,
             sampleRateHz: actualSampleRate > 0 ? actualSampleRate : sampleRateHz,
-            channelCount: requestedChannelCount,
+            channelCount: effectiveChannelCount,
           );
         } on Object catch (error) {
           attemptErrors.add('source=$source rate=$sampleRateHz error=$error');
@@ -528,10 +539,8 @@ final class _AndroidJniAudioRecordBackend {
       audioRecord.release();
     }
 
-    final readBuffer = _readBuffer;
-    _readBuffer = null;
-    _readBufferSamples = 0;
-    readBuffer?.release();
+    _readBufferBytes = 0;
+    _readRequestSamples = 0;
 
     final output = _fileOutput;
     _fileOutput = null;
@@ -596,14 +605,21 @@ final class _AndroidJniAudioRecordBackend {
     _maxDbfs = -90.0;
   }
 
-  void _updateAmplitude(Int16List samples) {
-    if (samples.isEmpty) {
+  void _updateAmplitude(Uint8List pcm16leBytes) {
+    if (pcm16leBytes.lengthInBytes < 2) {
       _currentDbfs = -90.0;
       return;
     }
 
+    final sampleCount = pcm16leBytes.lengthInBytes ~/ 2;
+    final sampleData = pcm16leBytes.buffer.asByteData(
+      pcm16leBytes.offsetInBytes,
+      sampleCount * 2,
+    );
+
     var peak = 0;
-    for (final sample in samples) {
+    for (var index = 0; index < sampleCount; index++) {
+      final sample = sampleData.getInt16(index * 2, Endian.little);
       final absolute = sample < 0 ? -sample : sample;
       if (absolute > peak) {
         peak = absolute;

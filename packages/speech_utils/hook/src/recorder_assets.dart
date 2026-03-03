@@ -43,10 +43,10 @@ Future<void> buildWindowsAudioRecorderAsset(BuildInput input, BuildOutputBuilder
   }
 
   for (final source in _windowsAudioRecorderSources) {
-    requireSourceFile(input, relativePath: source, label: 'Windows audio recorder');
+    requireSourceFile(input, relativePath: source, label: 'Windows audio recorder', output: output);
   }
   final nativeDepsIncludes = requireNativeDepsWindowsIncludeDirs(input);
-  final webrtcSdk = requireVendoredWindowsWebRtcApmSdk(input);
+  final webrtcSdk = requireVendoredWindowsWebRtcApmSdk(input, output: output);
 
   final windowsDefines = Map<String, String>.from(windowsCommonDefines);
   final windowsLibraries = <String>['ole32', 'avrt', 'winmm', 'uuid'];
@@ -81,7 +81,7 @@ Future<void> buildIosAudioRecorderAsset(BuildInput input, BuildOutputBuilder out
   }
 
   for (final source in _iosAudioRecorderSources) {
-    requireSourceFile(input, relativePath: source, label: 'iOS audio recorder');
+    requireSourceFile(input, relativePath: source, label: 'iOS audio recorder', output: output);
   }
 
   await CBuilder.library(
@@ -103,7 +103,7 @@ Future<void> buildMacosAudioRecorderAsset(BuildInput input, BuildOutputBuilder o
   }
 
   for (final source in _macosAudioRecorderSources) {
-    requireSourceFile(input, relativePath: source, label: 'macOS audio recorder');
+    requireSourceFile(input, relativePath: source, label: 'macOS audio recorder', output: output);
   }
 
   await CBuilder.library(
@@ -142,7 +142,7 @@ void _copyWindowsRuntimeDllsNextToRecorderLibrary({
     for (final sourceDll in runtimeDlls) {
       final fileName = p.basename(sourceDll.path);
       final destination = File(p.join(targetDir.path, fileName));
-      copyIfMissing(sourceDll, destination);
+      copyFile(sourceDll, destination);
     }
   }
 }
@@ -156,7 +156,7 @@ void _bundleWindowsWebRtcRuntimeDlls({
     final fileName = p.basename(sourceDll.path);
     final bundledLibrary = input.outputDirectoryShared.resolve('speech_utils/$fileName');
     final bundledFile = File.fromUri(bundledLibrary);
-    copyIfMissing(sourceDll, bundledFile);
+    copyFile(sourceDll, bundledFile);
 
     final assetBaseName = p.basenameWithoutExtension(fileName);
     addBundledDynamicAsset(

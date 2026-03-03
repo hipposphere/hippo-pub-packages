@@ -101,22 +101,20 @@ enum _RecorderMode { stopped, file, stream }
 final class NativeAudioRecorder {
   /// Uses platform detection to select the default backend.
   NativeAudioRecorder()
-      : this._(
-          platformImplementation: _resolveNativeAudioRecorderPlatformImplementation(
-            platform: _detectNativeAudioRecorderPlatform(),
-            platformImplementation: null,
-          ),
-        );
+    : this._(
+        platformImplementation: _resolveNativeAudioRecorderPlatformImplementation(
+          platform: _detectNativeAudioRecorderPlatform(),
+          platformImplementation: null,
+        ),
+      );
 
   /// Uses a custom platform backend.
   NativeAudioRecorder.custom({
     required NativeAudioRecorderPlatformImplementation platformImplementation,
-  }) : this._(
-          platformImplementation: platformImplementation,
-        );
+  }) : this._(platformImplementation: platformImplementation);
 
   NativeAudioRecorder._({required NativeAudioRecorderPlatformImplementation platformImplementation})
-      : _platformImplementation = platformImplementation;
+    : _platformImplementation = platformImplementation;
 
   final NativeAudioRecorderPlatformImplementation _platformImplementation;
 
@@ -130,6 +128,7 @@ final class NativeAudioRecorder {
   DateTime? _lastAmplitudeEmissionAt;
   double _currentAmplitudeDbfs = -90.0;
   double _maxAmplitudeDbfs = -90.0;
+  bool? _currentAmplitudeSpeechSegment;
   String? _activeOutputPath;
   AudioRecorderConfig? _activeRecordingConfig;
   String? _activeTempWavPath;
@@ -196,6 +195,8 @@ final class NativeAudioRecorder {
   ///
   /// `current` reports the latest value and `max` reports the peak value since
   /// the active capture session started.
+  ///
+  /// `isSpeechSegment` is populated while VAD capture is active.
   Future<Amplitude> getAmplitude() async {
     if (_mode == _RecorderMode.file) {
       try {
@@ -204,17 +205,23 @@ final class NativeAudioRecorder {
         if (amplitude.max > _maxAmplitudeDbfs) {
           _maxAmplitudeDbfs = amplitude.max;
         }
+        _currentAmplitudeSpeechSegment = amplitude.isSpeechSegment;
       } on Object {
         // Fall back to the latest local estimate if the native read fails.
       }
     }
-    return Amplitude(current: _currentAmplitudeDbfs, max: _maxAmplitudeDbfs);
+    return Amplitude(
+      current: _currentAmplitudeDbfs,
+      max: _maxAmplitudeDbfs,
+      isSpeechSegment: _currentAmplitudeSpeechSegment,
+    );
   }
 
   /// Emits recorder amplitude updates while PCM chunks are being drained.
   ///
   /// This follows the old `record` package pattern and emits dBFS values in
-  /// `Amplitude.current` and peak dBFS in `Amplitude.max`.
+  /// `Amplitude.current`, peak dBFS in `Amplitude.max`, and VAD state in
+  /// `Amplitude.isSpeechSegment` when VAD capture is active.
   Stream<Amplitude> onAmplitudeChanged(Duration interval) {
     if (interval <= Duration.zero) {
       throw ArgumentError.value(interval, 'interval', 'Must be > Duration.zero');
@@ -274,10 +281,7 @@ final class NativeAudioRecorder {
     }
 
     try {
-      _platformImplementation.startFile(
-        outputPath: nativeOutputPath,
-        config: config,
-      );
+      _platformImplementation.startFile(outputPath: nativeOutputPath, config: config);
       _mode = _RecorderMode.file;
       _restartNativeAmplitudePollingIfNeeded();
     } on Object {
@@ -365,6 +369,7 @@ final class NativeAudioRecorder {
         pollInterval: request.pollInterval,
         readSampleCapacity: request.readSampleCapacity,
       );
+      _currentAmplitudeSpeechSegment = null;
     } on Object {
       resolvedBackend.backend.dispose();
       rethrow;
@@ -451,12 +456,13 @@ final class NativeAudioRecorder {
             lastSpeechFrameAt = now;
           }
 
-          if (telemetry.emitSpeechState) {
-            final nextSpeechDetected =
-                lastSpeechFrameAt != null &&
-                now.difference(lastSpeechFrameAt!) <= telemetry.speechHoldDuration;
-            if (nextSpeechDetected != speechDetected) {
-              speechDetected = nextSpeechDetected;
+          final nextSpeechDetected =
+              lastSpeechFrameAt != null &&
+              now.difference(lastSpeechFrameAt!) <= telemetry.speechHoldDuration;
+          _currentAmplitudeSpeechSegment = nextSpeechDetected;
+          if (nextSpeechDetected != speechDetected) {
+            speechDetected = nextSpeechDetected;
+            if (telemetry.emitSpeechState) {
               speechStatesController.add(
                 VadSpeechStateSample(at: now, speechDetected: speechDetected),
               );
@@ -495,10 +501,13 @@ final class NativeAudioRecorder {
           }
         }
 
-        if (speechDetected && telemetry.emitSpeechState) {
-          speechStatesController.add(
-            VadSpeechStateSample(at: DateTime.now(), speechDetected: false),
-          );
+        if (speechDetected) {
+          _currentAmplitudeSpeechSegment = false;
+          if (telemetry.emitSpeechState) {
+            speechStatesController.add(
+              VadSpeechStateSample(at: DateTime.now(), speechDetected: false),
+            );
+          }
         }
 
         if (!doneCompleter.isCompleted) {
@@ -525,6 +534,7 @@ final class NativeAudioRecorder {
         await speechStatesController.close();
         await levelsController.close();
         await frameDecisionsController.close();
+        _currentAmplitudeSpeechSegment = null;
       }
     }());
 
@@ -591,8 +601,8 @@ final class NativeAudioRecorder {
     _mode = _RecorderMode.stopped;
     _streamReadSampleCapacity = _defaultReadSampleCapacity;
     _lastAmplitudeEmissionAt = null;
+    _currentAmplitudeSpeechSegment = null;
     _streamDrainInFlight = false;
-
 
     final controller = _streamController;
     _streamController = null;
@@ -651,7 +661,6 @@ final class NativeAudioRecorder {
     _streamReadSampleCapacity = _defaultReadSampleCapacity;
     _lastAmplitudeEmissionAt = null;
     _streamDrainInFlight = false;
-
 
     final controller = _streamController;
     _streamController = null;
@@ -1059,6 +1068,7 @@ final class NativeAudioRecorder {
   void _resetAmplitudeState() {
     _currentAmplitudeDbfs = -90.0;
     _maxAmplitudeDbfs = -90.0;
+    _currentAmplitudeSpeechSegment = null;
     _lastAmplitudeEmissionAt = null;
     _nativeAmplitudePollInFlight = false;
   }
@@ -1143,9 +1153,14 @@ final class NativeAudioRecorder {
     }
 
     _lastAmplitudeEmissionAt = now;
-    amplitudeController.add(Amplitude(current: _currentAmplitudeDbfs, max: _maxAmplitudeDbfs));
+    amplitudeController.add(
+      Amplitude(
+        current: _currentAmplitudeDbfs,
+        max: _maxAmplitudeDbfs,
+        isSpeechSegment: _currentAmplitudeSpeechSegment,
+      ),
+    );
   }
-
 }
 
 int _resolveEncodingBitrateBps(AudioEncodingConfig encoding) {

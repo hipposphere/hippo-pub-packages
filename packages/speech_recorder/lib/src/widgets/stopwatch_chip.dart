@@ -109,6 +109,7 @@ class SpeechRecorderRawDurationChip extends StatelessWidget {
         text,
         style: TextStyle(
           color: foregroundColor,
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
     );

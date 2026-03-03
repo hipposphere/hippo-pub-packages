@@ -37,6 +37,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
   final List<String> _logs = <String>[];
   final Stopwatch _recordingStopwatch = Stopwatch();
   final List<double> _waveformSamples = <double>[];
+  final List<bool?> _waveformSpeechFlags = <bool?>[];
 
   late ThemeMode _themeMode;
   late final bool _supportsInputSelection;
@@ -65,6 +66,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
   Directory? _outputRoot;
   double _currentDbfs = -90;
   double _peakDbfs = -90;
+  bool? _currentSpeechSegment;
 
   @override
   void initState() {
@@ -300,7 +302,9 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
       _playingPath = null;
       _currentDbfs = -90;
       _peakDbfs = -90;
+      _currentSpeechSegment = null;
       _waveformSamples.clear();
+      _waveformSpeechFlags.clear();
     });
     _startAmplitudeMonitoring();
     final activeInputLabel = _supportsInputSelection
@@ -342,6 +346,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
         setState(() {
           _isRecording = false;
           _recordingDuration = _recordingStopwatch.elapsed;
+          _currentSpeechSegment = null;
         });
       }
       _appendLog('Recording stopped without an active output path.');
@@ -355,6 +360,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
         setState(() {
           _isRecording = false;
           _recordingDuration = _recordingStopwatch.elapsed;
+          _currentSpeechSegment = null;
         });
       }
       _appendLog('Recording stopped, but file was not created: $outputPath');
@@ -365,6 +371,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     setState(() {
       _isRecording = false;
       _recordingDuration = _recordingStopwatch.elapsed;
+      _currentSpeechSegment = null;
       _latestByteCount = bytes;
       _latestRecordingPath = outputPath;
       _latestMetadata = null;
@@ -409,12 +416,17 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
               if (amplitude.max > _peakDbfs) {
                 _peakDbfs = amplitude.max;
               }
+              _currentSpeechSegment = amplitude.isSpeechSegment;
               _waveformSamples.add(normalizedAmplitude);
+              _waveformSpeechFlags.add(amplitude.isSpeechSegment);
               if (_waveformSamples.length > _waveformSampleLimit) {
-                _waveformSamples.removeRange(
-                  0,
-                  _waveformSamples.length - _waveformSampleLimit,
-                );
+                final overflow = _waveformSamples.length - _waveformSampleLimit;
+                _waveformSamples.removeRange(0, overflow);
+                if (_waveformSpeechFlags.length > overflow) {
+                  _waveformSpeechFlags.removeRange(0, overflow);
+                } else {
+                  _waveformSpeechFlags.clear();
+                }
               }
             });
           },
@@ -598,7 +610,8 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
             LiveWaveformPanel(
               samples: _waveformSamples,
               isActive: _isRecording,
-              speechDetected: _currentDbfs > -35,
+              speechDetected: _currentSpeechSegment,
+              sampleSpeechFlags: _waveformSpeechFlags,
             ),
           ],
         ),

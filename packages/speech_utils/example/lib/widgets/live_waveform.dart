@@ -8,20 +8,24 @@ class LiveWaveformPanel extends StatelessWidget {
     required this.samples,
     required this.isActive,
     required this.speechDetected,
+    this.sampleSpeechFlags,
     this.height = 120,
   });
 
   final List<double> samples;
   final bool isActive;
-  final bool speechDetected;
+  final bool? speechDetected;
+  final List<bool?>? sampleSpeechFlags;
   final double height;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final waveformColor = speechDetected
-        ? colorScheme.primary
-        : colorScheme.secondary;
+    final defaultWaveformColor = colorScheme.primary;
+    final nonSpeechWaveformColor = const Color(0xFFD3D3D3);
+    final fallbackWaveformColor = speechDetected == false
+        ? const Color(0xFFD3D3D3)
+        : defaultWaveformColor;
 
     return ExcludeSemantics(
       child: SizedBox(
@@ -46,7 +50,10 @@ class LiveWaveformPanel extends StatelessWidget {
           child: CustomPaint(
             painter: _LiveWaveformPainter(
               samples: samples,
-              waveformColor: waveformColor,
+              sampleSpeechFlags: sampleSpeechFlags,
+              fallbackWaveformColor: fallbackWaveformColor,
+              defaultWaveformColor: defaultWaveformColor,
+              nonSpeechWaveformColor: nonSpeechWaveformColor,
               baselineColor: colorScheme.outlineVariant,
               gridColor: colorScheme.outlineVariant.withValues(alpha: 0.3),
               isActive: isActive,
@@ -62,14 +69,20 @@ class LiveWaveformPanel extends StatelessWidget {
 class _LiveWaveformPainter extends CustomPainter {
   const _LiveWaveformPainter({
     required this.samples,
-    required this.waveformColor,
+    required this.sampleSpeechFlags,
+    required this.fallbackWaveformColor,
+    required this.defaultWaveformColor,
+    required this.nonSpeechWaveformColor,
     required this.baselineColor,
     required this.gridColor,
     required this.isActive,
   });
 
   final List<double> samples;
-  final Color waveformColor;
+  final List<bool?>? sampleSpeechFlags;
+  final Color fallbackWaveformColor;
+  final Color defaultWaveformColor;
+  final Color nonSpeechWaveformColor;
   final Color baselineColor;
   final Color gridColor;
   final bool isActive;
@@ -104,18 +117,29 @@ class _LiveWaveformPainter extends CustomPainter {
     final barWidth = size.width / normalizedBars.length;
     final bodyWidth = (barWidth * 0.72).clamp(1.8, 4.5);
     final maxHalfHeight = size.height * 0.46;
+    final barSpeechStates = _buildBarSpeechStates(
+      sampleSpeechFlags: sampleSpeechFlags,
+      sampleCount: samples.length,
+      barCount: normalizedBars.length,
+    );
 
-    final fillPaint = Paint()
-      ..color = waveformColor.withValues(alpha: isActive ? 0.88 : 0.62)
-      ..style = PaintingStyle.fill;
+    final fillPaint = Paint()..style = PaintingStyle.fill;
 
     final glowPaint = Paint()
-      ..color = waveformColor.withValues(alpha: isActive ? 0.35 : 0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
     for (var i = 0; i < normalizedBars.length; i++) {
       final value = normalizedBars[i];
+      final barColor = _resolveBarColor(
+        hasPerSampleSpeechStates: barSpeechStates != null,
+        fallbackWaveformColor: fallbackWaveformColor,
+        defaultWaveformColor: defaultWaveformColor,
+        nonSpeechWaveformColor: nonSpeechWaveformColor,
+        barSpeechState: barSpeechStates?[i],
+      );
+      fillPaint.color = barColor.withValues(alpha: isActive ? 0.88 : 0.62);
+      glowPaint.color = barColor.withValues(alpha: isActive ? 0.35 : 0.2);
       final halfHeight = math.max(1.0, value * maxHalfHeight);
       final centerX = (i + 0.5) * barWidth;
       final rect = RRect.fromRectAndRadius(
@@ -167,10 +191,72 @@ class _LiveWaveformPainter extends CustomPainter {
     return output;
   }
 
+  List<bool?>? _buildBarSpeechStates({
+    required List<bool?>? sampleSpeechFlags,
+    required int sampleCount,
+    required int barCount,
+  }) {
+    if (sampleSpeechFlags == null ||
+        sampleSpeechFlags.isEmpty ||
+        sampleCount <= 0 ||
+        barCount <= 0) {
+      return null;
+    }
+
+    final output = List<bool?>.filled(barCount, null);
+    for (var barIndex = 0; barIndex < barCount; barIndex++) {
+      final start = (barIndex * sampleCount / barCount).floor();
+      final end = ((barIndex + 1) * sampleCount / barCount).ceil().clamp(
+        start + 1,
+        sampleCount,
+      );
+
+      var speechCount = 0;
+      var nonSpeechCount = 0;
+      for (var sampleIndex = start; sampleIndex < end; sampleIndex++) {
+        if (sampleIndex >= sampleSpeechFlags.length) {
+          break;
+        }
+        final state = sampleSpeechFlags[sampleIndex];
+        if (state == true) {
+          speechCount++;
+        } else if (state == false) {
+          nonSpeechCount++;
+        }
+      }
+
+      if (speechCount == 0 && nonSpeechCount == 0) {
+        output[barIndex] = null;
+      } else {
+        output[barIndex] = speechCount >= nonSpeechCount;
+      }
+    }
+    return output;
+  }
+
+  Color _resolveBarColor({
+    required bool hasPerSampleSpeechStates,
+    required Color fallbackWaveformColor,
+    required Color defaultWaveformColor,
+    required Color nonSpeechWaveformColor,
+    required bool? barSpeechState,
+  }) {
+    if (!hasPerSampleSpeechStates) {
+      return fallbackWaveformColor;
+    }
+    if (barSpeechState == false) {
+      return nonSpeechWaveformColor;
+    }
+    return defaultWaveformColor;
+  }
+
   @override
   bool shouldRepaint(covariant _LiveWaveformPainter oldDelegate) {
     return oldDelegate.samples != samples ||
-        oldDelegate.waveformColor != waveformColor ||
+        oldDelegate.sampleSpeechFlags != sampleSpeechFlags ||
+        oldDelegate.fallbackWaveformColor != fallbackWaveformColor ||
+        oldDelegate.defaultWaveformColor != defaultWaveformColor ||
+        oldDelegate.nonSpeechWaveformColor != nonSpeechWaveformColor ||
         oldDelegate.baselineColor != baselineColor ||
         oldDelegate.gridColor != gridColor ||
         oldDelegate.isActive != isActive;

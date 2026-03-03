@@ -11,28 +11,11 @@ import '../generated/audio_encoder/windows_audio_encoder_bindings.dart' as windo
 import '../utils/pcm16_audio_utils.dart';
 
 part 'errors/native_audio_encoder_exceptions.dart';
-
-typedef WindowsNativeAacEncodeFn =
-    void Function({required String inputPath, required String outputPath, required int bitrateBps});
-
-typedef WindowsNativeAacAvailabilityFn = bool Function();
-
-typedef MacosNativeAacEncodeFn =
-    void Function({required String inputPath, required String outputPath, required int bitrateBps});
-
-typedef MacosNativeAacAvailabilityFn = bool Function();
-
-typedef AndroidNativeAacEncodeFn =
-    void Function({required String inputPath, required String outputPath, required int bitrateBps});
-
-typedef AndroidNativeAacAvailabilityFn = bool Function();
-
-typedef IosNativeAacEncodeFn =
-    void Function({required String inputPath, required String outputPath, required int bitrateBps});
-
-typedef IosNativeAacAvailabilityFn = bool Function();
-
-enum NativeAudioEncoderPlatform { macOS, windows, android, iOS, unsupported }
+part 'native_audio_encoder_platform_implementations.dart';
+part 'implementations/native_audio_encoder_platform_implementation_android.dart';
+part 'implementations/native_audio_encoder_platform_implementation_ios.dart';
+part 'implementations/native_audio_encoder_platform_implementation_macos.dart';
+part 'implementations/native_audio_encoder_platform_implementation_windows.dart';
 
 const _unsupportedNativeAudioEncoderMessage =
     'NativeAudioEncoder is currently supported on macOS (AVFoundation), '
@@ -47,48 +30,30 @@ const _unsupportedNativeAudioEncoderMessage =
 ///
 /// This encoder does not depend on an external `ffmpeg` command-line binary.
 final class NativeAudioEncoder implements AacEncoder {
-  NativeAudioEncoder({
-    NativeAudioEncoderPlatform? platform,
-    MacosNativeAacEncodeFn? macosEncodeFn,
-    MacosNativeAacAvailabilityFn? macosAvailabilityFn,
-    WindowsNativeAacEncodeFn? windowsEncodeFn,
-    WindowsNativeAacAvailabilityFn? windowsAvailabilityFn,
-    AndroidNativeAacEncodeFn? androidEncodeFn,
-    AndroidNativeAacAvailabilityFn? androidAvailabilityFn,
-    IosNativeAacEncodeFn? iosEncodeFn,
-    IosNativeAacAvailabilityFn? iosAvailabilityFn,
-  }) : _platform = platform ?? _detectNativeAudioEncoderPlatform(),
-       _macosEncodeFn = macosEncodeFn ?? _encodeAudioFileToAacViaMacosFfi,
-       _macosAvailabilityFn = macosAvailabilityFn ?? _isAppleNativeAacAvailableViaFfi,
-       _windowsEncodeFn = windowsEncodeFn ?? _encodeAudioFileToAacViaWindowsFfi,
-       _windowsAvailabilityFn = windowsAvailabilityFn ?? _isWindowsNativeAacAvailableViaFfi,
-       _androidEncodeFn = androidEncodeFn ?? _encodeAudioFileToAacViaAndroidFfi,
-       _androidAvailabilityFn = androidAvailabilityFn ?? _isAndroidNativeAacAvailableViaFfi,
-       _iosEncodeFn = iosEncodeFn ?? _encodeAudioFileToAacViaIosFfi,
-       _iosAvailabilityFn = iosAvailabilityFn ?? _isAppleNativeAacAvailableViaFfi;
+  /// Uses platform detection to select the default backend.
+  NativeAudioEncoder()
+    : this._(
+        platformImplementation: _resolveNativeAudioEncoderPlatformImplementation(
+          platform: _detectNativeAudioEncoderPlatform(),
+          platformImplementation: null,
+        ),
+      );
 
-  final NativeAudioEncoderPlatform _platform;
-  final MacosNativeAacEncodeFn _macosEncodeFn;
-  final MacosNativeAacAvailabilityFn _macosAvailabilityFn;
-  final WindowsNativeAacEncodeFn _windowsEncodeFn;
-  final WindowsNativeAacAvailabilityFn _windowsAvailabilityFn;
-  final AndroidNativeAacEncodeFn _androidEncodeFn;
-  final AndroidNativeAacAvailabilityFn _androidAvailabilityFn;
-  final IosNativeAacEncodeFn _iosEncodeFn;
-  final IosNativeAacAvailabilityFn _iosAvailabilityFn;
+  /// Uses a custom platform backend.
+  NativeAudioEncoder.custom({
+    required NativeAudioEncoderPlatformImplementation platformImplementation,
+  }) : this._(platformImplementation: platformImplementation);
+
+  NativeAudioEncoder._({required NativeAudioEncoderPlatformImplementation platformImplementation})
+    : _platformImplementation = platformImplementation;
+
+  final NativeAudioEncoderPlatformImplementation _platformImplementation;
 
   Future<bool> isAvailable() async {
-    switch (_platform) {
-      case NativeAudioEncoderPlatform.macOS:
-        return _macosAvailabilityFn();
-      case NativeAudioEncoderPlatform.windows:
-        return _windowsAvailabilityFn();
-      case NativeAudioEncoderPlatform.android:
-        return _androidAvailabilityFn();
-      case NativeAudioEncoderPlatform.iOS:
-        return _iosAvailabilityFn();
-      case NativeAudioEncoderPlatform.unsupported:
-        return false;
+    try {
+      return _platformImplementation.isAvailable();
+    } on Object {
+      return false;
     }
   }
 
@@ -100,7 +65,7 @@ final class NativeAudioEncoder implements AacEncoder {
     required String outputPath,
     int bitrateKbps = 48,
   }) async {
-    _ensureSupportedPlatform();
+    _platformImplementation.ensureSupported();
     _validatePcmParams(sampleRateHz: sampleRateHz, channelCount: channelCount);
     if (pcm16leBytes.isEmpty) {
       throw ArgumentError.value(pcm16leBytes, 'pcm16leBytes', 'Cannot be empty');
@@ -137,7 +102,7 @@ final class NativeAudioEncoder implements AacEncoder {
     required String outputPath,
     int bitrateKbps = 48,
   }) async {
-    _ensureSupportedPlatform();
+    _platformImplementation.ensureSupported();
     _validatePcmParams(sampleRateHz: sampleRateHz, channelCount: channelCount);
 
     final inputFile = File(inputPath);
@@ -172,7 +137,7 @@ final class NativeAudioEncoder implements AacEncoder {
     required String outputPath,
     int bitrateKbps = 48,
   }) async {
-    _ensureSupportedPlatform();
+    _platformImplementation.ensureSupported();
     if (bitrateKbps <= 0) {
       throw ArgumentError.value(bitrateKbps, 'bitrateKbps', 'Must be > 0');
     }
@@ -182,64 +147,17 @@ final class NativeAudioEncoder implements AacEncoder {
       await outputFile.delete();
     }
 
-    switch (_platform) {
-      case NativeAudioEncoderPlatform.macOS:
-        try {
-          _macosEncodeFn(
-            inputPath: inputPath,
-            outputPath: outputPath,
-            bitrateBps: bitrateKbps * 1000,
-          );
-        } on AacEncodingException {
-          rethrow;
-        } on Object catch (error) {
-          throw AacEncodingException('Failed to execute macOS native AAC encoder: $error');
-        }
-      case NativeAudioEncoderPlatform.windows:
-        try {
-          _windowsEncodeFn(
-            inputPath: inputPath,
-            outputPath: outputPath,
-            bitrateBps: bitrateKbps * 1000,
-          );
-        } on AacEncodingException {
-          rethrow;
-        } on Object catch (error) {
-          throw AacEncodingException('Failed to execute windows native AAC encoder: $error');
-        }
-      case NativeAudioEncoderPlatform.android:
-        try {
-          _androidEncodeFn(
-            inputPath: inputPath,
-            outputPath: outputPath,
-            bitrateBps: bitrateKbps * 1000,
-          );
-        } on AacEncodingException {
-          rethrow;
-        } on Object catch (error) {
-          throw AacEncodingException('Failed to execute android native AAC encoder: $error');
-        }
-      case NativeAudioEncoderPlatform.iOS:
-        try {
-          _iosEncodeFn(
-            inputPath: inputPath,
-            outputPath: outputPath,
-            bitrateBps: bitrateKbps * 1000,
-          );
-        } on AacEncodingException {
-          rethrow;
-        } on Object catch (error) {
-          throw AacEncodingException('Failed to execute iOS native AAC encoder: $error');
-        }
-      case NativeAudioEncoderPlatform.unsupported:
-        _ensureSupportedPlatform();
-    }
-  }
-
-  void _ensureSupportedPlatform() {
-    if (_platform == NativeAudioEncoderPlatform.unsupported) {
-      throw const NativeAudioEncoderUnsupportedPlatformException(
-        _unsupportedNativeAudioEncoderMessage,
+    try {
+      _platformImplementation.encodeAudioFileToAac(
+        inputPath: inputPath,
+        outputPath: outputPath,
+        bitrateBps: bitrateKbps * 1000,
+      );
+    } on AacEncodingException {
+      rethrow;
+    } on Object catch (error) {
+      throw AacEncodingException(
+        'Failed to execute ${_platformImplementation.platform.label} native AAC encoder: $error',
       );
     }
   }
@@ -265,22 +183,6 @@ final class NativeAudioEncoder implements AacEncoder {
       }
     }
   }
-}
-
-NativeAudioEncoderPlatform _detectNativeAudioEncoderPlatform() {
-  if (Platform.isMacOS) {
-    return NativeAudioEncoderPlatform.macOS;
-  }
-  if (Platform.isWindows) {
-    return NativeAudioEncoderPlatform.windows;
-  }
-  if (Platform.isAndroid) {
-    return NativeAudioEncoderPlatform.android;
-  }
-  if (Platform.isIOS) {
-    return NativeAudioEncoderPlatform.iOS;
-  }
-  return NativeAudioEncoderPlatform.unsupported;
 }
 
 Future<void> _writePcm16BytesAsWav({
@@ -324,151 +226,8 @@ Future<void> _writePcm16FileAsWav({
 
 const _nativeErrorBufferBytes = 4096;
 
-bool _isWindowsNativeAacAvailableViaFfi() {
-  final errorPtr = calloc<ffi.Char>(_nativeErrorBufferBytes);
-  try {
-    final hr = windows_bindings.speech_utils_windows_aac_encoder_healthcheck(
-      errorPtr,
-      _nativeErrorBufferBytes,
-    );
-    return hr == 0;
-  } finally {
-    calloc.free(errorPtr);
-  }
-}
-
 bool _isAppleNativeAacAvailableViaFfi() {
   return true;
-}
-
-void _encodeAudioFileToAacViaMacosFfi({
-  required String inputPath,
-  required String outputPath,
-  required int bitrateBps,
-}) {
-  _encodeAudioFileToAacViaApplePlatformFfi(
-    inputPath: inputPath,
-    outputPath: outputPath,
-    bitrateBps: bitrateBps,
-    platform: 'macOS',
-    function: apple_bindings.speech_utils_macos_encode_audio_file_to_aac,
-  );
-}
-
-void _encodeAudioFileToAacViaIosFfi({
-  required String inputPath,
-  required String outputPath,
-  required int bitrateBps,
-}) {
-  _encodeAudioFileToAacViaApplePlatformFfi(
-    inputPath: inputPath,
-    outputPath: outputPath,
-    bitrateBps: bitrateBps,
-    platform: 'iOS',
-    function: apple_bindings.speech_utils_ios_encode_audio_file_to_aac,
-  );
-}
-
-void _encodeAudioFileToAacViaApplePlatformFfi({
-  required String inputPath,
-  required String outputPath,
-  required int bitrateBps,
-  required String platform,
-  required _AppleAacEncoderFfi function,
-}) {
-  final inputPathPtr = inputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-  final outputPathPtr = outputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-  final errorPtr = calloc<ffi.Char>(_nativeErrorBufferBytes);
-
-  _encodeAudioFileToAacViaAppleFfi(
-    function: function,
-    platform: platform,
-    inputPathPtr: inputPathPtr,
-    outputPathPtr: outputPathPtr,
-    bitrateBps: bitrateBps,
-    errorPtr: errorPtr,
-  );
-}
-
-void _encodeAudioFileToAacViaWindowsFfi({
-  required String inputPath,
-  required String outputPath,
-  required int bitrateBps,
-}) {
-  final inputPathPtr = inputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-  final outputPathPtr = outputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-  final errorPtr = calloc<ffi.Char>(_nativeErrorBufferBytes);
-
-  try {
-    final hr = windows_bindings.speech_utils_windows_encode_audio_file_to_aac(
-      inputPathPtr,
-      outputPathPtr,
-      bitrateBps,
-      errorPtr,
-      _nativeErrorBufferBytes,
-    );
-    if (hr == 0) {
-      return;
-    }
-
-    final stderr = errorPtr.cast<Utf8>().toDartString();
-    throw AacEncodingException(
-      'windows native AAC encoder failed',
-      exitCode: hr,
-      stderr: stderr.isEmpty ? null : stderr,
-    );
-  } finally {
-    calloc.free(inputPathPtr);
-    calloc.free(outputPathPtr);
-    calloc.free(errorPtr);
-  }
-}
-
-bool _isAndroidNativeAacAvailableViaFfi() {
-  final errorPtr = calloc<ffi.Char>(_nativeErrorBufferBytes);
-  try {
-    final code = android_bindings.speech_utils_android_aac_encoder_healthcheck(
-      errorPtr,
-      _nativeErrorBufferBytes,
-    );
-    return code == 0;
-  } finally {
-    calloc.free(errorPtr);
-  }
-}
-
-void _encodeAudioFileToAacViaAndroidFfi({
-  required String inputPath,
-  required String outputPath,
-  required int bitrateBps,
-}) {
-  final inputPathPtr = inputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-  final outputPathPtr = outputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-  final errorPtr = calloc<ffi.Char>(_nativeErrorBufferBytes);
-
-  try {
-    final code = android_bindings.speech_utils_android_encode_wav_file_to_aac_m4a(
-      inputPathPtr,
-      outputPathPtr,
-      bitrateBps,
-      errorPtr,
-      _nativeErrorBufferBytes,
-    );
-    if (code == 0) {
-      return;
-    }
-
-    final stderr = errorPtr.cast<Utf8>().toDartString();
-    throw AacEncodingException(
-      'android native AAC encoder failed',
-      exitCode: code,
-      stderr: stderr.isEmpty ? null : stderr,
-    );
-  } finally {
-    calloc.free(inputPathPtr);
-    calloc.free(outputPathPtr);
-    calloc.free(errorPtr);
-  }
 }
 
 typedef _AppleAacEncoderFfi =

@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:hooks/hooks.dart';
 import 'package:path/path.dart' as p;
 
+import 'hook_helpers.dart';
+
 const _requiredHeaderPath = 'modules/audio_processing/include/audio_processing.h';
 const _preferredImportLibPrefixes = <String>[
   'webrtc-audio-processing',
@@ -30,7 +32,10 @@ final class WindowsWebRtcApmSdk {
   final List<File> runtimeDlls;
 }
 
-WindowsWebRtcApmSdk requireVendoredWindowsWebRtcApmSdk(BuildInput input) {
+WindowsWebRtcApmSdk requireVendoredWindowsWebRtcApmSdk(
+  BuildInput input, {
+  BuildOutputBuilder? output,
+}) {
   final rootDir = Directory.fromUri(input.packageRoot.resolve('third_party/webrtc_apm/windows'));
   if (!rootDir.existsSync()) {
     throw StateError('Missing vendored WebRTC APM SDK directory at ${rootDir.path}.');
@@ -48,6 +53,9 @@ WindowsWebRtcApmSdk requireVendoredWindowsWebRtcApmSdk(BuildInput input) {
       '${p.join(includeRootDir.path, 'webrtc-audio-processing-1', _requiredHeaderPath)}.',
     );
   }
+  if (output != null) {
+    output.dependencies.add(File(p.join(includeDir.path, _requiredHeaderPath)).absolute.uri);
+  }
 
   final importLib = _findImportLibByPreferredPrefixes(libDir: libDir, binDir: binDir);
   if (importLib == null) {
@@ -55,6 +63,9 @@ WindowsWebRtcApmSdk requireVendoredWindowsWebRtcApmSdk(BuildInput input) {
       'Missing WebRTC APM import library in ${libDir.path} or ${binDir.path}. '
       'Expected prefixes: ${_preferredImportLibPrefixes.join(', ')}.',
     );
+  }
+  if (output != null) {
+    addFileDependency(output, importLib);
   }
 
   final libraryName = p.basenameWithoutExtension(importLib.path);
@@ -65,6 +76,9 @@ WindowsWebRtcApmSdk requireVendoredWindowsWebRtcApmSdk(BuildInput input) {
       'Missing WebRTC APM runtime DLLs in ${binDir.path}. '
       'Expected DLL names matching: ${libraries.join(', ')}.',
     );
+  }
+  if (output != null) {
+    addFileDependencies(output, runtimeDlls);
   }
 
   return WindowsWebRtcApmSdk(
@@ -101,10 +115,7 @@ Directory? _resolveIncludeDir(Directory includeRootDir) {
   return null;
 }
 
-File? _findImportLibByPreferredPrefixes({
-  required Directory libDir,
-  required Directory binDir,
-}) {
+File? _findImportLibByPreferredPrefixes({required Directory libDir, required Directory binDir}) {
   for (final prefix in _preferredImportLibPrefixes) {
     final fromLib = _findImportLibByPrefix(libDir, prefix);
     if (fromLib != null) {
@@ -151,23 +162,24 @@ List<File> _resolveRuntimeDlls(Directory binDir, List<String> libraryNames) {
   }
 
   final lowerLibraryNames = libraryNames.map((name) => name.toLowerCase()).toList(growable: false);
-  final runtimeDlls = binDir
-      .listSync(followLinks: false)
-      .whereType<File>()
-      .where((file) {
-        final fileName = p.basename(file.path).toLowerCase();
-        if (!fileName.endsWith('.dll')) {
-          return false;
-        }
-        for (final libraryName in lowerLibraryNames) {
-          if (fileName == '$libraryName.dll' || fileName.startsWith('$libraryName-')) {
-            return true;
-          }
-        }
-        return false;
-      })
-      .toList(growable: false)
-    ..sort((left, right) => p.basename(left.path).compareTo(p.basename(right.path)));
+  final runtimeDlls =
+      binDir
+          .listSync(followLinks: false)
+          .whereType<File>()
+          .where((file) {
+            final fileName = p.basename(file.path).toLowerCase();
+            if (!fileName.endsWith('.dll')) {
+              return false;
+            }
+            for (final libraryName in lowerLibraryNames) {
+              if (fileName == '$libraryName.dll' || fileName.startsWith('$libraryName-')) {
+                return true;
+              }
+            }
+            return false;
+          })
+          .toList(growable: false)
+        ..sort((left, right) => p.basename(left.path).compareTo(p.basename(right.path)));
 
   return runtimeDlls;
 }

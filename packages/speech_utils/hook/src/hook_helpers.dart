@@ -21,18 +21,34 @@ bool matchesTarget(BuildInput input, {required OS os, Architecture? arch}) {
   return target.targetOS == os && (arch == null || target.targetArchitecture == arch);
 }
 
-File requireSourceFile(BuildInput input, {required String relativePath, required String label}) {
+File requireSourceFile(
+  BuildInput input, {
+  required String relativePath,
+  required String label,
+  BuildOutputBuilder? output,
+}) {
   final file = File.fromUri(input.packageRoot.resolve(relativePath));
   if (!file.existsSync()) {
     throw StateError('Missing $label source file at ${file.path}.');
   }
+  if (output != null) {
+    output.dependencies.add(file.absolute.uri);
+  }
   return file;
 }
 
-void copyIfMissing(File source, File destination) {
+void copyFile(File source, File destination) {
   destination.parent.createSync(recursive: true);
-  if (!destination.existsSync()) {
-    source.copySync(destination.path);
+  source.copySync(destination.path);
+}
+
+void addFileDependency(BuildOutputBuilder output, File file) {
+  output.dependencies.add(file.absolute.uri);
+}
+
+void addFileDependencies(BuildOutputBuilder output, Iterable<File> files) {
+  for (final file in files) {
+    output.dependencies.add(file.absolute.uri);
   }
 }
 

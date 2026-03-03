@@ -18,16 +18,17 @@ void main() {
       });
       final outputPath = '${outputDir.path}${Platform.pathSeparator}out.m4a';
 
-      final encoder = NativeAudioEncoder(
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
         platform: NativeAudioEncoderPlatform.macOS,
-        macosAvailabilityFn: () => true,
-        macosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
           usedInputPath = inputPath;
           usedOutputPath = outputPath;
           usedBitrateBps = bitrateBps;
           intermediateWavBytes = File(inputPath).readAsBytesSync();
         },
       );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
 
       final pcm = Uint8List.fromList(<int>[1, 2, 3, 4]);
       await encoder.encodePcm16BytesToAac(
@@ -47,19 +48,28 @@ void main() {
     });
 
     test('throws NativeAudioEncoderUnsupportedPlatformException on unsupported platform', () {
-      final encoder = NativeAudioEncoder(platform: NativeAudioEncoderPlatform.unsupported);
+      var encodeCalled = false;
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
+        platform: NativeAudioEncoderPlatform.unsupported,
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
+          encodeCalled = true;
+        },
+      );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
 
       expect(
         () => encoder.encodeAudioFileToAac(inputPath: 'in.wav', outputPath: 'out.m4a'),
         throwsA(isA<NativeAudioEncoderUnsupportedPlatformException>()),
       );
+      expect(encodeCalled, isFalse);
     });
 
     test('throws AacEncodingException when macOS native encoder fails', () {
-      final encoder = NativeAudioEncoder(
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
         platform: NativeAudioEncoderPlatform.macOS,
-        macosAvailabilityFn: () => true,
-        macosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
           throw AacEncodingException(
             'macOS native AAC encoder failed',
             exitCode: 1,
@@ -67,6 +77,7 @@ void main() {
           );
         },
       );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
 
       expect(
         () => encoder.encodeAudioFileToAac(inputPath: 'in.wav', outputPath: 'out.m4a'),
@@ -75,29 +86,31 @@ void main() {
     });
 
     test('propagates macOS availability probe', () async {
-      final encoder = NativeAudioEncoder(
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
         platform: NativeAudioEncoderPlatform.macOS,
-        macosAvailabilityFn: () => true,
-        macosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
       );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
 
       expect(await encoder.isAvailable(), isTrue);
     });
 
-    test('uses windows ffi libavcodec path', () async {
+    test('delegates windows encode call to platform implementation', () async {
       late String usedInputPath;
       late String usedOutputPath;
       late int usedBitrateBps;
 
-      final encoder = NativeAudioEncoder(
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
         platform: NativeAudioEncoderPlatform.windows,
-        windowsAvailabilityFn: () => true,
-        windowsEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
           usedInputPath = inputPath;
           usedOutputPath = outputPath;
           usedBitrateBps = bitrateBps;
         },
       );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
 
       await encoder.encodeAudioFileToAac(
         inputPath: 'input.wav',
@@ -111,29 +124,31 @@ void main() {
     });
 
     test('propagates windows availability probe', () async {
-      final encoder = NativeAudioEncoder(
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
         platform: NativeAudioEncoderPlatform.windows,
-        windowsAvailabilityFn: () => true,
-        windowsEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
       );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
 
       expect(await encoder.isAvailable(), isTrue);
     });
 
-    test('uses android ffi encoder path', () async {
+    test('delegates android encode call to platform implementation', () async {
       late String usedInputPath;
       late String usedOutputPath;
       late int usedBitrateBps;
 
-      final encoder = NativeAudioEncoder(
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
         platform: NativeAudioEncoderPlatform.android,
-        androidAvailabilityFn: () => true,
-        androidEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
           usedInputPath = inputPath;
           usedOutputPath = outputPath;
           usedBitrateBps = bitrateBps;
         },
       );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
 
       await encoder.encodeAudioFileToAac(
         inputPath: 'input.wav',
@@ -147,29 +162,57 @@ void main() {
     });
 
     test('propagates android availability probe', () async {
-      final encoder = NativeAudioEncoder(
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
         platform: NativeAudioEncoderPlatform.android,
-        androidAvailabilityFn: () => true,
-        androidEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
       );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
 
       expect(await encoder.isAvailable(), isTrue);
     });
 
-    test('uses iOS ffi encoder path', () async {
+    test('returns false when android availability probe throws', () async {
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
+        platform: NativeAudioEncoderPlatform.android,
+        availabilityFn: () => throw StateError('probe failed'),
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
+      );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
+
+      expect(await encoder.isAvailable(), isFalse);
+    });
+
+    test('attempts encode even when android availability probe returns false', () async {
+      var encodeCalled = false;
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
+        platform: NativeAudioEncoderPlatform.android,
+        availabilityFn: () => false,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
+          encodeCalled = true;
+        },
+      );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
+
+      await encoder.encodeAudioFileToAac(inputPath: 'input.wav', outputPath: 'output.m4a');
+      expect(encodeCalled, isTrue);
+    });
+
+    test('delegates iOS encode call to platform implementation', () async {
       late String usedInputPath;
       late String usedOutputPath;
       late int usedBitrateBps;
 
-      final encoder = NativeAudioEncoder(
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
         platform: NativeAudioEncoderPlatform.iOS,
-        iosAvailabilityFn: () => true,
-        iosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
           usedInputPath = inputPath;
           usedOutputPath = outputPath;
           usedBitrateBps = bitrateBps;
         },
       );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
 
       await encoder.encodeAudioFileToAac(
         inputPath: 'input.wav',
@@ -183,13 +226,43 @@ void main() {
     });
 
     test('propagates iOS availability probe', () async {
-      final encoder = NativeAudioEncoder(
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
         platform: NativeAudioEncoderPlatform.iOS,
-        iosAvailabilityFn: () => true,
-        iosEncodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
       );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
 
       expect(await encoder.isAvailable(), isTrue);
     });
   });
+}
+
+class _FakeNativeAudioEncoderPlatformImplementation
+    extends NativeAudioEncoderPlatformImplementation {
+  _FakeNativeAudioEncoderPlatformImplementation({
+    required super.platform,
+    required this.availabilityFn,
+    required this.encodeFn,
+  });
+
+  final bool Function() availabilityFn;
+  final void Function({
+    required String inputPath,
+    required String outputPath,
+    required int bitrateBps,
+  })
+  encodeFn;
+
+  @override
+  bool isAvailable() => availabilityFn();
+
+  @override
+  void encodeAudioFileToAac({
+    required String inputPath,
+    required String outputPath,
+    required int bitrateBps,
+  }) {
+    encodeFn(inputPath: inputPath, outputPath: outputPath, bitrateBps: bitrateBps);
+  }
 }

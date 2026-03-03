@@ -25,10 +25,14 @@ File requireSourceFile(
   BuildInput input, {
   required String relativePath,
   required String label,
+  BuildOutputBuilder? output,
 }) {
   final file = File.fromUri(input.packageRoot.resolve(relativePath));
   if (!file.existsSync()) {
     throw StateError('Missing $label source file at ${file.path}.');
+  }
+  if (output != null) {
+    output.dependencies.add(file.absolute.uri);
   }
   return file;
 }

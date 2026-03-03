@@ -84,7 +84,6 @@ final class WindowsAudioProcessingConfig {
   final bool? enableEchoCancellation;
   final bool? enableAutomaticGainControl;
   final bool? enableHighPassFilter;
-
 }
 
 /// Cross-platform capture-processing preferences.
@@ -457,13 +456,17 @@ final class AudioRecorderConfig {
     windowsConfig?.validate();
     encoding.validate();
   }
-
 }
 
 /// Snapshot amplitude values produced by recorder pipelines.
 final class Amplitude {
-  const Amplitude({required this.current, this.max = 0});
+  const Amplitude({required this.current, this.max = 0, this.isSpeechSegment});
 
   final double current;
   final double max;
+
+  /// Whether VAD currently classifies the stream position as speech.
+  ///
+  /// This is only populated while VAD capture is active. Otherwise `null`.
+  final bool? isSpeechSegment;
 }

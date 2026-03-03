@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:hooks/hooks.dart';
 import 'package:path/path.dart' as p;
 
+import 'hook_helpers.dart';
+
 const _requiredImportLibPrefixes = <String>['avcodec', 'avformat', 'avutil', 'swresample'];
 const _requiredRuntimeDllPrefixes = <String>['avcodec', 'avformat', 'avutil', 'swresample'];
 const _optionalRuntimeDllPrefixes = <String>['avdevice', 'avfilter', 'swscale'];
@@ -31,20 +33,29 @@ final class WindowsFfmpegSdk {
   final List<File> runtimeDlls;
 }
 
-Future<WindowsFfmpegSdk> loadWindowsFfmpegSdk(BuildInput input) async {
+Future<WindowsFfmpegSdk> loadWindowsFfmpegSdk(
+  BuildInput input, {
+  BuildOutputBuilder? output,
+}) async {
   final rootDir = Directory.fromUri(input.packageRoot.resolve('third_party/ffmpeg/windows'));
   final includeDir = Directory(p.join(rootDir.path, 'include'));
   final libDir = Directory(p.join(rootDir.path, 'lib'));
   final binDir = Directory(p.join(rootDir.path, 'bin'));
 
-  _validateRequiredHeaders(includeDir);
+  _validateRequiredHeaders(includeDir, output: output);
   final resolvedImportLibs = _resolveRequiredImportLibs(libDir: libDir, binDir: binDir);
+  if (output != null) {
+    addFileDependencies(output, resolvedImportLibs.values);
+  }
   final importLibDirectories = _uniqueDirectoriesInOrder(
     resolvedImportLibs.values
         .map((file) => Directory(p.dirname(file.path)))
         .toList(growable: false),
   );
   final runtimeDlls = _resolveBundledRuntimeDlls(binDir);
+  if (output != null) {
+    addFileDependencies(output, runtimeDlls);
+  }
   _validateRequiredRuntimeDllPrefixes(runtimeDlls, binDir.path);
   _validateTransitiveRuntimeDllCompatibility(runtimeDlls, binDir.path);
 
@@ -58,7 +69,7 @@ Future<WindowsFfmpegSdk> loadWindowsFfmpegSdk(BuildInput input) async {
   );
 }
 
-void _validateRequiredHeaders(Directory includeDir) {
+void _validateRequiredHeaders(Directory includeDir, {BuildOutputBuilder? output}) {
   if (!includeDir.existsSync()) {
     throw StateError('Missing FFmpeg headers directory at ${includeDir.path}.');
   }
@@ -74,6 +85,9 @@ void _validateRequiredHeaders(Directory includeDir) {
     final header = File(p.join(includeDir.path, relativeHeaderPath));
     if (!header.existsSync()) {
       throw StateError('Missing FFmpeg header at ${header.path}.');
+    }
+    if (output != null) {
+      output.dependencies.add(header.absolute.uri);
     }
   }
 }

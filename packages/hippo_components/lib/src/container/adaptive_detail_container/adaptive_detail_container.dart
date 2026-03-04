@@ -13,7 +13,11 @@ class AdaptiveDetailContainerState<T> {
 }
 
 class AdaptiveDetailController<T> {
-  AdaptiveDetailController();
+  AdaptiveDetailController({AdaptiveDetailContainerState<T>? initialState}) {
+    if (initialState != null) {
+      stateSubject.add(initialState);
+    }
+  }
 
   final stateSubject = DataSubject<AdaptiveDetailContainerState<T>?>.seeded(null);
 
@@ -26,14 +30,15 @@ class AdaptiveDetailController<T> {
   }
 }
 
-class AdaptiveDetailScaffold<T> extends StatelessWidget {
+class AdaptiveDetailContainer<T> extends StatelessWidget {
   final AdaptiveDetailController<T> controller;
+  final double breakpoint;
   final Widget Function(BuildContext context, AdaptiveDetailContainerState<T>? state)
-      desktopBuilder;
-  final Widget Function(BuildContext context, AdaptiveDetailContainerState<T>? state)
-      mobileBuilder;
-  const AdaptiveDetailScaffold({
+  desktopBuilder;
+  final Widget Function(BuildContext context, AdaptiveDetailContainerState<T>? state) mobileBuilder;
+  const AdaptiveDetailContainer({
     super.key,
+    this.breakpoint = 800,
     required this.controller,
     required this.desktopBuilder,
     required this.mobileBuilder,
@@ -44,18 +49,14 @@ class AdaptiveDetailScaffold<T> extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final isDesktop = width >= 800;
+        final isDesktop = width >= breakpoint;
         return DataSubjectBuilder<AdaptiveDetailContainerState<T>?>(
           subject: controller.stateSubject,
           builder: (context, state) {
             if (isDesktop) {
               return desktopBuilder(context, state);
             }
-            return _Mobile<T>(
-              controller: controller,
-              mobileBuilder: mobileBuilder,
-              state: state,
-            );
+            return _Mobile<T>(controller: controller, mobileBuilder: mobileBuilder, state: state);
           },
         );
       },

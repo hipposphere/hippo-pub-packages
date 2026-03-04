@@ -57,7 +57,7 @@ class _AdaptiveDetailContainerExamplePageState extends State<AdaptiveDetailConta
 
   @override
   Widget build(BuildContext context) {
-    return AdaptiveDetailScaffold<Folder>(
+    return AdaptiveDetailContainer<Folder>(
       controller: _controller,
       desktopBuilder: (context, state) {
         final selected = state?.data;

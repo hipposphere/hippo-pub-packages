@@ -39,8 +39,9 @@ class ExampleCatalogPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Hippo Components Examples')),
+    return PageContainer(
+      backAction: null,
+      title: 'Hippo Components Examples',
       body: CustomScrollView(
         slivers: [
           SliverGap(16),

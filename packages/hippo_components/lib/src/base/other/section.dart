@@ -134,16 +134,13 @@ class SectionHeaderWithActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.max,
+      mainAxisSize: .max,
+      crossAxisAlignment: .center,
       children: [
-        Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
         Expanded(
-          child: Row(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: actions,
-          ),
+          child: Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
         ),
+        Row(mainAxisSize: .min, mainAxisAlignment: .end, children: actions),
       ],
     );
   }

@@ -61,8 +61,8 @@ class _AdaptiveDetailContainerExamplePageState extends State<AdaptiveDetailConta
       controller: _controller,
       desktopBuilder: (context, state) {
         final selected = state?.data;
-        return Scaffold(
-          appBar: AppBar(title: const Text('Adaptive Detail Container (Desktop)')),
+        return PageContainer(
+          title: 'Adaptive Detail Container (Desktop)',
           body: Row(
             children: [
               Expanded(
@@ -89,17 +89,14 @@ class _AdaptiveDetailContainerExamplePageState extends State<AdaptiveDetailConta
       },
       mobileBuilder: (context, state) {
         if (state == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Adaptive Detail Container (Mobile)')),
+          return PageContainer(
+            title: 'Adaptive Detail Container (Mobile)',
             body: FolderList(folders: folders, onSelect: _selectFolder),
           );
         }
 
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(state.data.title),
-            leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: _controller.goBack),
-          ),
+        return PageContainer(
+          title: 'Adaptive Detail Container (Mobile)',
           body: DetailPanel(
             folder: state.data,
             onBack: _controller.goBack,

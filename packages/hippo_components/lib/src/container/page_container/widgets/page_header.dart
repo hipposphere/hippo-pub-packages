@@ -45,7 +45,7 @@ class PageHeader extends CupertinoNavigationBar {
   }) : super(
          leading:
              customLeading ??
-             (backAction != null ? _BackActionButton(backAction: backAction) : null),
+             (backAction != null ? _BackActionButton(backAction: backAction) : SizedBox()),
          middle: title != null
              ? Text(title, maxLines: 1, overflow: TextOverflow.ellipsis)
              : (titleBuilder != null ? Builder(builder: titleBuilder) : null),

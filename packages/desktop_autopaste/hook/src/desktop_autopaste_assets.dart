@@ -21,6 +21,36 @@ const _macosSources = <String>[
   'native/macos/desktop_autopaste_macos_ffi.swift',
 ];
 
+String _macosArchName(BuildInput input) {
+  return switch (input.config.code.targetArchitecture) {
+    Architecture.arm64 => 'arm64',
+    Architecture.x64 => 'x86_64',
+    final architecture => throw UnsupportedError(
+      'Unsupported macOS target architecture for desktop_autopaste: '
+      '$architecture',
+    ),
+  };
+}
+
+Future<void> _verifyMacosBinaryArchitecture({
+  required String arch,
+  required File libraryFile,
+}) async {
+  final result = await Process.run('lipo', [
+    libraryFile.path,
+    '-verify_arch',
+    arch,
+  ]);
+  if (result.exitCode != 0) {
+    throw StateError(
+      'desktop_autopaste macOS library missing expected architecture '
+      '$arch at ${libraryFile.path}.\\n'
+      'stdout:\\n${result.stdout}\\n'
+      'stderr:\\n${result.stderr}',
+    );
+  }
+}
+
 Future<void> buildDesktopAutopasteWindowsAsset(
   BuildInput input,
   BuildOutputBuilder output,
@@ -84,25 +114,27 @@ Future<void> buildDesktopAutopasteMacosAsset(
     );
   }
 
-  final archFlag = switch (input.config.code.targetArchitecture) {
-    Architecture.arm64 => 'arm64',
-    Architecture.x64 => 'x86_64',
-    _ => null,
-  };
+  final archFlag = _macosArchName(input);
 
   final outputFileName = input.config.code.targetOS.dylibFileName(
     _macosLibraryBaseName,
   );
   final outputUri = input.outputDirectory.resolve(
-    'desktop_autopaste/$outputFileName',
+    'desktop_autopaste/macos/$archFlag/$outputFileName',
   );
   final outputFile = File.fromUri(outputUri);
   outputFile.parent.createSync(recursive: true);
+  final moduleCachePath = Directory.fromUri(
+    input.outputDirectory.resolve('swift-module-cache/$archFlag/'),
+  );
+  moduleCachePath.createSync(recursive: true);
 
   final args = <String>[
     '--sdk',
     'macosx',
     'swiftc',
+    '-module-cache-path',
+    moduleCachePath.path,
     '-emit-library',
     '-module-name',
     'desktop_autopaste',
@@ -115,10 +147,9 @@ Future<void> buildDesktopAutopasteMacosAsset(
     'ApplicationServices',
     '-framework',
     'Foundation',
+    '-target',
+    '$archFlag-apple-macosx10.15',
   ];
-  if (archFlag != null) {
-    args.addAll(<String>['-target', '$archFlag-apple-macosx10.15']);
-  }
 
   final result = await Process.run('xcrun', args);
   if (result.exitCode != 0) {
@@ -128,6 +159,7 @@ Future<void> buildDesktopAutopasteMacosAsset(
       'stderr:\\n${result.stderr}',
     );
   }
+  await _verifyMacosBinaryArchitecture(arch: archFlag, libraryFile: outputFile);
 
   addBundledDynamicAsset(
     input: input,

@@ -20,17 +20,20 @@ class AppPermissionsPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     PluginRegistry.RequestPermissionsResultListener {
 
     private lateinit var channel: MethodChannel
+    private var activityBinding: ActivityPluginBinding? = null
     private var activity: Activity? = null
-    private var context: Context? = null
+    private var applicationContext: Context? = null
     private var pendingResult: Result? = null
 
     companion object {
         private const val MICROPHONE_PERMISSION_CODE = 1001
         private const val PERMISSION_MICROPHONE = Manifest.permission.RECORD_AUDIO
+        private const val PREFERENCES_NAME = "app_permissions"
+        private const val MICROPHONE_REQUESTED_KEY = "microphone_requested"
     }
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        context = flutterPluginBinding.applicationContext
+        applicationContext = flutterPluginBinding.applicationContext
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "app_permissions")
         channel.setMethodCallHandler(this)
     }
@@ -77,7 +80,7 @@ class AppPermissionsPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     // MARK: - Microphone Permission Methods
 
     private fun isMicrophoneGranted(): Boolean {
-        val ctx = context ?: return false
+        val ctx = applicationContext ?: activity ?: return false
         return ContextCompat.checkSelfPermission(
             ctx,
             PERMISSION_MICROPHONE
@@ -85,7 +88,7 @@ class AppPermissionsPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     private fun getMicrophoneStatus(): String {
-        val ctx = context ?: return "notRequired"
+        val ctx = applicationContext ?: activity ?: return "notDetermined"
 
         return when {
             ContextCompat.checkSelfPermission(
@@ -96,6 +99,8 @@ class AppPermissionsPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             activity?.let {
                 ActivityCompat.shouldShowRequestPermissionRationale(it, PERMISSION_MICROPHONE)
             } == true -> "denied"
+
+            wasMicrophoneRequested() -> "denied"
 
             else -> "notDetermined"
         }
@@ -109,6 +114,15 @@ class AppPermissionsPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             return
         }
 
+        if (pendingResult != null) {
+            result.error(
+                "PERMISSION_REQUEST_IN_PROGRESS",
+                "Another microphone permission request is already in progress",
+                null
+            )
+            return
+        }
+
         // Check if already granted
         if (isMicrophoneGranted()) {
             result.success(true)
@@ -117,6 +131,7 @@ class AppPermissionsPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
         // Store the result to respond later
         pendingResult = result
+        markMicrophoneRequested()
 
         // Request the permission
         ActivityCompat.requestPermissions(
@@ -144,24 +159,53 @@ class AppPermissionsPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
-        context = null
+        applicationContext = null
+        pendingResult = null
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        activityBinding = binding
         activity = binding.activity
         binding.addRequestPermissionsResultListener(this)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        activity = null
+        detachFromActivity(clearPendingResult = false)
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        activityBinding = binding
         activity = binding.activity
         binding.addRequestPermissionsResultListener(this)
     }
 
     override fun onDetachedFromActivity() {
+        detachFromActivity(clearPendingResult = true)
+    }
+
+    private fun detachFromActivity(clearPendingResult: Boolean) {
+        activityBinding?.removeRequestPermissionsResultListener(this)
+        activityBinding = null
         activity = null
+
+        if (clearPendingResult) {
+            pendingResult?.error("NO_ACTIVITY", "Activity is no longer available", null)
+            pendingResult = null
+        }
+    }
+
+    private fun wasMicrophoneRequested(): Boolean {
+        return applicationContext
+            ?.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+            ?.getBoolean(MICROPHONE_REQUESTED_KEY, false)
+            ?: false
+    }
+
+    private fun markMicrophoneRequested() {
+        applicationContext
+            ?.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+            ?.edit()
+            ?.putBoolean(MICROPHONE_REQUESTED_KEY, true)
+            ?.apply()
     }
 }

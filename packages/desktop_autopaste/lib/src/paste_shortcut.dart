@@ -1,0 +1,1 @@
+enum DesktopAutopastePasteShortcut { ctrlV, shiftInsert }

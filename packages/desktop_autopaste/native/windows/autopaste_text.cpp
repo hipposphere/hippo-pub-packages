@@ -319,43 +319,40 @@ void RestoreClipboardUnicodeText(HWND owner_hwnd, HGLOBAL previous_text_copy) {
 }
 
 bool SendPasteShortcut(ClipboardPasteShortcut shortcut) {
+  auto make_scan_code_input = [](UINT vk, bool key_up) {
+    INPUT input = {};
+    input.type = INPUT_KEYBOARD;
+    input.ki.wVk = 0;
+    input.ki.wScan = static_cast<WORD>(::MapVirtualKeyExW(
+        vk,
+        MAPVK_VK_TO_VSC_EX,
+        ::GetKeyboardLayout(0)));
+    input.ki.dwFlags = KEYEVENTF_SCANCODE;
+    if ((input.ki.wScan & 0xFF00) != 0) {
+      input.ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+    }
+    input.ki.wScan = static_cast<WORD>(input.ki.wScan & 0xFF);
+    if (key_up) {
+      input.ki.dwFlags |= KEYEVENTF_KEYUP;
+    }
+    return input;
+  };
+
   INPUT inputs[4] = {};
-  UINT expected_sent = 4;
+  constexpr UINT expected_sent = 4;
 
   switch (shortcut) {
     case ClipboardPasteShortcut::kCtrlV:
-      // Ctrl down
-      inputs[0].type = INPUT_KEYBOARD;
-      inputs[0].ki.wVk = VK_CONTROL;
-
-      // V down
-      inputs[1].type = INPUT_KEYBOARD;
-      inputs[1].ki.wVk = 'V';
-
-      // V up
-      inputs[2] = inputs[1];
-      inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
-
-      // Ctrl up
-      inputs[3] = inputs[0];
-      inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
+      inputs[0] = make_scan_code_input(VK_LCONTROL, false);
+      inputs[1] = make_scan_code_input('V', false);
+      inputs[2] = make_scan_code_input('V', true);
+      inputs[3] = make_scan_code_input(VK_LCONTROL, true);
       break;
     case ClipboardPasteShortcut::kShiftInsert:
-      // Shift down
-      inputs[0].type = INPUT_KEYBOARD;
-      inputs[0].ki.wVk = VK_SHIFT;
-
-      // Insert down
-      inputs[1].type = INPUT_KEYBOARD;
-      inputs[1].ki.wVk = VK_INSERT;
-
-      // Insert up
-      inputs[2] = inputs[1];
-      inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
-
-      // Shift up
-      inputs[3] = inputs[0];
-      inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
+      inputs[0] = make_scan_code_input(VK_LSHIFT, false);
+      inputs[1] = make_scan_code_input(VK_INSERT, false);
+      inputs[2] = make_scan_code_input(VK_INSERT, true);
+      inputs[3] = make_scan_code_input(VK_LSHIFT, true);
       break;
   }
 
@@ -444,9 +441,11 @@ bool AutoPasteTextViaWin32Messages(const std::wstring& text) {
   return has_selection_before || has_length_before;
 }
 
-bool AutoPasteTextViaClipboard(const std::wstring& text, int pre_paste_delay_ms) {
+bool AutoPasteTextViaClipboard(const std::wstring& text,
+                               ClipboardPasteShortcut shortcut,
+                               int pre_paste_delay_ms) {
   return AutoPasteTextViaClipboardWithShortcut(text,
-                                               ClipboardPasteShortcut::kShiftInsert,
+                                               shortcut,
                                                pre_paste_delay_ms);
 }
 

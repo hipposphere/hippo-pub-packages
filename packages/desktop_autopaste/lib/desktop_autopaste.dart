@@ -1,18 +1,23 @@
 import 'src/ffi/desktop_autopaste_ffi.dart';
 import 'src/focused_text_edit_operation.dart';
 import 'src/focused_text_field_context.dart';
+import 'src/paste_shortcut.dart';
 
 export 'src/focused_text_field_context.dart';
 export 'src/focused_text_edit_operation.dart';
+export 'src/paste_shortcut.dart';
 
 class DesktopAutopaste {
   Future<bool> pasteIntoCursorViaClipboard(
     String text, {
     Duration prePasteDelay = Duration.zero,
+    DesktopAutopastePasteShortcut pasteShortcut =
+        DesktopAutopastePasteShortcut.shiftInsert,
   }) {
     return DesktopAutopasteFfi.instance.pasteIntoCursorViaClipboard(
       text,
       prePasteDelay: prePasteDelay,
+      pasteShortcut: pasteShortcut,
     );
   }
 

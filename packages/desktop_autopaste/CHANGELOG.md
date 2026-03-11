@@ -1,3 +1,8 @@
+## 0.2.7
+
+* Switch Windows paste shortcut injection to scan-code based `SendInput`.
+* Add a selectable paste shortcut (`Ctrl+V` or `Shift+Insert`) to the Dart API.
+
 ## 0.2.6
 
 * Change the default Windows clipboard paste shortcut from `Ctrl+V` to

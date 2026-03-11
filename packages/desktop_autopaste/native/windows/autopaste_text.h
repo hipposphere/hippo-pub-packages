@@ -14,6 +14,7 @@ bool AutoPasteTextViaWin32Messages(const std::wstring& text);
 
 bool AutoPasteTextViaClipboard(
     const std::wstring& text,
+    ClipboardPasteShortcut shortcut,
     int pre_paste_delay_ms);
 
 bool AutoPasteTextViaClipboardWithShortcut(

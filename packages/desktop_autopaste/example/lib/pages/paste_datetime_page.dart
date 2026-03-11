@@ -23,7 +23,7 @@ class _Bloc extends BlocBase {
   final _autopaste = DesktopAutopaste();
   final hotkeyController = HotkeyStatusController(
     initialHotkey: Hotkey.single(switch (defaultTargetPlatform) {
-      TargetPlatform.windows => PhysicalKeyboardKey.controlLeft,
+      TargetPlatform.windows => PhysicalKeyboardKey.f8,
       TargetPlatform.macOS => PhysicalKeyboardKey.metaLeft,
       _ => PhysicalKeyboardKey.f8,
     }),
@@ -31,6 +31,9 @@ class _Bloc extends BlocBase {
 
   final isPasting = DataSubject<bool>.seeded(false);
   final prePasteDelayMs = DataSubject<int>.seeded(0);
+  final pasteShortcut = DataSubject<DesktopAutopastePasteShortcut>.seeded(
+    DesktopAutopastePasteShortcut.shiftInsert,
+  );
   final lastPastedText = DataSubject<String?>.seeded(null);
   final lastError = DataSubject<String?>.seeded(null);
   StreamSubscription<HotkeyStatusType>? _hotkeySubscription;
@@ -40,8 +43,8 @@ class _Bloc extends BlocBase {
     _hotkeySubscription = hotkeyController.streamHotkeyStatusType().listen((
       status,
     ) {
-      if (status == HotkeyStatusType.pressed) {
-        debugPrint('Hotkey pressed, attempting to paste current DateTime...');
+      if (status == HotkeyStatusType.released) {
+        debugPrint('Hotkey released, attempting to paste current DateTime...');
         pasteNow();
       }
     });
@@ -61,6 +64,7 @@ class _Bloc extends BlocBase {
       final ok = await _autopaste.pasteIntoCursorViaClipboard(
         text,
         prePasteDelay: Duration(milliseconds: prePasteDelayMs.value),
+        pasteShortcut: pasteShortcut.value,
       );
       if (_isDisposed) return;
       if (ok) {
@@ -85,6 +89,7 @@ class _Bloc extends BlocBase {
     hotkeyController.close();
     isPasting.close();
     prePasteDelayMs.close();
+    pasteShortcut.close();
     lastPastedText.close();
     lastError.close();
   }
@@ -195,6 +200,52 @@ class PasteDateTimePage extends StatelessWidget {
                     },
                     emptyBuilder: (_) => const SizedBox.shrink(),
                   ),
+                  if (defaultTargetPlatform == TargetPlatform.windows)
+                    DataSubjectBuilder<DesktopAutopastePasteShortcut>(
+                      subject: bloc.pasteShortcut,
+                      builder: (context, pasteShortcut) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Paste shortcut',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                ChoiceChip(
+                                  label: const Text('Ctrl+V'),
+                                  selected:
+                                      pasteShortcut ==
+                                      DesktopAutopastePasteShortcut.ctrlV,
+                                  onSelected: (_) {
+                                    bloc.pasteShortcut.add(
+                                      DesktopAutopastePasteShortcut.ctrlV,
+                                    );
+                                  },
+                                ),
+                                ChoiceChip(
+                                  label: const Text('Shift+Insert'),
+                                  selected:
+                                      pasteShortcut ==
+                                      DesktopAutopastePasteShortcut.shiftInsert,
+                                  onSelected: (_) {
+                                    bloc.pasteShortcut.add(
+                                      DesktopAutopastePasteShortcut.shiftInsert,
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                        );
+                      },
+                      emptyBuilder: (_) => const SizedBox.shrink(),
+                    ),
                   const SizedBox(height: 8),
                   DataSubjectBuilder<bool>(
                     subject: bloc.isPasting,

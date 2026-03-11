@@ -17,6 +17,18 @@
 
 namespace {
 
+desktop_autopaste::ClipboardPasteShortcut ParseClipboardPasteShortcut(
+    int32_t raw_shortcut) {
+  switch (raw_shortcut) {
+    case 0:
+      return desktop_autopaste::ClipboardPasteShortcut::kCtrlV;
+    case 1:
+      return desktop_autopaste::ClipboardPasteShortcut::kShiftInsert;
+    default:
+      return desktop_autopaste::ClipboardPasteShortcut::kShiftInsert;
+  }
+}
+
 std::wstring Utf8ToWide(const char* utf8) {
   if (utf8 == nullptr || utf8[0] == '\0') {
     return std::wstring();
@@ -123,6 +135,7 @@ extern "C" DESKTOP_AUTOPASTE_FFI_EXPORT int32_t
     desktop_autopaste_paste_into_cursor_via_clipboard(
         const char* text_utf8,
         int32_t pre_paste_delay_ms,
+        int32_t paste_shortcut,
         char* error_utf8,
         uint32_t error_utf8_capacity) {
   if (text_utf8 == nullptr) {
@@ -132,6 +145,7 @@ extern "C" DESKTOP_AUTOPASTE_FFI_EXPORT int32_t
 
   const bool ok = desktop_autopaste::AutoPasteTextViaClipboard(
       Utf8ToWide(text_utf8),
+      ParseClipboardPasteShortcut(paste_shortcut),
       pre_paste_delay_ms);
   if (!ok) {
     WriteUtf8(error_utf8, error_utf8_capacity, "Auto paste failed");

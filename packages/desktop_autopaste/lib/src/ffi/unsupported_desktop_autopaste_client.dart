@@ -1,5 +1,6 @@
 import '../focused_text_edit_operation.dart';
 import '../focused_text_field_context.dart';
+import '../paste_shortcut.dart';
 import 'desktop_autopaste_client.dart';
 
 final class UnsupportedDesktopAutopasteClient
@@ -12,6 +13,7 @@ final class UnsupportedDesktopAutopasteClient
   Future<bool> pasteIntoCursorViaClipboard(
     String text, {
     required Duration prePasteDelay,
+    required DesktopAutopastePasteShortcut pasteShortcut,
   }) async => false;
 
   @override

@@ -7,6 +7,7 @@ import 'package:objective_c/objective_c.dart' as objc;
 
 import '../focused_text_edit_operation.dart';
 import '../focused_text_field_context.dart';
+import '../paste_shortcut.dart';
 import 'desktop_autopaste_client.dart';
 import 'generated/desktop_autopaste_bindings.dart' as bindings;
 import 'generated/desktop_autopaste_macos_swiftgen_bindings.dart'
@@ -22,6 +23,7 @@ final class NativeFfiDesktopAutopasteClient implements DesktopAutopasteClient {
   Future<bool> pasteIntoCursorViaClipboard(
     String text, {
     required Duration prePasteDelay,
+    required DesktopAutopastePasteShortcut pasteShortcut,
   }) async {
     if (Platform.isMacOS) {
       final swiftgenResult = _tryPasteViaMacosSwiftgen(text);
@@ -40,6 +42,7 @@ final class NativeFfiDesktopAutopasteClient implements DesktopAutopasteClient {
       final code = bindings.desktop_autopaste_paste_into_cursor_via_clipboard(
         textPtr,
         prePasteDelayMs,
+        pasteShortcut.index,
         errorPtr,
         _errorBufferBytes,
       );

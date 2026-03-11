@@ -8,7 +8,7 @@ export 'src/focused_text_edit_operation.dart';
 class DesktopAutopaste {
   Future<bool> pasteIntoCursorViaClipboard(
     String text, {
-    Duration prePasteDelay = const Duration(milliseconds: 100),
+    Duration prePasteDelay = Duration.zero,
   }) {
     return DesktopAutopasteFfi.instance.pasteIntoCursorViaClipboard(
       text,

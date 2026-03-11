@@ -15,7 +15,7 @@ final class DesktopAutopasteFfi {
 
   Future<bool> pasteIntoCursorViaClipboard(
     String text, {
-    Duration prePasteDelay = const Duration(milliseconds: 100),
+    Duration prePasteDelay = Duration.zero,
   }) {
     return _client.pasteIntoCursorViaClipboard(
       text,

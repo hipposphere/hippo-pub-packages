@@ -22,6 +22,41 @@ constexpr int kClipboardSequenceRetryDelayMs = 10;
 constexpr int kPostPasteDelayMs = 750;
 constexpr UINT kMessageTimeoutMs = 300;
 
+struct ProcessTopLevelWindowSearchContext {
+  DWORD process_id = 0;
+  HWND best_window = nullptr;
+  HWND fallback_window = nullptr;
+};
+
+BOOL CALLBACK FindProcessTopLevelWindowCallback(HWND hwnd, LPARAM lparam) {
+  auto* context =
+      reinterpret_cast<ProcessTopLevelWindowSearchContext*>(lparam);
+  if (context == nullptr) {
+    return FALSE;
+  }
+
+  DWORD window_process_id = 0;
+  ::GetWindowThreadProcessId(hwnd, &window_process_id);
+  if (window_process_id != context->process_id) {
+    return TRUE;
+  }
+
+  if (::GetAncestor(hwnd, GA_ROOT) != hwnd) {
+    return TRUE;
+  }
+
+  if (context->fallback_window == nullptr) {
+    context->fallback_window = hwnd;
+  }
+
+  if (::GetWindow(hwnd, GW_OWNER) != nullptr || !::IsWindowVisible(hwnd)) {
+    return TRUE;
+  }
+
+  context->best_window = hwnd;
+  return FALSE;
+}
+
 HWND GetFocusedWindowHandle() {
   GUITHREADINFO thread_info = {};
   thread_info.cbSize = sizeof(GUITHREADINFO);
@@ -29,6 +64,17 @@ HWND GetFocusedWindowHandle() {
     return thread_info.hwndFocus;
   }
   return ::GetForegroundWindow();
+}
+
+HWND GetClipboardOwnerWindowHandle() {
+  ProcessTopLevelWindowSearchContext context = {};
+  context.process_id = ::GetCurrentProcessId();
+  ::EnumWindows(&FindProcessTopLevelWindowCallback,
+                reinterpret_cast<LPARAM>(&context));
+  if (context.best_window != nullptr) {
+    return context.best_window;
+  }
+  return context.fallback_window;
 }
 
 std::wstring GetWindowClassName(HWND hwnd) {
@@ -175,9 +221,9 @@ bool TryGetFocusedWin32TextFieldHandle(HWND* out_hwnd) {
   return true;
 }
 
-bool OpenClipboardWithRetries() {
+bool OpenClipboardWithRetries(HWND owner_hwnd) {
   for (int i = 0; i < kClipboardOpenRetries; ++i) {
-    if (::OpenClipboard(nullptr)) {
+    if (::OpenClipboard(owner_hwnd)) {
       return true;
     }
     ::Sleep(kClipboardOpenRetryDelayMs);
@@ -247,48 +293,13 @@ bool SetClipboardUnicodeText(const std::wstring& text) {
   return true;
 }
 
-bool SetClipboardAnsiText(const std::wstring& text) {
-  const int size_in_bytes = ::WideCharToMultiByte(
-      CP_ACP, 0, text.c_str(), -1, nullptr, 0, nullptr, nullptr);
-  if (size_in_bytes <= 0) {
-    return false;
-  }
-
-  HGLOBAL clipboard_text = ::GlobalAlloc(
-      GMEM_MOVEABLE, static_cast<SIZE_T>(size_in_bytes) * sizeof(char));
-  if (clipboard_text == nullptr) {
-    return false;
-  }
-
-  char* buffer = static_cast<char*>(::GlobalLock(clipboard_text));
-  if (buffer == nullptr) {
-    ::GlobalFree(clipboard_text);
-    return false;
-  }
-
-  const int converted = ::WideCharToMultiByte(
-      CP_ACP, 0, text.c_str(), -1, buffer, size_in_bytes, nullptr, nullptr);
-  if (converted <= 0) {
-    ::GlobalUnlock(clipboard_text);
-    ::GlobalFree(clipboard_text);
-    return false;
-  }
-  ::GlobalUnlock(clipboard_text);
-
-  if (::SetClipboardData(CF_TEXT, clipboard_text) == nullptr) {
-    ::GlobalFree(clipboard_text);
-    return false;
-  }
-  return true;
-}
-
-void RestoreClipboardUnicodeText(HGLOBAL previous_text_copy) {
+void RestoreClipboardUnicodeText(HWND owner_hwnd, HGLOBAL previous_text_copy) {
   if (previous_text_copy == nullptr) {
     return;
   }
 
   for (int i = 0; i < kClipboardOpenRetries; ++i) {
-    if (!::OpenClipboard(nullptr)) {
+    if (!::OpenClipboard(owner_hwnd)) {
       ::Sleep(kClipboardOpenRetryDelayMs);
       continue;
     }
@@ -437,28 +448,27 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
     return true;
   }
 
+  const HWND clipboard_owner_hwnd = GetClipboardOwnerWindowHandle();
   DWORD sequence_before = ::GetClipboardSequenceNumber();
-  if (!OpenClipboardWithRetries()) {
+  if (!OpenClipboardWithRetries(clipboard_owner_hwnd)) {
     return false;
   }
 
   HGLOBAL previous_text_copy = DuplicateClipboardUnicodeText();
   bool publish_ok = false;
   if (::EmptyClipboard()) {
-    const bool unicode_ok = SetClipboardUnicodeText(text);
-    const bool ansi_ok = SetClipboardAnsiText(text);
-    publish_ok = unicode_ok || ansi_ok;
+    publish_ok = SetClipboardUnicodeText(text);
   }
   ::CloseClipboard();
 
   if (!publish_ok) {
-    RestoreClipboardUnicodeText(previous_text_copy);
+    RestoreClipboardUnicodeText(clipboard_owner_hwnd, previous_text_copy);
     return false;
   }
   WaitForClipboardSequenceChange(sequence_before);
 
   if (!SendPasteShortcut(shortcut)) {
-    RestoreClipboardUnicodeText(previous_text_copy);
+    RestoreClipboardUnicodeText(clipboard_owner_hwnd, previous_text_copy);
     return false;
   }
 
@@ -466,7 +476,7 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
   PumpPendingMessages();
   ::Sleep(kPostPasteDelayMs);
 
-  RestoreClipboardUnicodeText(previous_text_copy);
+  RestoreClipboardUnicodeText(clipboard_owner_hwnd, previous_text_copy);
   return true;
 }
 

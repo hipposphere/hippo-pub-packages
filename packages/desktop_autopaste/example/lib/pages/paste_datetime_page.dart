@@ -32,7 +32,7 @@ class _Bloc extends BlocBase {
   final isPasting = DataSubject<bool>.seeded(false);
   final prePasteDelayMs = DataSubject<int>.seeded(0);
   final pasteShortcut = DataSubject<DesktopAutopastePasteShortcut>.seeded(
-    DesktopAutopastePasteShortcut.shiftInsert,
+    DesktopAutopastePasteShortcut.ctrlV,
   );
   final lastPastedText = DataSubject<String?>.seeded(null);
   final lastError = DataSubject<String?>.seeded(null);

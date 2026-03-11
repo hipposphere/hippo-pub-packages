@@ -18,7 +18,7 @@ final class DesktopAutopasteFfi {
     String text, {
     Duration prePasteDelay = Duration.zero,
     DesktopAutopastePasteShortcut pasteShortcut =
-        DesktopAutopastePasteShortcut.shiftInsert,
+        DesktopAutopastePasteShortcut.ctrlV,
   }) {
     return _client.pasteIntoCursorViaClipboard(
       text,

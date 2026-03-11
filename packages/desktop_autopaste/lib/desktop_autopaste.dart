@@ -12,7 +12,7 @@ class DesktopAutopaste {
     String text, {
     Duration prePasteDelay = Duration.zero,
     DesktopAutopastePasteShortcut pasteShortcut =
-        DesktopAutopastePasteShortcut.shiftInsert,
+        DesktopAutopastePasteShortcut.ctrlV,
   }) {
     return DesktopAutopasteFfi.instance.pasteIntoCursorViaClipboard(
       text,

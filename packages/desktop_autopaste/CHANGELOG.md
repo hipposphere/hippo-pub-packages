@@ -1,3 +1,8 @@
+## 0.2.6
+
+* Change the default Windows clipboard paste shortcut from `Ctrl+V` to
+  `Shift+Insert`.
+
 ## 0.2.4
 
 * Add a configurable pre-paste delay for native clipboard paste so Windows

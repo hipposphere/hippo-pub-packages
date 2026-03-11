@@ -446,7 +446,7 @@ bool AutoPasteTextViaWin32Messages(const std::wstring& text) {
 
 bool AutoPasteTextViaClipboard(const std::wstring& text, int pre_paste_delay_ms) {
   return AutoPasteTextViaClipboardWithShortcut(text,
-                                               ClipboardPasteShortcut::kCtrlV,
+                                               ClipboardPasteShortcut::kShiftInsert,
                                                pre_paste_delay_ms);
 }
 

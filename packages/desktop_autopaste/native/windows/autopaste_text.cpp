@@ -16,6 +16,7 @@ constexpr int kClipboardOpenRetries = 20;
 constexpr int kClipboardOpenRetryDelayMs = 10;
 constexpr int kClipboardSequenceRetries = 50;
 constexpr int kClipboardSequenceRetryDelayMs = 10;
+constexpr int kDefaultPrePasteDelayMs = 100;
 // Remote-hosted Windows apps (for example Citrix sessions) can consume the
 // clipboard noticeably later than local apps, so restoring too early can cause
 // the target to paste an empty placeholder or stale content.
@@ -380,6 +381,13 @@ bool WaitForClipboardSequenceChange(DWORD previous_sequence) {
   return false;
 }
 
+int NormalizePrePasteDelayMs(int pre_paste_delay_ms) {
+  if (pre_paste_delay_ms < 0) {
+    return kDefaultPrePasteDelayMs;
+  }
+  return pre_paste_delay_ms;
+}
+
 }  // namespace
 
 bool AutoPasteTextViaWin32Messages(const std::wstring& text) {
@@ -437,13 +445,15 @@ bool AutoPasteTextViaWin32Messages(const std::wstring& text) {
   return has_selection_before || has_length_before;
 }
 
-bool AutoPasteTextViaClipboard(const std::wstring& text) {
+bool AutoPasteTextViaClipboard(const std::wstring& text, int pre_paste_delay_ms) {
   return AutoPasteTextViaClipboardWithShortcut(text,
-                                               ClipboardPasteShortcut::kCtrlV);
+                                               ClipboardPasteShortcut::kCtrlV,
+                                               pre_paste_delay_ms);
 }
 
 bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
-                                           ClipboardPasteShortcut shortcut) {
+                                           ClipboardPasteShortcut shortcut,
+                                           int pre_paste_delay_ms) {
   if (text.empty()) {
     return true;
   }
@@ -467,6 +477,12 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
   }
   WaitForClipboardSequenceChange(sequence_before);
 
+  const int effective_pre_paste_delay_ms =
+      NormalizePrePasteDelayMs(pre_paste_delay_ms);
+  if (effective_pre_paste_delay_ms > 0) {
+    ::Sleep(effective_pre_paste_delay_ms);
+  }
+
   if (!SendPasteShortcut(shortcut)) {
     RestoreClipboardUnicodeText(clipboard_owner_hwnd, previous_text_copy);
     return false;
@@ -478,21 +494,6 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
 
   RestoreClipboardUnicodeText(clipboard_owner_hwnd, previous_text_copy);
   return true;
-}
-
-bool AutoPasteTextViaClipboardAuto(const std::wstring& text) {
-  HWND focused_hwnd = nullptr;
-  if (TryGetFocusedWin32TextFieldHandle(&focused_hwnd)) {
-    if (AutoPasteTextViaWin32Messages(text)) {
-      return true;
-    }
-  }
-  if (AutoPasteTextViaClipboardWithShortcut(text,
-                                            ClipboardPasteShortcut::kCtrlV)) {
-    return true;
-  }
-  return AutoPasteTextViaClipboardWithShortcut(
-      text, ClipboardPasteShortcut::kShiftInsert);
 }
 
 }  // namespace desktop_autopaste

@@ -1,3 +1,9 @@
+## 0.2.4
+
+* Add a configurable pre-paste delay for native clipboard paste so Windows
+  callers can give Citrix and other remote-hosted apps time to sync clipboard
+  contents before the paste shortcut is sent.
+
 ## 0.2.2
 
 * Fix macOS native asset output handling so release builds keep arm64 and x86_64

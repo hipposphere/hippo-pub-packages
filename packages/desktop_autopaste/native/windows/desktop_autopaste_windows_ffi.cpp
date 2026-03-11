@@ -122,6 +122,7 @@ std::string ContextToJson(
 extern "C" DESKTOP_AUTOPASTE_FFI_EXPORT int32_t
     desktop_autopaste_paste_into_cursor_via_clipboard(
         const char* text_utf8,
+        int32_t pre_paste_delay_ms,
         char* error_utf8,
         uint32_t error_utf8_capacity) {
   if (text_utf8 == nullptr) {
@@ -130,7 +131,8 @@ extern "C" DESKTOP_AUTOPASTE_FFI_EXPORT int32_t
   }
 
   const bool ok = desktop_autopaste::AutoPasteTextViaClipboard(
-      Utf8ToWide(text_utf8));
+      Utf8ToWide(text_utf8),
+      pre_paste_delay_ms);
   if (!ok) {
     WriteUtf8(error_utf8, error_utf8_capacity, "Auto paste failed");
     return 1;

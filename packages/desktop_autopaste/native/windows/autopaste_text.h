@@ -12,13 +12,14 @@ enum class ClipboardPasteShortcut {
 
 bool AutoPasteTextViaWin32Messages(const std::wstring& text);
 
-bool AutoPasteTextViaClipboard(const std::wstring& text);
+bool AutoPasteTextViaClipboard(
+    const std::wstring& text,
+    int pre_paste_delay_ms);
 
 bool AutoPasteTextViaClipboardWithShortcut(
     const std::wstring& text,
-    ClipboardPasteShortcut shortcut);
-
-bool AutoPasteTextViaClipboardAuto(const std::wstring& text);
+    ClipboardPasteShortcut shortcut,
+    int pre_paste_delay_ms);
 
 }  // namespace desktop_autopaste
 

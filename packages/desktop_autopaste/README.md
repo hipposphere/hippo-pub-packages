@@ -4,7 +4,7 @@ Desktop auto-paste helpers backed by native FFI code assets.
 
 ## API
 
-- `pasteIntoCursorViaClipboard(text)`
+- `pasteIntoCursorViaClipboard(text, prePasteDelay: ...)`
 - `getFocusedTextFieldContext(maxCharsBefore, maxCharsAfter, enableScreenReader)`
 - `editFocusedTextField(operations)`
 

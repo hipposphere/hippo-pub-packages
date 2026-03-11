@@ -21,6 +21,7 @@ typedef struct desktop_autopaste_text_edit_operation_t {
 
 DESKTOP_AUTOPASTE_FFI_EXPORT int32_t desktop_autopaste_paste_into_cursor_via_clipboard(
     const char* text_utf8,
+    int32_t pre_paste_delay_ms,
     char* error_utf8,
     uint32_t error_utf8_capacity);
 

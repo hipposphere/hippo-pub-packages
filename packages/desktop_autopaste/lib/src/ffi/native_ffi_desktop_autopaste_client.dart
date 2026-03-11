@@ -19,7 +19,10 @@ final class NativeFfiDesktopAutopasteClient implements DesktopAutopasteClient {
   const NativeFfiDesktopAutopasteClient();
 
   @override
-  Future<bool> pasteIntoCursorViaClipboard(String text) async {
+  Future<bool> pasteIntoCursorViaClipboard(
+    String text, {
+    required Duration prePasteDelay,
+  }) async {
     if (Platform.isMacOS) {
       final swiftgenResult = _tryPasteViaMacosSwiftgen(text);
       if (swiftgenResult != null) {
@@ -31,8 +34,12 @@ final class NativeFfiDesktopAutopasteClient implements DesktopAutopasteClient {
     final errorPtr = calloc<ffi.Char>(_errorBufferBytes);
 
     try {
+      final prePasteDelayMs = prePasteDelay.isNegative
+          ? 0
+          : prePasteDelay.inMilliseconds;
       final code = bindings.desktop_autopaste_paste_into_cursor_via_clipboard(
         textPtr,
+        prePasteDelayMs,
         errorPtr,
         _errorBufferBytes,
       );

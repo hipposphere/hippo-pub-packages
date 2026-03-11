@@ -13,8 +13,14 @@ final class DesktopAutopasteFfi {
 
   late final DesktopAutopasteClient _client = _createClient();
 
-  Future<bool> pasteIntoCursorViaClipboard(String text) {
-    return _client.pasteIntoCursorViaClipboard(text);
+  Future<bool> pasteIntoCursorViaClipboard(
+    String text, {
+    Duration prePasteDelay = const Duration(milliseconds: 100),
+  }) {
+    return _client.pasteIntoCursorViaClipboard(
+      text,
+      prePasteDelay: prePasteDelay,
+    );
   }
 
   Future<FocusedTextFieldContext> getFocusedTextFieldContext({

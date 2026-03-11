@@ -117,9 +117,11 @@ public final class DesktopAutopasteMacosBridge: NSObject {
 @_cdecl("desktop_autopaste_paste_into_cursor_via_clipboard")
 public func desktop_autopaste_paste_into_cursor_via_clipboard(
   _ textUtf8: UnsafePointer<CChar>?,
+  _ prePasteDelayMs: Int32,
   _ errorUtf8: UnsafeMutablePointer<CChar>?,
   _ errorUtf8Capacity: UInt32
 ) -> Int32 {
+  _ = prePasteDelayMs
   guard let textUtf8 else {
     writeUtf8(errorUtf8, errorUtf8Capacity, "Missing text")
     return 2

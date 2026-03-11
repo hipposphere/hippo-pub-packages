@@ -6,8 +6,14 @@ export 'src/focused_text_field_context.dart';
 export 'src/focused_text_edit_operation.dart';
 
 class DesktopAutopaste {
-  Future<bool> pasteIntoCursorViaClipboard(String text) {
-    return DesktopAutopasteFfi.instance.pasteIntoCursorViaClipboard(text);
+  Future<bool> pasteIntoCursorViaClipboard(
+    String text, {
+    Duration prePasteDelay = const Duration(milliseconds: 100),
+  }) {
+    return DesktopAutopasteFfi.instance.pasteIntoCursorViaClipboard(
+      text,
+      prePasteDelay: prePasteDelay,
+    );
   }
 
   Future<FocusedTextFieldContext> getFocusedTextFieldContext({

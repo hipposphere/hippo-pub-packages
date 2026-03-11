@@ -9,7 +9,10 @@ final class UnsupportedDesktopAutopasteClient
   final String reason;
 
   @override
-  Future<bool> pasteIntoCursorViaClipboard(String text) async => false;
+  Future<bool> pasteIntoCursorViaClipboard(
+    String text, {
+    required Duration prePasteDelay,
+  }) async => false;
 
   @override
   Future<FocusedTextFieldContext> getFocusedTextFieldContext({

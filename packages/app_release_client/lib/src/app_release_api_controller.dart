@@ -119,7 +119,7 @@ class AppReleaseApiController {
         'currentVersion=${Uri.encodeQueryComponent(currentVersion)}',
       if (normalizedPackageTypes != null)
         for (final packageType in normalizedPackageTypes)
-          'packageType=${Uri.encodeQueryComponent(packageType)}',
+          'package_type=${Uri.encodeQueryComponent(packageType)}',
     ];
 
     final basePath = baseUrl.path.endsWith('/')

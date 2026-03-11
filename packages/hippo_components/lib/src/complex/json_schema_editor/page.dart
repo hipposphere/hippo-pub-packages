@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
-import 'package:hippo_utils/hippo_utils.dart';
 import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_validation_panel.dart';
-import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_visualization_panel.dart';
+import 'package:hippo_components/src/complex/json_schema_visualization/json_schema_visualization_panel.dart';
+import 'package:hippo_utils/hippo_utils.dart';
 
 class JsonSchemaEditorPage extends StatelessWidget {
   final String title;
@@ -21,6 +21,10 @@ class JsonSchemaEditorPage extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final isDesktop = width >= 1024;
+        final previewContent = SingleChildScrollView(
+          padding: EdgeInsets.zero,
+          child: _PreviewAndDiagnostics(controller: controller),
+        );
 
         if (isDesktop) {
           return PageContainer(
@@ -30,7 +34,7 @@ class JsonSchemaEditorPage extends StatelessWidget {
                 onTap: () {
                   onSave(context, controller.toJsonSchema());
                 },
-                icon: Icon(Icons.save_outlined),
+                icon: const Icon(Icons.save_outlined),
                 label: context.cl.actions_save,
               ),
             ],
@@ -39,11 +43,7 @@ class JsonSchemaEditorPage extends StatelessWidget {
               children: [
                 Expanded(flex: 2, child: JsonSchemaEditor(controller: controller)),
                 const VerticalDivider(thickness: 0.5, width: 0.5),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: _PreviewAndDiagnostics(controller: controller),
-                  ),
-                ),
+                Expanded(child: previewContent),
               ],
             ),
           );
@@ -52,12 +52,13 @@ class JsonSchemaEditorPage extends StatelessWidget {
         return TabbedPageContainer(
           title: title,
           actions: [
-            PageHeaderTextAction(onTap:(){
-              onSave(context, controller.toJsonSchema()); 
-            },
-            icon: Icon(Icons.save_outlined),
-            label: context.cl.actions_save,
-          ),
+            PageHeaderTextAction(
+              onTap: () {
+                onSave(context, controller.toJsonSchema());
+              },
+              icon: const Icon(Icons.save_outlined),
+              label: context.cl.actions_save,
+            ),
           ],
           tabs: const [
             Tab(text: 'Editor'),
@@ -65,7 +66,7 @@ class JsonSchemaEditorPage extends StatelessWidget {
           ],
           tabViews: [
             JsonSchemaEditor(controller: controller),
-            _PreviewAndDiagnostics(controller: controller),
+            previewContent,
           ],
         );
       },
@@ -89,6 +90,7 @@ class _PreviewAndDiagnostics extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   JsonSchemaVisualizationPanel(
                     controller: controller,

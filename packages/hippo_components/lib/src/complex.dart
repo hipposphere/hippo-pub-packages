@@ -15,3 +15,4 @@ export 'complex/json_schema_editor/controller.dart';
 export 'complex/json_schema_editor/models/feature_options.dart';
 export 'complex/json_schema_editor/editor.dart';
 export 'complex/json_schema_editor/page.dart';
+export 'complex/json_schema_visualization/json_schema_visualization.dart';

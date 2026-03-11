@@ -16,7 +16,10 @@ constexpr int kClipboardOpenRetries = 20;
 constexpr int kClipboardOpenRetryDelayMs = 10;
 constexpr int kClipboardSequenceRetries = 50;
 constexpr int kClipboardSequenceRetryDelayMs = 10;
-constexpr int kPostPasteDelayMs = 250;
+// Remote-hosted Windows apps (for example Citrix sessions) can consume the
+// clipboard noticeably later than local apps, so restoring too early can cause
+// the target to paste an empty placeholder or stale content.
+constexpr int kPostPasteDelayMs = 750;
 constexpr UINT kMessageTimeoutMs = 300;
 
 HWND GetFocusedWindowHandle() {

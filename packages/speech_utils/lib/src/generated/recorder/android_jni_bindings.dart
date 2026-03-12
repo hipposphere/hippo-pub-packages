@@ -11825,7 +11825,7 @@ class Activity extends jni$_.JObject {
           >();
 
   /// from: `public final void runOnUiThread(java.lang.Runnable runnable)`
-  void runOnUiThread(jni$_.JObject? runnable) {
+  void runOnUiThread(Runnable? runnable) {
     final _$runnable = runnable?.reference ?? jni$_.jNullReference;
     _runOnUiThread(
       reference.pointer,
@@ -17086,5 +17086,173 @@ final class $AudioRecord$Type$ extends jni$_.JType<AudioRecord> {
   @core$_.override
   bool operator ==(Object other) {
     return other.runtimeType == ($AudioRecord$Type$) && other is $AudioRecord$Type$;
+  }
+}
+
+/// from: `java.lang.Runnable`
+class Runnable extends jni$_.JObject {
+  @jni$_.internal
+  @core$_.override
+  final jni$_.JType<Runnable> $type;
+
+  @jni$_.internal
+  Runnable.fromReference(jni$_.JReference reference) : $type = type, super.fromReference(reference);
+
+  static final _class = jni$_.JClass.forName(r'java/lang/Runnable');
+
+  /// The type which includes information such as the signature of this class.
+  static const jni$_.JType<Runnable?> nullableType = $Runnable$NullableType$();
+
+  /// The type which includes information such as the signature of this class.
+  static const jni$_.JType<Runnable> type = $Runnable$Type$();
+  static final _id_run = _class.instanceMethodId(r'run', r'()V');
+
+  static final _run =
+      jni$_.ProtectedJniExtensions.lookup<
+            jni$_.NativeFunction<
+              jni$_.JThrowablePtr Function(jni$_.Pointer<jni$_.Void>, jni$_.JMethodIDPtr)
+            >
+          >('globalEnv_CallVoidMethod')
+          .asFunction<
+            jni$_.JThrowablePtr Function(jni$_.Pointer<jni$_.Void>, jni$_.JMethodIDPtr)
+          >();
+
+  /// from: `public abstract void run()`
+  void run() {
+    _run(reference.pointer, _id_run as jni$_.JMethodIDPtr).check();
+  }
+
+  /// Maps a specific port to the implemented interface.
+  static final core$_.Map<int, $Runnable> _$impls = {};
+  static jni$_.JObjectPtr _$invoke(int port, jni$_.JObjectPtr descriptor, jni$_.JObjectPtr args) {
+    return _$invokeMethod(
+      port,
+      jni$_.MethodInvocation.fromAddresses(0, descriptor.address, args.address),
+    );
+  }
+
+  static final jni$_.Pointer<
+    jni$_.NativeFunction<jni$_.JObjectPtr Function(jni$_.Int64, jni$_.JObjectPtr, jni$_.JObjectPtr)>
+  >
+  _$invokePointer = jni$_.Pointer.fromFunction(_$invoke);
+
+  static jni$_.Pointer<jni$_.Void> _$invokeMethod(int $p, jni$_.MethodInvocation $i) {
+    try {
+      final $d = $i.methodDescriptor.toDartString(releaseOriginal: true);
+      final $a = $i.args;
+      if ($d == r'run()V') {
+        _$impls[$p]!.run();
+        return jni$_.nullptr;
+      }
+    } catch (e) {
+      return jni$_.ProtectedJniExtensions.newDartException(e);
+    }
+    return jni$_.nullptr;
+  }
+
+  static void implementIn(jni$_.JImplementer implementer, $Runnable $impl) {
+    late final jni$_.RawReceivePort $p;
+    $p = jni$_.RawReceivePort(($m) {
+      if ($m == null) {
+        _$impls.remove($p.sendPort.nativePort);
+        $p.close();
+        return;
+      }
+      final $i = jni$_.MethodInvocation.fromMessage($m);
+      final $r = _$invokeMethod($p.sendPort.nativePort, $i);
+      jni$_.ProtectedJniExtensions.returnResult($i.result, $r);
+    });
+    implementer.add(r'java.lang.Runnable', $p, _$invokePointer, [if ($impl.run$async) r'run()V']);
+    final $a = $p.sendPort.nativePort;
+    _$impls[$a] = $impl;
+  }
+
+  factory Runnable.implement($Runnable $impl) {
+    final $i = jni$_.JImplementer();
+    implementIn($i, $impl);
+    return Runnable.fromReference($i.implementReference());
+  }
+}
+
+abstract base mixin class $Runnable {
+  factory $Runnable({required void Function() run, bool run$async}) = _$Runnable;
+
+  void run();
+  bool get run$async => false;
+}
+
+final class _$Runnable with $Runnable {
+  _$Runnable({required void Function() run, this.run$async = false}) : _run = run;
+
+  final void Function() _run;
+  final bool run$async;
+
+  void run() {
+    return _run();
+  }
+}
+
+final class $Runnable$NullableType$ extends jni$_.JType<Runnable?> {
+  @jni$_.internal
+  const $Runnable$NullableType$();
+
+  @jni$_.internal
+  @core$_.override
+  String get signature => r'Ljava/lang/Runnable;';
+
+  @jni$_.internal
+  @core$_.override
+  Runnable? fromReference(jni$_.JReference reference) =>
+      reference.isNull ? null : Runnable.fromReference(reference);
+  @jni$_.internal
+  @core$_.override
+  jni$_.JType get superType => const jni$_.$JObject$NullableType$();
+
+  @jni$_.internal
+  @core$_.override
+  jni$_.JType<Runnable?> get nullableType => this;
+
+  @jni$_.internal
+  @core$_.override
+  final superCount = 1;
+
+  @core$_.override
+  int get hashCode => ($Runnable$NullableType$).hashCode;
+
+  @core$_.override
+  bool operator ==(Object other) {
+    return other.runtimeType == ($Runnable$NullableType$) && other is $Runnable$NullableType$;
+  }
+}
+
+final class $Runnable$Type$ extends jni$_.JType<Runnable> {
+  @jni$_.internal
+  const $Runnable$Type$();
+
+  @jni$_.internal
+  @core$_.override
+  String get signature => r'Ljava/lang/Runnable;';
+
+  @jni$_.internal
+  @core$_.override
+  Runnable fromReference(jni$_.JReference reference) => Runnable.fromReference(reference);
+  @jni$_.internal
+  @core$_.override
+  jni$_.JType get superType => const jni$_.$JObject$NullableType$();
+
+  @jni$_.internal
+  @core$_.override
+  jni$_.JType<Runnable?> get nullableType => const $Runnable$NullableType$();
+
+  @jni$_.internal
+  @core$_.override
+  final superCount = 1;
+
+  @core$_.override
+  int get hashCode => ($Runnable$Type$).hashCode;
+
+  @core$_.override
+  bool operator ==(Object other) {
+    return other.runtimeType == ($Runnable$Type$) && other is $Runnable$Type$;
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:speech_utils/speech_utils.dart';
@@ -5,29 +6,29 @@ import 'package:speech_utils/speech_utils.dart';
 const _unsupportedAudioRecorderMessage =
     'NativeAudioRecorder is currently supported on Android, macOS, Windows, and iOS.';
 
-typedef StartFileHook = void Function({
-  required String outputPath,
-  required int sampleRateHz,
-  required int channelCount,
-  required String? inputDeviceId,
-});
+typedef StartFileHook =
+    void Function({
+      required String outputPath,
+      required int sampleRateHz,
+      required int channelCount,
+      required String? inputDeviceId,
+    });
 
-typedef StartStreamHook = void Function({
-  required int sampleRateHz,
-  required int channelCount,
-  required int framesPerChunk,
-  required String? inputDeviceId,
-});
+typedef StartStreamHook =
+    void Function({
+      required int sampleRateHz,
+      required int channelCount,
+      required int framesPerChunk,
+      required String? inputDeviceId,
+    });
 
-typedef ReadStreamHook = Uint8List Function({
-  required int maxSamples,
-});
+typedef ReadStreamHook = Uint8List Function({required int maxSamples});
 
 NativeAudioRecorder recorderFixture({
   required NativeAudioRecorderPlatform platform,
   bool Function()? availabilityFn,
   bool Function()? hasPermissionFn,
-  bool Function()? requestPermissionFn,
+  FutureOr<bool> Function()? requestPermissionFn,
   List<InputDevice> Function()? listInputDevicesFn,
   StartFileHook? startFileFn,
   StartStreamHook? startPcmStreamFn,
@@ -71,7 +72,8 @@ NativeAudioRecorder recorderFixture({
         ),
       },
       availabilityFn: availabilityFn ?? () => !isUnsupportedPlatform,
-      hasPermissionFn: hasPermissionFn ??
+      hasPermissionFn:
+          hasPermissionFn ??
           () {
             if (isUnsupportedPlatform) {
               throw const NativeAudioRecorderUnsupportedPlatformException(
@@ -80,7 +82,8 @@ NativeAudioRecorder recorderFixture({
             }
             return true;
           },
-      requestPermissionFn: requestPermissionFn ??
+      requestPermissionFn:
+          requestPermissionFn ??
           () {
             if (isUnsupportedPlatform) {
               throw const NativeAudioRecorderUnsupportedPlatformException(
@@ -89,7 +92,8 @@ NativeAudioRecorder recorderFixture({
             }
             return true;
           },
-      listInputDevicesFn: listInputDevicesFn ??
+      listInputDevicesFn:
+          listInputDevicesFn ??
           () {
             if (isUnsupportedPlatform) {
               throw const NativeAudioRecorderUnsupportedPlatformException(
@@ -98,7 +102,8 @@ NativeAudioRecorder recorderFixture({
             }
             return const <InputDevice>[];
           },
-      startFileFn: startFileFn ??
+      startFileFn:
+          startFileFn ??
           ({
             required outputPath,
             required sampleRateHz,
@@ -111,7 +116,8 @@ NativeAudioRecorder recorderFixture({
               );
             }
           },
-      startPcmStreamFn: startPcmStreamFn ??
+      startPcmStreamFn:
+          startPcmStreamFn ??
           ({
             required sampleRateHz,
             required channelCount,
@@ -124,7 +130,8 @@ NativeAudioRecorder recorderFixture({
               );
             }
           },
-      readPcmStreamFn: readPcmStreamFn ??
+      readPcmStreamFn:
+          readPcmStreamFn ??
           ({required int maxSamples}) {
             if (isUnsupportedPlatform) {
               throw const NativeAudioRecorderUnsupportedPlatformException(
@@ -133,7 +140,8 @@ NativeAudioRecorder recorderFixture({
             }
             return Uint8List(0);
           },
-      stopFn: stopFn ??
+      stopFn:
+          stopFn ??
           () {
             if (isUnsupportedPlatform) {
               throw const NativeAudioRecorderUnsupportedPlatformException(
@@ -141,7 +149,8 @@ NativeAudioRecorder recorderFixture({
               );
             }
           },
-      resetFn: resetFn ??
+      resetFn:
+          resetFn ??
           () {
             if (isUnsupportedPlatform) {
               throw const NativeAudioRecorderUnsupportedPlatformException(
@@ -176,7 +185,7 @@ final class _TestNativeAudioRecorderPlatformImplementation
 
   final bool Function() availabilityFn;
   final bool Function() hasPermissionFn;
-  final bool Function() requestPermissionFn;
+  final FutureOr<bool> Function() requestPermissionFn;
   final List<InputDevice> Function() listInputDevicesFn;
   final StartFileHook startFileFn;
   final StartStreamHook startPcmStreamFn;
@@ -193,7 +202,7 @@ final class _TestNativeAudioRecorderPlatformImplementation
   bool hasPermission() => hasPermissionFn();
 
   @override
-  bool requestPermission() => requestPermissionFn();
+  FutureOr<bool> requestPermission() => requestPermissionFn();
 
   @override
   List<InputDevice> listInputDevices() => listInputDevicesFn();

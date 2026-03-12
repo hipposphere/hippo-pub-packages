@@ -164,7 +164,7 @@ final class NativeAudioRecorder {
 
   Future<bool> requestPermission() async {
     _ensureSupportedPlatform();
-    return _platformImplementation.requestPermission();
+    return await _platformImplementation.requestPermission();
   }
 
   /// Returns recorder enhancement capabilities for the current platform.

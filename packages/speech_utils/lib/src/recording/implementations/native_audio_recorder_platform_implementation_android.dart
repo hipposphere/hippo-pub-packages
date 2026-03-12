@@ -3,15 +3,15 @@ part of 'package:speech_utils/src/recording/native_audio_recorder.dart';
 final class _AndroidNativeAudioRecorderPlatformImplementation
     extends NativeAudioRecorderPlatformImplementation {
   const _AndroidNativeAudioRecorderPlatformImplementation()
-      : super(
-          platform: NativeAudioRecorderPlatform.android,
-          supportsInputSelection: false,
-          capabilities: const NativeAudioRecorderCapabilities(
-            supportsNoiseCancellation: false,
-            supportsEchoCancellation: false,
-            supportsVoiceIsolation: false,
-          ),
-        );
+    : super(
+        platform: NativeAudioRecorderPlatform.android,
+        supportsInputSelection: false,
+        capabilities: const NativeAudioRecorderCapabilities(
+          supportsNoiseCancellation: false,
+          supportsEchoCancellation: false,
+          supportsVoiceIsolation: false,
+        ),
+      );
 
   static final _backend = _AndroidJniAudioRecordBackend();
 
@@ -22,7 +22,7 @@ final class _AndroidNativeAudioRecorderPlatformImplementation
   bool hasPermission() => _backend.hasPermission();
 
   @override
-  bool requestPermission() => _backend.requestPermission();
+  Future<bool> requestPermission() => _backend.requestPermission();
 
   @override
   List<InputDevice> listInputDevices() => _backend.listInputDevices();
@@ -78,6 +78,9 @@ final class _AndroidJniAudioRecordBackend {
   static const _permissionGranted = 0;
   static const _permissionRequestCode = 3407;
   static const _recordAudioPermission = 'android.permission.RECORD_AUDIO';
+  static const _permissionRequestPollInterval = Duration(milliseconds: 100);
+  static const _permissionDialogDetectionTimeout = Duration(seconds: 2);
+  static const _permissionResolutionTimeout = Duration(seconds: 30);
 
   static const _audioSourceMic = 1;
   static const _audioSourceVoiceRecognition = 6;
@@ -121,7 +124,7 @@ final class _AndroidJniAudioRecordBackend {
     return _hasRecordAudioPermission();
   }
 
-  bool requestPermission() {
+  Future<bool> requestPermission() async {
     if (!Platform.isAndroid) {
       return false;
     }
@@ -137,31 +140,18 @@ final class _AndroidJniAudioRecordBackend {
       return false;
     }
     final activity = rawActivity.as(android_jni.Activity.type, releaseOriginal: true);
-
-    JArray<JString?>? permissions;
-    JString? permission;
     try {
-      permissions = JArray<JString?>(JString.nullableType, 1);
-      permission = _recordAudioPermission.toJString();
-      permissions[0] = permission;
-      activity.requestPermissions(permissions, _permissionRequestCode);
+      return await _requestRecordAudioPermission(activity);
     } on Object {
       return _hasRecordAudioPermission();
     } finally {
-      permission?.release();
-      permissions?.release();
       activity.release();
     }
-    return _hasRecordAudioPermission();
   }
 
   List<InputDevice> listInputDevices() {
     return const <InputDevice>[
-      InputDevice(
-        id: 'default',
-        label: 'Default microphone',
-        isDefault: true,
-      ),
+      InputDevice(id: 'default', label: 'Default microphone', isDefault: true),
     ];
   }
 
@@ -184,10 +174,7 @@ final class _AndroidJniAudioRecordBackend {
         framesPerChunk: config.framesPerChunk,
         sampleRateHz: _activeSampleRateHz,
       );
-      _fileDrainTimer = Timer.periodic(
-        Duration(milliseconds: intervalMs),
-        _drainFileChunk,
-      );
+      _fileDrainTimer = Timer.periodic(Duration(milliseconds: intervalMs), _drainFileChunk);
     } on Object {
       _stopInternal(throwOnError: false);
       rethrow;
@@ -221,10 +208,7 @@ final class _AndroidJniAudioRecordBackend {
     if (maxSamples <= 0) {
       return Uint8List(0);
     }
-    return _readChunk(
-      operation: 'Android stream read',
-      maxSamples: maxSamples,
-    );
+    return _readChunk(operation: 'Android stream read', maxSamples: maxSamples);
   }
 
   void stop() {
@@ -298,19 +282,13 @@ final class _AndroidJniAudioRecordBackend {
     _pcmDataBytesWritten = 0;
   }
 
-  int _computeFileDrainIntervalMs({
-    required int framesPerChunk,
-    required int sampleRateHz,
-  }) {
+  int _computeFileDrainIntervalMs({required int framesPerChunk, required int sampleRateHz}) {
     final effectiveFrames = framesPerChunk > 0 ? framesPerChunk : (sampleRateHz ~/ 50);
     final millis = ((effectiveFrames * 1000) / sampleRateHz).round();
     return (millis.clamp(10, 60) as num).toInt();
   }
 
-  Uint8List _readChunk({
-    required String operation,
-    required int maxSamples,
-  }) {
+  Uint8List _readChunk({required String operation, required int maxSamples}) {
     final audioRecord = _audioRecord;
     if (audioRecord == null) {
       throw AudioRecorderException(
@@ -392,9 +370,7 @@ final class _AndroidJniAudioRecordBackend {
             audioFormat: _audioFormatPcm16Bit,
           );
           if (minBufferSize <= 0) {
-            attemptErrors.add(
-              'source=$source rate=$sampleRateHz getMinBufferSize=$minBufferSize',
-            );
+            attemptErrors.add('source=$source rate=$sampleRateHz getMinBufferSize=$minBufferSize');
             continue;
           }
 
@@ -414,9 +390,7 @@ final class _AndroidJniAudioRecordBackend {
 
           final state = audioRecord.getState();
           if (state != android_jni.AudioRecord.STATE_INITIALIZED) {
-            attemptErrors.add(
-              'source=$source rate=$sampleRateHz initializedState=$state',
-            );
+            attemptErrors.add('source=$source rate=$sampleRateHz initializedState=$state');
             _releaseAudioRecordObject(audioRecord);
             audioRecord = null;
             continue;
@@ -426,9 +400,7 @@ final class _AndroidJniAudioRecordBackend {
 
           final recordingState = audioRecord.getRecordingState();
           if (recordingState != android_jni.AudioRecord.RECORDSTATE_RECORDING) {
-            attemptErrors.add(
-              'source=$source rate=$sampleRateHz recordingState=$recordingState',
-            );
+            attemptErrors.add('source=$source rate=$sampleRateHz recordingState=$recordingState');
             _stopAndReleaseAudioRecordObject(audioRecord);
             audioRecord = null;
             continue;
@@ -468,11 +440,7 @@ final class _AndroidJniAudioRecordBackend {
     required int channelConfig,
     required int audioFormat,
   }) {
-    return android_jni.AudioRecord.getMinBufferSize(
-      sampleRateHz,
-      channelConfig,
-      audioFormat,
-    );
+    return android_jni.AudioRecord.getMinBufferSize(sampleRateHz, channelConfig, audioFormat);
   }
 
   bool _hasRecordAudioPermission() {
@@ -499,15 +467,146 @@ final class _AndroidJniAudioRecordBackend {
     if (_hasRecordAudioPermission()) {
       return;
     }
-    requestPermission();
-    if (_hasRecordAudioPermission()) {
-      return;
-    }
     throw AudioRecorderException(
       '$operation failed',
       errorCode: _errorCodeStartFailed,
-      details: 'Microphone permission not granted ($_recordAudioPermission).',
+      details:
+          'Microphone permission not granted ($_recordAudioPermission). '
+          'Call requestPermission() and wait for it to complete before starting recording.',
     );
+  }
+
+  Future<bool> _requestRecordAudioPermission(android_jni.Activity activity) async {
+    JArray<JString?>? permissions;
+    JString? permission;
+    try {
+      permission = _recordAudioPermission.toJString();
+      permissions = JArray<JString?>(JString.nullableType, 1);
+      permissions[0] = permission;
+
+      final initialShouldShowRationale = _safeShouldShowRequestPermissionRationale(
+        activity,
+        permission,
+        fallback: false,
+      );
+      final initialHasWindowFocus = _safeHasWindowFocus(activity, fallback: true);
+
+      await _runOnUiThread(activity, () {
+        activity.requestPermissions(permissions, _permissionRequestCode);
+      });
+
+      return await _waitForPermissionRequestResolution(
+        activity: activity,
+        permission: permission,
+        initialShouldShowRationale: initialShouldShowRationale,
+        initialHasWindowFocus: initialHasWindowFocus,
+      );
+    } finally {
+      permissions?.release();
+      permission?.release();
+    }
+  }
+
+  Future<void> _runOnUiThread(android_jni.Activity activity, void Function() action) {
+    final completer = Completer<void>();
+    final runnable = android_jni.Runnable.implement(
+      android_jni.$Runnable(
+        run: () {
+          if (completer.isCompleted) {
+            return;
+          }
+          try {
+            action();
+            completer.complete();
+          } catch (error, stackTrace) {
+            completer.completeError(error, stackTrace);
+          }
+        },
+      ),
+    );
+
+    try {
+      activity.runOnUiThread(runnable);
+    } catch (error, stackTrace) {
+      runnable.release();
+      if (!completer.isCompleted) {
+        completer.completeError(error, stackTrace);
+      }
+    }
+
+    return completer.future.whenComplete(() {
+      runnable.release();
+    });
+  }
+
+  Future<bool> _waitForPermissionRequestResolution({
+    required android_jni.Activity activity,
+    required JString permission,
+    required bool initialShouldShowRationale,
+    required bool initialHasWindowFocus,
+  }) async {
+    var sawDialogFocusLoss = false;
+    final startedAt = DateTime.now();
+
+    while (DateTime.now().difference(startedAt) < _permissionResolutionTimeout) {
+      if (_hasRecordAudioPermission()) {
+        return true;
+      }
+
+      final hasWindowFocus = _safeHasWindowFocus(activity, fallback: initialHasWindowFocus);
+      final shouldShowRationale = _safeShouldShowRequestPermissionRationale(
+        activity,
+        permission,
+        fallback: initialShouldShowRationale,
+      );
+
+      if (initialHasWindowFocus && !hasWindowFocus) {
+        sawDialogFocusLoss = true;
+      }
+
+      if (sawDialogFocusLoss && hasWindowFocus) {
+        return _hasRecordAudioPermission();
+      }
+
+      if (shouldShowRationale != initialShouldShowRationale) {
+        return _hasRecordAudioPermission();
+      }
+
+      if (!sawDialogFocusLoss &&
+          DateTime.now().difference(startedAt) >= _permissionDialogDetectionTimeout) {
+        return _hasRecordAudioPermission();
+      }
+
+      await Future<void>.delayed(_permissionRequestPollInterval);
+    }
+
+    return _hasRecordAudioPermission();
+  }
+
+  bool _safeHasWindowFocus(android_jni.Activity activity, {required bool fallback}) {
+    try {
+      if (activity.isFinishing() || activity.isDestroyed()) {
+        return fallback;
+      }
+      return activity.hasWindowFocus();
+    } on Object {
+      return fallback;
+    }
+  }
+
+  bool _safeShouldShowRequestPermissionRationale(
+    android_jni.Activity activity,
+    JString permission, {
+    required bool fallback,
+  }) {
+    try {
+      if (activity.isFinishing() || activity.isDestroyed()) {
+        return fallback;
+      }
+      return activity.shouldShowRequestPermissionRationale(permission);
+    } on Object {
+      return fallback;
+    }
   }
 
   void _ensureIdle() {
@@ -573,10 +672,7 @@ final class _AndroidJniAudioRecordBackend {
     _pcmDataBytesWritten = 0;
 
     if (throwOnError && errors.isNotEmpty) {
-      throw AudioRecorderException(
-        'Android recording stop failed',
-        details: errors.join(' | '),
-      );
+      throw AudioRecorderException('Android recording stop failed', details: errors.join(' | '));
     }
   }
 
@@ -612,10 +708,7 @@ final class _AndroidJniAudioRecordBackend {
     }
 
     final sampleCount = pcm16leBytes.lengthInBytes ~/ 2;
-    final sampleData = pcm16leBytes.buffer.asByteData(
-      pcm16leBytes.offsetInBytes,
-      sampleCount * 2,
-    );
+    final sampleData = pcm16leBytes.buffer.asByteData(pcm16leBytes.offsetInBytes, sampleCount * 2);
 
     var peak = 0;
     for (var index = 0; index < sampleCount; index++) {

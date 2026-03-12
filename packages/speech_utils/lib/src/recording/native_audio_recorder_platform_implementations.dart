@@ -30,7 +30,8 @@ NativeAudioRecorderPlatformImplementation _resolveNativeAudioRecorderPlatformImp
     NativeAudioRecorderPlatform.android =>
       const _AndroidNativeAudioRecorderPlatformImplementation(),
     NativeAudioRecorderPlatform.macOS => const _MacosNativeAudioRecorderPlatformImplementation(),
-    NativeAudioRecorderPlatform.windows => const _WindowsNativeAudioRecorderPlatformImplementation(),
+    NativeAudioRecorderPlatform.windows =>
+      const _WindowsNativeAudioRecorderPlatformImplementation(),
     NativeAudioRecorderPlatform.iOS => const _IosNativeAudioRecorderPlatformImplementation(),
     NativeAudioRecorderPlatform.unsupported =>
       const _UnsupportedNativeAudioRecorderPlatformImplementation(),
@@ -50,7 +51,7 @@ abstract class NativeAudioRecorderPlatformImplementation {
 
   bool isAvailable();
   bool hasPermission();
-  bool requestPermission();
+  FutureOr<bool> requestPermission();
   List<InputDevice> listInputDevices();
   void startFile({required String outputPath, required AudioRecorderConfig config});
   void startStream({required AudioRecorderConfig config});
@@ -70,15 +71,15 @@ abstract class NativeAudioRecorderPlatformImplementation {
 final class _UnsupportedNativeAudioRecorderPlatformImplementation
     extends NativeAudioRecorderPlatformImplementation {
   const _UnsupportedNativeAudioRecorderPlatformImplementation()
-      : super(
-          platform: NativeAudioRecorderPlatform.unsupported,
-          supportsInputSelection: false,
-          capabilities: const NativeAudioRecorderCapabilities(
-            supportsNoiseCancellation: false,
-            supportsEchoCancellation: false,
-            supportsVoiceIsolation: false,
-          ),
-        );
+    : super(
+        platform: NativeAudioRecorderPlatform.unsupported,
+        supportsInputSelection: false,
+        capabilities: const NativeAudioRecorderCapabilities(
+          supportsNoiseCancellation: false,
+          supportsEchoCancellation: false,
+          supportsVoiceIsolation: false,
+        ),
+      );
 
   @override
   bool isAvailable() => false;
@@ -89,7 +90,7 @@ final class _UnsupportedNativeAudioRecorderPlatformImplementation
   }
 
   @override
-  bool requestPermission() {
+  FutureOr<bool> requestPermission() {
     throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 

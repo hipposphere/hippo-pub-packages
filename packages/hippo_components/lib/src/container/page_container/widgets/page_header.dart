@@ -34,6 +34,7 @@ class PageHeader extends CupertinoNavigationBar {
   PageHeader({
     super.key,
     super.border,
+    super.backgroundColor,
     this.backAction = const PageHeaderBackAction(),
     this.customLeading,
     this.customTrailing,

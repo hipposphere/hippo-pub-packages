@@ -7,7 +7,7 @@ const _unsupportedAudioRecorderMessage =
     'NativeAudioRecorder is currently supported on Android, macOS, Windows, and iOS.';
 
 typedef StartFileHook =
-    void Function({
+    FutureOr<void> Function({
       required String outputPath,
       required int sampleRateHz,
       required int channelCount,
@@ -15,7 +15,7 @@ typedef StartFileHook =
     });
 
 typedef StartStreamHook =
-    void Function({
+    FutureOr<void> Function({
       required int sampleRateHz,
       required int channelCount,
       required int framesPerChunk,
@@ -33,8 +33,8 @@ NativeAudioRecorder recorderFixture({
   StartFileHook? startFileFn,
   StartStreamHook? startPcmStreamFn,
   ReadStreamHook? readPcmStreamFn,
-  void Function()? stopFn,
-  void Function()? resetFn,
+  FutureOr<void> Function()? stopFn,
+  FutureOr<void> Function()? resetFn,
   bool Function()? isRecordingFn,
   Amplitude Function()? getAmplitudeFn,
 }) {
@@ -190,8 +190,8 @@ final class _TestNativeAudioRecorderPlatformImplementation
   final StartFileHook startFileFn;
   final StartStreamHook startPcmStreamFn;
   final ReadStreamHook readPcmStreamFn;
-  final void Function() stopFn;
-  final void Function() resetFn;
+  final FutureOr<void> Function() stopFn;
+  final FutureOr<void> Function() resetFn;
   final bool Function() isRecordingFn;
   final Amplitude Function() getAmplitudeFn;
 
@@ -208,8 +208,8 @@ final class _TestNativeAudioRecorderPlatformImplementation
   List<InputDevice> listInputDevices() => listInputDevicesFn();
 
   @override
-  void startFile({required String outputPath, required AudioRecorderConfig config}) {
-    startFileFn(
+  FutureOr<void> startFile({required String outputPath, required AudioRecorderConfig config}) {
+    return startFileFn(
       outputPath: outputPath,
       sampleRateHz: config.sampleRateHz,
       channelCount: config.channelCount,
@@ -218,8 +218,8 @@ final class _TestNativeAudioRecorderPlatformImplementation
   }
 
   @override
-  void startStream({required AudioRecorderConfig config}) {
-    startPcmStreamFn(
+  FutureOr<void> startStream({required AudioRecorderConfig config}) {
+    return startPcmStreamFn(
       sampleRateHz: config.sampleRateHz,
       channelCount: config.channelCount,
       framesPerChunk: config.framesPerChunk,
@@ -233,10 +233,10 @@ final class _TestNativeAudioRecorderPlatformImplementation
   }
 
   @override
-  void stop() => stopFn();
+  FutureOr<void> stop() => stopFn();
 
   @override
-  void reset() => resetFn();
+  FutureOr<void> reset() => resetFn();
 
   @override
   bool isRecording() => isRecordingFn();

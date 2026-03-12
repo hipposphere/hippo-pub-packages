@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:typed_data';
@@ -148,7 +149,7 @@ final class NativeAudioEncoder implements AacEncoder {
     }
 
     try {
-      _platformImplementation.encodeAudioFileToAac(
+      await _platformImplementation.encodeAudioFileToAac(
         inputPath: inputPath,
         outputPath: outputPath,
         bitrateBps: bitrateKbps * 1000,

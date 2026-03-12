@@ -432,6 +432,70 @@ void main() {
       },
     );
 
+    test('stop deletes partial AAC output when encoded file finalization fails', () async {
+      final outputDirectory = await Directory.systemTemp.createTemp(
+        'speech_utils_stop_failure_test_',
+      );
+      final outputPath = '${outputDirectory.path}${Platform.pathSeparator}recording.m4a';
+      final fakeAacEncoder = _FakeAacEncoder(failOnEncodeAudioFileCalls: const <int>{1});
+      late String nativeOutputPath;
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.android,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {
+              nativeOutputPath = outputPath;
+            },
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        stopFn: () {
+          File(nativeOutputPath).writeAsBytesSync(const <int>[1, 2, 3, 4], flush: true);
+          File(outputPath).writeAsBytesSync(const <int>[5, 6, 7, 8], flush: true);
+        },
+        isRecordingFn: () => true,
+      );
+
+      try {
+        await recorder.startFileRecording(
+          outputPath: outputPath,
+          config: AudioRecorderConfig(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            encoding: AudioEncodingConfig(
+              encoder: AudioEncoder.aacLc,
+              bitrateBps: 64000,
+              audioEncoder: fakeAacEncoder,
+            ),
+          ),
+        );
+
+        await expectLater(recorder.stop(), throwsA(isA<AacEncodingException>()));
+
+        expect(File(outputPath).existsSync(), isFalse);
+        expect(File(nativeOutputPath).parent.existsSync(), isFalse);
+      } finally {
+        await recorder.dispose();
+        if (await outputDirectory.exists()) {
+          await outputDirectory.delete(recursive: true);
+        }
+      }
+    });
+
     test(
       'startFileRecording uses direct Apple AAC output on macOS when voice processing is requested',
       () async {
@@ -1239,9 +1303,13 @@ void main() {
 }
 
 class _FakeAacEncoder implements AacEncoder {
-  _FakeAacEncoder({this.failOnEncodeCalls = const <int>{}});
+  _FakeAacEncoder({
+    this.failOnEncodeCalls = const <int>{},
+    this.failOnEncodeAudioFileCalls = const <int>{},
+  });
 
   final Set<int> failOnEncodeCalls;
+  final Set<int> failOnEncodeAudioFileCalls;
   int encodePcm16BytesToAacCalls = 0;
   int encodeAudioFileToAacCalls = 0;
   String? lastEncodeAudioInputPath;
@@ -1282,6 +1350,9 @@ class _FakeAacEncoder implements AacEncoder {
     int bitrateKbps = 48,
   }) async {
     encodeAudioFileToAacCalls++;
+    if (failOnEncodeAudioFileCalls.contains(encodeAudioFileToAacCalls)) {
+      throw AacEncodingException('forced failure');
+    }
     lastEncodeAudioInputPath = inputPath;
     lastEncodeAudioOutputPath = outputPath;
     final file = File(outputPath);

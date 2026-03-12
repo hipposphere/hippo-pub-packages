@@ -56,6 +56,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
   Directory? _outputRoot;
 
   bool _isRecording = false;
+  bool _isFinalizing = false;
   bool _speechDetected = false;
   bool _isRefreshingInputDevices = false;
 
@@ -77,6 +78,8 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
   final Stopwatch _recordingStopwatch = Stopwatch();
   Timer? _recordingTicker;
   Duration _recordingDuration = Duration.zero;
+
+  bool get _isSessionBusy => _isRecording || _isFinalizing;
 
   @override
   void initState() {
@@ -229,7 +232,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
   }
 
   void _selectInputDeviceById(String? id) {
-    if (_isRecording) {
+    if (_isSessionBusy) {
       return;
     }
 
@@ -254,7 +257,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
   }
 
   Future<void> _startRecording() async {
-    if (_isRecording) {
+    if (_isSessionBusy) {
       return;
     }
 
@@ -350,6 +353,10 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
   void _onMicChunk(Uint8List chunk) {
     _sessionBytes?.add(chunk);
 
+    if (!_isRecording) {
+      return;
+    }
+
     final rms = _computePcm16Rms(chunk);
     final speech = rms >= _speechThresholdRms;
 
@@ -379,13 +386,24 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
   }
 
   Future<void> _stopRecording() async {
-    if (!_isRecording) {
+    if (!_isRecording || _isFinalizing) {
       return;
     }
 
     _recordingTicker?.cancel();
     _recordingTicker = null;
     _recordingStopwatch.stop();
+
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        _isFinalizing = true;
+        _recordingDuration = _recordingStopwatch.elapsed;
+        _speechDetected = false;
+      });
+    }
+    await WidgetsBinding.instance.endOfFrame;
+    _appendLog('Finalizing recording...');
 
     try {
       await _recorder.stop();
@@ -399,14 +417,12 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
     final bytes = _sessionBytes?.toBytes() ?? Uint8List(0);
     _sessionBytes = null;
 
-    if (mounted) {
-      setState(() {
-        _isRecording = false;
-        _recordingDuration = _recordingStopwatch.elapsed;
-      });
-    }
-
     if (bytes.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _isFinalizing = false;
+        });
+      }
       _appendLog('Recording stopped with no captured PCM data.');
       return;
     }
@@ -461,6 +477,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
     }
 
     setState(() {
+      _isFinalizing = false;
       _latestWavPath = outputPath;
       _latestWavBytes = wavBytes;
       _latestWavMetadata = wavMetadata;
@@ -611,7 +628,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
                 ExampleDropdownOption(value: 44100, label: '44100 Hz'),
                 ExampleDropdownOption(value: 48000, label: '48000 Hz'),
               ],
-              onChanged: _isRecording
+              onChanged: _isSessionBusy
                   ? null
                   : (val) {
                       setState(() {
@@ -631,7 +648,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
                 ExampleDropdownOption(value: 1, label: '1 (Mono)'),
                 ExampleDropdownOption(value: 2, label: '2 (Stereo)'),
               ],
-              onChanged: _isRecording
+              onChanged: _isSessionBusy
                   ? null
                   : (val) {
                       if (val != null) {
@@ -656,7 +673,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
                 ExampleDropdownOption(value: 64, label: '64 kbps'),
                 ExampleDropdownOption(value: 128, label: '128 kbps'),
               ],
-              onChanged: _isRecording
+              onChanged: _isSessionBusy
                   ? null
                   : (val) {
                       setState(() {
@@ -688,7 +705,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
                     label: 'ffmpeg AAC',
                   ),
               ],
-              onChanged: _isRecording
+              onChanged: _isSessionBusy
                   ? null
                   : (val) {
                       setState(() {
@@ -699,7 +716,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
             const Divider(height: 24),
             AudioProcessingCard(
               controller: _processingController,
-              enabled: !_isRecording,
+              enabled: !_isSessionBusy,
               onChanged: (controller) {
                 setState(() {
                   _processingController = controller;
@@ -716,6 +733,21 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
     final indicatorColor = _speechDetected
         ? Colors.green
         : theme.colorScheme.outline;
+    final statusIcon = _isRecording
+        ? Icons.mic
+        : _isFinalizing
+        ? Icons.hourglass_top
+        : Icons.mic_none;
+    final statusColor = _isRecording
+        ? Colors.redAccent
+        : _isFinalizing
+        ? Colors.amber
+        : theme.colorScheme.outline;
+    final statusLabel = _isRecording
+        ? 'Recording'
+        : _isFinalizing
+        ? 'Finalizing'
+        : 'Idle';
 
     return Card(
       child: Padding(
@@ -725,17 +757,9 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
           children: [
             Row(
               children: [
-                Icon(
-                  _isRecording ? Icons.mic : Icons.mic_none,
-                  color: _isRecording
-                      ? Colors.redAccent
-                      : theme.colorScheme.outline,
-                ),
+                Icon(statusIcon, color: statusColor),
                 const SizedBox(width: 8),
-                Text(
-                  _isRecording ? 'Recording' : 'Idle',
-                  style: theme.textTheme.titleMedium,
-                ),
+                Text(statusLabel, style: theme.textTheme.titleMedium),
                 const Spacer(),
                 Text(
                   _formatDuration(_recordingDuration),
@@ -760,6 +784,13 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
                 Chip(label: Text('RMS: ${_currentRms.toStringAsFixed(3)}')),
                 Chip(label: Text('dBFS: ${_currentDbfs.toStringAsFixed(1)}')),
                 Chip(label: Text('Peak: ${_peakDbfs.toStringAsFixed(1)} dBFS')),
+                if (_isFinalizing)
+                  Chip(
+                    label: Text(
+                      'Finalizing...',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 10),
@@ -819,13 +850,13 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
                         ),
                       ),
                     ],
-                    onChanged: !_isRecording ? _selectInputDeviceById : null,
+                    onChanged: !_isSessionBusy ? _selectInputDeviceById : null,
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton.filledTonal(
                   tooltip: 'Refresh inputs',
-                  onPressed: _isRefreshingInputDevices || _isRecording
+                  onPressed: _isRefreshingInputDevices || _isSessionBusy
                       ? null
                       : () => unawaited(_refreshInputDevices()),
                   icon: _isRefreshingInputDevices
@@ -858,7 +889,7 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
               max: 0.20,
               divisions: 195,
               label: _speechThresholdRms.toStringAsFixed(3),
-              onChanged: _isRecording
+              onChanged: _isSessionBusy
                   ? null
                   : (value) {
                       setState(() {
@@ -878,9 +909,19 @@ class _SimpleRecordingPageState extends State<SimpleRecordingPage> {
       runSpacing: 8,
       children: [
         FilledButton.icon(
-          onPressed: _isRecording ? _stopRecording : _startRecording,
-          icon: Icon(_isRecording ? Icons.stop : Icons.mic),
-          label: Text(_isRecording ? 'Stop Recording' : 'Start Recording'),
+          onPressed: _isFinalizing
+              ? null
+              : (_isRecording ? _stopRecording : _startRecording),
+          icon: Icon(
+            _isFinalizing
+                ? Icons.hourglass_top
+                : (_isRecording ? Icons.stop : Icons.mic),
+          ),
+          label: Text(
+            _isFinalizing
+                ? 'Finalizing...'
+                : (_isRecording ? 'Stop Recording' : 'Start Recording'),
+          ),
         ),
         OutlinedButton.icon(
           onPressed: () {

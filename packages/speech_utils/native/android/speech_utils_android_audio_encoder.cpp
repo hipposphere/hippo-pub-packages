@@ -4,14 +4,18 @@
 #include <media/NdkMediaMuxer.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cerrno>
 #include <cctype>
 #include <cstdint>
 #include <cstring>
 #include <fcntl.h>
 #include <fstream>
+#include <memory>
+#include <mutex>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <unistd.h>
 #include <vector>
 
@@ -88,6 +92,22 @@ std::string AacProfileName(int32_t profile) {
   }
 }
 
+int32_t ParseAacAudioObjectTypeFromAudioSpecificConfig(const void* data, size_t size) {
+  if (data == nullptr || size == 0) {
+    return -1;
+  }
+
+  const auto* bytes = static_cast<const uint8_t*>(data);
+  int32_t audio_object_type = static_cast<int32_t>((bytes[0] >> 3) & 0x1F);
+  if (audio_object_type == 31) {
+    if (size < 2) {
+      return -1;
+    }
+    audio_object_type = 32 + static_cast<int32_t>(((bytes[0] & 0x07) << 3) | (bytes[1] >> 5));
+  }
+  return audio_object_type;
+}
+
 uint16_t ReadLe16(const uint8_t* p) {
   return static_cast<uint16_t>(p[0] | (static_cast<uint16_t>(p[1]) << 8));
 }
@@ -103,6 +123,14 @@ struct WavPcmData {
   uint16_t channels = 0;
   uint16_t bits_per_sample = 0;
   std::vector<uint8_t> pcm;
+};
+
+struct AsyncAacEncodeTask {
+  std::atomic<bool> done{false};
+  std::atomic<int32_t> result_code{0};
+  std::mutex mutex;
+  std::string error;
+  std::thread worker;
 };
 
 bool ParsePcm16Wav(const char* input_path_utf8, WavPcmData* out, std::string* error) {
@@ -453,6 +481,10 @@ int32_t EncodePcm16WavToAacM4a(const WavPcmData& wav, const char* output_path_ut
           goto cleanup;
         }
 
+        // NDK output buffers already point at the start of the valid payload.
+        // Passing the original codec offset through to the muxer would shift the
+        // AAC access unit again and corrupt the written stream.
+        info.offset = 0;
         status = AMediaMuxer_writeSampleData(muxer, track_index, output_buffer, &info);
         if (status != AMEDIA_OK) {
           if (error != nullptr) {
@@ -532,11 +564,38 @@ int32_t ReadAudioMetadata(const char* input_path_utf8, int64_t* out_duration_mic
     return -2;
   }
 
-  const media_status_t set_data_status = AMediaExtractor_setDataSource(extractor, input_path_utf8);
+  const int input_fd = ::open(input_path_utf8, O_RDONLY | O_CLOEXEC);
+  if (input_fd < 0) {
+    if (error != nullptr) {
+      std::ostringstream ss;
+      ss << "Failed to open metadata input file: errno=" << errno << " (" << std::strerror(errno)
+         << ").";
+      *error = ss.str();
+    }
+    AMediaExtractor_delete(extractor);
+    return -5;
+  }
+
+  const off_t file_size = ::lseek(input_fd, 0, SEEK_END);
+  if (file_size < 0 || ::lseek(input_fd, 0, SEEK_SET) < 0) {
+    if (error != nullptr) {
+      std::ostringstream ss;
+      ss << "Failed to determine metadata input size: errno=" << errno << " ("
+         << std::strerror(errno) << ").";
+      *error = ss.str();
+    }
+    ::close(input_fd);
+    AMediaExtractor_delete(extractor);
+    return -6;
+  }
+
+  const media_status_t set_data_status =
+      AMediaExtractor_setDataSourceFd(extractor, input_fd, 0, file_size);
+  ::close(input_fd);
   if (set_data_status != AMEDIA_OK) {
     if (error != nullptr) {
       std::ostringstream ss;
-      ss << "AMediaExtractor_setDataSource failed: status=" << set_data_status;
+      ss << "AMediaExtractor_setDataSourceFd failed: status=" << set_data_status;
       *error = ss.str();
     }
     AMediaExtractor_delete(extractor);
@@ -598,6 +657,16 @@ int32_t ReadAudioMetadata(const char* input_path_utf8, int64_t* out_duration_mic
         (AMediaFormat_getInt32(format, AMEDIAFORMAT_KEY_AAC_PROFILE, &profile_value) ||
          AMediaFormat_getInt32(format, "profile", &profile_value))) {
       *out_codec_profile = AacProfileName(profile_value);
+    } else if (is_aac_codec) {
+      void* csd0 = nullptr;
+      size_t csd0_size = 0;
+      if (AMediaFormat_getBuffer(format, "csd-0", &csd0, &csd0_size)) {
+        const int32_t audio_object_type =
+            ParseAacAudioObjectTypeFromAudioSpecificConfig(csd0, csd0_size);
+        if (audio_object_type > 0) {
+          *out_codec_profile = AacProfileName(audio_object_type);
+        }
+      }
     }
 
     AMediaFormat_delete(format);
@@ -616,6 +685,112 @@ int32_t ReadAudioMetadata(const char* input_path_utf8, int64_t* out_duration_mic
   return 0;
 }
 }  // namespace
+
+extern "C" __attribute__((visibility("default"))) int32_t
+speech_utils_android_start_async_encode_wav_file_to_aac_m4a(
+    const char* input_path_utf8, const char* output_path_utf8, uint32_t bitrate_bps,
+    int64_t* out_task_handle, char* out_error_utf8, uint32_t out_error_capacity) {
+  WriteError("", out_error_utf8, out_error_capacity);
+  if (out_task_handle == nullptr) {
+    WriteError("Async AAC encode requires a non-null task handle output.", out_error_utf8,
+               out_error_capacity);
+    return -1;
+  }
+  *out_task_handle = 0;
+  if (input_path_utf8 == nullptr || output_path_utf8 == nullptr || bitrate_bps == 0) {
+    WriteError("Async AAC encode requires input path, output path, and bitrate.", out_error_utf8,
+               out_error_capacity);
+    return -1;
+  }
+
+  auto task = std::make_unique<AsyncAacEncodeTask>();
+  const std::string input_path(input_path_utf8);
+  const std::string output_path(output_path_utf8);
+  AsyncAacEncodeTask* task_ptr = task.get();
+
+  try {
+    task_ptr->worker = std::thread([task_ptr, input_path, output_path, bitrate_bps]() {
+      std::string error;
+      WavPcmData wav;
+      int32_t result_code = 0;
+
+      if (!ParsePcm16Wav(input_path.c_str(), &wav, &error)) {
+        result_code = -2;
+      } else {
+        result_code = EncodePcm16WavToAacM4a(wav, output_path.c_str(), bitrate_bps, &error);
+      }
+
+      {
+        std::lock_guard<std::mutex> lock(task_ptr->mutex);
+        task_ptr->error = error;
+      }
+      task_ptr->result_code.store(result_code, std::memory_order_release);
+      task_ptr->done.store(true, std::memory_order_release);
+    });
+  } catch (const std::exception& exception) {
+    WriteError(std::string("Failed to start async AAC encode thread: ") + exception.what(),
+               out_error_utf8, out_error_capacity);
+    return -1;
+  } catch (...) {
+    WriteError("Failed to start async AAC encode thread.", out_error_utf8, out_error_capacity);
+    return -1;
+  }
+
+  *out_task_handle = reinterpret_cast<int64_t>(task.release());
+  return 0;
+}
+
+extern "C" __attribute__((visibility("default"))) int32_t
+speech_utils_android_get_async_encode_wav_file_to_aac_m4a_status(
+    int64_t task_handle, int32_t* out_done, int32_t* out_result_code, char* out_error_utf8,
+    uint32_t out_error_capacity) {
+  WriteError("", out_error_utf8, out_error_capacity);
+  if (task_handle == 0) {
+    WriteError("Async AAC encode status requires a valid task handle.", out_error_utf8,
+               out_error_capacity);
+    return -1;
+  }
+
+  auto* task = reinterpret_cast<AsyncAacEncodeTask*>(task_handle);
+  const bool done = task->done.load(std::memory_order_acquire);
+  if (out_done != nullptr) {
+    *out_done = done ? 1 : 0;
+  }
+  if (out_result_code != nullptr) {
+    *out_result_code = task->result_code.load(std::memory_order_acquire);
+  }
+
+  if (done) {
+    std::lock_guard<std::mutex> lock(task->mutex);
+    WriteError(task->error, out_error_utf8, out_error_capacity);
+  }
+  return 0;
+}
+
+extern "C" __attribute__((visibility("default"))) int32_t
+speech_utils_android_dispose_async_encode_wav_file_to_aac_m4a(
+    int64_t task_handle, char* out_error_utf8, uint32_t out_error_capacity) {
+  WriteError("", out_error_utf8, out_error_capacity);
+  if (task_handle == 0) {
+    return 0;
+  }
+
+  auto* task = reinterpret_cast<AsyncAacEncodeTask*>(task_handle);
+  try {
+    if (task->worker.joinable()) {
+      task->worker.join();
+    }
+    delete task;
+    return 0;
+  } catch (const std::exception& exception) {
+    WriteError(std::string("Failed to dispose async AAC encode task: ") + exception.what(),
+               out_error_utf8, out_error_capacity);
+    return -1;
+  } catch (...) {
+    WriteError("Failed to dispose async AAC encode task.", out_error_utf8, out_error_capacity);
+    return -1;
+  }
+}
 
 extern "C" __attribute__((visibility("default"))) int32_t
 speech_utils_android_aac_encoder_healthcheck(char* error_utf8, uint32_t error_utf8_capacity) {

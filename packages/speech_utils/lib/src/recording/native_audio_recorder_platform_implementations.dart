@@ -53,11 +53,11 @@ abstract class NativeAudioRecorderPlatformImplementation {
   bool hasPermission();
   FutureOr<bool> requestPermission();
   List<InputDevice> listInputDevices();
-  void startFile({required String outputPath, required AudioRecorderConfig config});
-  void startStream({required AudioRecorderConfig config});
+  FutureOr<void> startFile({required String outputPath, required AudioRecorderConfig config});
+  FutureOr<void> startStream({required AudioRecorderConfig config});
   Uint8List readStream({required int maxSamples});
-  void stop();
-  void reset();
+  FutureOr<void> stop();
+  FutureOr<void> reset();
   bool isRecording();
   Amplitude getAmplitude();
 
@@ -100,12 +100,12 @@ final class _UnsupportedNativeAudioRecorderPlatformImplementation
   }
 
   @override
-  void startFile({required String outputPath, required AudioRecorderConfig config}) {
+  FutureOr<void> startFile({required String outputPath, required AudioRecorderConfig config}) {
     throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 
   @override
-  void startStream({required AudioRecorderConfig config}) {
+  FutureOr<void> startStream({required AudioRecorderConfig config}) {
     throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 
@@ -115,12 +115,12 @@ final class _UnsupportedNativeAudioRecorderPlatformImplementation
   }
 
   @override
-  void stop() {
+  FutureOr<void> stop() {
     throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 
   @override
-  void reset() {
+  FutureOr<void> reset() {
     throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
   }
 

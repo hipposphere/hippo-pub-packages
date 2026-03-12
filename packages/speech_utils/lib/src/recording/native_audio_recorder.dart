@@ -281,7 +281,7 @@ final class NativeAudioRecorder {
     }
 
     try {
-      _platformImplementation.startFile(outputPath: nativeOutputPath, config: config);
+      await _platformImplementation.startFile(outputPath: nativeOutputPath, config: config);
       _mode = _RecorderMode.file;
       _restartNativeAmplitudePollingIfNeeded();
     } on Object {
@@ -319,7 +319,7 @@ final class NativeAudioRecorder {
     _nativeAmplitudeTimer?.cancel();
     _nativeAmplitudeTimer = null;
 
-    _platformImplementation.startStream(config: config);
+    await _platformImplementation.startStream(config: config);
 
     _mode = _RecorderMode.stream;
     _streamReadSampleCapacity = readSampleCapacity;
@@ -577,11 +577,13 @@ final class NativeAudioRecorder {
     _streamTimer = null;
     _nativeAmplitudeTimer?.cancel();
     _nativeAmplitudeTimer = null;
+    final activeOutputPath = _activeOutputPath;
+    final activeTempDirectory = _activeTempDirectory;
 
     Object? stopError;
     StackTrace? stopStackTrace;
     try {
-      _platformImplementation.stop();
+      await _platformImplementation.stop();
     } on Object catch (error, stackTrace) {
       stopError = error;
       stopStackTrace = stackTrace;
@@ -619,6 +621,11 @@ final class NativeAudioRecorder {
       }
     }
 
+    if (stopError != null || finalizeError != null) {
+      await _deleteOutputFileIfExists(activeOutputPath);
+      await _cleanupTempRecordingDirectory(activeTempDirectory);
+    }
+
     _clearActiveRecordingOutputTracking();
     _stopping = false;
 
@@ -650,7 +657,7 @@ final class NativeAudioRecorder {
     Object? resetError;
     StackTrace? resetStackTrace;
     try {
-      _platformImplementation.reset();
+      await _platformImplementation.reset();
     } on Object catch (error, stackTrace) {
       resetError = error;
       resetStackTrace = stackTrace;
@@ -1052,6 +1059,20 @@ final class NativeAudioRecorder {
     try {
       if (await directory.exists()) {
         await directory.delete(recursive: true);
+      }
+    } on Object {
+      // Best effort cleanup only.
+    }
+  }
+
+  Future<void> _deleteOutputFileIfExists(String? outputPath) async {
+    if (outputPath == null) {
+      return;
+    }
+    try {
+      final outputFile = File(outputPath);
+      if (await outputFile.exists()) {
+        await outputFile.delete();
       }
     } on Object {
       // Best effort cleanup only.

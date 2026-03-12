@@ -42,7 +42,7 @@ abstract class NativeAudioEncoderPlatformImplementation {
 
   bool isAvailable();
 
-  void encodeAudioFileToAac({
+  FutureOr<void> encodeAudioFileToAac({
     required String inputPath,
     required String outputPath,
     required int bitrateBps,
@@ -66,7 +66,7 @@ final class _UnsupportedNativeAudioEncoderPlatformImplementation
   bool isAvailable() => false;
 
   @override
-  void encodeAudioFileToAac({
+  FutureOr<void> encodeAudioFileToAac({
     required String inputPath,
     required String outputPath,
     required int bitrateBps,

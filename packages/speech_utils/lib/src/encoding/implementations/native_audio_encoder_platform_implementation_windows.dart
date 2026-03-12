@@ -26,16 +26,14 @@ final class _WindowsNativeAudioEncoderPlatformImplementation
         errorPtr,
         _nativeErrorBufferBytes,
       );
-      if (hr == 0) {
-        return;
+      if (hr != 0) {
+        final stderr = errorPtr.cast<Utf8>().toDartString();
+        throw AacEncodingException(
+          'windows native AAC encoder failed',
+          exitCode: hr,
+          stderr: stderr.isEmpty ? null : stderr,
+        );
       }
-
-      final stderr = errorPtr.cast<Utf8>().toDartString();
-      throw AacEncodingException(
-        'windows native AAC encoder failed',
-        exitCode: hr,
-        stderr: stderr.isEmpty ? null : stderr,
-      );
     } finally {
       calloc.free(inputPathPtr);
       calloc.free(outputPathPtr);

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -247,7 +248,7 @@ class _FakeNativeAudioEncoderPlatformImplementation
   });
 
   final bool Function() availabilityFn;
-  final void Function({
+  final FutureOr<void> Function({
     required String inputPath,
     required String outputPath,
     required int bitrateBps,
@@ -258,7 +259,7 @@ class _FakeNativeAudioEncoderPlatformImplementation
   bool isAvailable() => availabilityFn();
 
   @override
-  void encodeAudioFileToAac({
+  FutureOr<void> encodeAudioFileToAac({
     required String inputPath,
     required String outputPath,
     required int bitrateBps,

@@ -28,13 +28,13 @@ final class _AndroidNativeAudioRecorderPlatformImplementation
   List<InputDevice> listInputDevices() => _backend.listInputDevices();
 
   @override
-  void startFile({required String outputPath, required AudioRecorderConfig config}) {
-    _backend.startFile(outputPath: outputPath, config: config);
+  Future<void> startFile({required String outputPath, required AudioRecorderConfig config}) async {
+    await _backend.startFile(outputPath: outputPath, config: config);
   }
 
   @override
-  void startStream({required AudioRecorderConfig config}) {
-    _backend.startStream(config: config);
+  Future<void> startStream({required AudioRecorderConfig config}) async {
+    await _backend.startStream(config: config);
   }
 
   @override
@@ -43,10 +43,10 @@ final class _AndroidNativeAudioRecorderPlatformImplementation
   }
 
   @override
-  void stop() => _backend.stop();
+  Future<void> stop() => _backend.stop();
 
   @override
-  void reset() => _backend.reset();
+  Future<void> reset() => _backend.reset();
 
   @override
   bool isRecording() => _backend.isRecording();
@@ -56,20 +56,6 @@ final class _AndroidNativeAudioRecorderPlatformImplementation
 }
 
 enum _AndroidRecorderMode { stopped, file, stream }
-
-final class _AndroidAudioRecordOpenResult {
-  const _AndroidAudioRecordOpenResult({
-    required this.audioRecord,
-    required this.readBufferBytes,
-    required this.sampleRateHz,
-    required this.channelCount,
-  });
-
-  final android_jni.AudioRecord audioRecord;
-  final int readBufferBytes;
-  final int sampleRateHz;
-  final int channelCount;
-}
 
 final class _AndroidJniAudioRecordBackend {
   static const _errorCodeStreamReadFailed = -4;
@@ -82,22 +68,9 @@ final class _AndroidJniAudioRecordBackend {
   static const _permissionDialogDetectionTimeout = Duration(seconds: 2);
   static const _permissionResolutionTimeout = Duration(seconds: 30);
 
-  static const _audioSourceMic = 1;
-  static const _audioSourceVoiceRecognition = 6;
-  static const _audioFormatPcm16Bit = 2;
-  static const _channelInMono = 16;
-  static const _channelInStereo = 12;
-
   _AndroidRecorderMode _mode = _AndroidRecorderMode.stopped;
-  android_jni.AudioRecord? _audioRecord;
-  int _readBufferBytes = 0;
-  int _readRequestSamples = 0;
-  Timer? _fileDrainTimer;
-  RandomAccessFile? _fileOutput;
-  bool _fileOutputIsWav = true;
-  int _activeSampleRateHz = 16000;
+  _AndroidAudioRecordWorkerBridge? _worker;
   int _activeChannelCount = 1;
-  int _pcmDataBytesWritten = 0;
   double _currentDbfs = -90.0;
   double _maxDbfs = -90.0;
 
@@ -106,12 +79,9 @@ final class _AndroidJniAudioRecordBackend {
       return false;
     }
     try {
-      return _queryMinBufferSize(
-            sampleRateHz: 16000,
-            channelConfig: _channelInMono,
-            audioFormat: _audioFormatPcm16Bit,
-          ) >
-          0;
+      final worker = _AndroidAudioRecordWorkerBridge.create();
+      worker.release();
+      return true;
     } on Object {
       return false;
     }
@@ -155,46 +125,58 @@ final class _AndroidJniAudioRecordBackend {
     ];
   }
 
-  void startFile({required String outputPath, required AudioRecorderConfig config}) {
+  Future<void> startFile({required String outputPath, required AudioRecorderConfig config}) async {
     _ensureIdle();
     _ensurePermissionOrThrow(operation: 'Android file recording start');
     _resetAmplitude();
 
-    final openResult = _openAudioRecord(config: config, operation: 'Android file recording start');
-    _audioRecord = openResult.audioRecord;
-    _readBufferBytes = openResult.readBufferBytes;
-    _activeSampleRateHz = openResult.sampleRateHz;
-    _activeChannelCount = openResult.channelCount;
-    _readRequestSamples = math.max(128, config.framesPerChunk * _activeChannelCount);
-    _mode = _AndroidRecorderMode.file;
-
+    final worker = _AndroidAudioRecordWorkerBridge.create();
     try {
-      _startFileOutput(outputPath: outputPath, config: config);
-      final intervalMs = _computeFileDrainIntervalMs(
+      worker.startFile(
+        outputPath: outputPath,
+        sampleRateHz: config.sampleRateHz,
+        channelCount: config.channelCount,
         framesPerChunk: config.framesPerChunk,
-        sampleRateHz: _activeSampleRateHz,
+        outputIsWav: config.encoding.encoder != AudioEncoder.pcm16bits,
       );
-      _fileDrainTimer = Timer.periodic(Duration(milliseconds: intervalMs), _drainFileChunk);
-    } on Object {
-      _stopInternal(throwOnError: false);
-      rethrow;
+      _worker = worker;
+      _activeChannelCount = worker.activeChannelCount;
+      _mode = _AndroidRecorderMode.file;
+      _refreshAmplitudeFromWorker();
+    } on Object catch (error) {
+      worker.release();
+      throw _wrapAndroidWorkerError(
+        operation: 'Android file recording start',
+        errorCode: _errorCodeStartFailed,
+        error: error,
+      );
     }
   }
 
-  void startStream({required AudioRecorderConfig config}) {
+  Future<void> startStream({required AudioRecorderConfig config}) async {
     _ensureIdle();
     _ensurePermissionOrThrow(operation: 'Android stream recording start');
     _resetAmplitude();
-    final openResult = _openAudioRecord(
-      config: config,
-      operation: 'Android stream recording start',
-    );
-    _audioRecord = openResult.audioRecord;
-    _readBufferBytes = openResult.readBufferBytes;
-    _activeSampleRateHz = openResult.sampleRateHz;
-    _activeChannelCount = openResult.channelCount;
-    _readRequestSamples = math.max(128, config.framesPerChunk * _activeChannelCount);
-    _mode = _AndroidRecorderMode.stream;
+
+    final worker = _AndroidAudioRecordWorkerBridge.create();
+    try {
+      worker.startStream(
+        sampleRateHz: config.sampleRateHz,
+        channelCount: config.channelCount,
+        framesPerChunk: config.framesPerChunk,
+      );
+      _worker = worker;
+      _activeChannelCount = worker.activeChannelCount;
+      _mode = _AndroidRecorderMode.stream;
+      _refreshAmplitudeFromWorker();
+    } on Object catch (error) {
+      worker.release();
+      throw _wrapAndroidWorkerError(
+        operation: 'Android stream recording start',
+        errorCode: _errorCodeStartFailed,
+        error: error,
+      );
+    }
   }
 
   Uint8List readStream({required int maxSamples}) {
@@ -208,15 +190,31 @@ final class _AndroidJniAudioRecordBackend {
     if (maxSamples <= 0) {
       return Uint8List(0);
     }
-    return _readChunk(operation: 'Android stream read', maxSamples: maxSamples);
+
+    final worker = _worker;
+    if (worker == null) {
+      return Uint8List(0);
+    }
+
+    try {
+      final bytes = worker.readStream(maxBytes: _alignedMaxBytes(maxSamples));
+      _refreshAmplitudeFromWorker();
+      return bytes;
+    } on Object catch (error) {
+      throw _wrapAndroidWorkerError(
+        operation: 'Android stream read',
+        errorCode: _errorCodeStreamReadFailed,
+        error: error,
+      );
+    }
   }
 
-  void stop() {
-    _stopInternal(throwOnError: true);
+  Future<void> stop() async {
+    await _stopInternal(throwOnError: true);
   }
 
-  void reset() {
-    _stopInternal(throwOnError: false);
+  Future<void> reset() async {
+    await _stopInternal(throwOnError: false);
     _resetAmplitude();
   }
 
@@ -224,223 +222,23 @@ final class _AndroidJniAudioRecordBackend {
     if (_mode == _AndroidRecorderMode.stopped) {
       return false;
     }
-    final audioRecord = _audioRecord;
-    if (audioRecord == null) {
+    final worker = _worker;
+    if (worker == null) {
       return false;
     }
     try {
-      final recordingState = audioRecord.getRecordingState();
-      return recordingState == android_jni.AudioRecord.RECORDSTATE_RECORDING;
+      return worker.isRecording();
     } on Object {
       return false;
     }
   }
 
   Amplitude getAmplitude() {
+    _refreshAmplitudeFromWorker();
     return Amplitude(
       current: _sanitizeAndroidDbfs(_currentDbfs),
       max: _sanitizeAndroidDbfs(_maxDbfs),
     );
-  }
-
-  void _drainFileChunk(Timer _) {
-    if (_mode != _AndroidRecorderMode.file) {
-      return;
-    }
-    try {
-      final bytes = _readChunk(
-        operation: 'Android file recording read',
-        maxSamples: _readRequestSamples > 0 ? _readRequestSamples : (_readBufferBytes ~/ 2),
-      );
-      if (bytes.isEmpty) {
-        return;
-      }
-      final output = _fileOutput;
-      if (output == null) {
-        throw const AudioRecorderException(
-          'Android file recording start failed',
-          errorCode: _errorCodeStartFailed,
-          details: 'Output file is not available.',
-        );
-      }
-      output.writeFromSync(bytes);
-      _pcmDataBytesWritten += bytes.length;
-    } on Object {
-      _stopInternal(throwOnError: false);
-    }
-  }
-
-  void _startFileOutput({required String outputPath, required AudioRecorderConfig config}) {
-    final outputFile = File(outputPath);
-    outputFile.parent.createSync(recursive: true);
-    final randomAccessFile = outputFile.openSync(mode: FileMode.write);
-    _fileOutputIsWav = config.encoding.encoder != AudioEncoder.pcm16bits;
-    if (_fileOutputIsWav) {
-      randomAccessFile.writeFromSync(Uint8List(_wavHeaderBytes));
-    }
-    _fileOutput = randomAccessFile;
-    _pcmDataBytesWritten = 0;
-  }
-
-  int _computeFileDrainIntervalMs({required int framesPerChunk, required int sampleRateHz}) {
-    final effectiveFrames = framesPerChunk > 0 ? framesPerChunk : (sampleRateHz ~/ 50);
-    final millis = ((effectiveFrames * 1000) / sampleRateHz).round();
-    return (millis.clamp(10, 60) as num).toInt();
-  }
-
-  Uint8List _readChunk({required String operation, required int maxSamples}) {
-    final audioRecord = _audioRecord;
-    if (audioRecord == null) {
-      throw AudioRecorderException(
-        '$operation failed',
-        errorCode: _errorCodeStreamReadFailed,
-        details: 'AudioRecord is not initialized.',
-      );
-    }
-
-    final bufferSampleCapacity = _readBufferBytes ~/ 2;
-    final samplesToRead = math.min(maxSamples, bufferSampleCapacity);
-    if (samplesToRead <= 0) {
-      return Uint8List(0);
-    }
-
-    final bytesToRead = samplesToRead * 2;
-    final readBuffer = JByteArray(bytesToRead);
-    try {
-      final bytesRead = audioRecord.read$1(
-        readBuffer,
-        0,
-        bytesToRead,
-        android_jni.AudioRecord.READ_BLOCKING,
-      );
-
-      if (bytesRead < 0) {
-        throw AudioRecorderException(
-          '$operation failed',
-          errorCode: _errorCodeStreamReadFailed,
-          details: 'AudioRecord.read returned $bytesRead.',
-        );
-      }
-      if (bytesRead == 0) {
-        return Uint8List(0);
-      }
-
-      final bytesPerFrame = math.max(2, _activeChannelCount * 2);
-      final alignedBytesRead = bytesRead - (bytesRead % bytesPerFrame);
-      if (alignedBytesRead <= 0) {
-        return Uint8List(0);
-      }
-
-      final bytes = Uint8List.fromList(readBuffer.getRange(0, alignedBytesRead));
-      _updateAmplitude(bytes);
-      return bytes;
-    } finally {
-      readBuffer.release();
-    }
-  }
-
-  _AndroidAudioRecordOpenResult _openAudioRecord({
-    required AudioRecorderConfig config,
-    required String operation,
-  }) {
-    final requestedChannelCount = config.channelCount <= 1 ? 1 : 2;
-    final channelConfig = requestedChannelCount == 1 ? _channelInMono : _channelInStereo;
-
-    final sampleRates = <int>[config.sampleRateHz];
-    if (!sampleRates.contains(16000)) {
-      sampleRates.add(16000);
-    }
-    if (!sampleRates.contains(48000)) {
-      sampleRates.add(48000);
-    }
-    if (!sampleRates.contains(44100)) {
-      sampleRates.add(44100);
-    }
-
-    final sources = <int>[_audioSourceVoiceRecognition, _audioSourceMic];
-    final attemptErrors = <String>[];
-
-    for (final sampleRateHz in sampleRates) {
-      for (final source in sources) {
-        android_jni.AudioRecord? audioRecord;
-        try {
-          final minBufferSize = _queryMinBufferSize(
-            sampleRateHz: sampleRateHz,
-            channelConfig: channelConfig,
-            audioFormat: _audioFormatPcm16Bit,
-          );
-          if (minBufferSize <= 0) {
-            attemptErrors.add('source=$source rate=$sampleRateHz getMinBufferSize=$minBufferSize');
-            continue;
-          }
-
-          final targetFrames = math.max(config.framesPerChunk, sampleRateHz ~/ 50);
-          final requestedBufferBytes = math.max(
-            minBufferSize,
-            targetFrames * requestedChannelCount * 2,
-          );
-
-          audioRecord = android_jni.AudioRecord(
-            source,
-            sampleRateHz,
-            channelConfig,
-            _audioFormatPcm16Bit,
-            requestedBufferBytes,
-          );
-
-          final state = audioRecord.getState();
-          if (state != android_jni.AudioRecord.STATE_INITIALIZED) {
-            attemptErrors.add('source=$source rate=$sampleRateHz initializedState=$state');
-            _releaseAudioRecordObject(audioRecord);
-            audioRecord = null;
-            continue;
-          }
-
-          audioRecord.startRecording();
-
-          final recordingState = audioRecord.getRecordingState();
-          if (recordingState != android_jni.AudioRecord.RECORDSTATE_RECORDING) {
-            attemptErrors.add('source=$source rate=$sampleRateHz recordingState=$recordingState');
-            _stopAndReleaseAudioRecordObject(audioRecord);
-            audioRecord = null;
-            continue;
-          }
-
-          final actualSampleRate = audioRecord.getSampleRate();
-          final effectiveChannelCount = requestedChannelCount;
-          final readBufferBytes = math.max(
-            requestedBufferBytes,
-            math.max(512, targetFrames * effectiveChannelCount * 2),
-          );
-          return _AndroidAudioRecordOpenResult(
-            audioRecord: audioRecord,
-            readBufferBytes: readBufferBytes,
-            sampleRateHz: actualSampleRate > 0 ? actualSampleRate : sampleRateHz,
-            channelCount: effectiveChannelCount,
-          );
-        } on Object catch (error) {
-          attemptErrors.add('source=$source rate=$sampleRateHz error=$error');
-          if (audioRecord != null) {
-            _stopAndReleaseAudioRecordObject(audioRecord);
-          }
-        }
-      }
-    }
-
-    final details = attemptErrors.isEmpty ? null : attemptErrors.join(' | ');
-    throw AudioRecorderException(
-      '$operation failed',
-      errorCode: _errorCodeStartFailed,
-      details: details ?? 'Failed to open AudioRecord session.',
-    );
-  }
-
-  int _queryMinBufferSize({
-    required int sampleRateHz,
-    required int channelConfig,
-    required int audioFormat,
-  }) {
-    return android_jni.AudioRecord.getMinBufferSize(sampleRateHz, channelConfig, audioFormat);
   }
 
   bool _hasRecordAudioPermission() {
@@ -615,121 +413,69 @@ final class _AndroidJniAudioRecordBackend {
     }
   }
 
-  void _stopInternal({required bool throwOnError}) {
-    final wasFileMode = _mode == _AndroidRecorderMode.file;
-    final errors = <String>[];
-
-    _fileDrainTimer?.cancel();
-    _fileDrainTimer = null;
-
-    final audioRecord = _audioRecord;
-    _audioRecord = null;
-    if (audioRecord != null) {
-      try {
-        audioRecord.stop();
-      } on Object catch (error) {
-        errors.add('AudioRecord.stop error: $error');
-      }
-      try {
-        audioRecord.release$1();
-      } on Object catch (error) {
-        errors.add('AudioRecord.release error: $error');
-      }
-      audioRecord.release();
-    }
-
-    _readBufferBytes = 0;
-    _readRequestSamples = 0;
-
-    final output = _fileOutput;
-    _fileOutput = null;
-    if (output != null) {
-      try {
-        if (wasFileMode && _fileOutputIsWav) {
-          _writeWavHeader(
-            output,
-            sampleRateHz: _activeSampleRateHz,
-            channelCount: _activeChannelCount,
-            pcmDataBytes: _pcmDataBytesWritten,
-          );
-        }
-      } on Object catch (error) {
-        errors.add('WAV finalize error: $error');
-      }
-      try {
-        output.flushSync();
-      } on Object catch (error) {
-        errors.add('Output flush error: $error');
-      }
-      try {
-        output.closeSync();
-      } on Object catch (error) {
-        errors.add('Output close error: $error');
-      }
-    }
-
+  Future<void> _stopInternal({required bool throwOnError}) async {
+    final worker = _worker;
+    _worker = null;
     _mode = _AndroidRecorderMode.stopped;
-    _pcmDataBytesWritten = 0;
 
-    if (throwOnError && errors.isNotEmpty) {
-      throw AudioRecorderException('Android recording stop failed', details: errors.join(' | '));
+    if (worker == null) {
+      return;
+    }
+
+    Object? stopError;
+    StackTrace? stopStackTrace;
+    try {
+      if (throwOnError) {
+        worker.stop();
+      } else {
+        worker.reset();
+      }
+    } on Object catch (error, stackTrace) {
+      stopError = error;
+      stopStackTrace = stackTrace;
+    } finally {
+      worker.release();
+    }
+
+    if (stopError != null && throwOnError) {
+      Error.throwWithStackTrace(
+        _wrapAndroidWorkerError(
+          operation: 'Android recording stop',
+          errorCode: _errorCodeStreamReadFailed,
+          error: stopError,
+        ),
+        stopStackTrace ?? StackTrace.current,
+      );
     }
   }
 
-  void _releaseAudioRecordObject(android_jni.AudioRecord audioRecord) {
+  void _refreshAmplitudeFromWorker() {
+    final worker = _worker;
+    if (worker == null) {
+      return;
+    }
     try {
-      audioRecord.release$1();
+      final current = _sanitizeAndroidDbfs(worker.currentDbfs);
+      final maxValue = _sanitizeAndroidDbfs(worker.maxDbfs);
+      _currentDbfs = current;
+      if (maxValue > _maxDbfs) {
+        _maxDbfs = maxValue;
+      }
     } on Object {
-      // Best effort cleanup only.
-    } finally {
-      audioRecord.release();
+      // Fall back to the latest cached amplitude snapshot.
     }
   }
 
-  void _stopAndReleaseAudioRecordObject(android_jni.AudioRecord audioRecord) {
-    try {
-      audioRecord.stop();
-    } on Object {
-      // Best effort cleanup only.
-    } finally {
-      _releaseAudioRecordObject(audioRecord);
-    }
+  int _alignedMaxBytes(int maxSamples) {
+    final rawBytes = maxSamples * 2;
+    final bytesPerFrame = math.max(2, _activeChannelCount * 2);
+    final aligned = rawBytes - (rawBytes % bytesPerFrame);
+    return aligned > 0 ? aligned : 0;
   }
 
   void _resetAmplitude() {
     _currentDbfs = -90.0;
     _maxDbfs = -90.0;
-  }
-
-  void _updateAmplitude(Uint8List pcm16leBytes) {
-    if (pcm16leBytes.lengthInBytes < 2) {
-      _currentDbfs = -90.0;
-      return;
-    }
-
-    final sampleCount = pcm16leBytes.lengthInBytes ~/ 2;
-    final sampleData = pcm16leBytes.buffer.asByteData(pcm16leBytes.offsetInBytes, sampleCount * 2);
-
-    var peak = 0;
-    for (var index = 0; index < sampleCount; index++) {
-      final sample = sampleData.getInt16(index * 2, Endian.little);
-      final absolute = sample < 0 ? -sample : sample;
-      if (absolute > peak) {
-        peak = absolute;
-      }
-    }
-
-    if (peak <= 0) {
-      _currentDbfs = -90.0;
-      return;
-    }
-
-    final normalized = peak / 32767.0;
-    final dbfs = _sanitizeAndroidDbfs(20.0 * (math.log(normalized) / math.ln10));
-    _currentDbfs = dbfs;
-    if (dbfs > _maxDbfs) {
-      _maxDbfs = dbfs;
-    }
   }
 
   double _sanitizeAndroidDbfs(double value) {
@@ -739,36 +485,105 @@ final class _AndroidJniAudioRecordBackend {
     return (value.clamp(-90.0, 0.0) as num).toDouble();
   }
 
-  static const _wavHeaderBytes = 44;
+  AudioRecorderException _wrapAndroidWorkerError({
+    required String operation,
+    required int errorCode,
+    required Object error,
+  }) {
+    return AudioRecorderException('$operation failed', errorCode: errorCode, details: '$error');
+  }
+}
 
-  void _writeWavHeader(
-    RandomAccessFile file, {
+final class _AndroidAudioRecordWorkerBridge {
+  _AndroidAudioRecordWorkerBridge._(this._instance);
+
+  static const _className = 'org/hippolabs/speech_utils/SpeechUtilsAudioRecordWorker';
+  static final JClass _class = JClass.forName(_className);
+  static final _constructor = _class.constructorId('()V');
+  static final _startFileMethod = _class.instanceMethodId('startFile', '(Ljava/lang/String;IIIZ)V');
+  static final _startStreamMethod = _class.instanceMethodId('startStream', '(III)V');
+  static final _readStreamMethod = _class.instanceMethodId('readStream', '(I)[B');
+  static final _stopMethod = _class.instanceMethodId('stop', '()V');
+  static final _resetMethod = _class.instanceMethodId('reset', '()V');
+  static final _isRecordingMethod = _class.instanceMethodId('isRecording', '()Z');
+  static final _currentDbfsMethod = _class.instanceMethodId('getCurrentDbfs', '()D');
+  static final _maxDbfsMethod = _class.instanceMethodId('getMaxDbfs', '()D');
+  static final _activeSampleRateMethod = _class.instanceMethodId('getActiveSampleRateHz', '()I');
+  static final _activeChannelCountMethod = _class.instanceMethodId('getActiveChannelCount', '()I');
+
+  final JObject _instance;
+
+  factory _AndroidAudioRecordWorkerBridge.create() {
+    return _AndroidAudioRecordWorkerBridge._(_constructor.call(_class, JObject.type, []));
+  }
+
+  void startFile({
+    required String outputPath,
     required int sampleRateHz,
     required int channelCount,
-    required int pcmDataBytes,
+    required int framesPerChunk,
+    required bool outputIsWav,
   }) {
-    final byteRate = sampleRateHz * channelCount * 2;
-    final blockAlign = channelCount * 2;
-    final riffChunkSize = 36 + pcmDataBytes;
+    final path = outputPath.toJString();
+    try {
+      _startFileMethod.call(_instance, jvoid.type, [
+        path,
+        sampleRateHz,
+        channelCount,
+        framesPerChunk,
+        outputIsWav,
+      ]);
+    } finally {
+      path.release();
+    }
+  }
 
-    final header = ByteData(_wavHeaderBytes);
-    header.setUint32(0, 0x46464952, Endian.little); // RIFF
-    header.setUint32(4, riffChunkSize, Endian.little);
-    header.setUint32(8, 0x45564157, Endian.little); // WAVE
-    header.setUint32(12, 0x20746d66, Endian.little); // fmt
-    header.setUint32(16, 16, Endian.little); // PCM chunk size
-    header.setUint16(20, 1, Endian.little); // PCM format
-    header.setUint16(22, channelCount, Endian.little);
-    header.setUint32(24, sampleRateHz, Endian.little);
-    header.setUint32(28, byteRate, Endian.little);
-    header.setUint16(32, blockAlign, Endian.little);
-    header.setUint16(34, 16, Endian.little); // bits per sample
-    header.setUint32(36, 0x61746164, Endian.little); // data
-    header.setUint32(40, pcmDataBytes, Endian.little);
+  void startStream({
+    required int sampleRateHz,
+    required int channelCount,
+    required int framesPerChunk,
+  }) {
+    _startStreamMethod.call(_instance, jvoid.type, [sampleRateHz, channelCount, framesPerChunk]);
+  }
 
-    final endPosition = file.lengthSync();
-    file.setPositionSync(0);
-    file.writeFromSync(header.buffer.asUint8List());
-    file.setPositionSync(endPosition);
+  Uint8List readStream({required int maxBytes}) {
+    final array = _readStreamMethod.call(_instance, JByteArray.type, [maxBytes]);
+    try {
+      return Uint8List.fromList(array.map((value) => value & 0xFF).toList(growable: false));
+    } finally {
+      array.release();
+    }
+  }
+
+  void stop() {
+    _stopMethod.call(_instance, jvoid.type, []);
+  }
+
+  void reset() {
+    _resetMethod.call(_instance, jvoid.type, []);
+  }
+
+  bool isRecording() {
+    return _isRecordingMethod.call(_instance, jboolean.type, []);
+  }
+
+  double get currentDbfs {
+    return _currentDbfsMethod.call(_instance, jdouble.type, []);
+  }
+
+  double get maxDbfs {
+    return _maxDbfsMethod.call(_instance, jdouble.type, []);
+  }
+
+  int get activeSampleRateHz {
+    return _activeSampleRateMethod.call(_instance, jint.type, []);
+  }
+
+  int get activeChannelCount {
+    return _activeChannelCountMethod.call(_instance, jint.type, []);
+  }
+
+  void release() {
+    _instance.release();
   }
 }

@@ -47,6 +47,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
 
   bool _isRefreshingInputDevices = false;
   bool _isRecording = false;
+  bool _isFinalizing = false;
   bool _isMetadataReading = false;
 
   int? _sampleRateHz;
@@ -60,6 +61,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
   String? _latestRecordingPath;
   String? _playingPath;
   AudioMetadata? _latestMetadata;
+  String? _latestMetadataError;
   int? _latestByteCount;
   Duration _recordingDuration = Duration.zero;
   Timer? _recordingTicker;
@@ -67,6 +69,8 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
   double _currentDbfs = -90;
   double _peakDbfs = -90;
   bool? _currentSpeechSegment;
+
+  bool get _isSessionBusy => _isRecording || _isFinalizing;
 
   @override
   void initState() {
@@ -184,7 +188,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
   }
 
   void _selectInputDeviceById(String? id) {
-    if (_isRecording) {
+    if (_isSessionBusy) {
       return;
     }
     final next = _findInputDeviceById(id);
@@ -231,7 +235,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
   }
 
   Future<void> _startRecording() async {
-    if (_isRecording) {
+    if (_isSessionBusy) {
       return;
     }
 
@@ -278,6 +282,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
 
     _activeOutputPath = outputPath;
     _latestMetadata = null;
+    _latestMetadataError = null;
     _latestByteCount = null;
     _latestRecordingPath = null;
     _recordingStopwatch
@@ -324,7 +329,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
   }
 
   Future<void> _stopRecording() async {
-    if (!_isRecording) {
+    if (!_isRecording || _isFinalizing) {
       return;
     }
 
@@ -334,19 +339,35 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     await _amplitudeSubscription?.cancel();
     _amplitudeSubscription = null;
 
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        _isFinalizing = true;
+        _recordingDuration = _recordingStopwatch.elapsed;
+        _currentSpeechSegment = null;
+      });
+    }
+    await WidgetsBinding.instance.endOfFrame;
+    _appendLog('Finalizing recording...');
+
     try {
       await _recorder.stop();
     } on Object catch (error) {
+      if (mounted) {
+        setState(() {
+          _isFinalizing = false;
+        });
+      }
       _appendLog('Stop recording failed: $error');
+      return;
     }
 
     final outputPath = _activeOutputPath;
     if (outputPath == null) {
       if (mounted) {
         setState(() {
-          _isRecording = false;
+          _isFinalizing = false;
           _recordingDuration = _recordingStopwatch.elapsed;
-          _currentSpeechSegment = null;
         });
       }
       _appendLog('Recording stopped without an active output path.');
@@ -358,9 +379,8 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     if (!await outputFile.exists()) {
       if (mounted) {
         setState(() {
-          _isRecording = false;
+          _isFinalizing = false;
           _recordingDuration = _recordingStopwatch.elapsed;
-          _currentSpeechSegment = null;
         });
       }
       _appendLog('Recording stopped, but file was not created: $outputPath');
@@ -369,29 +389,34 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
 
     final bytes = await outputFile.length();
     setState(() {
-      _isRecording = false;
+      _isFinalizing = false;
       _recordingDuration = _recordingStopwatch.elapsed;
-      _currentSpeechSegment = null;
       _latestByteCount = bytes;
       _latestRecordingPath = outputPath;
       _latestMetadata = null;
+      _latestMetadataError = null;
     });
 
     setState(() {
       _isMetadataReading = true;
     });
-    final metadata = await _readMetadataAsync(outputPath);
+    final metadataResult = await _readMetadataAsync(outputPath);
     if (!mounted) {
       return;
     }
     setState(() {
-      _latestMetadata = metadata;
+      _latestMetadata = metadataResult.metadata;
+      _latestMetadataError = metadataResult.error;
       _isMetadataReading = false;
     });
+    final metadata = metadataResult.metadata;
     if (metadata != null) {
       _appendLog(
         'Recording saved: ${_formatBytes(bytes)} (${metadata.containerFormat ?? 'unknown'}).',
       );
+    } else if (metadataResult.error != null) {
+      _appendLog('Metadata unavailable: ${metadataResult.error}');
+      _appendLog('Recording saved: $outputPath (${_formatBytes(bytes)}).');
     } else {
       _appendLog('Recording saved: $outputPath (${_formatBytes(bytes)}).');
     }
@@ -461,14 +486,22 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     }
   }
 
-  Future<AudioMetadata?> _readMetadataAsync(String path) async {
+  Future<({AudioMetadata? metadata, String? error})> _readMetadataAsync(
+    String path,
+  ) async {
     try {
       if (!await _metadataReader.isAvailable()) {
-        return null;
+        return (
+          metadata: null,
+          error: 'Native metadata reader is unavailable on this runtime.',
+        );
       }
-      return await _metadataReader.readAudioMetadata(inputPath: path);
-    } on Object catch (_) {
-      return null;
+      return (
+        metadata: await _metadataReader.readAudioMetadata(inputPath: path),
+        error: null,
+      );
+    } on Object catch (error) {
+      return (metadata: null, error: '$error');
     }
   }
 
@@ -544,6 +577,22 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
   }
 
   Widget _buildStatusCard(ThemeData theme) {
+    final statusIcon = _isRecording
+        ? Icons.mic
+        : _isFinalizing
+        ? Icons.hourglass_top
+        : Icons.mic_none;
+    final statusColor = _isRecording
+        ? Colors.redAccent
+        : _isFinalizing
+        ? Colors.amber
+        : theme.colorScheme.outline;
+    final statusLabel = _isRecording
+        ? 'Recording'
+        : _isFinalizing
+        ? 'Finalizing'
+        : 'Idle';
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -552,17 +601,9 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
           children: [
             Row(
               children: [
-                Icon(
-                  _isRecording ? Icons.mic : Icons.mic_none,
-                  color: _isRecording
-                      ? Colors.redAccent
-                      : theme.colorScheme.outline,
-                ),
+                Icon(statusIcon, color: statusColor),
                 const SizedBox(width: 8),
-                Text(
-                  _isRecording ? 'Recording' : 'Idle',
-                  style: theme.textTheme.titleMedium,
-                ),
+                Text(statusLabel, style: theme.textTheme.titleMedium),
                 const Spacer(),
                 Text(
                   _formatDuration(_recordingDuration),
@@ -590,6 +631,13 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                   ),
                 Chip(label: Text('dBFS: ${_currentDbfs.toStringAsFixed(1)}')),
                 Chip(label: Text('Peak: ${_peakDbfs.toStringAsFixed(1)} dBFS')),
+                if (_isFinalizing)
+                  Chip(
+                    label: Text(
+                      'Finalizing...',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
                 if (_isMetadataReading)
                   Chip(
                     label: Text(
@@ -625,9 +673,19 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
       runSpacing: 8,
       children: [
         FilledButton.icon(
-          onPressed: _isRecording ? _stopRecording : _startRecording,
-          icon: Icon(_isRecording ? Icons.stop : Icons.mic),
-          label: Text(_isRecording ? 'Stop recording' : 'Start recording'),
+          onPressed: _isFinalizing
+              ? null
+              : (_isRecording ? _stopRecording : _startRecording),
+          icon: Icon(
+            _isFinalizing
+                ? Icons.hourglass_top
+                : (_isRecording ? Icons.stop : Icons.mic),
+          ),
+          label: Text(
+            _isFinalizing
+                ? 'Finalizing...'
+                : (_isRecording ? 'Stop recording' : 'Start recording'),
+          ),
         ),
         OutlinedButton.icon(
           onPressed: () {
@@ -689,13 +747,13 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                         ),
                       ),
                     ],
-                    onChanged: _isRecording ? null : _selectInputDeviceById,
+                    onChanged: _isSessionBusy ? null : _selectInputDeviceById,
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton.filledTonal(
                   tooltip: 'Refresh inputs',
-                  onPressed: _isRefreshingInputDevices || _isRecording
+                  onPressed: _isRefreshingInputDevices || _isSessionBusy
                       ? null
                       : () => unawaited(_refreshInputDevices()),
                   icon: _isRefreshingInputDevices
@@ -759,7 +817,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                   label: 'AAC-ELD',
                 ),
               ],
-              onChanged: _isRecording
+              onChanged: _isSessionBusy
                   ? null
                   : (value) {
                       if (value == null) {
@@ -786,7 +844,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                 ExampleDropdownOption(value: 44100, label: '44100 Hz'),
                 ExampleDropdownOption(value: 48000, label: '48000 Hz'),
               ],
-              onChanged: _isRecording
+              onChanged: _isSessionBusy
                   ? null
                   : (value) {
                       setState(() {
@@ -806,7 +864,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                 ExampleDropdownOption(value: 1, label: '1 (Mono)'),
                 ExampleDropdownOption(value: 2, label: '2 (Stereo)'),
               ],
-              onChanged: _isRecording
+              onChanged: _isSessionBusy
                   ? null
                   : (value) {
                       if (value != null) {
@@ -831,7 +889,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                 ExampleDropdownOption(value: 64, label: '64 kbps'),
                 ExampleDropdownOption(value: 128, label: '128 kbps'),
               ],
-              onChanged: _selectedEncoder.isAac && !_isRecording
+              onChanged: _selectedEncoder.isAac && !_isSessionBusy
                   ? (value) {
                       setState(() {
                         _bitrateKbps = value;
@@ -849,7 +907,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
             const Divider(height: 24),
             AudioProcessingCard(
               controller: _processingController,
-              enabled: !_isRecording,
+              enabled: !_isSessionBusy,
               onChanged: (controller) {
                 setState(() {
                   _processingController = controller;
@@ -881,14 +939,25 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                     style: theme.textTheme.titleMedium,
                   ),
                 ),
-                if (_latestMetadata != null)
+                if (_latestMetadata != null || _latestMetadataError != null)
                   IconButton(
-                    tooltip: 'Show metadata',
-                    icon: const Icon(Icons.info_outline),
+                    tooltip: _latestMetadata != null
+                        ? 'Show metadata'
+                        : 'Show metadata error',
+                    icon: Icon(
+                      _latestMetadata != null
+                          ? Icons.info_outline
+                          : Icons.warning_amber_outlined,
+                    ),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     onPressed: () {
-                      _showMetadataSheet(context, outputPath, _latestMetadata!);
+                      _showMetadataSheet(
+                        context,
+                        outputPath,
+                        metadata: _latestMetadata,
+                        metadataError: _latestMetadataError,
+                      );
                     },
                   ),
               ],
@@ -909,6 +978,14 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                 '${_latestMetadata!.codecProfile != null ? ' (${_latestMetadata!.codecProfile})' : ''}',
                 style: theme.textTheme.bodySmall,
               ),
+            ] else if (_latestMetadataError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Metadata unavailable: $_latestMetadataError',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
             ],
             const SizedBox(height: 12),
             OutlinedButton.icon(
@@ -928,9 +1005,10 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
 
   void _showMetadataSheet(
     BuildContext context,
-    String path,
-    AudioMetadata metadata,
-  ) {
+    String path, {
+    required AudioMetadata? metadata,
+    required String? metadataError,
+  }) {
     showModalBottomSheet<void>(
       context: context,
       builder: (context) {
@@ -948,7 +1026,13 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                 const SizedBox(height: 8),
                 Text('Path: ${path.split(Platform.pathSeparator).last}'),
                 const SizedBox(height: 8),
-                _buildMetadataRows(metadata),
+                if (metadata != null)
+                  _buildMetadataRows(metadata)
+                else
+                  Text(
+                    metadataError ?? 'Metadata is unavailable for this file.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 const SizedBox(height: 10),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),

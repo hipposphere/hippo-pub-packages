@@ -1410,7 +1410,7 @@ NSString* ResolveIosSessionMode(int32_t ios_session_mode_code, int32_t processin
 AVAudioSessionCategoryOptions ResolveIosCategoryOptions(uint32_t ios_category_options_flags) {
   AVAudioSessionCategoryOptions options = 0;
   if ((ios_category_options_flags & (1u << 0)) != 0u) {
-    options |= AVAudioSessionCategoryOptionAllowBluetooth;
+    options |= AVAudioSessionCategoryOptionAllowBluetoothHFP;
   }
   if ((ios_category_options_flags & (1u << 1)) != 0u) {
     options |= AVAudioSessionCategoryOptionAllowBluetoothA2DP;

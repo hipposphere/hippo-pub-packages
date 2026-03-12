@@ -1600,7 +1600,7 @@ AVAudioSessionCategoryOptions ResolveIosCategoryOptions(uint32_t ios_category_op
 #if TARGET_OS_IPHONE
   AVAudioSessionCategoryOptions options = 0;
   if ((ios_category_options_flags & (1u << 0)) != 0u) {
-    options |= AVAudioSessionCategoryOptionAllowBluetooth;
+    options |= AVAudioSessionCategoryOptionAllowBluetoothHFP;
   }
   if ((ios_category_options_flags & (1u << 1)) != 0u) {
     options |= AVAudioSessionCategoryOptionAllowBluetoothA2DP;

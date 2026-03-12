@@ -55,6 +55,8 @@
 - Bundle Windows FFmpeg runtime DLLs from `third_party/ffmpeg/windows/bin` automatically in hook builds.
 - Add Windows minimal-FFmpeg CI pipeline to generate required `include/lib/bin`
   artifacts from source.
+- Fix iOS native asset staging so switching between device and simulator builds
+  no longer leaves stale `speech_utils` frameworks that require a clean build.
 
 ## 0.1.3
 

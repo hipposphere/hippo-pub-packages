@@ -2,13 +2,32 @@ import 'dart:io';
 
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
+import 'package:native_toolchain_c/native_toolchain_c.dart';
 
 import 'hook_helpers.dart';
 
 const _tenVadAssetName = 'src/generated/vad/ten_vad_bindings.dart';
 const _tenVadLibraryBaseName = 'speech_utils_ten_vad';
+const _tenVadIosSimulatorStubSource = 'native/ios/speech_utils_ten_vad_simulator_stub.c';
 
 Future<void> bundleTenVadAsset(BuildInput input, BuildOutputBuilder output) async {
+  if (_shouldBuildIosSimulatorStub(input)) {
+    requireSourceFile(
+      input,
+      relativePath: _tenVadIosSimulatorStubSource,
+      label: 'TEN VAD iOS simulator stub',
+      output: output,
+    );
+    await CBuilder.library(
+      name: _tenVadLibraryBaseName,
+      assetName: _tenVadAssetName,
+      language: Language.c,
+      sources: [_tenVadIosSimulatorStubSource],
+      includes: ['third_party/ten_vad/include'],
+    ).run(input: input, output: output);
+    return;
+  }
+
   final sourceLibrary = _tenVadSourceLibraryUri(input);
   if (sourceLibrary == null) {
     return;
@@ -32,6 +51,11 @@ Future<void> bundleTenVadAsset(BuildInput input, BuildOutputBuilder output) asyn
     assetName: _tenVadAssetName,
     fileUri: bundledLibrary,
   );
+}
+
+bool _shouldBuildIosSimulatorStub(BuildInput input) {
+  return input.config.code.targetOS == OS.iOS &&
+      input.config.code.iOS.targetSdk == IOSSdk.iPhoneSimulator;
 }
 
 Uri? _tenVadSourceLibraryUri(BuildInput input) {

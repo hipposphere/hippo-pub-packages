@@ -63,7 +63,7 @@ class Button extends StatelessWidget {
           focusNode: focusNode,
           autofocus: autofocus,
           variant: switch (type) {
-            ButtonType.primary => null,
+            ButtonType.primary => .primary,
             ButtonType.secondary => .secondary,
             ButtonType.outline => .outline,
             ButtonType.destructive => .destructive,
@@ -125,7 +125,7 @@ class LinkButton extends StatelessWidget {
               focusNode: focusNode,
               autofocus: autofocus,
               variant: switch (type) {
-                ButtonType.primary => null,
+                ButtonType.primary => .primary,
                 ButtonType.secondary => .secondary,
                 ButtonType.outline => .outline,
                 ButtonType.destructive => .destructive,

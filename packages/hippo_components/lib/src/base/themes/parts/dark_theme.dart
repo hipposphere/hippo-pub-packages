@@ -46,4 +46,5 @@ final darkForuiTheme = FThemeData(
     barrier: Color(0x7A000000),
     systemOverlayStyle: SystemUiOverlayStyle.light,
   ),
+  touch: true,
 );

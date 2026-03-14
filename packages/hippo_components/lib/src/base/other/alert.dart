@@ -24,7 +24,7 @@ class Alert extends StatelessWidget {
       title: Text(title),
       subtitle: subtitle != null ? Text(subtitle!) : null,
       variant: switch (style) {
-        AlertStyle.primary => null,
+        AlertStyle.primary => .primary,
         AlertStyle.destructive => .destructive,
       },
     );

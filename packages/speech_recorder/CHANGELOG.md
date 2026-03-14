@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Raise the minimum `speech_utils` dependency to `0.2.5` so Android builds
+  always resolve a plugin-enabled/native-asset-enabled `speech_utils`
+  release.
 - Breaking: replace `RecordConfig` with `AudioRecorderConfig`.
 - Move encoding options to `AudioRecorderConfig.encoding`
   (`AudioEncodingConfig`).

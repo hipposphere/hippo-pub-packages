@@ -22,7 +22,7 @@ class SmallBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return FBadge(
       variant: switch (type) {
-        BadgeType.primary => null,
+        BadgeType.primary => .primary,
         BadgeType.secondary => .secondary,
         BadgeType.outline => .outline,
         BadgeType.destructive => .destructive,

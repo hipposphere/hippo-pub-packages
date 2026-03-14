@@ -1,12 +1,12 @@
 name: speech_recorder
 description: "A useful speech recorder abstraction"
-version: 0.2.2
+version: 0.2.6
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
 
 environment:
-  sdk: ">=3.11.0 <4.0.0"
+  sdk: ">=3.11.0"
   flutter: ">=3.41.0"
 
 dependencies:
@@ -21,7 +21,7 @@ dependencies:
     version: ^0.1.24
   speech_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.2.3
+    version: ^0.2.5
 
 dev_dependencies:
   flutter_test:

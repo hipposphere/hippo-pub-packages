@@ -46,4 +46,5 @@ final lightForuiTheme = FThemeData(
     barrier: Color(0x33000000),
     systemOverlayStyle: SystemUiOverlayStyle.dark,
   ),
+  touch: true,
 ).copyWith();

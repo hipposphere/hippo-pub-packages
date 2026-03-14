@@ -53,7 +53,7 @@ class SymbolButton extends StatelessWidget {
           focusNode: focusNode,
           autofocus: autofocus,
           variant: switch (type) {
-            SymbolButtonType.primary => null,
+            SymbolButtonType.primary => .primary,
             SymbolButtonType.outline => .outline,
             SymbolButtonType.destructive => .destructive,
           },

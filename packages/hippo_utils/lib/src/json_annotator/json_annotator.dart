@@ -17,8 +17,8 @@ import '../json_pointer/json_pointer_map.dart';
 /// Represents a node in the parsed JSON tree, linked with an optional [schemaNode]
 /// and any [metadata] matched via a JsonPointerMap.
 @immutable
-class ParsedJsonNode<T> {
-  const ParsedJsonNode({
+class AnnotatedJsonNode<T> {
+  const AnnotatedJsonNode({
     required this.value,
     this.schemaNode,
     required this.pointer,
@@ -40,10 +40,10 @@ class ParsedJsonNode<T> {
   final T? metadata;
   
   /// Parsed child nodes if this was an array.
-  final List<ParsedJsonNode<T>>? children;
+  final List<AnnotatedJsonNode<T>>? children;
   
   /// Parsed property nodes if this was an object.
-  final Map<String, ParsedJsonNode<T>>? properties;
+  final Map<String, AnnotatedJsonNode<T>>? properties;
 }
 
 /// An annotator that combines a raw JSON object with an optional [JsonSchema],
@@ -52,9 +52,9 @@ class JsonAnnotator {
   const JsonAnnotator();
 
   /// Parses the [rawJson]. If a [schema] is provided, it validates the structure against it.
-  /// If a [map] is provided, metadata will be bound to the respective output [ParsedJsonNode] 
+  /// If a [map] is provided, metadata will be bound to the respective output [AnnotatedJsonNode] 
   /// by evaluating their JSON Pointer paths.
-  ParsedJsonNode<T> parse<T>(
+  AnnotatedJsonNode<T> parse<T>(
     dynamic rawJson, {
     JsonSchema? schema,
     JsonPointerMap<T>? map,
@@ -67,7 +67,7 @@ class JsonAnnotator {
     );
   }
 
-  ParsedJsonNode<T> _parseNode<T>({
+  AnnotatedJsonNode<T> _parseNode<T>({
     required dynamic value,
     JsonSchemaNode? schemaNode,
     required JsonPointer pointer,
@@ -77,7 +77,7 @@ class JsonAnnotator {
     final metadata = map?.match(pointer);
 
     if (value is Map) {
-      final properties = <String, ParsedJsonNode<T>>{};
+      final properties = <String, AnnotatedJsonNode<T>>{};
       
       for (final entry in value.entries) {
         final key = entry.key.toString();
@@ -95,7 +95,7 @@ class JsonAnnotator {
         );
       }
       
-      return ParsedJsonNode<T>(
+      return AnnotatedJsonNode<T>(
         value: value,
         schemaNode: schemaNode,
         pointer: pointer,
@@ -103,7 +103,7 @@ class JsonAnnotator {
         properties: properties,
       );
     } else if (value is List) {
-      final children = <ParsedJsonNode<T>>[];
+      final children = <AnnotatedJsonNode<T>>[];
       
       for (var i = 0; i < value.length; i++) {
         JsonSchemaNode? childSchema;
@@ -121,7 +121,7 @@ class JsonAnnotator {
         );
       }
       
-      return ParsedJsonNode<T>(
+      return AnnotatedJsonNode<T>(
         value: value,
         schemaNode: schemaNode,
         pointer: pointer,
@@ -130,7 +130,7 @@ class JsonAnnotator {
       );
     } else {
       // Primitive schema node (e.g. string, number, boolean, null)
-      return ParsedJsonNode<T>(
+      return AnnotatedJsonNode<T>(
         value: value,
         schemaNode: schemaNode,
         pointer: pointer,

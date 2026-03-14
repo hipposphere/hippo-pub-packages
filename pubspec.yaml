@@ -5,7 +5,7 @@ homepage: https://hippolabs.org
 version: 0.1.0
 
 environment:
-  sdk: ">=3.11.0"
+  sdk: ">=3.11.0 < 4.0.0"
 dev_dependencies:
   melos: ^7.4.0
 

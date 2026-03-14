@@ -1,0 +1,142 @@
+/*
+// ---------------------------------------------------------------------------
+// Copyright (c) 2025 HippoSphere UG (haftungsbeschränkt). All rights reserved.
+// Use, copying, modification, or distribution of this software is prohibited
+// without express written permission from Hipposphere UG.
+//
+// SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
+// ---------------------------------------------------------------------------
+*/
+
+import 'package:flutter/foundation.dart';
+import '../json_schema/json_schema.dart';
+import '../json_schema/json_schema_nodes.dart';
+import '../json_pointer/json_pointer.dart';
+import '../json_pointer/json_pointer_map.dart';
+
+/// Represents a node in the parsed JSON tree, linked with an optional [schemaNode]
+/// and any [metadata] matched via a JsonPointerMap.
+@immutable
+class ParsedJsonNode<T> {
+  const ParsedJsonNode({
+    required this.value,
+    this.schemaNode,
+    required this.pointer,
+    this.metadata,
+    this.children,
+    this.properties,
+  });
+
+  /// The actual JSON value parsed at this node (e.g. Map, List, String, bool, int, double).
+  final dynamic value;
+
+  /// The [JsonSchemaNode] that describes this value's schema (if provided).
+  final JsonSchemaNode? schemaNode;
+
+  /// The [JsonPointer] path pointing to this location in the JSON document.
+  final JsonPointer pointer;
+
+  /// Associated metadata mapped from a [JsonPointerMap<T>].
+  final T? metadata;
+  
+  /// Parsed child nodes if this was an array.
+  final List<ParsedJsonNode<T>>? children;
+  
+  /// Parsed property nodes if this was an object.
+  final Map<String, ParsedJsonNode<T>>? properties;
+}
+
+/// An annotator that combines a raw JSON object with an optional [JsonSchema],
+/// and an optional [JsonPointerMap<T>] containing metadata mapped by JSON Pointers.
+class JsonAnnotator {
+  const JsonAnnotator();
+
+  /// Parses the [rawJson]. If a [schema] is provided, it validates the structure against it.
+  /// If a [map] is provided, metadata will be bound to the respective output [ParsedJsonNode] 
+  /// by evaluating their JSON Pointer paths.
+  ParsedJsonNode<T> parse<T>(
+    dynamic rawJson, {
+    JsonSchema? schema,
+    JsonPointerMap<T>? map,
+  }) {
+    return _parseNode<T>(
+      value: rawJson,
+      schemaNode: schema?.node,
+      pointer: JsonPointer.empty(),
+      map: map,
+    );
+  }
+
+  ParsedJsonNode<T> _parseNode<T>({
+    required dynamic value,
+    JsonSchemaNode? schemaNode,
+    required JsonPointer pointer,
+    JsonPointerMap<T>? map,
+  }) {
+    // Attempt to match metadata via the JSON Pointer (allows for wildcards or exact paths).
+    final metadata = map?.match(pointer);
+
+    if (value is Map) {
+      final properties = <String, ParsedJsonNode<T>>{};
+      
+      for (final entry in value.entries) {
+        final key = entry.key.toString();
+        // Find the child schema for this property, or leave null.
+        JsonSchemaNode? childSchema;
+        if (schemaNode is JsonSchemaObjectNode) {
+          childSchema = schemaNode.properties[key] ?? JsonSchemaNode.emptyRoot();
+        }
+        
+        properties[key] = _parseNode<T>(
+          value: entry.value,
+          schemaNode: childSchema,
+          pointer: pointer.child(key),
+          map: map,
+        );
+      }
+      
+      return ParsedJsonNode<T>(
+        value: value,
+        schemaNode: schemaNode,
+        pointer: pointer,
+        metadata: metadata,
+        properties: properties,
+      );
+    } else if (value is List) {
+      final children = <ParsedJsonNode<T>>[];
+      
+      for (var i = 0; i < value.length; i++) {
+        JsonSchemaNode? childSchema;
+        if (schemaNode is JsonSchemaArrayNode) {
+          childSchema = schemaNode.items;
+        }
+
+        children.add(
+          _parseNode<T>(
+            value: value[i],
+            schemaNode: childSchema,
+            pointer: pointer.child(i.toString()),
+            map: map,
+          ),
+        );
+      }
+      
+      return ParsedJsonNode<T>(
+        value: value,
+        schemaNode: schemaNode,
+        pointer: pointer,
+        metadata: metadata,
+        children: children,
+      );
+    } else {
+      // Primitive schema node (e.g. string, number, boolean, null)
+      return ParsedJsonNode<T>(
+        value: value,
+        schemaNode: schemaNode,
+        pointer: pointer,
+        metadata: metadata,
+      );
+    }
+  }
+}
+

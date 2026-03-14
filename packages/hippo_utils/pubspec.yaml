@@ -15,9 +15,9 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
   rxdart: ^0.28.0
-  url_launcher: 6.3.2
+  url_launcher: ^6.3.2
   uuid: ^4.5.3
-  web: 1.1.1
+  web: ^1.1.1
   shared_preferences: ^2.5.4
   flutter_secure_storage: ^10.0.0
   cross_file: ^0.3.5+2
@@ -25,7 +25,7 @@ dependencies:
   file_picker: ^10.3.10
   filesize: ^2.0.1
   mime: ^2.0.0
-  intl: any
+  intl: ^0.20.2
   isoweek: ^1.1.4
   file_saver: ^0.3.1
   audioplayers: ^6.6.0
@@ -34,7 +34,7 @@ dependencies:
   share_plus: ^12.0.1
   content_resolver: ^0.3.6
   package_info_plus: ^9.0.0
-  app_links: 7.0.0
+  app_links: ^7.0.0
   path: ^1.9.1
   http: ^1.6.0
 

@@ -60,6 +60,13 @@ void main() {
       expect(map.getString('/foo/3'), isNull);
     });
 
+    test('seeded constructor populates map correctly', () {
+      final map = JsonPointerMap<String>.seeded({'/foo/1': 'first', '/foo/2': 'second'});
+      expect(map.get(JsonPointer('/foo/1')), 'first');
+      expect(map.getString('/foo/2'), 'second');
+      expect(map.getString('/foo/3'), isNull);
+    });
+
     test('match handles wildcards', () {
       final map = JsonPointerMap<String>();
       // Use '-' as a wildcard for array indices
@@ -71,10 +78,10 @@ void main() {
       // Should match specific item due to wildcard
       expect(map.match(JsonPointer('/users/0/name')), 'UserName Metadata');
       expect(map.match(JsonPointer('/users/99/name')), 'UserName Metadata');
-      
+
       // Exact match should take precedence because it is checked first
       expect(map.match(JsonPointer('/users/exact/name')), 'ExactName Metadata');
-      
+
       // Should not match shorter/longer segments
       expect(map.match(JsonPointer('/users/0')), isNull);
     });

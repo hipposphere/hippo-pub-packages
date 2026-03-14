@@ -40,12 +40,14 @@ void main() {
 
       // 5. Assertions
       expect(rootNode.schemaNode, isA<JsonSchemaObjectNode>());
+      expect(rootNode.type, AnnotatedJsonNodeType.object);
       expect(rootNode.pointer.isRoot, true);
       expect(rootNode.metadata, isNull);
 
       // Name Property
       final nameNode = rootNode.properties!['name']!;
       expect(nameNode.value, 'John Doe');
+      expect(nameNode.type, AnnotatedJsonNodeType.value);
       expect(nameNode.schemaNode, isA<JsonSchemaStringNode>());
       expect(nameNode.pointer.toString(), '/name');
       expect(nameNode.metadata, 'Name Field Metadata');
@@ -62,6 +64,7 @@ void main() {
       // Tags Array
       final tagsNode = rootNode.properties!['tags']!;
       expect(tagsNode.schemaNode, isA<JsonSchemaArrayNode>());
+      expect(tagsNode.type, AnnotatedJsonNodeType.list);
       expect(tagsNode.children!.length, 2);
 
       // First Tag
@@ -121,6 +124,7 @@ void main() {
       expect(simpleNode.pointer.toString(), '/simple');
 
       final listNode = node.properties!['list']!;
+      expect(listNode.type, AnnotatedJsonNodeType.list);
       expect(listNode.children!.length, 3);
       expect(listNode.children![0].value, 1);
       expect(listNode.children![0].schemaNode, isNull);

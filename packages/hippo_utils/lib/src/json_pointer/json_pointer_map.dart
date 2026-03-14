@@ -11,14 +11,23 @@
 import 'json_pointer.dart';
 
 /// A generic map that uses [JsonPointer] as keys.
-/// 
+///
 /// It supports exact matching, as well as simple wildcard matching
 /// where a segment value of '-' in the map's key can match any value at that
 /// position in the requested pointer. This is useful for matching array items.
 class JsonPointerMap<T> {
-  JsonPointerMap();
+  JsonPointerMap({Map<JsonPointer, T>? map}) : _map = map ?? {};
 
-  final Map<JsonPointer, T> _map = {};
+  /// Creates a [JsonPointerMap] seeded with the given string paths and values.
+  factory JsonPointerMap.seeded(Map<String, T> seed) {
+    final map = <JsonPointer, T>{};
+    for (final entry in seed.entries) {
+      map[JsonPointer(entry.key)] = entry.value;
+    }
+    return JsonPointerMap(map: map);
+  }
+
+  final Map<JsonPointer, T> _map;
 
   /// Associates the [value] with the exact [pointer].
   void set(JsonPointer pointer, T value) {
@@ -41,7 +50,7 @@ class JsonPointerMap<T> {
   }
 
   /// Finds a value matching the [pointer].
-  /// 
+  ///
   /// This checks for exact matches first. If no exact match is found,
   /// it iterates through the keys to find a wildcard match where the map's
   /// key has a '-' segment that matches any segment in the [pointer].
@@ -66,7 +75,7 @@ class JsonPointerMap<T> {
     for (var i = 0; i < pattern.segments.length; i++) {
       final pSeg = pattern.segments[i];
       final aSeg = actual.segments[i];
-      
+
       // Exact match or wildcard match '-'
       if (pSeg != aSeg && pSeg != '-') {
         return false;
@@ -82,9 +91,9 @@ class JsonPointerMap<T> {
 
   bool get isEmpty => _map.isEmpty;
   bool get isNotEmpty => _map.isNotEmpty;
-  
+
   Iterable<JsonPointer> get keys => _map.keys;
   Iterable<T> get values => _map.values;
-  
+
   void clear() => _map.clear();
 }

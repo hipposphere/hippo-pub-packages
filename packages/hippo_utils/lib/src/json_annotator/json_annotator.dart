@@ -14,11 +14,19 @@ import '../json_schema/json_schema_nodes.dart';
 import '../json_pointer/json_pointer.dart';
 import '../json_pointer/json_pointer_map.dart';
 
+/// The type of an [AnnotatedJsonNode].
+enum AnnotatedJsonNodeType {
+  object,
+  list,
+  value,
+}
+
 /// Represents a node in the parsed JSON tree, linked with an optional [schemaNode]
 /// and any [metadata] matched via a JsonPointerMap.
 @immutable
 class AnnotatedJsonNode<T> {
   const AnnotatedJsonNode({
+    required this.type,
     required this.value,
     this.schemaNode,
     required this.pointer,
@@ -26,6 +34,9 @@ class AnnotatedJsonNode<T> {
     this.children,
     this.properties,
   });
+
+  /// The type of the mapped JSON node.
+  final AnnotatedJsonNodeType type;
 
   /// The actual JSON value parsed at this node (e.g. Map, List, String, bool, int, double).
   final dynamic value;
@@ -96,6 +107,7 @@ class JsonAnnotator {
       }
       
       return AnnotatedJsonNode<T>(
+        type: AnnotatedJsonNodeType.object,
         value: value,
         schemaNode: schemaNode,
         pointer: pointer,
@@ -122,6 +134,7 @@ class JsonAnnotator {
       }
       
       return AnnotatedJsonNode<T>(
+        type: AnnotatedJsonNodeType.list,
         value: value,
         schemaNode: schemaNode,
         pointer: pointer,
@@ -131,6 +144,7 @@ class JsonAnnotator {
     } else {
       // Primitive schema node (e.g. string, number, boolean, null)
       return AnnotatedJsonNode<T>(
+        type: AnnotatedJsonNodeType.value,
         value: value,
         schemaNode: schemaNode,
         pointer: pointer,

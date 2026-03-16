@@ -8,17 +8,26 @@ import 'package:hippo_utils/audioplayers.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'package:speech_recorder/speech_recorder.dart';
 
-const _encoderOptions = <AudioEncoder>[
-  AudioEncoder.aacLc,
-  AudioEncoder.aacHe,
-  AudioEncoder.aacEld,
-  AudioEncoder.wav,
-  AudioEncoder.pcm16bits,
-];
-
 const _sampleRateOptionsHz = <int>[8000, 16000, 22050, 32000, 44100, 48000];
 const _channelCountOptions = <int>[1, 2];
 const _bitrateOptionsBps = <int>[32000, 48000, 64000, 96000, 128000, 192000];
+
+List<AudioEncoder> _fileEncoderOptionsForCurrentPlatform() {
+  if (Platform.isAndroid) {
+    return const <AudioEncoder>[
+      AudioEncoder.aacLc,
+      AudioEncoder.aacHe,
+      AudioEncoder.aacEld,
+    ];
+  }
+  return const <AudioEncoder>[
+    AudioEncoder.aacLc,
+    AudioEncoder.aacHe,
+    AudioEncoder.aacEld,
+    AudioEncoder.wav,
+    AudioEncoder.pcm16bits,
+  ];
+}
 
 Future<void> openExampleRecorderPage(BuildContext context) async {
   await Routing.openPage(
@@ -345,6 +354,7 @@ class _RecorderSettingsCard extends StatelessWidget {
               settings.encoder,
             );
             final bitrateLikelyIgnored = _ignoresBitrate(settings.encoder);
+            final encoderOptions = _fileEncoderOptionsForCurrentPlatform();
 
             return _CardBox(
               child: Column(
@@ -370,6 +380,11 @@ class _RecorderSettingsCard extends StatelessWidget {
                       'Bitrate is usually ignored for ${_audioEncoderLabel(settings.encoder)}.',
                       style: textTheme.bodySmall,
                     ),
+                  if (Platform.isAndroid)
+                    Text(
+                      'Android file recording uses MediaRecorder and supports AAC outputs only.',
+                      style: textTheme.bodySmall,
+                    ),
                   Gap(12),
                   DropdownButtonFormField<AudioEncoder>(
                     initialValue: settings.encoder,
@@ -377,7 +392,7 @@ class _RecorderSettingsCard extends StatelessWidget {
                       labelText: 'Encoder',
                       isDense: true,
                     ),
-                    items: _encoderOptions
+                    items: encoderOptions
                         .map(
                           (encoder) => DropdownMenuItem(
                             value: encoder,

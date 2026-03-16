@@ -441,7 +441,7 @@ void main() {
       late String nativeOutputPath;
 
       final recorder = recorderFixture(
-        platform: NativeAudioRecorderPlatform.android,
+        platform: NativeAudioRecorderPlatform.windows,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
         requestPermissionFn: () => true,
@@ -494,6 +494,61 @@ void main() {
           await outputDirectory.delete(recursive: true);
         }
       }
+    });
+
+    test('startFileRecording uses direct native AAC output on Android', () async {
+      final fakeAacEncoder = _FakeAacEncoder();
+      late String nativeOutputPath;
+      var stopCalls = 0;
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.android,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {
+              nativeOutputPath = outputPath;
+            },
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        stopFn: () {
+          stopCalls++;
+          File(nativeOutputPath).writeAsBytesSync(const <int>[1, 2, 3, 4], flush: true);
+        },
+        isRecordingFn: () => true,
+      );
+
+      await recorder.startFileRecording(
+        outputPath: '/tmp/recording_android.m4a',
+        config: AudioRecorderConfig(
+          sampleRateHz: 16000,
+          channelCount: 1,
+          encoding: AudioEncodingConfig(
+            encoder: AudioEncoder.aacLc,
+            bitrateBps: 64000,
+            audioEncoder: fakeAacEncoder,
+          ),
+        ),
+      );
+
+      expect(nativeOutputPath, '/tmp/recording_android.m4a');
+
+      await recorder.stop();
+      expect(stopCalls, 1);
+      expect(fakeAacEncoder.encodeAudioFileToAacCalls, 0);
     });
 
     test(
@@ -650,6 +705,43 @@ void main() {
     test('startFileRecording rejects non-m4a output for iOS AAC recording', () {
       final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.iOS,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        stopFn: () {},
+        isRecordingFn: () => true,
+      );
+
+      expect(
+        () => recorder.startFileRecording(
+          outputPath: '/tmp/recording.wav',
+          config: const AudioRecorderConfig(
+            encoding: AudioEncodingConfig(encoder: AudioEncoder.aacLc),
+          ),
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('startFileRecording rejects non-m4a output for Android AAC recording', () {
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.android,
         availabilityFn: () => true,
         hasPermissionFn: () => true,
         requestPermissionFn: () => true,

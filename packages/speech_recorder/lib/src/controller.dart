@@ -148,17 +148,26 @@ class SpeechRecorderController {
   }
 
   Future<void> _startSessionCapture(SpeechRecorderSession session) async {
-    await _startAmplitudeListening(
-      session: session,
-      interval: session.options.amplitudeInterval,
-    );
-
     final streamingOptions = session.options.streaming;
     if (streamingOptions == null) {
+      final encoder = session.options.recordConfig.encoding.encoder;
+      if (_recorder.platform == NativeAudioRecorderPlatform.android &&
+          !encoder.isAac) {
+        throw ArgumentError.value(
+          encoder,
+          'recordConfig.encoding.encoder',
+          'Android file recording supports only AudioEncoder.aacLc, '
+              'AudioEncoder.aacHe, and AudioEncoder.aacEld.',
+        );
+      }
       await _ensureOutputParentDirectoryExists(session.options.path);
       await _recorder.startFileRecording(
         outputPath: session.options.path,
         config: session.options.recordConfig,
+      );
+      await _startAmplitudeListening(
+        session: session,
+        interval: session.options.amplitudeInterval,
       );
       return;
     }
@@ -170,6 +179,10 @@ class SpeechRecorderController {
     await _startNativeStreamingSegmentation(
       session: session,
       streamingOptions: streamingOptions,
+    );
+    await _startAmplitudeListening(
+      session: session,
+      interval: session.options.amplitudeInterval,
     );
   }
 

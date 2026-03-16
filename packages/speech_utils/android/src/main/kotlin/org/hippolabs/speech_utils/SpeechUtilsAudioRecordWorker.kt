@@ -2,12 +2,15 @@ package org.hippolabs.speech_utils
 
 import android.media.AudioFormat
 import android.media.AudioRecord
+import android.media.AudioRecordingConfiguration
+import android.media.AudioManager
 import android.media.MediaRecorder
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.Executor
 import kotlin.math.absoluteValue
 import kotlin.math.max
 
@@ -21,6 +24,11 @@ class SpeechUtilsAudioRecordWorker {
         private const val CHANNEL_IN_STEREO = AudioFormat.CHANNEL_IN_STEREO
         private const val ERROR_CODE_STREAM_READ_FAILED = -4
         private const val ERROR_CODE_START_FAILED = -7
+        private const val ERROR_CODE_CAPTURE_SILENCED = -8
+        private const val ERROR_CODE_CAPTURE_RECONFIGURED = -9
+        private const val SOURCE_POLICY_VOICE = 1
+        private const val SOURCE_POLICY_RAW = 2
+        private const val SOURCE_POLICY_MIC = 3
         private const val WAV_HEADER_BYTES = 44
     }
 
@@ -44,6 +52,9 @@ class SpeechUtilsAudioRecordWorker {
     private var maxDbfs = -90.0
     private var lastErrorMessage = ""
     private var lastErrorCode = 0
+    private var recordingCallback: AudioManager.AudioRecordingCallback? = null
+    private var requestedSampleRateHz = 16000
+    private var requestedChannelCount = 1
 
     @Synchronized
     fun startFile(
@@ -52,13 +63,17 @@ class SpeechUtilsAudioRecordWorker {
         requestedChannelCount: Int,
         framesPerChunk: Int,
         writeWavHeader: Boolean,
+        sourcePolicyCode: Int,
     ) {
         ensureIdle()
         clearErrorLocked()
+        this.requestedSampleRateHz = requestedSampleRateHz
+        this.requestedChannelCount = if (requestedChannelCount <= 1) 1 else 2
         val openResult = openAudioRecord(
             requestedSampleRateHz = requestedSampleRateHz,
             requestedChannelCount = requestedChannelCount,
             framesPerChunk = framesPerChunk,
+            sourcePolicyCode = sourcePolicyCode,
             operation = "Android file recording start",
         )
         audioRecord = openResult.audioRecord
@@ -91,13 +106,17 @@ class SpeechUtilsAudioRecordWorker {
         requestedSampleRateHz: Int,
         requestedChannelCount: Int,
         framesPerChunk: Int,
+        sourcePolicyCode: Int,
     ) {
         ensureIdle()
         clearErrorLocked()
+        this.requestedSampleRateHz = requestedSampleRateHz
+        this.requestedChannelCount = if (requestedChannelCount <= 1) 1 else 2
         val openResult = openAudioRecord(
             requestedSampleRateHz = requestedSampleRateHz,
             requestedChannelCount = requestedChannelCount,
             framesPerChunk = framesPerChunk,
+            sourcePolicyCode = sourcePolicyCode,
             operation = "Android stream recording start",
         )
         audioRecord = openResult.audioRecord
@@ -308,6 +327,7 @@ class SpeechUtilsAudioRecordWorker {
     private fun finalizeResourcesLocked() {
         val recorder = audioRecord
         audioRecord = null
+        unregisterRecordingCallback(recorder)
         if (recorder != null) {
             try {
                 recorder.release()
@@ -335,6 +355,10 @@ class SpeechUtilsAudioRecordWorker {
         outputIsWav = true
         pcmDataBytesWritten = 0
         readRequestBytes = 0
+        activeSampleRateHz = 16000
+        activeChannelCount = 1
+        requestedSampleRateHz = 16000
+        requestedChannelCount = 1
         streamBufferStart = 0
         streamBufferSize = 0
         mode = MODE_STOPPED
@@ -370,83 +394,213 @@ class SpeechUtilsAudioRecordWorker {
         requestedSampleRateHz: Int,
         requestedChannelCount: Int,
         framesPerChunk: Int,
+        sourcePolicyCode: Int,
         operation: String,
     ): OpenResult {
         val channelCount = if (requestedChannelCount <= 1) 1 else 2
         val channelConfig = if (channelCount == 1) CHANNEL_IN_MONO else CHANNEL_IN_STEREO
-        val sampleRates = linkedSetOf(requestedSampleRateHz, 16000, 48000, 44100)
-        val sources = intArrayOf(MediaRecorder.AudioSource.VOICE_RECOGNITION, MediaRecorder.AudioSource.MIC)
+        val source = resolveAudioSource(sourcePolicyCode)
         val attemptErrors = mutableListOf<String>()
 
-        for (sampleRateHz in sampleRates) {
-            for (source in sources) {
-                var record: AudioRecord? = null
-                try {
-                    val minBufferSize = AudioRecord.getMinBufferSize(
-                        sampleRateHz,
-                        channelConfig,
-                        AudioFormat.ENCODING_PCM_16BIT,
-                    )
-                    if (minBufferSize <= 0) {
-                        attemptErrors.add("source=$source rate=$sampleRateHz getMinBufferSize=$minBufferSize")
-                        continue
-                    }
+        var record: AudioRecord? = null
+        try {
+            val minBufferSize = AudioRecord.getMinBufferSize(
+                requestedSampleRateHz,
+                channelConfig,
+                AudioFormat.ENCODING_PCM_16BIT,
+            )
+            if (minBufferSize <= 0) {
+                throw IllegalStateException(
+                    "source=${audioSourceLabel(source)} rate=$requestedSampleRateHz getMinBufferSize=$minBufferSize",
+                )
+            }
 
-                    val targetFrames = max(framesPerChunk, sampleRateHz / 50)
-                    val requestedBufferBytes = max(minBufferSize, targetFrames * channelCount * 2)
-                    record = AudioRecord(
+            val targetFrames = max(framesPerChunk, requestedSampleRateHz / 50)
+            val requestedBufferBytes = max(minBufferSize, targetFrames * channelCount * 2)
+            record =
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    AudioRecord
+                        .Builder()
+                        .setAudioSource(source)
+                        .setAudioFormat(
+                            AudioFormat
+                                .Builder()
+                                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                                .setSampleRate(requestedSampleRateHz)
+                                .setChannelMask(channelConfig)
+                                .build(),
+                        )
+                        .setBufferSizeInBytes(requestedBufferBytes)
+                        .build()
+                } else {
+                    AudioRecord(
                         source,
-                        sampleRateHz,
+                        requestedSampleRateHz,
                         channelConfig,
                         AudioFormat.ENCODING_PCM_16BIT,
                         requestedBufferBytes,
                     )
-
-                    if (record.state != AudioRecord.STATE_INITIALIZED) {
-                        attemptErrors.add("source=$source rate=$sampleRateHz initializedState=${record.state}")
-                        record.release()
-                        record = null
-                        continue
-                    }
-
-                    record.startRecording()
-                    if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-                        attemptErrors.add("source=$source rate=$sampleRateHz recordingState=${record.recordingState}")
-                        record.stop()
-                        record.release()
-                        record = null
-                        continue
-                    }
-
-                    val actualSampleRate = record.sampleRate
-                    return OpenResult(
-                        audioRecord = record,
-                        sampleRateHz = if (actualSampleRate > 0) actualSampleRate else sampleRateHz,
-                        channelCount = channelCount,
-                    )
-                } catch (error: Throwable) {
-                    attemptErrors.add("source=$source rate=$sampleRateHz error=${error.message ?: error}")
-                    try {
-                        record?.stop()
-                    } catch (_: Throwable) {
-                    }
-                    try {
-                        record?.release()
-                    } catch (_: Throwable) {
-                    }
                 }
+
+            if (record.state != AudioRecord.STATE_INITIALIZED) {
+                throw IllegalStateException(
+                    "source=${audioSourceLabel(source)} rate=$requestedSampleRateHz initializedState=${record.state}",
+                )
+            }
+
+            registerRecordingCallback(record)
+            record.startRecording()
+            if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                throw IllegalStateException(
+                    "source=${audioSourceLabel(source)} rate=$requestedSampleRateHz recordingState=${record.recordingState}",
+                )
+            }
+
+            val clientFormat = resolveClientFormat(record, requestedSampleRateHz, channelCount)
+            if (clientFormat.sampleRateHz != requestedSampleRateHz ||
+                clientFormat.channelCount != channelCount ||
+                clientFormat.encoding != AudioFormat.ENCODING_PCM_16BIT
+            ) {
+                throw IllegalStateException(
+                    "source=${audioSourceLabel(source)} requested=${requestedSampleRateHz}Hz/${channelCount}ch/pcm16 " +
+                        "client=${clientFormat.sampleRateHz}Hz/${clientFormat.channelCount}ch/${clientFormat.encoding}",
+                )
+            }
+
+            return OpenResult(
+                audioRecord = record,
+                sampleRateHz = clientFormat.sampleRateHz,
+                channelCount = clientFormat.channelCount,
+            )
+        } catch (error: Throwable) {
+            attemptErrors.add(
+                "source=${audioSourceLabel(source)} rate=$requestedSampleRateHz error=${error.message ?: error}",
+            )
+            unregisterRecordingCallback(record)
+            try {
+                record?.stop()
+            } catch (_: Throwable) {
+            }
+            try {
+                record?.release()
+            } catch (_: Throwable) {
+            }
+            throw IllegalStateException("$operation failed: ${attemptErrors.joinToString(" | ")}")
+        }
+    }
+
+    private fun resolveAudioSource(sourcePolicyCode: Int): Int {
+        return when (sourcePolicyCode) {
+            SOURCE_POLICY_RAW ->
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    MediaRecorder.AudioSource.UNPROCESSED
+                } else {
+                    MediaRecorder.AudioSource.MIC
+                }
+            SOURCE_POLICY_MIC -> MediaRecorder.AudioSource.MIC
+            SOURCE_POLICY_VOICE -> MediaRecorder.AudioSource.VOICE_RECOGNITION
+            else -> MediaRecorder.AudioSource.MIC
+        }
+    }
+
+    private fun registerRecordingCallback(record: AudioRecord?) {
+        if (record == null || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+            return
+        }
+        val callback =
+            object : AudioManager.AudioRecordingCallback() {
+                override fun onRecordingConfigChanged(configs: MutableList<AudioRecordingConfiguration>) {
+                    val configuration =
+                        configs.firstOrNull { it.clientAudioSessionId == record.audioSessionId }
+                            ?: record.activeRecordingConfiguration
+                            ?: return
+                    handleRecordingConfigurationChange(configuration)
+                }
+            }
+        recordingCallback = callback
+        record.registerAudioRecordingCallback(Executor { runnable -> runnable.run() }, callback)
+    }
+
+    private fun unregisterRecordingCallback(record: AudioRecord?) {
+        val callback = recordingCallback ?: return
+        recordingCallback = null
+        if (record == null || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+            return
+        }
+        try {
+            record.unregisterAudioRecordingCallback(callback)
+        } catch (_: Throwable) {
+        }
+    }
+
+    private fun handleRecordingConfigurationChange(configuration: AudioRecordingConfiguration) {
+        if (configuration.isClientSilenced) {
+            reportWorkerFailure(
+                code = ERROR_CODE_CAPTURE_SILENCED,
+                details =
+                    "Android capture was silenced by the system. " +
+                        "device=${configuration.audioDevice?.productName ?: "unknown"} " +
+                        "source=${audioSourceLabel(configuration.clientAudioSource)}",
+            )
+            stopAudioRecord()
+            return
+        }
+
+        val clientFormat = configuration.clientFormat ?: return
+        val clientSampleRateHz = clientFormat.sampleRate.takeIf { it > 0 } ?: requestedSampleRateHz
+        val clientChannelCount = clientFormat.channelCount.takeIf { it > 0 } ?: requestedChannelCount
+        val clientEncoding = clientFormat.encoding
+        if (clientSampleRateHz != requestedSampleRateHz ||
+            (if (clientChannelCount > 1) 2 else 1) != requestedChannelCount ||
+            clientEncoding != AudioFormat.ENCODING_PCM_16BIT
+        ) {
+            reportWorkerFailure(
+                code = ERROR_CODE_CAPTURE_RECONFIGURED,
+                details =
+                    "Android capture client format changed during recording: " +
+                        "requested=${requestedSampleRateHz}Hz/${requestedChannelCount}ch/pcm16 " +
+                        "client=${clientSampleRateHz}Hz/${if (clientChannelCount > 1) 2 else 1}ch/$clientEncoding",
+            )
+            stopAudioRecord()
+        }
+    }
+
+    private fun resolveClientFormat(
+        record: AudioRecord,
+        requestedSampleRateHz: Int,
+        requestedChannelCount: Int,
+    ): ClientFormat {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            val configuration = record.activeRecordingConfiguration
+            val clientFormat = configuration?.clientFormat
+            if (clientFormat != null) {
+                val resolvedSampleRate = clientFormat.sampleRate.takeIf { it > 0 } ?: requestedSampleRateHz
+                val resolvedChannelCount =
+                    clientFormat.channelCount.takeIf { it > 0 } ?: requestedChannelCount
+                return ClientFormat(
+                    sampleRateHz = resolvedSampleRate,
+                    channelCount = if (resolvedChannelCount > 1) 2 else 1,
+                    encoding = clientFormat.encoding,
+                )
             }
         }
 
-        throw IllegalStateException(
-            "$operation failed: ${
-                if (attemptErrors.isEmpty()) {
-                    "Failed to open AudioRecord session."
-                } else {
-                    attemptErrors.joinToString(" | ")
-                }
-            }",
+        val resolvedSampleRate = record.sampleRate.takeIf { it > 0 } ?: requestedSampleRateHz
+        val resolvedChannelCount = record.channelCount.takeIf { it > 0 } ?: requestedChannelCount
+        return ClientFormat(
+            sampleRateHz = resolvedSampleRate,
+            channelCount = if (resolvedChannelCount > 1) 2 else 1,
+            encoding = AudioFormat.ENCODING_PCM_16BIT,
         )
+    }
+
+    private fun audioSourceLabel(source: Int): String {
+        return when (source) {
+            MediaRecorder.AudioSource.MIC -> "MIC"
+            MediaRecorder.AudioSource.UNPROCESSED -> "UNPROCESSED"
+            MediaRecorder.AudioSource.VOICE_RECOGNITION -> "VOICE_RECOGNITION"
+            else -> source.toString()
+        }
     }
 
     private fun updateAmplitude(bytes: ByteArray, length: Int) {
@@ -523,5 +677,11 @@ class SpeechUtilsAudioRecordWorker {
         val audioRecord: AudioRecord,
         val sampleRateHz: Int,
         val channelCount: Int,
+    )
+
+    private data class ClientFormat(
+        val sampleRateHz: Int,
+        val channelCount: Int,
+        val encoding: Int,
     )
 }

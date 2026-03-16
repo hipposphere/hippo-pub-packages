@@ -263,17 +263,25 @@ final class NativeAudioRecorder {
             'AudioEncoder.aacLc, AudioEncoder.aacHe, and AudioEncoder.aacEld.',
       );
     }
+    if (platform == NativeAudioRecorderPlatform.android && !config.encoding.encoder.isAac) {
+      throw ArgumentError.value(
+        config.encoding.encoder,
+        'config.encoding.encoder',
+        'Android file recording supports only AudioEncoder.aacLc, '
+            'AudioEncoder.aacHe, and AudioEncoder.aacEld.',
+      );
+    }
 
     _resetAmplitudeState();
     _activeOutputPath = outputPath;
     _activeRecordingConfig = config;
     String nativeOutputPath = outputPath;
-    final useAppleDirectAacStart = _shouldUseNativeAppleDirectAacStart(
+    final useNativeDirectAacStart = _shouldUseNativeDirectAacStart(
       outputPath: outputPath,
       config: config,
     );
 
-    if (!config.encoding.encoder.supportsNativeStartFile && !useAppleDirectAacStart) {
+    if (!config.encoding.encoder.supportsNativeStartFile && !useNativeDirectAacStart) {
       final tempDirectory = await Directory.systemTemp.createTemp('speech_utils_recorder_');
       _activeTempDirectory = tempDirectory;
       nativeOutputPath = path.join(tempDirectory.path, 'capture.wav');
@@ -744,15 +752,16 @@ final class NativeAudioRecorder {
     }
   }
 
-  bool _shouldUseNativeAppleDirectAacStart({
+  bool _shouldUseNativeDirectAacStart({
     required String outputPath,
     required AudioRecorderConfig config,
   }) {
-    final isAppleAac =
+    final supportsDirectNativeAac =
+        config.encoding.encoder.isAac &&
         (platform == NativeAudioRecorderPlatform.macOS ||
-            platform == NativeAudioRecorderPlatform.iOS) &&
-        config.encoding.encoder.isAac;
-    if (!isAppleAac) {
+            platform == NativeAudioRecorderPlatform.iOS ||
+            platform == NativeAudioRecorderPlatform.android);
+    if (!supportsDirectNativeAac) {
       return false;
     }
 
@@ -761,7 +770,7 @@ final class NativeAudioRecorder {
       throw ArgumentError.value(
         outputPath,
         'outputPath',
-        'AAC recording on Apple platforms requires an .m4a output path.',
+        'Native AAC recording requires an .m4a output path.',
       );
     }
     return true;
@@ -1030,11 +1039,11 @@ final class NativeAudioRecorder {
     }
 
     try {
-      final useAppleDirectAacStart = _shouldUseNativeAppleDirectAacStart(
+      final useNativeDirectAacStart = _shouldUseNativeDirectAacStart(
         outputPath: outputPath,
         config: config,
       );
-      if (!config.encoding.encoder.supportsNativeStartFile && !useAppleDirectAacStart) {
+      if (!config.encoding.encoder.supportsNativeStartFile && !useNativeDirectAacStart) {
         if (tempWavPath == null) {
           throw NativeAudioRecorderInvalidStateException(
             'Missing temporary WAV recording for encoded output.',

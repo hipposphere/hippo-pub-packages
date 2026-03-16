@@ -49,11 +49,14 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
   bool _isRecording = false;
   bool _isFinalizing = false;
   bool _isMetadataReading = false;
+  final bool _androidFileRecordingAacOnly = Platform.isAndroid;
 
   int? _sampleRateHz;
   int _channelCount = 1;
   int? _bitrateKbps;
-  AudioEncoder _selectedEncoder = AudioEncoder.wav;
+  late AudioEncoder _selectedEncoder = _androidFileRecordingAacOnly
+      ? AudioEncoder.aacLc
+      : AudioEncoder.wav;
   AudioProcessingController _processingController =
       const AudioProcessingController();
 
@@ -222,6 +225,29 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
       case AudioEncoder.opus:
         return 'dat';
     }
+  }
+
+  List<ExampleDropdownOption<AudioEncoder>> get _encoderOptions {
+    if (_androidFileRecordingAacOnly) {
+      return const [
+        ExampleDropdownOption(value: AudioEncoder.aacLc, label: 'AAC-LC'),
+        ExampleDropdownOption(value: AudioEncoder.aacHe, label: 'AAC-HE'),
+        ExampleDropdownOption(value: AudioEncoder.aacEld, label: 'AAC-ELD'),
+      ];
+    }
+    return const [
+      ExampleDropdownOption(
+        value: AudioEncoder.wav,
+        label: 'WAV (PCM16 in container)',
+      ),
+      ExampleDropdownOption(
+        value: AudioEncoder.pcm16bits,
+        label: 'PCM16 (raw)',
+      ),
+      ExampleDropdownOption(value: AudioEncoder.aacLc, label: 'AAC-LC'),
+      ExampleDropdownOption(value: AudioEncoder.aacHe, label: 'AAC-HE'),
+      ExampleDropdownOption(value: AudioEncoder.aacEld, label: 'AAC-ELD'),
+    ];
   }
 
   AudioEncodingConfig _buildEncodingConfig() {
@@ -795,28 +821,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              options: const [
-                ExampleDropdownOption(
-                  value: AudioEncoder.wav,
-                  label: 'WAV (PCM16 in container)',
-                ),
-                ExampleDropdownOption(
-                  value: AudioEncoder.pcm16bits,
-                  label: 'PCM16 (raw)',
-                ),
-                ExampleDropdownOption(
-                  value: AudioEncoder.aacLc,
-                  label: 'AAC-LC',
-                ),
-                ExampleDropdownOption(
-                  value: AudioEncoder.aacHe,
-                  label: 'AAC-HE',
-                ),
-                ExampleDropdownOption(
-                  value: AudioEncoder.aacEld,
-                  label: 'AAC-ELD',
-                ),
-              ],
+              options: _encoderOptions,
               onChanged: _isSessionBusy
                   ? null
                   : (value) {
@@ -828,6 +833,13 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                       });
                     },
             ),
+            if (_androidFileRecordingAacOnly) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Android file recording uses MediaRecorder and supports AAC outputs only.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: 12),
             ExampleDropdownFormField<int?>(
               initialValue: _sampleRateHz,

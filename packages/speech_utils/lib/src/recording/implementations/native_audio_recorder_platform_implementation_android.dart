@@ -60,6 +60,12 @@ enum _AndroidRecorderMode { stopped, file, stream }
 final class _AndroidJniAudioRecordBackend {
   static const _errorCodeStreamReadFailed = -4;
   static const _errorCodeStartFailed = -7;
+  static const _sourcePolicyVoice = 1;
+  static const _sourcePolicyRaw = 2;
+  static const _sourcePolicyMic = 3;
+  static const _fileEncoderAacLc = 1;
+  static const _fileEncoderAacHe = 2;
+  static const _fileEncoderAacEld = 3;
 
   static const _permissionGranted = 0;
   static const _permissionRequestCode = 3407;
@@ -69,7 +75,7 @@ final class _AndroidJniAudioRecordBackend {
   static const _permissionResolutionTimeout = Duration(seconds: 30);
 
   _AndroidRecorderMode _mode = _AndroidRecorderMode.stopped;
-  _AndroidAudioRecordWorkerBridge? _worker;
+  _AndroidRecorderWorkerBridge? _worker;
   int _activeChannelCount = 1;
   double _currentDbfs = -90.0;
   double _maxDbfs = -90.0;
@@ -130,14 +136,18 @@ final class _AndroidJniAudioRecordBackend {
     _ensurePermissionOrThrow(operation: 'Android file recording start');
     _resetAmplitude();
 
-    final worker = _AndroidAudioRecordWorkerBridge.create();
+    final encoderCode = _resolveAndroidFileEncoderCode(config.encoding.encoder);
+    final bitrateBps = _resolveEncodingBitrateBps(config.encoding);
+
+    final worker = _AndroidMediaRecorderWorkerBridge.create();
     try {
       worker.startFile(
         outputPath: outputPath,
         sampleRateHz: config.sampleRateHz,
         channelCount: config.channelCount,
-        framesPerChunk: config.framesPerChunk,
-        outputIsWav: config.encoding.encoder != AudioEncoder.pcm16bits,
+        bitrateBps: bitrateBps,
+        audioEncoderCode: encoderCode,
+        sourcePolicyCode: _resolveSourcePolicyCode(config),
       );
       _worker = worker;
       _activeChannelCount = worker.activeChannelCount;
@@ -164,6 +174,7 @@ final class _AndroidJniAudioRecordBackend {
         sampleRateHz: config.sampleRateHz,
         channelCount: config.channelCount,
         framesPerChunk: config.framesPerChunk,
+        sourcePolicyCode: _resolveSourcePolicyCode(config),
       );
       _worker = worker;
       _activeChannelCount = worker.activeChannelCount;
@@ -192,7 +203,7 @@ final class _AndroidJniAudioRecordBackend {
     }
 
     final worker = _worker;
-    if (worker == null) {
+    if (worker is! _AndroidAudioRecordWorkerBridge) {
       return Uint8List(0);
     }
 
@@ -478,6 +489,29 @@ final class _AndroidJniAudioRecordBackend {
     _maxDbfs = -90.0;
   }
 
+  int _resolveSourcePolicyCode(AudioRecorderConfig config) {
+    return switch (config.processing.preset) {
+      AudioCapturePreset.raw => _sourcePolicyRaw,
+      AudioCapturePreset.music => _sourcePolicyMic,
+      AudioCapturePreset.voice || AudioCapturePreset.voiceIsolation => _sourcePolicyVoice,
+    };
+  }
+
+  int _resolveAndroidFileEncoderCode(AudioEncoder encoder) {
+    return switch (encoder) {
+      AudioEncoder.aacLc => _fileEncoderAacLc,
+      AudioEncoder.aacHe => _fileEncoderAacHe,
+      AudioEncoder.aacEld => _fileEncoderAacEld,
+      AudioEncoder.wav || AudioEncoder.pcm16bits || AudioEncoder.flac || AudioEncoder.opus =>
+        throw ArgumentError.value(
+          encoder,
+          'config.encoding.encoder',
+          'Android file recording supports AAC encoders only. Use AudioEncoder.aacLc, '
+              'AudioEncoder.aacHe, or AudioEncoder.aacEld.',
+        ),
+    };
+  }
+
   double _sanitizeAndroidDbfs(double value) {
     if (value.isNaN || value.isInfinite) {
       return -90.0;
@@ -494,14 +528,116 @@ final class _AndroidJniAudioRecordBackend {
   }
 }
 
-final class _AndroidAudioRecordWorkerBridge {
+abstract class _AndroidRecorderWorkerBridge {
+  void stop();
+  void reset();
+  bool isRecording();
+  double get currentDbfs;
+  double get maxDbfs;
+  int get activeSampleRateHz;
+  int get activeChannelCount;
+  void release();
+}
+
+final class _AndroidMediaRecorderWorkerBridge implements _AndroidRecorderWorkerBridge {
+  _AndroidMediaRecorderWorkerBridge._(this._instance);
+
+  static const _className = 'org/hippolabs/speech_utils/SpeechUtilsMediaRecorderWorker';
+  static final JClass _class = JClass.forName(_className);
+  static final _constructor = _class.constructorId('()V');
+  static final _startFileMethod = _class.instanceMethodId(
+    'startFile',
+    '(Ljava/lang/String;IIIII)V',
+  );
+  static final _stopMethod = _class.instanceMethodId('stop', '()V');
+  static final _resetMethod = _class.instanceMethodId('reset', '()V');
+  static final _isRecordingMethod = _class.instanceMethodId('isRecording', '()Z');
+  static final _currentDbfsMethod = _class.instanceMethodId('getCurrentDbfs', '()D');
+  static final _maxDbfsMethod = _class.instanceMethodId('getMaxDbfs', '()D');
+  static final _activeSampleRateMethod = _class.instanceMethodId('getActiveSampleRateHz', '()I');
+  static final _activeChannelCountMethod = _class.instanceMethodId('getActiveChannelCount', '()I');
+
+  final JObject _instance;
+
+  factory _AndroidMediaRecorderWorkerBridge.create() {
+    return _AndroidMediaRecorderWorkerBridge._(_constructor.call(_class, JObject.type, []));
+  }
+
+  void startFile({
+    required String outputPath,
+    required int sampleRateHz,
+    required int channelCount,
+    required int bitrateBps,
+    required int audioEncoderCode,
+    required int sourcePolicyCode,
+  }) {
+    final path = outputPath.toJString();
+    try {
+      _startFileMethod.call(_instance, jvoid.type, [
+        path,
+        sampleRateHz,
+        channelCount,
+        bitrateBps,
+        audioEncoderCode,
+        sourcePolicyCode,
+      ]);
+    } finally {
+      path.release();
+    }
+  }
+
+  @override
+  void stop() {
+    _stopMethod.call(_instance, jvoid.type, []);
+  }
+
+  @override
+  void reset() {
+    _resetMethod.call(_instance, jvoid.type, []);
+  }
+
+  @override
+  bool isRecording() {
+    return _isRecordingMethod.call(_instance, jboolean.type, []);
+  }
+
+  @override
+  double get currentDbfs {
+    return _currentDbfsMethod.call(_instance, jdouble.type, []);
+  }
+
+  @override
+  double get maxDbfs {
+    return _maxDbfsMethod.call(_instance, jdouble.type, []);
+  }
+
+  @override
+  int get activeSampleRateHz {
+    return _activeSampleRateMethod.call(_instance, jint.type, []);
+  }
+
+  @override
+  int get activeChannelCount {
+    return _activeChannelCountMethod.call(_instance, jint.type, []);
+  }
+
+  @override
+  void release() {
+    _instance.release();
+  }
+}
+
+final class _AndroidAudioRecordWorkerBridge implements _AndroidRecorderWorkerBridge {
   _AndroidAudioRecordWorkerBridge._(this._instance);
 
   static const _className = 'org/hippolabs/speech_utils/SpeechUtilsAudioRecordWorker';
   static final JClass _class = JClass.forName(_className);
   static final _constructor = _class.constructorId('()V');
-  static final _startFileMethod = _class.instanceMethodId('startFile', '(Ljava/lang/String;IIIZ)V');
-  static final _startStreamMethod = _class.instanceMethodId('startStream', '(III)V');
+  static final _startFileMethod = _class.instanceMethodId(
+    'startFile',
+    '(Ljava/lang/String;IIIZI)V',
+  );
+  static final _startStreamMethod = _class.instanceMethodId('startStream', '(IIII)V');
   static final _readStreamMethod = _class.instanceMethodId('readStream', '(I)[B');
   static final _stopMethod = _class.instanceMethodId('stop', '()V');
   static final _resetMethod = _class.instanceMethodId('reset', '()V');
@@ -523,6 +659,7 @@ final class _AndroidAudioRecordWorkerBridge {
     required int channelCount,
     required int framesPerChunk,
     required bool outputIsWav,
+    required int sourcePolicyCode,
   }) {
     final path = outputPath.toJString();
     try {
@@ -532,6 +669,7 @@ final class _AndroidAudioRecordWorkerBridge {
         channelCount,
         framesPerChunk,
         outputIsWav,
+        sourcePolicyCode,
       ]);
     } finally {
       path.release();
@@ -542,8 +680,14 @@ final class _AndroidAudioRecordWorkerBridge {
     required int sampleRateHz,
     required int channelCount,
     required int framesPerChunk,
+    required int sourcePolicyCode,
   }) {
-    _startStreamMethod.call(_instance, jvoid.type, [sampleRateHz, channelCount, framesPerChunk]);
+    _startStreamMethod.call(_instance, jvoid.type, [
+      sampleRateHz,
+      channelCount,
+      framesPerChunk,
+      sourcePolicyCode,
+    ]);
   }
 
   Uint8List readStream({required int maxBytes}) {
@@ -555,34 +699,42 @@ final class _AndroidAudioRecordWorkerBridge {
     }
   }
 
+  @override
   void stop() {
     _stopMethod.call(_instance, jvoid.type, []);
   }
 
+  @override
   void reset() {
     _resetMethod.call(_instance, jvoid.type, []);
   }
 
+  @override
   bool isRecording() {
     return _isRecordingMethod.call(_instance, jboolean.type, []);
   }
 
+  @override
   double get currentDbfs {
     return _currentDbfsMethod.call(_instance, jdouble.type, []);
   }
 
+  @override
   double get maxDbfs {
     return _maxDbfsMethod.call(_instance, jdouble.type, []);
   }
 
+  @override
   int get activeSampleRateHz {
     return _activeSampleRateMethod.call(_instance, jint.type, []);
   }
 
+  @override
   int get activeChannelCount {
     return _activeChannelCountMethod.call(_instance, jint.type, []);
   }
 
+  @override
   void release() {
     _instance.release();
   }

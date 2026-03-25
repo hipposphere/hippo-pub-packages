@@ -33,10 +33,50 @@ namespace {
 
 enum class RecorderMode { kStopped, kFile, kStream };
 
+enum class RecorderLifecycle { kStopped, kStarting, kRunning, kStopping };
+
 enum class FileSink { kNone, kWav, kPcm16, kAacM4A };
+
+enum class CaptureFileLifecycle { kInactive, kStarting, kRunning, kStopRequested, kFinished };
 
 constexpr const char* kRecorderCaptureQueueLabel = "speech_utils.native_recorder.capture";
 constexpr const char* kRecorderProcessingQueueLabel = "speech_utils.native_recorder.processing";
+constexpr int64_t kCaptureFileStopTimeoutNanos = 10LL * NSEC_PER_SEC;
+
+bool WaitForSemaphoreWithMainRunLoop(dispatch_semaphore_t semaphore, int64_t timeout_nanos) {
+  if (semaphore == nullptr) {
+    return true;
+  }
+  if (![NSThread isMainThread]) {
+    return dispatch_semaphore_wait(semaphore, dispatch_time(DISPATCH_TIME_NOW, timeout_nanos)) ==
+           0;
+  }
+
+  NSDate* deadline = [NSDate dateWithTimeIntervalSinceNow:static_cast<NSTimeInterval>(timeout_nanos) /
+                                                         static_cast<NSTimeInterval>(NSEC_PER_SEC)];
+  while (true) {
+    if (dispatch_semaphore_wait(semaphore, DISPATCH_TIME_NOW) == 0) {
+      return true;
+    }
+
+    const NSTimeInterval remaining = deadline.timeIntervalSinceNow;
+    if (remaining <= 0.0) {
+      return false;
+    }
+
+    @autoreleasepool {
+      NSDate* slice_deadline =
+          [NSDate dateWithTimeIntervalSinceNow:std::min<NSTimeInterval>(0.05, remaining)];
+      [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:slice_deadline];
+    }
+  }
+}
+
+bool CaptureFileLifecycleNeedsStopWait(CaptureFileLifecycle lifecycle) {
+  return lifecycle == CaptureFileLifecycle::kStarting ||
+         lifecycle == CaptureFileLifecycle::kRunning ||
+         lifecycle == CaptureFileLifecycle::kStopRequested;
+}
 
 bool WriteJsonArray(NSArray<NSDictionary<NSString*, id>*>* payload, char* out_json_utf8,
                     uint32_t out_json_capacity, char* error_utf8,
@@ -509,6 +549,8 @@ class NativeCaptureSessionRecorder {
     AVCaptureAudioDataOutput* capture_output = nil;
     AVCaptureAudioFileOutput* capture_file_output = nil;
     FileSink file_sink = FileSink::kNone;
+    dispatch_semaphore_t capture_file_stop_semaphore = nullptr;
+    CaptureFileLifecycle capture_file_lifecycle = CaptureFileLifecycle::kInactive;
 
     FILE* pcm_file = nullptr;
     ExtAudioFileRef aac_file = nullptr;
@@ -522,21 +564,56 @@ class NativeCaptureSessionRecorder {
 
     {
       std::lock_guard<std::mutex> lock(mutex_);
-      if (mode_ == RecorderMode::kStopped) {
+      if (lifecycle_ == RecorderLifecycle::kStopped) {
         return 0;
       }
+      lifecycle_ = RecorderLifecycle::kStopping;
 
       capture_session = capture_session_;
       capture_output = capture_output_;
       capture_file_output = capture_file_output_;
+      file_sink = file_sink_;
+      if (capture_file_output_ != nil && file_sink_ == FileSink::kAacM4A) {
+        capture_file_lifecycle = capture_file_lifecycle_;
+        if (CaptureFileLifecycleNeedsStopWait(capture_file_lifecycle_)) {
+          capture_file_stop_semaphore = capture_file_stop_semaphore_;
+          if (capture_file_stop_semaphore == nullptr) {
+            capture_file_stop_semaphore = dispatch_semaphore_create(0);
+            capture_file_stop_semaphore_ = capture_file_stop_semaphore;
+          }
+          capture_file_lifecycle_ = CaptureFileLifecycle::kStopRequested;
+        }
+      }
       accepting_samples_.store(false, std::memory_order_release);
     }
 
     if (capture_output != nil) {
       [capture_output setSampleBufferDelegate:nil queue:nil];
     }
-    if (capture_file_output != nil && capture_file_output.recording) {
-      [capture_file_output stopRecording];
+    const bool uses_capture_file_output =
+        capture_file_output != nil && file_sink == FileSink::kAacM4A;
+    const bool should_wait_for_capture_file_output =
+        uses_capture_file_output && CaptureFileLifecycleNeedsStopWait(capture_file_lifecycle);
+    const bool capture_file_output_has_started =
+        uses_capture_file_output &&
+        (capture_file_lifecycle == CaptureFileLifecycle::kRunning || capture_file_output.recording);
+    if (should_wait_for_capture_file_output) {
+      if (capture_file_output_has_started) {
+        [capture_file_output stopRecording];
+      }
+    }
+    if (capture_session != nil && capture_session.running &&
+        (!uses_capture_file_output || capture_file_output_has_started)) {
+      [capture_session stopRunning];
+    }
+    if (should_wait_for_capture_file_output) {
+      if (!WaitForSemaphoreWithMainRunLoop(capture_file_stop_semaphore,
+                                           kCaptureFileStopTimeoutNanos) &&
+          deferred_code == 0) {
+        deferred_code = -43;
+        deferred_error =
+            "Timed out while waiting for AVCaptureAudioFileOutput to finish recording.";
+      }
     }
     if (capture_session != nil && capture_session.running) {
       [capture_session stopRunning];
@@ -552,13 +629,12 @@ class NativeCaptureSessionRecorder {
     {
       std::lock_guard<std::mutex> lock(mutex_);
       mode_ = RecorderMode::kStopped;
+      lifecycle_ = RecorderLifecycle::kStopped;
       stream_samples_.clear();
       stream_sample_limit_ = 0;
       pending_samples_.store(0, std::memory_order_release);
       pending_sample_limit_.store(0, std::memory_order_release);
       processed_sample_count = processed_sample_count_.load(std::memory_order_acquire);
-
-      file_sink = file_sink_;
 
       pcm_file = pcm_file_;
       aac_file = aac_file_;
@@ -566,8 +642,10 @@ class NativeCaptureSessionRecorder {
       sample_rate_hz = sample_rate_hz_;
       channel_count = channel_count_;
 
-      deferred_code = deferred_error_code_;
-      deferred_error = deferred_error_;
+      if (deferred_code == 0) {
+        deferred_code = deferred_error_code_;
+        deferred_error = deferred_error_;
+      }
 
       capture_session_ = nil;
       capture_input_ = nil;
@@ -576,6 +654,7 @@ class NativeCaptureSessionRecorder {
       capture_delegate_ = nil;
       capture_file_delegate_ = nil;
       capture_file_stop_semaphore_ = nullptr;
+      capture_file_lifecycle_ = CaptureFileLifecycle::kInactive;
       target_format_ = nil;
       pcm_converter_ = nil;
       file_sink_ = FileSink::kNone;
@@ -590,8 +669,6 @@ class NativeCaptureSessionRecorder {
       deferred_error_.clear();
     }
 
-    const bool uses_capture_file_output =
-        capture_file_output != nil && file_sink == FileSink::kAacM4A;
     if (!uses_capture_file_output && processed_sample_count == 0 && deferred_code == 0) {
       deferred_code = -41;
       deferred_error = "Recorder stopped without capturing any microphone samples.";
@@ -655,7 +732,7 @@ class NativeCaptureSessionRecorder {
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
-    *out_is_recording = mode_ == RecorderMode::kStopped ? 0 : 1;
+    *out_is_recording = lifecycle_ == RecorderLifecycle::kStopped ? 0 : 1;
     return 0;
   }
 
@@ -905,23 +982,60 @@ class NativeCaptureSessionRecorder {
     });
   }
 
-  void HandleFileOutputFinished(NSError* error) {
+  void HandleFileOutputStarted(AVCaptureFileOutput* output) {
+    bool should_stop_recording = false;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (output == nil || output != capture_file_output_) {
+        return;
+      }
+      switch (capture_file_lifecycle_) {
+        case CaptureFileLifecycle::kStarting:
+          capture_file_lifecycle_ = CaptureFileLifecycle::kRunning;
+          break;
+        case CaptureFileLifecycle::kStopRequested:
+          should_stop_recording = true;
+          break;
+        case CaptureFileLifecycle::kInactive:
+        case CaptureFileLifecycle::kRunning:
+        case CaptureFileLifecycle::kFinished:
+          break;
+      }
+    }
+    if (should_stop_recording && output != nil) {
+      [output stopRecording];
+    }
+  }
+
+  void HandleFileOutputFinished(AVCaptureFileOutput* output, NSError* error) {
+    dispatch_semaphore_t stop_semaphore = nullptr;
     if (error != nil) {
-      NSNumber* success_value = error.userInfo[AVErrorRecordingSuccessfullyFinishedKey];
-      const bool success = success_value != nil && success_value.boolValue;
-      if (!success) {
-        std::string message("AVCaptureAudioFileOutput failed");
-        if (error.localizedDescription != nil) {
-          message.append(": ");
-          message.append([[error.localizedDescription description] UTF8String]);
+      bool should_mark_error = false;
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        should_mark_error = output != nil && output == capture_file_output_;
+      }
+
+      if (should_mark_error) {
+        NSNumber* success_value = error.userInfo[AVErrorRecordingSuccessfullyFinishedKey];
+        const bool success = success_value != nil && success_value.boolValue;
+        if (!success) {
+          std::string message("AVCaptureAudioFileOutput failed");
+          if (error.localizedDescription != nil) {
+            message.append(": ");
+            message.append([[error.localizedDescription description] UTF8String]);
+          }
+          MarkDeferredError(-31, message);
         }
-        MarkDeferredError(-31, message);
       }
     }
 
-    dispatch_semaphore_t stop_semaphore = nullptr;
     {
       std::lock_guard<std::mutex> lock(mutex_);
+      if (output == nil || output != capture_file_output_) {
+        return;
+      }
+      capture_file_lifecycle_ = CaptureFileLifecycle::kFinished;
       stop_semaphore = capture_file_stop_semaphore_;
       capture_file_stop_semaphore_ = nullptr;
     }
@@ -944,13 +1058,56 @@ class NativeCaptureSessionRecorder {
       return -5;
     }
 
+    bool reset_start_state_on_failure = false;
+    auto cleanup_start_state = [&](int*) {
+      if (!reset_start_state_on_failure) {
+        return;
+      }
+
+      std::lock_guard<std::mutex> lock(mutex_);
+      mode_ = RecorderMode::kStopped;
+      lifecycle_ = RecorderLifecycle::kStopped;
+      file_sink_ = FileSink::kNone;
+      capture_session_ = nil;
+      capture_input_ = nil;
+      capture_output_ = nil;
+      capture_file_output_ = nil;
+      capture_delegate_ = nil;
+      capture_file_delegate_ = nil;
+      capture_file_stop_semaphore_ = nullptr;
+      capture_file_lifecycle_ = CaptureFileLifecycle::kInactive;
+      target_format_ = nil;
+      pcm_converter_ = nil;
+      sample_rate_hz_ = 0;
+      channel_count_ = 0;
+      stream_samples_.clear();
+      stream_sample_limit_ = 0;
+      pending_samples_.store(0, std::memory_order_release);
+      pending_sample_limit_.store(0, std::memory_order_release);
+      processed_sample_count_.store(0, std::memory_order_release);
+      pcm_file_ = nullptr;
+      aac_file_ = nullptr;
+      wav_data_bytes_ = 0;
+      current_dbfs_ = -90.0;
+      max_dbfs_ = -90.0;
+      deferred_error_code_ = 0;
+      deferred_error_.clear();
+    };
+    std::unique_ptr<int, decltype(cleanup_start_state)> start_state_guard(
+        reinterpret_cast<int*>(1), cleanup_start_state);
+
     {
       std::lock_guard<std::mutex> lock(mutex_);
-      if (mode_ != RecorderMode::kStopped) {
+      if (lifecycle_ != RecorderLifecycle::kStopped) {
         WriteError("Recorder is already running.", error_utf8, error_utf8_capacity);
         return -6;
       }
+      lifecycle_ = RecorderLifecycle::kStarting;
+      file_sink_ = FileSink::kNone;
+      capture_file_stop_semaphore_ = nullptr;
+      capture_file_lifecycle_ = CaptureFileLifecycle::kInactive;
     }
+    reset_start_state_on_failure = true;
     accepting_samples_.store(false, std::memory_order_release);
     pending_samples_.store(0, std::memory_order_release);
     pending_sample_limit_.store(0, std::memory_order_release);
@@ -1118,6 +1275,7 @@ class NativeCaptureSessionRecorder {
     SpeechUtilsAudioSampleBufferDelegate* capture_delegate = nil;
     AVCaptureAudioFileOutput* capture_file_output = nil;
     SpeechUtilsAudioFileRecordingDelegate* capture_file_delegate = nil;
+    NSURL* output_url = nil;
 
     if (use_capture_file_output) {
       capture_file_output = [[AVCaptureAudioFileOutput alloc] init];
@@ -1129,6 +1287,13 @@ class NativeCaptureSessionRecorder {
       }
       capture_file_delegate =
           [[SpeechUtilsAudioFileRecordingDelegate alloc] initWithRecorder:this];
+      output_url = [NSURL fileURLWithPath:output_path];
+      if (output_url == nil) {
+        ClosePendingOutputs();
+        WriteError("Failed to create output URL for capture file output.", error_utf8,
+                   error_utf8_capacity);
+        return -16;
+      }
     } else {
       capture_output = [[AVCaptureAudioDataOutput alloc] init];
       if (capture_output == nil) {
@@ -1193,20 +1358,22 @@ class NativeCaptureSessionRecorder {
       return -27;
     }
 
-    if (use_capture_file_output) {
-      NSURL* output_url = [NSURL fileURLWithPath:output_path];
-      if (output_url == nil) {
-        [capture_session stopRunning];
-        ClosePendingOutputs();
-        WriteError("Failed to create output URL for capture file output.", error_utf8,
-                   error_utf8_capacity);
-        return -16;
+    bool start_was_cancelled = false;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      start_was_cancelled = lifecycle_ != RecorderLifecycle::kStarting;
+    }
+    if (start_was_cancelled) {
+      if (capture_output != nil) {
+        [capture_output setSampleBufferDelegate:nil queue:nil];
       }
-
-      [capture_file_output startRecordingToOutputFileURL:output_url
-                                           outputFileType:AVFileTypeAppleM4A
-                                         recordingDelegate:capture_file_delegate];
-      // Recording state flips asynchronously; avoid synchronous `recording` checks here.
+      [capture_session stopRunning];
+      ClosePendingOutputs();
+#if TARGET_OS_IPHONE
+      [AVAudioSession.sharedInstance setActive:NO error:nil];
+#endif
+      WriteError("Recorder was stopped while starting.", error_utf8, error_utf8_capacity);
+      return -44;
     }
 
     {
@@ -1220,6 +1387,9 @@ class NativeCaptureSessionRecorder {
       capture_delegate_ = capture_delegate;
       capture_file_delegate_ = capture_file_delegate;
       capture_file_stop_semaphore_ = nullptr;
+      capture_file_lifecycle_ =
+          use_capture_file_output ? CaptureFileLifecycle::kStarting
+                                  : CaptureFileLifecycle::kInactive;
       target_format_ = target_format;
       pcm_converter_ = nil;
       sample_rate_hz_ = config.sample_rate_hz;
@@ -1257,7 +1427,22 @@ class NativeCaptureSessionRecorder {
       max_dbfs_ = -90.0;
     }
 
+    if (use_capture_file_output) {
+      [capture_file_output startRecordingToOutputFileURL:output_url
+                                           outputFileType:AVFileTypeAppleM4A
+                                         recordingDelegate:capture_file_delegate];
+      // Recording state flips asynchronously; avoid synchronous `recording` checks here.
+    }
+
     accepting_samples_.store(true, std::memory_order_release);
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (lifecycle_ == RecorderLifecycle::kStarting) {
+        lifecycle_ = RecorderLifecycle::kRunning;
+      }
+    }
+    reset_start_state_on_failure = false;
+    (void)start_state_guard.release();
     return 0;
   }
 
@@ -1409,6 +1594,7 @@ class NativeCaptureSessionRecorder {
   std::mutex mutex_;
 
   RecorderMode mode_ = RecorderMode::kStopped;
+  RecorderLifecycle lifecycle_ = RecorderLifecycle::kStopped;
   FileSink file_sink_ = FileSink::kNone;
 
   AVCaptureSession* capture_session_ = nil;
@@ -1418,6 +1604,7 @@ class NativeCaptureSessionRecorder {
   SpeechUtilsAudioSampleBufferDelegate* capture_delegate_ = nil;
   SpeechUtilsAudioFileRecordingDelegate* capture_file_delegate_ = nil;
   dispatch_semaphore_t capture_file_stop_semaphore_ = nullptr;
+  CaptureFileLifecycle capture_file_lifecycle_ = CaptureFileLifecycle::kInactive;
   AVAudioFormat* target_format_ = nil;
   AVAudioConverter* pcm_converter_ = nil;
 
@@ -1481,14 +1668,23 @@ NativeCaptureSessionRecorder g_recorder;
 }
 
 - (void)captureOutput:(AVCaptureFileOutput*)output
-    didFinishRecordingToOutputFileAtURL:(NSURL*)outputFileURL
-                         fromConnections:(NSArray<AVCaptureConnection*>*)connections
-                                   error:(NSError*)error {
-  (void)output;
+    didStartRecordingToOutputFileAtURL:(NSURL*)outputFileURL
+                         fromConnections:(NSArray<AVCaptureConnection*>*)connections {
   (void)outputFileURL;
   (void)connections;
   if (_recorder != nullptr) {
-    _recorder->HandleFileOutputFinished(error);
+    _recorder->HandleFileOutputStarted(output);
+  }
+}
+
+- (void)captureOutput:(AVCaptureFileOutput*)output
+    didFinishRecordingToOutputFileAtURL:(NSURL*)outputFileURL
+                         fromConnections:(NSArray<AVCaptureConnection*>*)connections
+                                   error:(NSError*)error {
+  (void)outputFileURL;
+  (void)connections;
+  if (_recorder != nullptr) {
+    _recorder->HandleFileOutputFinished(output, error);
   }
 }
 

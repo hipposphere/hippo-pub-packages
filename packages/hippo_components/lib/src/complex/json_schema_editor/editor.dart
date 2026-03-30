@@ -1928,6 +1928,7 @@ class _ObjectNodeEditor extends StatelessWidget {
               ),
             );
           }),
+        Gap(8),
         if (showStructure)
           Button(
             onTap: () {
@@ -1941,6 +1942,7 @@ class _ObjectNodeEditor extends StatelessWidget {
             prefix: const Icon(Icons.add_rounded),
             label: 'Add property',
           ),
+        Gap(8),
       ],
     );
   }

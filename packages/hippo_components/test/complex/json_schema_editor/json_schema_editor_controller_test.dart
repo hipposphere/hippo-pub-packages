@@ -160,6 +160,56 @@ void main() {
       );
     });
 
+    test('supports custom validators with multiple diagnostics per node', () {
+      final controller = JsonSchemaEditorController(
+        initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode()),
+        customValidators: [
+          (root) sync* {
+            for (final visit in root.traverse()) {
+              final node = visit.node;
+              final path = visit.path;
+              if ((node.description?.trim().isEmpty ?? true)) {
+                yield JsonSchemaDiagnostic(
+                  path: path,
+                  message: 'Description is required.',
+                  severity: JsonSchemaDiagnosticSeverity.warning,
+                );
+              }
+              if (!node.extensions.containsKey('x-token')) {
+                yield JsonSchemaDiagnostic(
+                  path: path,
+                  message: 'x-token extension is required.',
+                  severity: JsonSchemaDiagnosticSeverity.warning,
+                );
+              }
+            }
+          },
+        ],
+      );
+
+      expect(
+        controller.diagnostics.map((item) => item.message),
+        containsAll(['Description is required.', 'x-token extension is required.']),
+      );
+
+      controller.setNodeField(path: const JsonSchemaPath.root(), key: 'x-token', value: 'token');
+      expect(
+        controller.diagnostics.map((item) => item.message),
+        contains('Description is required.'),
+      );
+      expect(
+        controller.diagnostics.any((item) => item.message == 'x-token extension is required.'),
+        isFalse,
+      );
+
+      controller.updateNode<JsonSchemaStringNode>(
+        path: const JsonSchemaPath.root(),
+        updater: (node) => node.copyWith(description: 'Has description'),
+      );
+
+      expect(controller.diagnostics, isEmpty);
+    });
+
     test('reset restores the initial schema', () {
       final controller = JsonSchemaEditorController(
         initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode(title: 'start')),

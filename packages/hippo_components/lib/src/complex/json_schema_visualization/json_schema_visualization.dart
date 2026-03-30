@@ -262,6 +262,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                 label: 'Enum Values',
                 icon: Icons.format_list_bulleted_rounded,
                 accent: spec.accent,
+                count: enumValues.length,
               ),
               const Gap(6),
               Wrap(
@@ -506,15 +507,22 @@ class _SchemaDetailTile extends StatelessWidget {
 }
 
 class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({required this.label, required this.icon, required this.accent});
+  const _SectionHeading({
+    required this.label,
+    required this.icon,
+    required this.accent,
+    this.count,
+  });
 
   final String label;
   final IconData icon;
   final Color accent;
+  final int? count;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 16, color: accent),
         const Gap(6),
@@ -522,6 +530,26 @@ class _SectionHeading extends StatelessWidget {
           label,
           style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
+        if (count != null) ...[
+          const Gap(6),
+          Container(
+            key: ValueKey('section-count-$label'),
+            constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: accent.withValues(alpha: 0.2)),
+            ),
+            child: Text(
+              count.toString(),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: accent, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -764,12 +792,6 @@ List<_SchemaDetail> _detailsForNode(JsonSchemaNode node) {
           value: node.pattern!.trim(),
           icon: Icons.code_rounded,
           monospace: true,
-        ),
-      if (node.enumValues != null && node.enumValues!.isNotEmpty)
-        _SchemaDetail(
-          label: 'Enum count',
-          value: node.enumValues!.length.toString(),
-          icon: Icons.format_list_numbered_rounded,
         ),
     ],
     JsonSchemaNumberNode() => [

@@ -149,6 +149,14 @@ extension JsonSchemaNodeTypeJson on JsonSchemaNodeType {
   }
 }
 
+@immutable
+class JsonSchemaNodeVisit {
+  const JsonSchemaNodeVisit({required this.node, required this.path});
+
+  final JsonSchemaNode node;
+  final JsonSchemaPath path;
+}
+
 sealed class JsonSchemaNode {
   const JsonSchemaNode({
     required this.type,
@@ -165,6 +173,25 @@ sealed class JsonSchemaNode {
   Map<String, dynamic> toJson();
 
   JsonSchema toSchema() => JsonSchema.fromNode(this);
+
+  Iterable<JsonSchemaNodeVisit> traverse({
+    JsonSchemaPath startPath = const JsonSchemaPath.root(),
+  }) sync* {
+    yield JsonSchemaNodeVisit(node: this, path: startPath);
+
+    switch (this) {
+      case JsonSchemaObjectNode():
+        for (final entry in orderedPropertyEntries) {
+          yield* entry.value.traverse(startPath: startPath.childProperty(entry.key));
+        }
+      case JsonSchemaArrayNode():
+        yield* items.traverse(startPath: startPath.childItems());
+      case JsonSchemaStringNode():
+      case JsonSchemaNumberNode():
+      case JsonSchemaBooleanNode():
+        break;
+    }
+  }
 
   JsonSchemaNode copyWith({
     String? title,

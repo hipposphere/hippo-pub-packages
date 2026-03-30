@@ -92,12 +92,12 @@ class _PreviewAndDiagnostics extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  JsonSchemaValidationPanel(diagnostics: diagnostics),
+                  const SizedBox(height: 12),
                   JsonSchemaVisualizationPanel(
                     controller: controller,
                     schema: JsonSchema.fromNode(schemaNode),
                   ),
-                  const SizedBox(height: 12),
-                  JsonSchemaValidationPanel(diagnostics: diagnostics),
                 ],
               ),
             );

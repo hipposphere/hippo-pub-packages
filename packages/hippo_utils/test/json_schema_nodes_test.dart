@@ -58,5 +58,33 @@ void main() {
         orderedEquals(['second', 'first', 'third']),
       );
     });
+
+    test('traverse yields root and children in stable schema order', () {
+      const node = JsonSchemaObjectNode(
+        properties: {
+          'second': JsonSchemaArrayNode(items: JsonSchemaBooleanNode()),
+          'first': JsonSchemaObjectNode(properties: {'child': JsonSchemaStringNode()}),
+        },
+        extensions: {
+          jsonSchemaObjectPropertyOrderExtensionKey: ['first', 'second'],
+        },
+      );
+
+      final visits = node.traverse().toList(growable: false);
+
+      expect(
+        visits.map((visit) => visit.path),
+        orderedEquals([
+          const JsonSchemaPath.root(),
+          const JsonSchemaPath.root().childProperty('first'),
+          const JsonSchemaPath.root().childProperty('first').childProperty('child'),
+          const JsonSchemaPath.root().childProperty('second'),
+          const JsonSchemaPath.root().childProperty('second').childItems(),
+        ]),
+      );
+      expect(visits.first.node, same(node));
+      expect(visits[1].node, isA<JsonSchemaObjectNode>());
+      expect(visits.last.node, isA<JsonSchemaBooleanNode>());
+    });
   });
 }

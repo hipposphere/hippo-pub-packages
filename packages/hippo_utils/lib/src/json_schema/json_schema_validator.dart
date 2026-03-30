@@ -15,6 +15,8 @@ import 'json_schema_path.dart';
 
 enum JsonSchemaDiagnosticSeverity { warning, error }
 
+typedef JsonSchemaValidator = Iterable<JsonSchemaDiagnostic> Function(JsonSchemaNode root);
+
 @immutable
 class JsonSchemaDiagnostic {
   const JsonSchemaDiagnostic({required this.path, required this.message, required this.severity});
@@ -28,9 +30,16 @@ class JsonSchemaDiagnostic {
   }
 }
 
-List<JsonSchemaDiagnostic> validateSchema(JsonSchemaNode schema) {
+List<JsonSchemaDiagnostic> validateSchema(
+  JsonSchemaNode schema, {
+  Iterable<JsonSchemaValidator> customValidators = const [],
+}) {
   final diagnostics = <JsonSchemaDiagnostic>[];
+  final validatorList = List<JsonSchemaValidator>.unmodifiable(customValidators);
   _validateNode(node: schema, path: const JsonSchemaPath.root(), diagnostics: diagnostics);
+  for (final validator in validatorList) {
+    diagnostics.addAll(validator(schema));
+  }
   return diagnostics;
 }
 

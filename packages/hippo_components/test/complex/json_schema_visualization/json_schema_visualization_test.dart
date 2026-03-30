@@ -76,6 +76,8 @@ void main() {
     expect(find.text('Flags'), findsOneWidget);
     expect(find.text('Flag item'), findsOneWidget);
     expect(find.text('Enum Values'), findsOneWidget);
+    expect(find.byKey(const ValueKey('section-count-Enum Values')), findsOneWidget);
+    expect(find.text('Enum count'), findsNothing);
     expect(find.text('Authorization token'), findsOneWidget);
     expect(find.text('Grouping metadata'), findsOneWidget);
     expect(find.text('Priority ordering'), findsOneWidget);

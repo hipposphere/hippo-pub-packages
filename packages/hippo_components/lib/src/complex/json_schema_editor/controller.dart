@@ -17,6 +17,7 @@ class JsonSchemaEditorController {
     JsonSchemaEditorFeatureOptions featureOptions = JsonSchemaEditorFeatureOptions.allEnabled,
     // Controls which extension fields are shown as editable fields per node type.
     JsonSchemaEditorExtensionOptions extensionOptions = JsonSchemaEditorExtensionOptions.none,
+    Iterable<JsonSchemaValidator> customValidators = const [],
   }) {
     final start = _normalizeNodeWithOptions(
       initialSchema?.node ?? const JsonSchemaObjectNode(),
@@ -27,6 +28,7 @@ class JsonSchemaEditorController {
       onSchemaChanged: onSchemaChanged,
       featureOptions: featureOptions,
       extensionOptions: extensionOptions,
+      customValidators: customValidators,
     );
   }
 
@@ -35,7 +37,9 @@ class JsonSchemaEditorController {
     this.onSchemaChanged,
     this.featureOptions = JsonSchemaEditorFeatureOptions.allEnabled,
     this.extensionOptions = JsonSchemaEditorExtensionOptions.none,
-  }) : schemaSubject = DataSubject.seeded(initialSchema) {
+    Iterable<JsonSchemaValidator> customValidators = const [],
+  }) : customValidators = List<JsonSchemaValidator>.unmodifiable(customValidators),
+       schemaSubject = DataSubject.seeded(initialSchema) {
     final parsed = _normalizeNode(initialSchema);
     _initialSchema = parsed;
     _initialJsonSchema = JsonSchema.fromNode(parsed);
@@ -46,6 +50,7 @@ class JsonSchemaEditorController {
   onSchemaChanged;
   final JsonSchemaEditorFeatureOptions featureOptions;
   final JsonSchemaEditorExtensionOptions extensionOptions;
+  final List<JsonSchemaValidator> customValidators;
 
   late JsonSchemaNode _initialSchema;
   late JsonSchema _initialJsonSchema;
@@ -321,7 +326,7 @@ class JsonSchemaEditorController {
 
   void _apply(JsonSchemaNode next, {bool notify = true}) {
     final normalized = _normalizeNode(next);
-    final diagnostics = validateSchema(normalized);
+    final diagnostics = validateSchema(normalized, customValidators: customValidators);
     schemaSubject.add(normalized);
     diagnosticsSubject.add(List<JsonSchemaDiagnostic>.unmodifiable(diagnostics));
     if (!notify) {

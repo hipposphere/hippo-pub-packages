@@ -165,8 +165,6 @@ class _JsonSchemaVisualizationPanelState extends State<JsonSchemaVisualizationPa
                   key: const ValueKey('optimized-view'),
                   schema: widget.schema,
                   extensionOptions: widget.controller.extensionOptions,
-                  showContainer: false,
-                  showHeader: false,
                 ),
                 _JsonSchemaPreviewMode.json => _RawJsonSchemaView(
                   key: const ValueKey('json-view'),

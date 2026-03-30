@@ -15,11 +15,7 @@ import '../json_pointer/json_pointer.dart';
 import '../json_pointer/json_pointer_map.dart';
 
 /// The type of an [AnnotatedJsonNode].
-enum AnnotatedJsonNodeType {
-  object,
-  list,
-  value,
-}
+enum AnnotatedJsonNodeType { object, list, value }
 
 /// Represents a node in the parsed JSON tree, linked with an optional [schemaNode]
 /// and any [metadata] matched via a JsonPointerMap.
@@ -49,10 +45,10 @@ class AnnotatedJsonNode<T> {
 
   /// Associated metadata mapped from a [JsonPointerMap<T>].
   final T? metadata;
-  
+
   /// Parsed child nodes if this was an array.
   final List<AnnotatedJsonNode<T>>? children;
-  
+
   /// Parsed property nodes if this was an object.
   final Map<String, AnnotatedJsonNode<T>>? properties;
 }
@@ -63,13 +59,9 @@ class JsonAnnotator {
   const JsonAnnotator();
 
   /// Parses the [rawJson]. If a [schema] is provided, it validates the structure against it.
-  /// If a [map] is provided, metadata will be bound to the respective output [AnnotatedJsonNode] 
+  /// If a [map] is provided, metadata will be bound to the respective output [AnnotatedJsonNode]
   /// by evaluating their JSON Pointer paths.
-  AnnotatedJsonNode<T> parse<T>(
-    dynamic rawJson, {
-    JsonSchema? schema,
-    JsonPointerMap<T>? map,
-  }) {
+  AnnotatedJsonNode<T> parse<T>(dynamic rawJson, {JsonSchema? schema, JsonPointerMap<T>? map}) {
     return _parseNode<T>(
       value: rawJson,
       schemaNode: schema?.node,
@@ -89,23 +81,33 @@ class JsonAnnotator {
 
     if (value is Map) {
       final properties = <String, AnnotatedJsonNode<T>>{};
-      
+      final rawProperties = <String, Object?>{};
       for (final entry in value.entries) {
-        final key = entry.key.toString();
+        rawProperties[entry.key.toString()] = entry.value;
+      }
+
+      final orderedKeys = schemaNode is JsonSchemaObjectNode
+          ? [
+              ...schemaNode.resolvedPropertyOrder.where(rawProperties.containsKey),
+              ...rawProperties.keys.where((key) => !schemaNode.resolvedPropertyOrder.contains(key)),
+            ]
+          : rawProperties.keys.toList(growable: false);
+
+      for (final key in orderedKeys) {
         // Find the child schema for this property, or leave null.
         JsonSchemaNode? childSchema;
         if (schemaNode is JsonSchemaObjectNode) {
           childSchema = schemaNode.properties[key] ?? JsonSchemaNode.emptyRoot();
         }
-        
+
         properties[key] = _parseNode<T>(
-          value: entry.value,
+          value: rawProperties[key],
           schemaNode: childSchema,
           pointer: pointer.child(key),
           map: map,
         );
       }
-      
+
       return AnnotatedJsonNode<T>(
         type: AnnotatedJsonNodeType.object,
         value: value,
@@ -116,7 +118,7 @@ class JsonAnnotator {
       );
     } else if (value is List) {
       final children = <AnnotatedJsonNode<T>>[];
-      
+
       for (var i = 0; i < value.length; i++) {
         JsonSchemaNode? childSchema;
         if (schemaNode is JsonSchemaArrayNode) {
@@ -132,7 +134,7 @@ class JsonAnnotator {
           ),
         );
       }
-      
+
       return AnnotatedJsonNode<T>(
         type: AnnotatedJsonNodeType.list,
         value: value,
@@ -153,4 +155,3 @@ class JsonAnnotator {
     }
   }
 }
-

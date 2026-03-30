@@ -16,11 +16,7 @@ void main() {
           properties: {
             'name': JsonSchemaStringNode(),
             'tags': JsonSchemaArrayNode(items: JsonSchemaStringNode()),
-            'profile': JsonSchemaObjectNode(
-              properties: {
-                'age': JsonSchemaNumberNode.integer(),
-              },
-            ),
+            'profile': JsonSchemaObjectNode(properties: {'age': JsonSchemaNumberNode.integer()}),
           },
         ),
       );
@@ -29,9 +25,7 @@ void main() {
       final rawJson = {
         'name': 'John Doe',
         'tags': ['developer', 'dart'],
-        'profile': {
-          'age': 30,
-        },
+        'profile': {'age': 30},
       };
 
       // 4. Parse
@@ -85,17 +79,10 @@ void main() {
       final map = JsonPointerMap<String>();
       // We only define 'known' in the schema, but provide 'unknown' in json
       final schema = JsonSchema.fromNode(
-        const JsonSchemaObjectNode(
-          properties: {
-            'known': JsonSchemaStringNode(),
-          },
-        ),
+        const JsonSchemaObjectNode(properties: {'known': JsonSchemaStringNode()}),
       );
 
-      final rawJson = {
-        'known': 'value',
-        'unknown': 'mystery',
-      };
+      final rawJson = {'known': 'value', 'unknown': 'mystery'};
 
       const annotator = JsonAnnotator();
       final node = annotator.parse<String>(rawJson, schema: schema, map: map);
@@ -106,10 +93,35 @@ void main() {
       expect(node.properties!['unknown']!.value, 'mystery');
     });
 
+    test('orders annotated object properties using schema property order', () {
+      final schema = JsonSchema({
+        'type': 'object',
+        'properties': {
+          'first': {'type': 'string'},
+          'second': {'type': 'string'},
+          'third': {'type': 'string'},
+        },
+        jsonSchemaObjectPropertyOrderExtensionKey: ['third', 'first', 'second'],
+      });
+
+      final rawJson = {
+        'second': 'value-2',
+        'unknown': 'value-x',
+        'first': 'value-1',
+        'third': 'value-3',
+      };
+
+      const annotator = JsonAnnotator();
+      final node = annotator.parse<String>(rawJson, schema: schema);
+
+      expect(node.properties!.keys, orderedEquals(['third', 'first', 'second', 'unknown']));
+      expect(node.properties!['unknown']!.value, 'value-x');
+    });
+
     test('works without schema or map', () {
       final rawJson = {
         'simple': 'data',
-        'list': [1, 2, 3]
+        'list': [1, 2, 3],
       };
 
       const annotator = JsonAnnotator();
@@ -117,7 +129,7 @@ void main() {
 
       expect(node.schemaNode, isNull);
       expect(node.metadata, isNull);
-      
+
       final simpleNode = node.properties!['simple']!;
       expect(simpleNode.value, 'data');
       expect(simpleNode.schemaNode, isNull);

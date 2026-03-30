@@ -9,8 +9,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:hippo_components/hippo_components.dart';
-
 import 'json_schema_editor_info_icon.dart';
 
 class JsonSchemaEditorTextField extends StatefulWidget {
@@ -105,24 +103,47 @@ class _JsonSchemaEditorTextFieldState extends State<JsonSchemaEditorTextField> {
 
   @override
   Widget build(BuildContext context) {
-    return StyledTextfield(
+    final theme = Theme.of(context);
+
+    return TextField(
       controller: _controller,
       focusNode: _focusNode,
-      hint: widget.hint,
       keyboardType: widget.keyboardType,
-      suffix: widget.helpText == null
-          ? null
-          : Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: JsonSchemaEditorInfoIcon(message: widget.helpText!),
-            ),
+      minLines: widget.maxLines > 1 ? 3 : 1,
       maxLines: widget.maxLines,
-      onChange: (value) {
-        _handleChange(value);
-      },
-      onSubmit: (value) {
-        _handleSubmit(value);
-      },
+      style: theme.textTheme.bodyMedium,
+      decoration: InputDecoration(
+        isDense: true,
+        labelText: widget.hint,
+        alignLabelWithHint: widget.maxLines > 1,
+        filled: true,
+        fillColor: theme.colorScheme.surfaceContainerLowest,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: widget.maxLines > 1 ? 16 : 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.2),
+        ),
+        suffixIcon: widget.helpText == null
+            ? null
+            : Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: JsonSchemaEditorInfoIcon(message: widget.helpText!, size: 15),
+              ),
+        suffixIconConstraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      ),
+      onChanged: _handleChange,
+      onSubmitted: _handleSubmit,
     );
   }
 }

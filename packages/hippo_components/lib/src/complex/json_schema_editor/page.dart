@@ -88,7 +88,7 @@ class _PreviewAndDiagnostics extends StatelessWidget {
           subject: controller.diagnosticsSubject,
           builder: (context, diagnostics) {
             return Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -96,7 +96,7 @@ class _PreviewAndDiagnostics extends StatelessWidget {
                     controller: controller,
                     schema: JsonSchema.fromNode(schemaNode),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   JsonSchemaValidationPanel(diagnostics: diagnostics),
                 ],
               ),

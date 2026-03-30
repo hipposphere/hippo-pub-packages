@@ -36,12 +36,7 @@ const _jsonSchemaNumberNodeReservedKeys = <String>{
   'multipleOf',
 };
 
-const _jsonSchemaBooleanNodeReservedKeys = <String>{
-  'type',
-  'title',
-  'description',
-  'default',
-};
+const _jsonSchemaBooleanNodeReservedKeys = <String>{'type', 'title', 'description', 'default'};
 
 const _jsonSchemaObjectNodeReservedKeys = <String>{
   'type',
@@ -51,6 +46,8 @@ const _jsonSchemaObjectNodeReservedKeys = <String>{
   'required',
   'additionalProperties',
 };
+
+const jsonSchemaObjectPropertyOrderExtensionKey = 'x-property-order';
 
 const _jsonSchemaArrayNodeReservedKeys = <String>{
   'type',
@@ -169,7 +166,12 @@ sealed class JsonSchemaNode {
 
   JsonSchema toSchema() => JsonSchema.fromNode(this);
 
-  JsonSchemaNode copyWith({String? title, String? description, Map<String, dynamic>? extensions, bool clearExtensions = false});
+  JsonSchemaNode copyWith({
+    String? title,
+    String? description,
+    Map<String, dynamic>? extensions,
+    bool clearExtensions = false,
+  });
 
   static JsonSchemaNode fromJson(Map<String, dynamic>? raw) {
     if (raw == null || raw.isEmpty) {
@@ -259,15 +261,15 @@ class JsonSchemaStringNode extends JsonSchemaNode {
   Map<String, dynamic> toJson() {
     return _appendExtensions(
       _omitNulls({
-      'type': type.toJsonType(),
-      'title': title?.trim(),
-      'description': description?.trim(),
-      'minLength': minLength,
-      'maxLength': maxLength,
-      'pattern': pattern?.trim(),
-      'enum': enumValues == null || enumValues!.isEmpty
-          ? null
-          : enumValues!.map((entry) => entry.trim()).where((entry) => entry.isNotEmpty).toList(),
+        'type': type.toJsonType(),
+        'title': title?.trim(),
+        'description': description?.trim(),
+        'minLength': minLength,
+        'maxLength': maxLength,
+        'pattern': pattern?.trim(),
+        'enum': enumValues == null || enumValues!.isEmpty
+            ? null
+            : enumValues!.map((entry) => entry.trim()).where((entry) => entry.isNotEmpty).toList(),
       }),
       extensions,
     );
@@ -367,14 +369,14 @@ class JsonSchemaNumberNode extends JsonSchemaNode {
   Map<String, dynamic> toJson() {
     return _appendExtensions(
       _omitNulls({
-      'type': type.toJsonType(),
-      'title': title?.trim(),
-      'description': description?.trim(),
-      'minimum': minimum,
-      'maximum': maximum,
-      'exclusiveMinimum': exclusiveMinimum,
-      'exclusiveMaximum': exclusiveMaximum,
-      'multipleOf': multipleOf,
+        'type': type.toJsonType(),
+        'title': title?.trim(),
+        'description': description?.trim(),
+        'minimum': minimum,
+        'maximum': maximum,
+        'exclusiveMinimum': exclusiveMinimum,
+        'exclusiveMaximum': exclusiveMaximum,
+        'multipleOf': multipleOf,
       }),
       extensions,
     );
@@ -448,12 +450,8 @@ class JsonSchemaNumberNode extends JsonSchemaNode {
 
 @immutable
 class JsonSchemaBooleanNode extends JsonSchemaNode {
-  const JsonSchemaBooleanNode({
-    super.title,
-    super.description,
-    super.extensions,
-    this.defaultValue,
-  }) : super(type: JsonSchemaNodeType.boolean);
+  const JsonSchemaBooleanNode({super.title, super.description, super.extensions, this.defaultValue})
+    : super(type: JsonSchemaNodeType.boolean);
 
   final bool? defaultValue;
 
@@ -472,12 +470,12 @@ class JsonSchemaBooleanNode extends JsonSchemaNode {
   Map<String, dynamic> toJson() {
     return _appendExtensions(
       _omitNulls({
-      'type': type.toJsonType(),
-      'title': title?.trim(),
-      'description': description?.trim(),
-      'default': defaultValue,
-    }),
-    extensions,
+        'type': type.toJsonType(),
+        'title': title?.trim(),
+        'description': description?.trim(),
+        'default': defaultValue,
+      }),
+      extensions,
     );
   }
 
@@ -516,6 +514,43 @@ class JsonSchemaObjectNode extends JsonSchemaNode {
   final Set<String> required;
   final bool additionalProperties;
 
+  List<String> get resolvedPropertyOrder => _resolveJsonSchemaObjectPropertyOrder(
+    properties,
+    extensions[jsonSchemaObjectPropertyOrderExtensionKey],
+  );
+
+  Iterable<MapEntry<String, JsonSchemaNode>> get orderedPropertyEntries sync* {
+    for (final key in resolvedPropertyOrder) {
+      final value = properties[key];
+      if (value == null) {
+        continue;
+      }
+      yield MapEntry(key, value);
+    }
+  }
+
+  Map<String, JsonSchemaNode> get orderedProperties =>
+      Map.unmodifiable(Map<String, JsonSchemaNode>.fromEntries(orderedPropertyEntries));
+
+  Map<String, dynamic> get normalizedExtensions =>
+      _normalizeJsonSchemaObjectExtensions(properties: properties, extensions: extensions);
+
+  JsonSchemaObjectNode withPropertyOrder(Iterable<String> propertyOrder) {
+    final normalizedOrder = _resolveJsonSchemaObjectPropertyOrder(
+      properties,
+      propertyOrder.toList(growable: false),
+    );
+    final orderedProperties = _orderJsonSchemaObjectProperties(properties, normalizedOrder);
+    return copyWith(
+      properties: orderedProperties,
+      extensions: _normalizeJsonSchemaObjectExtensions(
+        properties: orderedProperties,
+        extensions: extensions,
+        propertyOrder: normalizedOrder,
+      ),
+    );
+  }
+
   factory JsonSchemaObjectNode._fromJson(Map<String, dynamic> raw) {
     final properties = _readProperties(raw['properties']);
     final required = _readRequired(raw['required']);
@@ -534,19 +569,20 @@ class JsonSchemaObjectNode extends JsonSchemaNode {
   @override
   Map<String, dynamic> toJson() {
     final requiredList = required.where((entry) => properties.containsKey(entry)).toList()..sort();
+    final orderedProperties = this.orderedProperties;
 
     return _appendExtensions(
       _omitNulls({
-      'type': 'object',
-      'title': title?.trim(),
-      'description': description?.trim(),
-      'properties': properties.isEmpty
-          ? null
-          : properties.map((key, value) => MapEntry(key, value.toJson())),
-      'required': requiredList.isEmpty ? null : requiredList,
-      'additionalProperties': additionalProperties ? null : false,
+        'type': 'object',
+        'title': title?.trim(),
+        'description': description?.trim(),
+        'properties': orderedProperties.isEmpty
+            ? null
+            : orderedProperties.map((key, value) => MapEntry(key, value.toJson())),
+        'required': requiredList.isEmpty ? null : requiredList,
+        'additionalProperties': additionalProperties ? null : false,
       }),
-      extensions,
+      normalizedExtensions,
     );
   }
 
@@ -624,13 +660,13 @@ class JsonSchemaArrayNode extends JsonSchemaNode {
   Map<String, dynamic> toJson() {
     return _appendExtensions(
       _omitNulls({
-      'type': 'array',
-      'title': title?.trim(),
-      'description': description?.trim(),
-      'items': items.toJson(),
-      'minItems': minItems,
-      'maxItems': maxItems,
-      'uniqueItems': uniqueItems,
+        'type': 'array',
+        'title': title?.trim(),
+        'description': description?.trim(),
+        'items': items.toJson(),
+        'minItems': minItems,
+        'maxItems': maxItems,
+        'uniqueItems': uniqueItems,
       }),
       extensions,
     );
@@ -787,6 +823,74 @@ Map<String, JsonSchemaNode> _readProperties(Object? rawProperties) {
   return parsed;
 }
 
+List<String> _resolveJsonSchemaObjectPropertyOrder(
+  Map<String, JsonSchemaNode> properties,
+  Object? rawPropertyOrder,
+) {
+  if (properties.isEmpty) {
+    return const [];
+  }
+
+  final propertyKeys = properties.keys.toList(growable: false);
+  final resolved = <String>[];
+  final configuredOrder = _readPropertyOrder(rawPropertyOrder);
+
+  for (final key in configuredOrder) {
+    if (!properties.containsKey(key) || resolved.contains(key)) {
+      continue;
+    }
+    resolved.add(key);
+  }
+
+  for (final key in propertyKeys) {
+    if (!resolved.contains(key)) {
+      resolved.add(key);
+    }
+  }
+
+  return List.unmodifiable(resolved);
+}
+
+Map<String, JsonSchemaNode> _orderJsonSchemaObjectProperties(
+  Map<String, JsonSchemaNode> properties,
+  Iterable<String> propertyOrder,
+) {
+  final ordered = <String, JsonSchemaNode>{};
+  for (final key in propertyOrder) {
+    final value = properties[key];
+    if (value == null) {
+      continue;
+    }
+    ordered[key] = value;
+  }
+  return Map.unmodifiable(ordered);
+}
+
+List<String> _readPropertyOrder(Object? rawPropertyOrder) {
+  if (rawPropertyOrder == null) {
+    return const [];
+  }
+  if (rawPropertyOrder is String) {
+    return _readStringListFromText(rawPropertyOrder) ?? const [];
+  }
+  if (rawPropertyOrder is! List) {
+    return const [];
+  }
+
+  final order = <String>[];
+  for (final entry in rawPropertyOrder) {
+    if (entry is! String) {
+      continue;
+    }
+    final trimmed = entry.trim();
+    if (trimmed.isEmpty || order.contains(trimmed)) {
+      continue;
+    }
+    order.add(trimmed);
+  }
+  return List.unmodifiable(order);
+}
+
 Set<String> _readRequired(Object? rawRequired) {
   if (rawRequired is! List) {
     return {};
@@ -911,10 +1015,7 @@ Map<String, Object?> _omitNulls(Map<String, Object?> raw) {
   return output;
 }
 
-Map<String, dynamic> _readExtensions(
-  Map<String, dynamic> raw,
-  Set<String> reservedKeys,
-) {
+Map<String, dynamic> _readExtensions(Map<String, dynamic> raw, Set<String> reservedKeys) {
   final extensionEntries = <String, dynamic>{};
   for (final entry in raw.entries) {
     if (reservedKeys.contains(entry.key.toString())) {
@@ -947,10 +1048,34 @@ Map<String, dynamic> _normalizeCustomProperties(Map<String, dynamic> values) {
   return Map.unmodifiable(normalized);
 }
 
-Map<String, Object?> _appendExtensions(
-  Map<String, Object?> raw,
-  Map<String, dynamic> extensions,
-) {
+Map<String, dynamic> _normalizeJsonSchemaObjectExtensions({
+  required Map<String, JsonSchemaNode> properties,
+  required Map<String, dynamic> extensions,
+  Iterable<String>? propertyOrder,
+}) {
+  final normalized = Map<String, dynamic>.from(_normalizeCustomProperties(extensions));
+  final resolvedPropertyOrder = propertyOrder == null
+      ? _resolveJsonSchemaObjectPropertyOrder(
+          properties,
+          normalized[jsonSchemaObjectPropertyOrderExtensionKey],
+        )
+      : _resolveJsonSchemaObjectPropertyOrder(properties, propertyOrder.toList(growable: false));
+
+  if (resolvedPropertyOrder.isEmpty) {
+    normalized.remove(jsonSchemaObjectPropertyOrderExtensionKey);
+  } else {
+    normalized[jsonSchemaObjectPropertyOrderExtensionKey] = List.unmodifiable(
+      resolvedPropertyOrder,
+    );
+  }
+
+  if (normalized.isEmpty) {
+    return const {};
+  }
+  return Map.unmodifiable(normalized);
+}
+
+Map<String, Object?> _appendExtensions(Map<String, Object?> raw, Map<String, dynamic> extensions) {
   final output = <String, Object?>{};
   output.addAll(raw);
   output.addAll(_normalizeCustomProperties(extensions));

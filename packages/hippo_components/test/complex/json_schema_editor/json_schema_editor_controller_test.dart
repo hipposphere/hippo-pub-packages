@@ -43,6 +43,106 @@ void main() {
       expect(afterRemove.required.contains('name'), isFalse);
     });
 
+    test('maintains property order metadata across add rename and remove', () {
+      final controller = JsonSchemaEditorController(
+        initialSchema: JsonSchema({
+          'type': 'object',
+          'properties': {
+            'name': {'type': 'string'},
+            'age': {'type': 'integer'},
+          },
+          jsonSchemaObjectPropertyOrderExtensionKey: ['age', 'name'],
+        }),
+      );
+
+      controller.addProperty(objectPath: const JsonSchemaPath.root(), key: 'email');
+
+      var schema = controller.schema as JsonSchemaObjectNode;
+      expect(schema.resolvedPropertyOrder, orderedEquals(['age', 'name', 'email']));
+      expect(
+        schema.extensions[jsonSchemaObjectPropertyOrderExtensionKey],
+        orderedEquals(['age', 'name', 'email']),
+      );
+
+      controller.renameProperty(
+        objectPath: const JsonSchemaPath.root(),
+        currentKey: 'name',
+        nextKey: 'displayName',
+      );
+
+      schema = controller.schema as JsonSchemaObjectNode;
+      expect(schema.resolvedPropertyOrder, orderedEquals(['age', 'displayName', 'email']));
+      expect(
+        schema.extensions[jsonSchemaObjectPropertyOrderExtensionKey],
+        orderedEquals(['age', 'displayName', 'email']),
+      );
+
+      controller.removeProperty(objectPath: const JsonSchemaPath.root(), key: 'age');
+
+      schema = controller.schema as JsonSchemaObjectNode;
+      expect(schema.resolvedPropertyOrder, orderedEquals(['displayName', 'email']));
+      expect(
+        schema.extensions[jsonSchemaObjectPropertyOrderExtensionKey],
+        orderedEquals(['displayName', 'email']),
+      );
+    });
+
+    test('reorders properties while preserving required flags and node types', () {
+      final controller = JsonSchemaEditorController(
+        initialSchema: JsonSchema.fromNode(
+          const JsonSchemaObjectNode(
+            properties: {
+              'first': JsonSchemaStringNode(),
+              'second': JsonSchemaBooleanNode(),
+              'third': JsonSchemaNumberNode.number(),
+            },
+            required: {'second'},
+          ),
+        ),
+      );
+
+      controller.movePropertyDown(objectPath: const JsonSchemaPath.root(), key: 'first');
+      controller.movePropertyUp(objectPath: const JsonSchemaPath.root(), key: 'third');
+
+      final schema = controller.schema as JsonSchemaObjectNode;
+      expect(schema.resolvedPropertyOrder, orderedEquals(['second', 'third', 'first']));
+      expect(schema.required, contains('second'));
+      expect(schema.properties['second'], isA<JsonSchemaBooleanNode>());
+      expect(schema.properties['third'], isA<JsonSchemaNumberNode>());
+      expect(schema.properties['first'], isA<JsonSchemaStringNode>());
+    });
+
+    test('reorders nested objects independently', () {
+      final controller = JsonSchemaEditorController(
+        initialSchema: JsonSchema.fromNode(
+          const JsonSchemaObjectNode(
+            properties: {
+              'top': JsonSchemaStringNode(),
+              'nested': JsonSchemaObjectNode(
+                properties: {'first': JsonSchemaStringNode(), 'second': JsonSchemaStringNode()},
+              ),
+              'tail': JsonSchemaStringNode(),
+            },
+          ),
+        ),
+      );
+
+      controller.movePropertyUp(
+        objectPath: const JsonSchemaPath.root().childProperty('nested'),
+        key: 'second',
+      );
+
+      final schema = controller.schema as JsonSchemaObjectNode;
+      final nested = schema.properties['nested'] as JsonSchemaObjectNode;
+
+      expect(schema.resolvedPropertyOrder, orderedEquals(['top', 'nested', 'tail']));
+      expect(nested.resolvedPropertyOrder, orderedEquals(['second', 'first']));
+      expect(
+        nested.extensions[jsonSchemaObjectPropertyOrderExtensionKey],
+        orderedEquals(['second', 'first']),
+      );
+    });
+
     test('validates diagnostics for invalid constraints', () {
       final controller = JsonSchemaEditorController(
         initialSchema: JsonSchema.fromNode(
@@ -117,16 +217,15 @@ void main() {
       controller.setNodeField(
         path: const JsonSchemaPath.root(),
         key: 'x-token',
-        value: const {'enum': ['read', 'write']},
+        value: const {
+          'enum': ['read', 'write'],
+        },
       );
 
       expect(controller.schema.extensions['x-token'], isA<Map>());
       expect((controller.schema.extensions['x-token'] as Map)['enum'], equals(['read', 'write']));
 
-      controller.removeNodeField(
-        path: const JsonSchemaPath.root(),
-        key: 'x-token',
-      );
+      controller.removeNodeField(path: const JsonSchemaPath.root(), key: 'x-token');
       expect(controller.schema.extensions.containsKey('x-token'), isFalse);
     });
 
@@ -228,7 +327,8 @@ void main() {
       final updatedCountNode =
           (controller.schema as JsonSchemaObjectNode).properties['count'] as JsonSchemaNumberNode;
       final updatedBoolNode =
-          (controller.schema as JsonSchemaObjectNode).properties['enabled'] as JsonSchemaBooleanNode;
+          (controller.schema as JsonSchemaObjectNode).properties['enabled']
+              as JsonSchemaBooleanNode;
 
       expect(updatedNameNode.extensions['x-token'], equals('admin'));
       expect(updatedCountNode.extensions['x-priority'], equals(10));

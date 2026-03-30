@@ -110,7 +110,14 @@ class JsonSchemaEditorController {
     final nextProperties = Map<String, JsonSchemaNode>.from(target.properties);
     nextProperties[propertyKey] = node ?? const JsonSchemaStringNode();
 
-    final next = target.copyWith(properties: nextProperties);
+    final next = target.copyWith(
+      properties: nextProperties,
+      extensions: _extensionsWithPropertyOrder(
+        target,
+        nextProperties: nextProperties,
+        propertyOrder: [...target.resolvedPropertyOrder, propertyKey],
+      ),
+    );
     replaceNode(path: objectPath, node: next);
   }
 
@@ -126,7 +133,15 @@ class JsonSchemaEditorController {
     final nextRequired = Set<String>.from(target.required)..remove(key);
     replaceNode(
       path: objectPath,
-      node: target.copyWith(properties: nextProperties, required: nextRequired),
+      node: target.copyWith(
+        properties: nextProperties,
+        required: nextRequired,
+        extensions: _extensionsWithPropertyOrder(
+          target,
+          nextProperties: nextProperties,
+          propertyOrder: target.resolvedPropertyOrder.where((entry) => entry != key),
+        ),
+      ),
     );
   }
 
@@ -164,8 +179,26 @@ class JsonSchemaEditorController {
     }
     replaceNode(
       path: objectPath,
-      node: target.copyWith(properties: nextProperties, required: nextRequired),
+      node: target.copyWith(
+        properties: nextProperties,
+        required: nextRequired,
+        extensions: _extensionsWithPropertyOrder(
+          target,
+          nextProperties: nextProperties,
+          propertyOrder: target.resolvedPropertyOrder.map(
+            (entry) => entry == trimmedCurrentKey ? trimmedNextKey : entry,
+          ),
+        ),
+      ),
     );
+  }
+
+  void movePropertyUp({required JsonSchemaPath objectPath, required String key}) {
+    _reorderProperty(objectPath: objectPath, key: key, offset: -1);
+  }
+
+  void movePropertyDown({required JsonSchemaPath objectPath, required String key}) {
+    _reorderProperty(objectPath: objectPath, key: key, offset: 1);
   }
 
   void setRequired({
@@ -306,16 +339,7 @@ class JsonSchemaEditorController {
     JsonSchemaEditorFeatureOptions options,
   ) {
     return switch (node) {
-      JsonSchemaObjectNode() => JsonSchemaObjectNode(
-        title: _trimOrNull(node.title),
-        description: _trimOrNull(node.description),
-        properties: _normalizePropertiesWithOptions(node.properties, options),
-        required: Set<String>.from(
-          node.required,
-        ).where((key) => node.properties.containsKey(key)).toSet(),
-        additionalProperties: options.objectAdditionalProperties ? node.additionalProperties : true,
-        extensions: node.extensions,
-      ),
+      JsonSchemaObjectNode() => _normalizeObjectNodeWithOptions(node, options),
       JsonSchemaArrayNode() => JsonSchemaArrayNode(
         title: _trimOrNull(node.title),
         description: _trimOrNull(node.description),
@@ -367,6 +391,28 @@ class JsonSchemaEditorController {
       normalized[key] = _normalizeNodeWithOptions(entry.value, options);
     }
     return normalized;
+  }
+
+  static JsonSchemaObjectNode _normalizeObjectNodeWithOptions(
+    JsonSchemaObjectNode node,
+    JsonSchemaEditorFeatureOptions options,
+  ) {
+    final normalizedProperties = _normalizePropertiesWithOptions(node.properties, options);
+    final normalizedNode = JsonSchemaObjectNode(
+      title: _trimOrNull(node.title),
+      description: _trimOrNull(node.description),
+      properties: normalizedProperties,
+      required: Set<String>.from(
+        node.required,
+      ).where((key) => normalizedProperties.containsKey(key)).toSet(),
+      additionalProperties: options.objectAdditionalProperties ? node.additionalProperties : true,
+      extensions: node.extensions,
+    );
+
+    return normalizedNode.copyWith(
+      properties: normalizedNode.orderedProperties,
+      extensions: normalizedNode.normalizedExtensions,
+    );
   }
 
   JsonSchemaNode _replaceNodeAtPath(
@@ -463,6 +509,57 @@ class JsonSchemaEditorController {
       }
       index += 1;
     }
+  }
+
+  void _reorderProperty({
+    required JsonSchemaPath objectPath,
+    required String key,
+    required int offset,
+  }) {
+    final target = _findNodeAtPath(schema, objectPath);
+    if (target is! JsonSchemaObjectNode) {
+      return;
+    }
+
+    final propertyOrder = target.resolvedPropertyOrder.toList(growable: true);
+    final currentIndex = propertyOrder.indexOf(key);
+    if (currentIndex == -1) {
+      return;
+    }
+
+    final nextIndex = currentIndex + offset;
+    if (nextIndex < 0 || nextIndex >= propertyOrder.length) {
+      return;
+    }
+
+    propertyOrder.removeAt(currentIndex);
+    propertyOrder.insert(nextIndex, key);
+    replaceNode(
+      path: objectPath,
+      node: target.copyWith(
+        extensions: _extensionsWithPropertyOrder(
+          target,
+          nextProperties: target.properties,
+          propertyOrder: propertyOrder,
+        ),
+      ),
+    );
+  }
+
+  Map<String, dynamic> _extensionsWithPropertyOrder(
+    JsonSchemaObjectNode node, {
+    required Map<String, JsonSchemaNode> nextProperties,
+    required Iterable<String> propertyOrder,
+  }) {
+    final normalizedNode = JsonSchemaObjectNode(
+      title: node.title,
+      description: node.description,
+      properties: nextProperties,
+      required: node.required,
+      additionalProperties: node.additionalProperties,
+      extensions: node.extensions,
+    ).withPropertyOrder(propertyOrder);
+    return normalizedNode.normalizedExtensions;
   }
 
   static String? _trimOrNull(String? value) {

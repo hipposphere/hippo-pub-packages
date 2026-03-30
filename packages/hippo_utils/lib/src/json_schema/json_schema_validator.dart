@@ -17,32 +17,20 @@ enum JsonSchemaDiagnosticSeverity { warning, error }
 
 @immutable
 class JsonSchemaDiagnostic {
-  const JsonSchemaDiagnostic({
-    required this.path,
-    required this.message,
-    required this.severity,
-  });
+  const JsonSchemaDiagnostic({required this.path, required this.message, required this.severity});
 
   final JsonSchemaPath path;
   final String message;
   final JsonSchemaDiagnosticSeverity severity;
 
   Map<String, dynamic> toJson() {
-    return {
-      'path': path.toString(),
-      'message': message,
-      'severity': severity.name,
-    };
+    return {'path': path.toString(), 'message': message, 'severity': severity.name};
   }
 }
 
 List<JsonSchemaDiagnostic> validateSchema(JsonSchemaNode schema) {
   final diagnostics = <JsonSchemaDiagnostic>[];
-  _validateNode(
-    node: schema,
-    path: const JsonSchemaPath.root(),
-    diagnostics: diagnostics,
-  );
+  _validateNode(node: schema, path: const JsonSchemaPath.root(), diagnostics: diagnostics);
   return diagnostics;
 }
 
@@ -53,31 +41,15 @@ void _validateNode({
 }) {
   switch (node) {
     case JsonSchemaStringNode():
-      _validateStringNode(
-        node: node,
-        path: path,
-        diagnostics: diagnostics,
-      );
+      _validateStringNode(node: node, path: path, diagnostics: diagnostics);
     case JsonSchemaNumberNode():
-      _validateNumberNode(
-        node: node,
-        path: path,
-        diagnostics: diagnostics,
-      );
+      _validateNumberNode(node: node, path: path, diagnostics: diagnostics);
     case JsonSchemaBooleanNode():
       _validateBooleanNode(node: node, path: path, diagnostics: diagnostics);
     case JsonSchemaObjectNode():
-      _validateObjectNode(
-        node: node,
-        path: path,
-        diagnostics: diagnostics,
-      );
+      _validateObjectNode(node: node, path: path, diagnostics: diagnostics);
     case JsonSchemaArrayNode():
-      _validateArrayNode(
-        node: node,
-        path: path,
-        diagnostics: diagnostics,
-      );
+      _validateArrayNode(node: node, path: path, diagnostics: diagnostics);
   }
 }
 
@@ -218,12 +190,8 @@ void _validateObjectNode({
     }
   }
 
-  for (final entry in node.properties.entries) {
-    _validateNode(
-      node: entry.value,
-      path: path.childProperty(entry.key),
-      diagnostics: diagnostics,
-    );
+  for (final entry in node.orderedPropertyEntries) {
+    _validateNode(node: entry.value, path: path.childProperty(entry.key), diagnostics: diagnostics);
   }
 }
 
@@ -260,9 +228,5 @@ void _validateArrayNode({
     );
   }
 
-  _validateNode(
-    node: node.items,
-    path: path.childItems(),
-    diagnostics: diagnostics,
-  );
+  _validateNode(node: node.items, path: path.childItems(), diagnostics: diagnostics);
 }

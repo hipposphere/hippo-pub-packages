@@ -27,6 +27,37 @@ class JsonSchemaVisualizationPanel extends StatefulWidget {
 class _JsonSchemaVisualizationPanelState extends State<JsonSchemaVisualizationPanel> {
   _JsonSchemaPreviewMode _mode = _JsonSchemaPreviewMode.optimized;
 
+  Future<void> _confirmAndRun({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required VoidCallback action,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(confirmLabel),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      action();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -36,29 +67,27 @@ class _JsonSchemaVisualizationPanelState extends State<JsonSchemaVisualizationPa
       elevation: 0,
       color: colorScheme.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.55)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Schema Preview',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
-            const Gap(6),
+            const Gap(4),
             Text(switch (_mode) {
-              _JsonSchemaPreviewMode.optimized =>
-                'Optimized structural view with nested fields, constraints, and schema extensions.',
-              _JsonSchemaPreviewMode.json =>
-                'Pure JSON output of the current schema, formatted for inspection and copy/paste.',
-            }, style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const Gap(12),
+              _JsonSchemaPreviewMode.optimized => 'Compact structural view',
+              _JsonSchemaPreviewMode.json => 'Formatted JSON source',
+            }, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+            const Gap(10),
             Wrap(
-              spacing: 10,
-              runSpacing: 10,
+              spacing: 8,
+              runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 SegmentedButton<_JsonSchemaPreviewMode>(
@@ -76,6 +105,10 @@ class _JsonSchemaVisualizationPanelState extends State<JsonSchemaVisualizationPa
                     ),
                   ],
                   selected: {_mode},
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   onSelectionChanged: (selection) {
                     final next = selection.isEmpty ? null : selection.first;
                     if (next == null || next == _mode) {
@@ -86,31 +119,43 @@ class _JsonSchemaVisualizationPanelState extends State<JsonSchemaVisualizationPa
                     });
                   },
                 ),
-                Button(
+                _PreviewActionChip(
                   onTap: () {
                     Clipboard.setData(
                       ClipboardData(text: widget.schema.toJsonString(pretty: true)),
                     );
                   },
                   label: 'Copy JSON',
-                  prefix: const Icon(Icons.content_copy_rounded),
-                  type: ButtonType.secondary,
+                  icon: Icons.content_copy_rounded,
                 ),
-                Button(
-                  onTap: widget.controller.reset,
+                _PreviewActionChip(
+                  onTap: () {
+                    _confirmAndRun(
+                      title: 'Reset schema?',
+                      message: 'This discards current edits and restores the initial schema.',
+                      confirmLabel: 'Reset schema',
+                      action: widget.controller.reset,
+                    );
+                  },
                   label: 'Reset',
-                  prefix: const Icon(Icons.history_rounded),
-                  type: ButtonType.outline,
+                  icon: Icons.history_rounded,
                 ),
-                Button(
-                  onTap: widget.controller.clearRootObject,
+                _PreviewActionChip(
+                  onTap: () {
+                    _confirmAndRun(
+                      title: 'Clear schema?',
+                      message:
+                          'This removes the current schema content and starts again with an empty root object.',
+                      confirmLabel: 'Clear schema',
+                      action: widget.controller.clearRootObject,
+                    );
+                  },
                   label: 'Clear',
-                  prefix: const Icon(Icons.layers_clear_rounded),
-                  type: ButtonType.outline,
+                  icon: Icons.layers_clear_rounded,
                 ),
               ],
             ),
-            const Gap(16),
+            const Gap(12),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 180),
               switchInCurve: Curves.easeOutCubic,
@@ -147,20 +192,46 @@ class _RawJsonSchemaView extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      constraints: const BoxConstraints(maxHeight: 360),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.55)),
       ),
-      child: SelectableText(
-        schema.toJsonString(pretty: true),
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          fontFamily: 'monospace',
-          height: 1.5,
-          color: colorScheme.onSurface,
+      child: Scrollbar(
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          child: SelectableText(
+            schema.toJsonString(pretty: true),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontFamily: 'monospace',
+              height: 1.4,
+              color: colorScheme.onSurface,
+            ),
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _PreviewActionChip extends StatelessWidget {
+  const _PreviewActionChip({required this.onTap, required this.label, required this.icon});
+
+  final VoidCallback onTap;
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      avatar: Icon(icon, size: 16),
+      label: Text(label),
+      onPressed: onTap,
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.7)),
     );
   }
 }

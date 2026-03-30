@@ -83,4 +83,33 @@ void main() {
     expect(find.text(r'$.flags[]'), findsOneWidget);
     expect(find.byType(Scrollable), findsNothing);
   });
+
+  testWidgets('renders object properties in configured order and hides internal order metadata', (
+    WidgetTester tester,
+  ) async {
+    final schema = JsonSchema({
+      'type': 'object',
+      'properties': {
+        'first': {'type': 'string', 'title': 'First'},
+        'second': {'type': 'string', 'title': 'Second'},
+        'third': {'type': 'string', 'title': 'Third'},
+      },
+      jsonSchemaObjectPropertyOrderExtensionKey: ['third', 'first', 'second'],
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: JsonSchemaVisualization(schema: schema)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final thirdY = tester.getTopLeft(find.text('Third')).dy;
+    final firstY = tester.getTopLeft(find.text('First')).dy;
+    final secondY = tester.getTopLeft(find.text('Second')).dy;
+
+    expect(thirdY, lessThan(firstY));
+    expect(firstY, lessThan(secondY));
+    expect(find.text(jsonSchemaObjectPropertyOrderExtensionKey), findsNothing);
+  });
 }

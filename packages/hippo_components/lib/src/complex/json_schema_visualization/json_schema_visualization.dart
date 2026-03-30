@@ -23,60 +23,19 @@ class JsonSchemaVisualization extends StatelessWidget {
     super.key,
     required this.schema,
     this.extensionOptions = JsonSchemaEditorExtensionOptions.none,
-    this.title,
-    this.showHeader = true,
-    this.showContainer = true,
   });
 
   final JsonSchema schema;
   final JsonSchemaEditorExtensionOptions extensionOptions;
-  final String? title;
-  final bool showHeader;
-  final bool showContainer;
 
   @override
   Widget build(BuildContext context) {
-    final rootNode = schema.node;
-    final headerTitle = title?.trim();
-    final content = SelectionArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (showHeader) ...[
-            Text(
-              headerTitle == null || headerTitle.isEmpty ? 'Schema Overview' : headerTitle,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const Gap(8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                _SchemaBadge(
-                  label: _typeLabel(rootNode.type),
-                  icon: _schemaTypeSpec(rootNode.type).icon,
-                  backgroundColor: _schemaTypeSpec(rootNode.type).accent.withValues(alpha: 0.14),
-                  foregroundColor: _schemaTypeSpec(rootNode.type).accent,
-                ),
-              ],
-            ),
-            const Gap(12),
-          ],
-          _JsonSchemaNodeCard(
-            node: rootNode,
-            path: const JsonSchemaPath.root(),
-            extensionOptions: extensionOptions,
-            isRoot: true,
-          ),
-        ],
-      ),
+    return _JsonSchemaNodeCard(
+      node: schema.node,
+      path: const JsonSchemaPath.root(),
+      extensionOptions: extensionOptions,
+      isRoot: true,
     );
-
-    if (!showContainer) {
-      return content;
-    }
-
-    return _SchemaSurface(padding: const EdgeInsets.all(12), child: content);
   }
 }
 

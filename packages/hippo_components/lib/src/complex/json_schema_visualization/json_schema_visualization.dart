@@ -650,34 +650,6 @@ class _SchemaEmptyState extends StatelessWidget {
   }
 }
 
-class _SchemaSurface extends StatelessWidget {
-  const _SchemaSurface({required this.child, required this.padding});
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.55)),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Padding(padding: padding, child: child),
-    );
-  }
-}
-
 class _SchemaTypeSpec {
   const _SchemaTypeSpec({required this.icon, required this.accent});
 

@@ -237,7 +237,6 @@ class _JsonSchemaViewerExamplePageState extends State<JsonSchemaViewerExamplePag
           final viewer = JsonSchemaVisualization(
             schema: sample.schema,
             extensionOptions: _extensionOptions,
-            title: sample.title,
           );
           final source = _SchemaSourceCard(schema: sample.schema);
 

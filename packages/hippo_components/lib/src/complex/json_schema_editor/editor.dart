@@ -7,6 +7,8 @@
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_property_card.dart';
@@ -33,10 +35,15 @@ String? _schemaTypeHelp(JsonSchemaNodeType type) {
 }
 
 const _jsonSchemaHelpByKeyword = {
+  'const': 'Require this schema to match one exact JSON value.',
   'default': 'Default value used when the field is not supplied.',
   'type': 'Type of JSON value this node validates.',
   'title': 'Optional human-readable name for this schema node.',
   'description': 'Optional description shown in docs and editor tooling.',
+  'allOf':
+      'Combine this schema with every schema listed here. The instance must satisfy all of them.',
+  'oneOf': 'Match exactly one schema from the listed alternatives.',
+  r'$ref': 'Reference another schema by JSON Pointer, URI, or external schema location.',
   'minLength': 'Minimum number of characters allowed in the string.',
   'maxLength': 'Maximum number of characters allowed in the string.',
   'pattern': 'Regular expression pattern the string must match.',
@@ -980,11 +987,50 @@ class _ExtensionNodeEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final keywordHelpText = _jsonSchemaHelpByKeyword[extensionKey];
+    final helpText = extensionField?.normalizedDescription ?? keywordHelpText;
+
+    switch (extensionKey) {
+      case 'const':
+        return Padding(
+          padding: const EdgeInsets.only(bottom: _editorSectionSpacing),
+          child: _JsonValueExtensionNodeField(
+            controller: controller,
+            path: path,
+            extensionKey: extensionKey,
+            extensionValue: extensionValue,
+            helpText: helpText,
+          ),
+        );
+      case 'allOf':
+      case 'oneOf':
+        return Padding(
+          padding: const EdgeInsets.only(bottom: _editorSectionSpacing),
+          child: _JsonArrayExtensionNodeField(
+            controller: controller,
+            path: path,
+            extensionKey: extensionKey,
+            extensionValue: extensionValue,
+            helpText: helpText,
+          ),
+        );
+      case r'$ref':
+        return Padding(
+          padding: const EdgeInsets.only(bottom: _editorSectionSpacing),
+          child: _StringExtensionNodeField(
+            controller: controller,
+            path: path,
+            extensionKey: extensionKey,
+            extensionValue: _extensionValueAsString(extensionValue),
+            helpText: helpText,
+          ),
+        );
+    }
+
     final fieldType = _resolveExtensionFieldType(
       extensionValue: extensionValue,
       configuredField: extensionField,
     );
-    final helpText = extensionField?.normalizedDescription;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: _editorSectionSpacing),
@@ -1019,6 +1065,73 @@ class _ExtensionNodeEditor extends StatelessWidget {
           helpText: helpText,
         ),
       },
+    );
+  }
+}
+
+class _JsonValueExtensionNodeField extends StatelessWidget {
+  const _JsonValueExtensionNodeField({
+    required this.controller,
+    required this.path,
+    required this.extensionKey,
+    required this.extensionValue,
+    this.helpText,
+  });
+
+  final JsonSchemaEditorController controller;
+  final JsonSchemaPath path;
+  final String extensionKey;
+  final Object? extensionValue;
+  final String? helpText;
+
+  @override
+  Widget build(BuildContext context) {
+    return _StringCapabilityField(
+      value: _jsonValueAsInput(extensionValue),
+      hint: '$extensionKey (JSON)',
+      helpText: helpText,
+      maxLines: extensionValue is Map || extensionValue is List ? 8 : 4,
+      onChanged: (next) => _updateJsonValue(
+        next,
+        (parsed) => controller.setNodeField(path: path, key: extensionKey, value: parsed),
+        () => controller.removeNodeField(path: path, key: extensionKey),
+      ),
+      onEmpty: () => controller.removeNodeField(path: path, key: extensionKey),
+      onRemove: () => controller.removeNodeField(path: path, key: extensionKey),
+    );
+  }
+}
+
+class _JsonArrayExtensionNodeField extends StatelessWidget {
+  const _JsonArrayExtensionNodeField({
+    required this.controller,
+    required this.path,
+    required this.extensionKey,
+    required this.extensionValue,
+    this.helpText,
+  });
+
+  final JsonSchemaEditorController controller;
+  final JsonSchemaPath path;
+  final String extensionKey;
+  final Object? extensionValue;
+  final String? helpText;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = extensionValue is List ? extensionValue : const <Object?>[];
+    return _StringCapabilityField(
+      value: _jsonValueAsInput(value),
+      hint: '$extensionKey (JSON array)',
+      helpText: helpText,
+      maxLines: 10,
+      onChanged: (next) => _updateJsonArray(
+        next,
+        (parsed) => controller.setNodeField(path: path, key: extensionKey, value: parsed),
+        () => controller.removeNodeField(path: path, key: extensionKey),
+      ),
+      onEmpty: () => controller.removeNodeField(path: path, key: extensionKey),
+      onRemove: () => controller.removeNodeField(path: path, key: extensionKey),
     );
   }
 }
@@ -2016,5 +2129,55 @@ List<String>? _readStringListFromText(String value) {
   return values;
 }
 
-/// TODO (v2): add support for `const`, `allOf` / `oneOf` / `$ref`
-/// and external schema references for full Draft-2020-12 authoring.
+String _jsonValueAsInput(Object? value) {
+  final normalized = _normalizeJsonEditorValue(value);
+  if (normalized is List || normalized is Map) {
+    return const JsonEncoder.withIndent('  ').convert(normalized);
+  }
+  return jsonEncode(normalized);
+}
+
+Object? _normalizeJsonEditorValue(Object? value) {
+  if (value is Map) {
+    final normalized = <String, Object?>{};
+    for (final entry in value.entries) {
+      normalized[entry.key.toString()] = _normalizeJsonEditorValue(entry.value);
+    }
+    return normalized;
+  }
+  if (value is List) {
+    return List<Object?>.unmodifiable(value.map(_normalizeJsonEditorValue));
+  }
+  return value;
+}
+
+void _updateJsonValue(
+  String value,
+  void Function(Object? value) onParsed,
+  void Function() onClear,
+) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    onClear();
+    return;
+  }
+  try {
+    onParsed(_normalizeJsonEditorValue(jsonDecode(trimmed)));
+  } on FormatException {
+    return;
+  }
+}
+
+void _updateJsonArray(
+  String value,
+  void Function(List<Object?> value) onParsed,
+  void Function() onClear,
+) {
+  _updateJsonValue(value, (parsed) {
+    final normalized = _normalizeJsonEditorValue(parsed);
+    if (normalized is! List) {
+      return;
+    }
+    onParsed(List<Object?>.unmodifiable(normalized));
+  }, onClear);
+}

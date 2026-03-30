@@ -180,12 +180,12 @@ sealed class JsonSchemaNode {
     yield JsonSchemaNodeVisit(node: this, path: startPath);
 
     switch (this) {
-      case JsonSchemaObjectNode():
-        for (final entry in orderedPropertyEntries) {
+      case final JsonSchemaObjectNode objectNode:
+        for (final entry in objectNode.orderedPropertyEntries) {
           yield* entry.value.traverse(startPath: startPath.childProperty(entry.key));
         }
-      case JsonSchemaArrayNode():
-        yield* items.traverse(startPath: startPath.childItems());
+      case final JsonSchemaArrayNode arrayNode:
+        yield* arrayNode.items.traverse(startPath: startPath.childItems());
       case JsonSchemaStringNode():
       case JsonSchemaNumberNode():
       case JsonSchemaBooleanNode():

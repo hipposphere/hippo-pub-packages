@@ -11,6 +11,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
+import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_editor_info_icon.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 bool _isInternalSchemaExtensionKey(String key) {
@@ -36,7 +37,6 @@ class JsonSchemaVisualization extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rootNode = schema.node;
-    final metrics = _JsonSchemaVisualizationMetrics.fromNode(rootNode);
     final headerTitle = title?.trim();
     final content = SelectionArea(
       child: Column(
@@ -58,32 +58,6 @@ class JsonSchemaVisualization extends StatelessWidget {
                   backgroundColor: _schemaTypeSpec(rootNode.type).accent.withValues(alpha: 0.14),
                   foregroundColor: _schemaTypeSpec(rootNode.type).accent,
                 ),
-                _SchemaBadge(
-                  label: '${metrics.nodeCount} nodes',
-                  icon: Icons.account_tree_rounded,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
-                  foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                if (metrics.propertyCount > 0)
-                  _SchemaBadge(
-                    label: '${metrics.propertyCount} properties',
-                    icon: Icons.data_object_rounded,
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.secondaryContainer.withValues(alpha: 0.65),
-                    foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
-                  ),
-                if (metrics.extensionCount > 0)
-                  _SchemaBadge(
-                    label: '${metrics.extensionCount} extensions',
-                    icon: Icons.extension_rounded,
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.tertiaryContainer.withValues(alpha: 0.65),
-                    foregroundColor: Theme.of(context).colorScheme.onTertiaryContainer,
-                  ),
               ],
             ),
             const Gap(12),
@@ -138,6 +112,10 @@ class _JsonSchemaNodeCard extends StatelessWidget {
         if (!_isInternalSchemaExtensionKey(field.key)) field.key.trim(): field,
     };
     final children = _childrenForNode(node, extensionOptions, path);
+    final objectNode = switch (node) {
+      JsonSchemaObjectNode objectNode => objectNode,
+      _ => null,
+    };
 
     return Container(
       decoration: BoxDecoration(
@@ -289,17 +267,19 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                 accent: spec.accent,
               ),
               const Gap(6),
-              ...sortedExtensions.map(
-                (entry) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: _SchemaExtensionCard(
-                    extensionKey: entry.key,
-                    extensionValue: entry.value,
-                    description: configuredExtensions[entry.key.trim()]?.normalizedDescription,
-                    isConfigured: configuredExtensions.containsKey(entry.key.trim()),
-                    accent: spec.accent,
-                  ),
-                ),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: sortedExtensions
+                    .map(
+                      (entry) => _SchemaExtensionPill(
+                        extensionKey: entry.key,
+                        extensionValue: entry.value,
+                        description: configuredExtensions[entry.key.trim()]?.normalizedDescription,
+                        accent: spec.accent,
+                      ),
+                    )
+                    .toList(),
               ),
             ],
             if (children.isNotEmpty) ...[
@@ -310,6 +290,34 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                     ? Icons.view_stream_rounded
                     : Icons.data_object_rounded,
                 accent: spec.accent,
+                trailing: objectNode != null
+                    ? [
+                        _SectionMetaBadge(
+                          key: const ValueKey('section-meta-Properties-properties'),
+                          icon: Icons.data_object_rounded,
+                          label: objectNode.properties.length.toString(),
+                          tooltip: '${objectNode.properties.length} properties',
+                          accent: spec.accent,
+                        ),
+                        _SectionMetaBadge(
+                          key: const ValueKey('section-meta-Properties-required'),
+                          icon: Icons.star_rounded,
+                          label: objectNode.required.length.toString(),
+                          tooltip: '${objectNode.required.length} required properties',
+                          accent: spec.accent,
+                        ),
+                        _SectionMetaBadge(
+                          key: const ValueKey('section-meta-Properties-additional'),
+                          icon: objectNode.additionalProperties
+                              ? Icons.lock_open_rounded
+                              : Icons.lock_rounded,
+                          tooltip: objectNode.additionalProperties
+                              ? 'Additional properties allowed'
+                              : 'Additional properties blocked',
+                          accent: spec.accent,
+                        ),
+                      ]
+                    : const [],
               ),
               const Gap(8),
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
@@ -359,93 +367,87 @@ class _JsonSchemaNodeCard extends StatelessWidget {
   }
 }
 
-class _SchemaExtensionCard extends StatelessWidget {
-  const _SchemaExtensionCard({
+class _SchemaExtensionPill extends StatelessWidget {
+  const _SchemaExtensionPill({
     required this.extensionKey,
     required this.extensionValue,
     required this.description,
-    required this.isConfigured,
     required this.accent,
   });
 
   final String extensionKey;
   final Object? extensionValue;
   final String? description;
-  final bool isConfigured;
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final valueText = _stringifySchemaValue(extensionValue);
+    final valueText = _previewSchemaValue(extensionValue);
+    final infoMessage = _schemaValueInfoMessage(
+      value: extensionValue,
+      preview: valueText,
+      description: description,
+    );
     final useCodeStyle =
         extensionValue is Map ||
         extensionValue is List ||
         extensionValue is num ||
-        extensionValue is bool ||
-        valueText.contains('\n');
+        extensionValue is bool;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: accent.withValues(alpha: 0.14)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _SchemaBadge(
-                label: extensionKey,
-                icon: Icons.extension_rounded,
-                backgroundColor: accent.withValues(alpha: 0.14),
-                foregroundColor: accent,
-                monospace: true,
-              ),
-              _SchemaBadge(
-                label: isConfigured ? 'configured' : 'custom',
-                icon: isConfigured ? Icons.tune_rounded : Icons.auto_awesome_rounded,
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
-                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ],
-          ),
-          if (description != null && description!.trim().isNotEmpty) ...[
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 320),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: accent.withValues(alpha: 0.12)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.extension_rounded, size: 13, color: accent),
             const Gap(6),
-            Text(
-              description!.trim(),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                height: 1.25,
+            Flexible(
+              child: RichText(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: extensionKey,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                    TextSpan(
+                      text: ': ',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    TextSpan(
+                      text: valueText,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: useCodeStyle ? 'monospace' : null,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
+            if (infoMessage != null) ...[
+              const Gap(4),
+              JsonSchemaEditorInfoIcon(message: infoMessage, size: 13),
+            ],
           ],
-          const Gap(6),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              valueText,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontFamily: useCodeStyle ? 'monospace' : null,
-                color: theme.colorScheme.onSurface,
-                height: 1.3,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -470,37 +472,47 @@ class _SchemaDetailTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: accent.withValues(alpha: 0.12)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: accent),
-          const Gap(6),
-          Text(
-            '$label:',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const Gap(4),
-          Flexible(
-            child: Text(
-              value,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontFamily: monospace ? 'monospace' : null,
-                height: 1.2,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 260),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: accent.withValues(alpha: 0.12)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: accent),
+            const Gap(6),
+            Flexible(
+              child: RichText(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '$label: ',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    TextSpan(
+                      text: value,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: monospace ? 'monospace' : null,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -512,45 +524,101 @@ class _SectionHeading extends StatelessWidget {
     required this.icon,
     required this.accent,
     this.count,
+    this.trailing = const [],
   });
 
   final String label;
   final IconData icon;
   final Color accent;
   final int? count;
+  final List<Widget> trailing;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Icon(icon, size: 16, color: accent),
-        const Gap(6),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: accent),
+            const Gap(6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            if (count != null) ...[
+              const Gap(6),
+              Container(
+                key: ValueKey('section-count-$label'),
+                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: accent.withValues(alpha: 0.2)),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: accent, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ],
         ),
-        if (count != null) ...[
-          const Gap(6),
-          Container(
-            key: ValueKey('section-count-$label'),
-            constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: accent.withValues(alpha: 0.2)),
-            ),
-            child: Text(
-              count.toString(),
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: accent, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
+        ...trailing,
       ],
+    );
+  }
+}
+
+class _SectionMetaBadge extends StatelessWidget {
+  const _SectionMetaBadge({
+    required this.icon,
+    required this.tooltip,
+    required this.accent,
+    this.label,
+    super.key,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final Color accent;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: label == null ? 7 : 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: accent.withValues(alpha: 0.12)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: accent),
+            if (label != null) ...[
+              const Gap(4),
+              Text(
+                label!,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -649,46 +717,6 @@ class _SchemaSurface extends StatelessWidget {
       child: Padding(padding: padding, child: child),
     );
   }
-}
-
-class _JsonSchemaVisualizationMetrics {
-  const _JsonSchemaVisualizationMetrics({
-    required this.nodeCount,
-    required this.propertyCount,
-    required this.extensionCount,
-  });
-
-  factory _JsonSchemaVisualizationMetrics.fromNode(JsonSchemaNode root) {
-    var nodeCount = 0;
-    var propertyCount = 0;
-    var extensionCount = 0;
-
-    void visit(JsonSchemaNode node) {
-      nodeCount += 1;
-      extensionCount += node.extensions.keys
-          .where((key) => !_isInternalSchemaExtensionKey(key))
-          .length;
-      if (node is JsonSchemaObjectNode) {
-        propertyCount += node.properties.length;
-        for (final child in node.orderedPropertyEntries.map((entry) => entry.value)) {
-          visit(child);
-        }
-      } else if (node is JsonSchemaArrayNode) {
-        visit(node.items);
-      }
-    }
-
-    visit(root);
-    return _JsonSchemaVisualizationMetrics(
-      nodeCount: nodeCount,
-      propertyCount: propertyCount,
-      extensionCount: extensionCount,
-    );
-  }
-
-  final int nodeCount;
-  final int propertyCount;
-  final int extensionCount;
 }
 
 class _SchemaTypeSpec {
@@ -835,23 +863,7 @@ List<_SchemaDetail> _detailsForNode(JsonSchemaNode node) {
           monospace: true,
         ),
     ],
-    JsonSchemaObjectNode() => [
-      _SchemaDetail(
-        label: 'Properties',
-        value: node.properties.length.toString(),
-        icon: Icons.data_object_rounded,
-      ),
-      _SchemaDetail(
-        label: 'Required',
-        value: node.required.length.toString(),
-        icon: Icons.star_rounded,
-      ),
-      _SchemaDetail(
-        label: 'Additional props',
-        value: node.additionalProperties ? 'allowed' : 'blocked',
-        icon: node.additionalProperties ? Icons.lock_open_rounded : Icons.lock_rounded,
-      ),
-    ],
+    JsonSchemaObjectNode() => const [],
     JsonSchemaArrayNode() => [
       if (node.minItems != null)
         _SchemaDetail(
@@ -884,6 +896,58 @@ String _formatNumber(num? value) {
     return value.toInt().toString();
   }
   return value.toString();
+}
+
+String _previewSchemaValue(Object? value) {
+  if (value == null || value is num || value is bool) {
+    return _stringifySchemaValue(value);
+  }
+  if (value is String) {
+    final singleLine = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (singleLine.length <= 36) {
+      return singleLine;
+    }
+    return '${singleLine.substring(0, 35)}…';
+  }
+  if (value is List) {
+    if (value.isEmpty) {
+      return '[]';
+    }
+    return 'List (${value.length})';
+  }
+  if (value is Map) {
+    if (value.isEmpty) {
+      return '{}';
+    }
+    return 'Object (${value.length})';
+  }
+  final text = value.toString().trim();
+  if (text.length <= 36) {
+    return text;
+  }
+  return '${text.substring(0, 35)}…';
+}
+
+String? _schemaValueInfoMessage({
+  required Object? value,
+  required String preview,
+  String? description,
+}) {
+  final sections = <String>[];
+  final trimmedDescription = description?.trim();
+  if (trimmedDescription != null && trimmedDescription.isNotEmpty) {
+    sections.add(trimmedDescription);
+  }
+
+  final fullValue = _stringifySchemaValue(value);
+  if (fullValue != preview) {
+    sections.add('Value: $fullValue');
+  }
+
+  if (sections.isEmpty) {
+    return null;
+  }
+  return sections.join('\n\n');
 }
 
 String _stringifySchemaValue(Object? value) {

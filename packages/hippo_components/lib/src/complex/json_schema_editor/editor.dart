@@ -9,10 +9,12 @@
 */
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
+import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_property_card.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 import 'widgets/json_schema_editor_info_icon.dart';
 import 'widgets/json_schema_editor_text_field.dart';
+import 'widgets/json_schema_object_property_header.dart';
 import 'widgets/json_schema_validation_panel.dart';
 
 bool _isInternalSchemaExtensionKey(String key) {
@@ -129,25 +131,23 @@ class _CompactBooleanOption extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.helpText,
-    this.dense = false,
   });
 
   final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
   final String? helpText;
-  final bool dense;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final borderRadius = BorderRadius.circular(dense ? 10 : 12);
+    final borderRadius = BorderRadius.circular(12);
 
     return InkWell(
       borderRadius: borderRadius,
       onTap: () => onChanged(!value),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: dense ? 8 : 8, vertical: dense ? 4 : 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
           color: value
               ? colorScheme.primaryContainer.withValues(alpha: 0.75)
@@ -164,21 +164,14 @@ class _CompactBooleanOption extends StatelessWidget {
           children: [
             Checkbox(
               value: value,
-              visualDensity: dense
-                  ? const VisualDensity(horizontal: -3, vertical: -3)
-                  : VisualDensity.compact,
+              visualDensity: VisualDensity.compact,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               onChanged: (next) => onChanged(next ?? false),
             ),
-            Text(
-              label,
-              style: dense
-                  ? Theme.of(context).textTheme.labelSmall
-                  : Theme.of(context).textTheme.bodySmall,
-            ),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
             if (helpText != null) ...[
               const Gap(4),
-              JsonSchemaEditorInfoIcon(message: helpText, size: dense ? 12 : 14),
+              JsonSchemaEditorInfoIcon(message: helpText, size: 14),
             ],
           ],
         ),
@@ -192,21 +185,19 @@ class _EditorActionIconButton extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     required this.tooltip,
-    this.dense = false,
   });
 
   final IconData icon;
   final VoidCallback? onPressed;
   final String tooltip;
-  final bool dense;
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
       tooltip: tooltip,
-      icon: Icon(icon, size: dense ? 18 : 18),
+      icon: Icon(icon, size: 18),
       visualDensity: VisualDensity.compact,
-      constraints: BoxConstraints(minWidth: dense ? 36 : 32, minHeight: dense ? 36 : 32),
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       onPressed: onPressed,
     );
   }
@@ -296,9 +287,10 @@ class JsonSchemaEditor extends StatelessWidget {
                     path: const JsonSchemaPath.root(),
                     diagnostics: diagnostics,
                     compactMode: compactMode,
+                    showContainer: false,
                   ),
                 ),
-                SliverGap(16),
+                SliverGap(256),
               ],
             );
           },
@@ -1770,135 +1762,39 @@ class _ObjectNodeEditor extends StatelessWidget {
             final propertyWarnings = diagnostics
                 .where((item) => item.path == propertyPath)
                 .toList();
-            final propertyHeader = LayoutBuilder(
-              builder: (context, constraints) {
-                final isDesktop = constraints.maxWidth >= 760;
-                final trailingChildren = <Widget>[
-                  _NodeTypeDropdown(
-                    value: propertyNode.type,
-                    compact: true,
-                    onChanged: (value) {
-                      final nextType = value;
-                      if (nextType == null) {
-                        return;
-                      }
-                      controller.replaceNode(
-                        path: propertyPath,
-                        node: _defaultNodeForTypePreservingMetadata(propertyNode, nextType),
-                      );
-                    },
-                  ),
-                  _CompactBooleanOption(
-                    label: 'Required',
-                    value: required,
-                    helpText: _jsonSchemaHelpByKeyword['required'],
-                    dense: isDesktop,
-                    onChanged: (nextRequired) => controller.setRequired(
-                      objectPath: path,
-                      key: entry.key,
-                      required: nextRequired,
-                    ),
-                  ),
-                  _EditorActionIconButton(
-                    tooltip: 'Move property up',
-                    icon: Icons.arrow_upward_rounded,
-                    dense: isDesktop,
-                    onPressed: index == 0
-                        ? null
-                        : () => controller.movePropertyUp(objectPath: path, key: entry.key),
-                  ),
-                  _EditorActionIconButton(
-                    tooltip: 'Move property down',
-                    icon: Icons.arrow_downward_rounded,
-                    dense: isDesktop,
-                    onPressed: index == propertyEntries.length - 1
-                        ? null
-                        : () => controller.movePropertyDown(objectPath: path, key: entry.key),
-                  ),
-                  _EditorActionIconButton(
-                    tooltip: 'Remove property',
-                    icon: Icons.delete_outline,
-                    dense: isDesktop,
-                    onPressed: () => controller.removeProperty(objectPath: path, key: entry.key),
-                  ),
-                ];
-                final trailingRow = isDesktop
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          for (var i = 0; i < trailingChildren.length; i++) ...[
-                            trailingChildren[i],
-                            if (i < trailingChildren.length - 1) const Gap(4),
-                          ],
-                        ],
-                      )
-                    : Wrap(
-                        spacing: 4,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: trailingChildren,
-                      );
-
-                final propertyKeyField = JsonSchemaEditorTextField(
-                  value: entry.key,
-                  hint: 'Property key',
-                  helpText: _jsonSchemaHelpByKeyword['propertyKey'],
-                  onChanged: (value) {
-                    final nextKey = value.trim();
-                    if (nextKey.isEmpty || nextKey == entry.key) {
-                      return;
-                    }
-                    controller.renameProperty(
-                      objectPath: path,
-                      currentKey: entry.key,
-                      nextKey: nextKey,
-                    );
-                  },
-                  debounceDelay: const Duration(milliseconds: 450),
-                  onSubmitted: (value) {
-                    final nextKey = value.trim();
-                    if (nextKey.isEmpty || nextKey == entry.key) {
-                      return;
-                    }
-                    controller.renameProperty(
-                      objectPath: path,
-                      currentKey: entry.key,
-                      nextKey: nextKey,
-                    );
-                  },
-                  onCleared: () {},
-                );
-
-                if (isDesktop) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(child: propertyKeyField),
-                      const Gap(8),
-                      trailingRow,
-                    ],
-                  );
-                }
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [propertyKeyField, const Gap(6), trailingRow],
-                );
-              },
+            final propertyHeader = JsonSchemaObjectPropertyHeader(
+              propertyKey: entry.key,
+              nodeType: propertyNode.type,
+              required: required,
+              propertyKeyHelpText: _jsonSchemaHelpByKeyword['propertyKey'],
+              requiredHelpText: _jsonSchemaHelpByKeyword['required'],
+              onPropertyKeyChanged: (nextKey) => controller.renameProperty(
+                objectPath: path,
+                currentKey: entry.key,
+                nextKey: nextKey,
+              ),
+              onTypeChanged: (nextType) => controller.replaceNode(
+                path: propertyPath,
+                node: _defaultNodeForTypePreservingMetadata(propertyNode, nextType),
+              ),
+              onRequiredChanged: (nextRequired) =>
+                  controller.setRequired(objectPath: path, key: entry.key, required: nextRequired),
+              onMoveUp: index == 0
+                  ? null
+                  : () => controller.movePropertyUp(objectPath: path, key: entry.key),
+              onMoveDown: index == propertyEntries.length - 1
+                  ? null
+                  : () => controller.movePropertyDown(objectPath: path, key: entry.key),
+              onRemove: () => controller.removeProperty(objectPath: path, key: entry.key),
             );
 
-            final propertyDetails = Container(
-              key: ValueKey('property-card-${entry.key}'),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerLowest.withValues(alpha: 0.65),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.8)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            return Padding(
+              padding: EdgeInsets.only(bottom: 16.0),
+              child: JsonSchemaPropertyCard(
+                key: ValueKey('property-card-${entry.key}'),
                 children: [
+                  propertyHeader,
+                  Gap(12),
                   if (propertyWarnings.isNotEmpty) ...[
                     ...propertyWarnings.map(
                       (item) => JsonSchemaWarningBadge(message: item.message),
@@ -1919,16 +1815,8 @@ class _ObjectNodeEditor extends StatelessWidget {
                 ],
               ),
             );
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [propertyHeader, Gap(4), propertyDetails, Gap(16)],
-              ),
-            );
           }),
-        Gap(8),
+        Gap(16),
         if (showStructure)
           Button(
             onTap: () {

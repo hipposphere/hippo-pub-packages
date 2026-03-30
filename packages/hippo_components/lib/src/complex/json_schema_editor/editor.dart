@@ -640,11 +640,13 @@ class _ExtensionRowData {
 
 class _CapabilityOption {
   const _CapabilityOption({
+    required this.icon,
     required this.label,
     required this.description,
     required this.onSelected,
   });
 
+  final IconData icon;
   final String label;
   final String description;
   final Future<void> Function(BuildContext context) onSelected;
@@ -661,43 +663,46 @@ Future<void> _showAddCapabilityDialog({
   final sortedOptions = options.toList(growable: false)
     ..sort((left, right) => left.label.compareTo(right.label));
 
-  await showDialog<void>(
-    context: context,
-    builder: (dialogContext) {
-      return AlertDialog(
+  final modal = AdaptiveCupertinoModal(
+    barrierDismissible: true,
+    builder: (dialogContext, isDesktop) {
+      final colorScheme = Theme.of(dialogContext).colorScheme;
+
+      return CupertinoModalPageContainer(
         title: const Text('Add capability'),
-        content: SizedBox(
-          width: 420,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final option in sortedOptions)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(option.label),
-                    subtitle: Text(option.description),
-                    onTap: () {
-                      Navigator.of(dialogContext).pop();
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        option.onSelected(context);
-                      });
-                    },
-                  ),
-              ],
-            ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: ListView.builder(
+            padding: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, 0, isDesktop ? 24 : 16, 8),
+            itemCount: sortedOptions.length,
+            itemBuilder: (context, index) {
+              final option = sortedOptions[index];
+              return Tile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                showArrowIndicator: true,
+                leading: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: colorScheme.secondaryContainer,
+                  foregroundColor: colorScheme.onSecondaryContainer,
+                  child: Icon(option.icon, size: 18),
+                ),
+                title: Text(option.label),
+                subtitle: Text(option.description),
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    option.onSelected(context);
+                  });
+                },
+              );
+            },
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Close'),
-          ),
-        ],
       );
     },
   );
+
+  await modal.show<void>(context);
 }
 
 List<_CapabilityOption> _availableCapabilityOptions({
@@ -725,6 +730,7 @@ List<_CapabilityOption> _availableCapabilityOptions({
   if (controller.extensionOptions.allowAddExtensions) {
     options.add(
       _CapabilityOption(
+        icon: Icons.extension_rounded,
         label: 'Custom extension',
         description: 'Add a custom schema extension key/value entry.',
         onSelected: (context) => _showCustomExtensionDialog(
@@ -793,6 +799,7 @@ List<_CapabilityOption> _extensionCapabilityOptions({
     }
     options.add(
       _CapabilityOption(
+        icon: Icons.extension_rounded,
         label: key,
         description: field.normalizedDescription ?? 'Configured schema extension.',
         onSelected: (context) async {
@@ -814,6 +821,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
     JsonSchemaStringNode() => [
       if (featureOptions.stringMinLength && node.minLength == null)
         _CapabilityOption(
+          icon: Icons.straighten_rounded,
           label: 'Min length',
           description: _jsonSchemaHelpByKeyword['minLength']!,
           onSelected: (context) async => controller.updateNode(
@@ -823,6 +831,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
       if (featureOptions.stringMaxLength && node.maxLength == null)
         _CapabilityOption(
+          icon: Icons.width_normal_rounded,
           label: 'Max length',
           description: _jsonSchemaHelpByKeyword['maxLength']!,
           onSelected: (context) async => controller.updateNode(
@@ -832,6 +841,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
       if (featureOptions.stringPattern && (node.pattern == null || node.pattern!.trim().isEmpty))
         _CapabilityOption(
+          icon: Icons.pattern_rounded,
           label: 'Pattern',
           description: _jsonSchemaHelpByKeyword['pattern']!,
           onSelected: (context) async => controller.updateNode(
@@ -841,6 +851,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
       if (featureOptions.stringEnum && node.enumValues == null)
         _CapabilityOption(
+          icon: Icons.list_alt_rounded,
           label: 'Enum',
           description: _jsonSchemaHelpByKeyword['enum']!,
           onSelected: (context) async => controller.updateNode(
@@ -852,6 +863,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
     JsonSchemaNumberNode() => [
       if (featureOptions.numberMinimum && node.minimum == null)
         _CapabilityOption(
+          icon: Icons.exposure_neg_1_rounded,
           label: 'Minimum',
           description: _jsonSchemaHelpByKeyword['minimum']!,
           onSelected: (context) async => controller.updateNode(
@@ -861,6 +873,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
       if (featureOptions.numberMaximum && node.maximum == null)
         _CapabilityOption(
+          icon: Icons.exposure_plus_1_rounded,
           label: 'Maximum',
           description: _jsonSchemaHelpByKeyword['maximum']!,
           onSelected: (context) async => controller.updateNode(
@@ -870,6 +883,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
       if (featureOptions.numberExclusiveMinimum && node.exclusiveMinimum == null)
         _CapabilityOption(
+          icon: Icons.chevron_left_rounded,
           label: 'Exclusive min',
           description: _jsonSchemaHelpByKeyword['exclusiveMinimum']!,
           onSelected: (context) async => controller.updateNode(
@@ -879,6 +893,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
       if (featureOptions.numberExclusiveMaximum && node.exclusiveMaximum == null)
         _CapabilityOption(
+          icon: Icons.chevron_right_rounded,
           label: 'Exclusive max',
           description: _jsonSchemaHelpByKeyword['exclusiveMaximum']!,
           onSelected: (context) async => controller.updateNode(
@@ -888,6 +903,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
       if (featureOptions.numberMultipleOf && node.multipleOf == null)
         _CapabilityOption(
+          icon: Icons.percent_rounded,
           label: 'Multiple of',
           description: _jsonSchemaHelpByKeyword['multipleOf']!,
           onSelected: (context) async => controller.updateNode(
@@ -899,6 +915,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
     JsonSchemaBooleanNode() => [
       if (node.defaultValue == null)
         _CapabilityOption(
+          icon: Icons.toggle_on_rounded,
           label: 'Default',
           description: _jsonSchemaHelpByKeyword['default']!,
           onSelected: (context) async => controller.updateNode(
@@ -910,6 +927,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
     JsonSchemaObjectNode() => [
       if (featureOptions.objectAdditionalProperties && node.additionalProperties)
         _CapabilityOption(
+          icon: Icons.data_object_rounded,
           label: 'Additional properties',
           description: _jsonSchemaHelpByKeyword['additionalProperties']!,
           onSelected: (context) async => controller.updateNode(
@@ -921,6 +939,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
     JsonSchemaArrayNode() => [
       if (featureOptions.arrayMinItems && node.minItems == null)
         _CapabilityOption(
+          icon: Icons.format_list_numbered_rounded,
           label: 'Min items',
           description: _jsonSchemaHelpByKeyword['minItems']!,
           onSelected: (context) async => controller.updateNode(
@@ -930,6 +949,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
       if (featureOptions.arrayMaxItems && node.maxItems == null)
         _CapabilityOption(
+          icon: Icons.format_list_numbered_rtl_rounded,
           label: 'Max items',
           description: _jsonSchemaHelpByKeyword['maxItems']!,
           onSelected: (context) async => controller.updateNode(
@@ -939,6 +959,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
       if (featureOptions.arrayUniqueItems && node.uniqueItems == null)
         _CapabilityOption(
+          icon: Icons.fingerprint_rounded,
           label: 'Unique items',
           description: _jsonSchemaHelpByKeyword['uniqueItems']!,
           onSelected: (context) async => controller.updateNode(

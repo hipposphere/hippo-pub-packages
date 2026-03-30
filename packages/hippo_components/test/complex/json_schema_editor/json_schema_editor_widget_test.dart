@@ -128,8 +128,12 @@ void main() {
 
     expect(find.text('Enum'), findsOneWidget);
     expect(find.text('x-token'), findsOneWidget);
+    expect(find.byType(CircleAvatar), findsWidgets);
 
-    await tester.tap(find.text('x-token'));
+    final extensionTile = find.widgetWithText(Tile, 'x-token');
+    await tester.ensureVisible(extensionTile);
+    await tester.tap(extensionTile);
+    await tester.pump(const Duration(seconds: 1));
     await tester.pumpAndSettle();
 
     expect(find.text('Extensions'), findsNothing);
@@ -139,7 +143,10 @@ void main() {
 
     await tester.tap(find.text('Add capability'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Enum'));
+    final enumTile = find.widgetWithText(Tile, 'Enum');
+    await tester.ensureVisible(enumTile);
+    await tester.tap(enumTile);
+    await tester.pump(const Duration(seconds: 1));
     await tester.pumpAndSettle();
 
     expect(find.text('Enum (comma/line list)'), findsOneWidget);
@@ -162,7 +169,10 @@ void main() {
 
     await tester.tap(find.text('Add capability'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Enum'));
+    final enumTile = find.widgetWithText(Tile, 'Enum');
+    await tester.ensureVisible(enumTile);
+    await tester.tap(enumTile);
+    await tester.pump(const Duration(seconds: 1));
     await tester.pumpAndSettle();
 
     final enumField = find.byWidgetPredicate(

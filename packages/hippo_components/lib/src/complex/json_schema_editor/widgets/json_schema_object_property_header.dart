@@ -55,7 +55,9 @@ class JsonSchemaObjectPropertyHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isDesktop = constraints.maxWidth >= 760;
+        final isWide = constraints.maxWidth >= 760;
+        final useInlineLayout = constraints.maxWidth >= 460;
+        final propertyKeyWidth = isWide ? 280.0 : 190.0;
         final trailingChildren = <Widget>[
           _NodeTypeDropdown(
             value: nodeType,
@@ -70,29 +72,29 @@ class JsonSchemaObjectPropertyHeader extends StatelessWidget {
             label: 'Required',
             value: required,
             helpText: requiredHelpText,
-            dense: isDesktop,
+            dense: useInlineLayout,
             onChanged: onRequiredChanged,
           ),
           _EditorActionIconButton(
             tooltip: 'Move property up',
             icon: Icons.arrow_upward_rounded,
-            dense: isDesktop,
+            dense: useInlineLayout,
             onPressed: onMoveUp,
           ),
           _EditorActionIconButton(
             tooltip: 'Move property down',
             icon: Icons.arrow_downward_rounded,
-            dense: isDesktop,
+            dense: useInlineLayout,
             onPressed: onMoveDown,
           ),
           _EditorActionIconButton(
             tooltip: 'Remove property',
             icon: Icons.delete_outline,
-            dense: isDesktop,
+            dense: useInlineLayout,
             onPressed: onRemove,
           ),
         ];
-        final trailing = isDesktop
+        final trailing = isWide
             ? Row(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -120,13 +122,15 @@ class JsonSchemaObjectPropertyHeader extends StatelessWidget {
           onCleared: () {},
         );
 
-        if (isDesktop) {
+        if (useInlineLayout) {
           return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: propertyKeyField),
+              SizedBox(width: propertyKeyWidth, child: propertyKeyField),
               const Gap(8),
-              trailing,
+              Expanded(
+                child: Align(alignment: Alignment.centerLeft, child: trailing),
+              ),
             ],
           );
         }

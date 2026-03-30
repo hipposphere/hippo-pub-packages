@@ -70,6 +70,25 @@ class _JsonSchemaNodeCard extends StatelessWidget {
       for (final field in extensionOptions.extensionsForNodeType(node.type))
         if (!_isInternalSchemaExtensionKey(field.key)) field.key.trim(): field,
     };
+    final capabilityItems = <Widget>[
+      ...details.map(
+        (detail) => _SchemaDetailTile(
+          label: detail.label,
+          value: detail.value,
+          icon: detail.icon,
+          accent: spec.accent,
+          monospace: detail.monospace,
+        ),
+      ),
+      ...sortedExtensions.map(
+        (entry) => _SchemaExtensionPill(
+          extensionKey: entry.key,
+          extensionValue: entry.value,
+          description: configuredExtensions[entry.key.trim()]?.normalizedDescription,
+          accent: spec.accent,
+        ),
+      ),
+    ];
     final children = _childrenForNode(node, extensionOptions, path);
     final objectNode = switch (node) {
       JsonSchemaObjectNode objectNode => objectNode,
@@ -173,23 +192,9 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (details.isNotEmpty) ...[
+            if (capabilityItems.isNotEmpty) ...[
               const Gap(10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: details
-                    .map(
-                      (detail) => _SchemaDetailTile(
-                        label: detail.label,
-                        value: detail.value,
-                        icon: detail.icon,
-                        accent: spec.accent,
-                        monospace: detail.monospace,
-                      ),
-                    )
-                    .toList(),
-              ),
+              Wrap(spacing: 6, runSpacing: 6, children: capabilityItems),
             ],
             if (node case JsonSchemaStringNode(
               enumValues: final enumValues?,
@@ -213,29 +218,6 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                         backgroundColor: spec.accent.withValues(alpha: 0.10),
                         foregroundColor: spec.accent,
                         monospace: true,
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
-            if (sortedExtensions.isNotEmpty) ...[
-              const Gap(10),
-              _SectionHeading(
-                label: 'Extensions',
-                icon: Icons.extension_rounded,
-                accent: spec.accent,
-              ),
-              const Gap(6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: sortedExtensions
-                    .map(
-                      (entry) => _SchemaExtensionPill(
-                        extensionKey: entry.key,
-                        extensionValue: entry.value,
-                        description: configuredExtensions[entry.key.trim()]?.normalizedDescription,
-                        accent: spec.accent,
                       ),
                     )
                     .toList(),

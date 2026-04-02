@@ -1,60 +1,41 @@
-import 'package:hid_api/hid_api.dart';
+import 'package:hid_device_manager/hid_device_manager.dart';
+
+import 'devices/foot_control_device.dart';
+import 'devices/powermic_3_device.dart';
+import 'devices/speechmike_gamepad_device.dart';
+import 'devices/speechmike_hid_device.dart';
+import 'dictation_device.dart';
 import 'enums.dart';
 
-class DeviceFilter {
-  final int? vendorId;
-  final int? productId;
-  final int? usagePage;
-  final int? usage;
+typedef DeviceFilter = HidDeviceMatcher;
 
-  const DeviceFilter({
-    this.vendorId,
-    this.productId,
-    this.usagePage,
-    this.usage,
-  });
-
-  bool matches(HidDeviceInfo info) {
-    if (vendorId != null && info.vendorId != vendorId) return false;
-    if (productId != null && info.productId != productId) return false;
-    if (usagePage != null && info.usagePage != usagePage) return false;
-    if (usage != null && info.usage != usage) return false;
-    return true;
-  }
-}
-
-const Map<ImplementationType, List<DeviceFilter>> deviceFilters = {
+const Map<ImplementationType, List<HidDeviceMatcher>> deviceFilters = {
   ImplementationType.speechMikeHid: [
-    // Wired SpeechMikes (LFH35xx, LFH36xx, SMP37xx, SMP38xx) in HID mode
-    DeviceFilter(
+    HidDeviceMatcher(
       vendorId: 0x0911,
       productId: 0x0c1c,
       usagePage: 65440,
       usage: 1,
     ),
-    // SpeechMike Premium Air (SMP40xx) in HID mode
-    DeviceFilter(
+    HidDeviceMatcher(
       vendorId: 0x0911,
       productId: 0x0c1d,
       usagePage: 65440,
       usage: 1,
     ),
-    // SpeechOne (PSM6000) or SpeechMike Ambient (PSM5000) in HID or Browser/Gamepad mode
-    DeviceFilter(
+    HidDeviceMatcher(
       vendorId: 0x0911,
       productId: 0x0c1e,
       usagePage: 65440,
       usage: 1,
     ),
-    // All SpeechMikes in Browser/Gamepad mode
-    DeviceFilter(
+    HidDeviceMatcher(
       vendorId: 0x0911,
       productId: 0x0fa0,
       usagePage: 65440,
       usage: 1,
     ),
-    // PowerMic IV in HID or Browser/Gamepad mode
-    DeviceFilter(
+    HidDeviceMatcher(
       vendorId: 0x0554,
       productId: 0x0064,
       usagePage: 65440,
@@ -62,22 +43,46 @@ const Map<ImplementationType, List<DeviceFilter>> deviceFilters = {
     ),
   ],
   ImplementationType.speechMikeGamepad: [
-    // All SpeechMikes in Browser/Gamepad mode
-    DeviceFilter(vendorId: 0x0911, productId: 0x0fa0, usagePage: 1, usage: 4),
-    // SpeechOne (PSM6000) or SpeechMike Ambient (PSM5000) in Browser/Gamepad mode
-    DeviceFilter(vendorId: 0x0911, productId: 0x0c1e, usagePage: 1, usage: 4),
-    // PowerMic IV in Browser/Gamepad mode
-    DeviceFilter(vendorId: 0x0554, productId: 0x0064, usagePage: 1, usage: 4),
+    HidDeviceMatcher(
+      vendorId: 0x0911,
+      productId: 0x0fa0,
+      usagePage: 1,
+      usage: 4,
+    ),
+    HidDeviceMatcher(
+      vendorId: 0x0911,
+      productId: 0x0c1e,
+      usagePage: 1,
+      usage: 4,
+    ),
+    HidDeviceMatcher(
+      vendorId: 0x0554,
+      productId: 0x0064,
+      usagePage: 1,
+      usage: 4,
+    ),
   ],
   ImplementationType.footControl: [
-    // 3-pedal Foot control ACC2310/2320
-    DeviceFilter(vendorId: 0x0911, productId: 0x1844, usagePage: 1, usage: 4),
-    // 4-pedal Foot control ACC2330
-    DeviceFilter(vendorId: 0x0911, productId: 0x091a, usagePage: 1, usage: 4),
+    HidDeviceMatcher(
+      vendorId: 0x0911,
+      productId: 0x1844,
+      usagePage: 1,
+      usage: 4,
+    ),
+    HidDeviceMatcher(
+      vendorId: 0x0911,
+      productId: 0x091a,
+      usagePage: 1,
+      usage: 4,
+    ),
   ],
   ImplementationType.powerMic3: [
-    // PowerMic III
-    DeviceFilter(vendorId: 0x0554, productId: 0x1001, usagePage: 1, usage: 0),
+    HidDeviceMatcher(
+      vendorId: 0x0554,
+      productId: 0x1001,
+      usagePage: 1,
+      usage: 0,
+    ),
   ],
 };
 
@@ -88,4 +93,39 @@ ImplementationType? getImplType(HidDeviceInfo info) {
     }
   }
   return null;
+}
+
+List<HidDeviceDefinition<DictationDevice>> buildDictationDeviceDefinitions({
+  HidOpenMode openMode = HidOpenMode.preferExclusive,
+}) {
+  return [
+    HidDeviceDefinition<DictationDevice>(
+      id: 'dictation.speechmike-hid',
+      label: 'SpeechMike HID',
+      matchers: deviceFilters[ImplementationType.speechMikeHid]!,
+      openMode: openMode,
+      controllerFactory: SpeechMikeHidDevice.new,
+    ),
+    HidDeviceDefinition<DictationDevice>(
+      id: 'dictation.speechmike-gamepad',
+      label: 'SpeechMike Gamepad',
+      matchers: deviceFilters[ImplementationType.speechMikeGamepad]!,
+      openMode: openMode,
+      controllerFactory: SpeechMikeGamepadDevice.new,
+    ),
+    HidDeviceDefinition<DictationDevice>(
+      id: 'dictation.foot-control',
+      label: 'Foot Control',
+      matchers: deviceFilters[ImplementationType.footControl]!,
+      openMode: openMode,
+      controllerFactory: FootControlDevice.new,
+    ),
+    HidDeviceDefinition<DictationDevice>(
+      id: 'dictation.powermic3',
+      label: 'PowerMic 3',
+      matchers: deviceFilters[ImplementationType.powerMic3]!,
+      openMode: openMode,
+      controllerFactory: PowerMic3Device.new,
+    ),
+  ];
 }

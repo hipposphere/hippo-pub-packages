@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import '../dictation_device.dart';
 import '../enums.dart';
 
@@ -13,14 +14,14 @@ class FootControlDevice extends DictationDevice {
     ButtonEvent.eolPrio: 1 << 3,
   };
 
-  FootControlDevice(super.hidDevice);
+  FootControlDevice(super.managedDevice);
 
   @override
   DeviceType getDeviceType() {
-    if (hidDevice.info.vendorId == 0x0911) {
-      if (hidDevice.info.productId == 0x1844) {
+    if (info.vendorId == 0x0911) {
+      if (info.productId == 0x1844) {
         return DeviceType.footControlAcc2310_2320;
-      } else if (hidDevice.info.productId == 0x091a) {
+      } else if (info.productId == 0x091a) {
         return DeviceType.footControlAcc2330;
       }
     }

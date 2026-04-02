@@ -1,5 +1,7 @@
 import 'dart:typed_data';
-import 'package:hid_api/hid_api.dart';
+
+import 'package:hid_device_manager/hid_device_manager.dart';
+
 import '../dictation_device.dart';
 import '../enums.dart';
 
@@ -20,7 +22,7 @@ class PowerMic3Device extends DictationDevice {
     ButtonEvent.customRight: 1 << 9,
   };
 
-  PowerMic3Device(super.hidDevice);
+  PowerMic3Device(super.managedDevice);
 
   @override
   DeviceType getDeviceType() => DeviceType.powerMic3;

@@ -13,6 +13,7 @@ workspace:
   - packages/analytics_posthog
   - packages/dictation_support
   - packages/dictation_support/example
+  - packages/hid_device_manager
   - packages/hid_api
   - packages/hid_api/example
   - packages/hippo_auth

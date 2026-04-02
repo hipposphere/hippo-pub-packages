@@ -1,6 +1,6 @@
-name: dictation_support
-description: "Support dictation devices using the hid_api package."
-version: 0.1.9
+name: hid_device_manager
+description: "Reactive HID device management on top of hid_api."
+version: 0.1.0
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -15,12 +15,6 @@ dependencies:
   hid_api:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.2
-  hid_device_manager:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.0
-  hippo_components:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.37
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.2.4

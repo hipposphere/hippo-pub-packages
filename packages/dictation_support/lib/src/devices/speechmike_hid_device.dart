@@ -1,7 +1,9 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:math';
-import 'package:hid_api/hid_api.dart';
+import 'dart:typed_data';
+
+import 'package:hid_device_manager/hid_device_manager.dart';
+
 import '../dictation_device.dart';
 import '../enums.dart';
 import 'speechmike_gamepad_device.dart';
@@ -23,14 +25,22 @@ enum _Command {
   const _Command(this.value);
 
   static _Command? fromValue(int value) {
-    for (final cmd in _Command.values) {
-      if (cmd.value == value) return cmd;
+    for (final command in _Command.values) {
+      if (command.value == value) {
+        return command;
+      }
     }
     return null;
   }
 }
 
 class SpeechMikeHidDevice extends DictationDevice {
+  SpeechMikeHidDevice(super.managedDevice) {
+    for (final index in LedIndex.values) {
+      _ledState[index] = LedMode.off;
+    }
+  }
+
   @override
   ImplementationType get implType => ImplementationType.speechMikeHid;
 
@@ -42,10 +52,10 @@ class SpeechMikeHidDevice extends DictationDevice {
 
   final Map<int, Completer<ByteData>> _commandResolvers = {};
   final Map<int, Timer> _commandTimeouts = {};
-
   final Set<MotionEventListener> _motionEventListeners = {};
 
   SpeechMikeGamepadDevice? _proxyDevice;
+  ButtonEventListener? _proxyButtonListener;
   bool _isRecoveringConnection = false;
 
   static const int _commandTimeoutMs = 100;
@@ -99,38 +109,49 @@ class SpeechMikeHidDevice extends DictationDevice {
     DeviceType.speechMikeSmp4010,
   ];
 
-  SpeechMikeHidDevice(super.hidDevice) {
-    for (final index in LedIndex.values) {
-      _ledState[index] = LedMode.off;
-    }
+  void addMotionEventListener(MotionEventListener listener) {
+    _motionEventListeners.add(listener);
+  }
+
+  void removeMotionEventListener(MotionEventListener listener) {
+    _motionEventListeners.remove(listener);
   }
 
   @override
-  Future<void> init() async {
-    await super.init();
-    await _fetchDeviceCode();
-    _determineSliderBitsFilter();
+  Future<void> onConnected() async {
+    if (_deviceCode == 0) {
+      await _fetchDeviceCode();
+      _determineSliderBitsFilter();
+    }
 
     try {
       await _restoreHidEventMode(force: true);
       // ignore: avoid_print
       print('SpeechMike: Event mode set to HID');
-    } catch (e) {
+    } catch (error) {
       // ignore: avoid_print
-      print('SpeechMike: Failed to set event mode to HID: $e');
+      print('SpeechMike: Failed to set event mode to HID: $error');
     }
   }
 
   @override
-  Future<void> shutdown({bool closeDevice = true}) async {
-    await super.shutdown(closeDevice: closeDevice);
-    if (_proxyDevice != null) {
-      await _proxyDevice!.shutdown();
-    }
+  Future<void> onDisconnected() async {
+    _clearPendingCommands(HidException('SpeechMike disconnected'));
   }
 
-  void addMotionEventListener(MotionEventListener listener) {
-    _motionEventListeners.add(listener);
+  @override
+  Future<void> dispose() async {
+    _clearPendingCommands(HidException('SpeechMike disposed'));
+
+    final proxyDevice = _proxyDevice;
+    final proxyButtonListener = _proxyButtonListener;
+    if (proxyDevice != null && proxyButtonListener != null) {
+      proxyDevice.removeButtonEventListener(proxyButtonListener);
+    }
+    _proxyDevice = null;
+    _proxyButtonListener = null;
+
+    await super.dispose();
   }
 
   @override
@@ -153,14 +174,17 @@ class SpeechMikeHidDevice extends DictationDevice {
 
   @override
   DeviceType getDeviceType() {
-    if (hidDevice.info.vendorId == 0x0554) {
-      if (hidDevice.info.productId == 0x0064) {
+    if (info.vendorId == 0x0554) {
+      if (info.productId == 0x0064) {
         return DeviceType.powerMic4;
       }
       return DeviceType.unknown;
-    } else if (hidDevice.info.vendorId == 0x0911) {
+    }
+
+    if (info.vendorId == 0x0911) {
       return DeviceType.fromValue(_deviceCode);
     }
+
     return DeviceType.unknown;
   }
 
@@ -170,7 +194,6 @@ class SpeechMikeHidDevice extends DictationDevice {
   }
 
   void _applySimpleLedState(SimpleLedState state) {
-    // Reset all
     for (final index in LedIndex.values) {
       _ledState[index] = LedMode.off;
     }
@@ -201,52 +224,46 @@ class SpeechMikeHidDevice extends DictationDevice {
   }
 
   Future<void> _sendLedState() async {
-    // SpeechMike requires 8-byte data buffer for Output Report ID 2
-    // Based on testing: 0x20 at byte 5 (bits 4-5) controls an LED
-    // Each LED uses 2 bits: 00=off, 01=on, 10=blink slow, 11=blink fast
     final data = Uint8List(8);
 
-    // Byte 5 LED mappings (verified through testing)
     data[5] |= _ledState[LedIndex.recordLedGreen]!.value << 0;
     data[5] |= _ledState[LedIndex.recordLedRed]!.value << 2;
     data[5] |= _ledState[LedIndex.instructionLedGreen]!.value << 4;
     data[5] |= _ledState[LedIndex.instructionLedRed]!.value << 6;
 
-    // Byte 6 LED mappings (button LEDs)
     data[6] |= _ledState[LedIndex.insOwrButtonLedGreen]!.value << 0;
     data[6] |= _ledState[LedIndex.insOwrButtonLedRed]!.value << 2;
     data[6] |= _ledState[LedIndex.f1ButtonLed]!.value << 4;
     data[6] |= _ledState[LedIndex.f2ButtonLed]!.value << 6;
 
-    // Byte 7 LED mappings (F3/F4 buttons)
     data[7] |= _ledState[LedIndex.f3ButtonLed]!.value << 0;
     data[7] |= _ledState[LedIndex.f4ButtonLed]!.value << 2;
 
-    // Use Output Report ID 2 (not Feature Report ID 1 with command byte)
     await hidDevice.sendReport(HidReport(2, data), HidReportType.output);
   }
 
   void assignProxyDevice(SpeechMikeGamepadDevice proxyDevice) {
-    if (_proxyDevice != null) {
-      throw Exception(
-        'Proxy device already assigned. Adding multiple SpeechMikes in Browser/Gamepad mode at the same time is not supported.',
-      );
+    if (identical(_proxyDevice, proxyDevice)) {
+      return;
     }
-    _proxyDevice = proxyDevice;
-    _proxyDevice!.addButtonEventListener(
-      (device, bitMask) => _onProxyButtonEvent(bitMask),
-    );
-  }
 
-  void _onProxyButtonEvent(int bitMask) {
-    notifyButtonListeners(bitMask);
+    final currentProxy = _proxyDevice;
+    final proxyButtonListener = _proxyButtonListener;
+    if (currentProxy != null && proxyButtonListener != null) {
+      currentProxy.removeButtonEventListener(proxyButtonListener);
+    }
+
+    _proxyDevice = proxyDevice;
+    _proxyButtonListener = (device, bitMask) => notifyButtonListeners(bitMask);
+    proxyDevice.addButtonEventListener(_proxyButtonListener!);
   }
 
   Future<void> _handleCommandResponse(int commandValue, ByteData data) async {
     final completer = _commandResolvers.remove(commandValue);
     if (completer == null) {
-      return; // Or throw? The TS version throws.
+      return;
     }
+
     _commandTimeouts.remove(commandValue)?.cancel();
     completer.complete(data);
   }
@@ -289,25 +306,18 @@ class SpeechMikeHidDevice extends DictationDevice {
     ByteData? response;
     bool isPremium = false;
 
-    // Philips SMP4000 (0x0c1d) and SpeechOne (0x0c1e) are always premium.
-    // LFH3500/SMP3700 (0x0c1c) can be older III models or newer Premium models.
-    // The isSpeechMikePremium (0x83) command is the official way to distinguish
-    // between them for devices sharing the 0x0c1c PID.
-    final pid = hidDevice.info.productId;
+    final pid = info.productId;
     final isKnownPremium = pid == 0x0c1d || pid == 0x0c1e;
 
     if (isKnownPremium) {
       isPremium = true;
     } else {
-      // Try to determine if this is a SpeechMike Premium via command
       try {
         response = await _sendCommandAndWaitForResponse(
           _Command.isSpeechMikePremium,
         );
         isPremium = (response.getUint8(8) & 0x80) != 0;
       } on TimeoutException {
-        // Timeout means this is likely an older SpeechMike III that doesn't
-        // support the isSpeechMikePremium command - treat as non-premium
         isPremium = false;
       }
     }
@@ -348,18 +358,15 @@ class SpeechMikeHidDevice extends DictationDevice {
         }
       }
     } else {
-      // Non-premium SpeechMike (SM3) or timeout occurred
       try {
         response = await _sendCommandAndWaitForResponse(
           _Command.getDeviceCodeSm3,
         );
         _deviceCode = response.getUint16(7);
       } on TimeoutException {
-        // If even getDeviceCodeSm3 times out, set a default device code
         // ignore: avoid_print
         print(
-          'SpeechMike: getDeviceCodeSm3 command timed out, '
-          'using default device code',
+          'SpeechMike: getDeviceCodeSm3 command timed out, using default device code',
         );
         _deviceCode = 0;
       }
@@ -385,25 +392,31 @@ class SpeechMikeHidDevice extends DictationDevice {
 
   @override
   Future<void> handleInputReport(int reportId, ByteData data) async {
-    // With normalizedData, the command byte is always at byte 0
     final commandValue = data.getUint8(0);
     final command = _Command.fromValue(commandValue);
 
     if (command == _Command.buttonPressEvent) {
       await handleButtonPress(data);
-    } else if (command == _Command.motionEvent) {
+      return;
+    }
+
+    if (command == _Command.motionEvent) {
       await _handleMotionEvent(data);
-    } else if (command == _Command.wirelessStatusEvent) {
-      // Do nothing
-    } else if (_commandResolvers.containsKey(commandValue)) {
+      return;
+    }
+
+    if (command == _Command.wirelessStatusEvent) {
+      return;
+    }
+
+    if (_commandResolvers.containsKey(commandValue)) {
       await _handleCommandResponse(commandValue, data);
     }
   }
 
   @override
   Map<int, int> getButtonMappings() {
-    if (hidDevice.info.vendorId == 0x0554 &&
-        hidDevice.info.productId == 0x0064) {
+    if (info.vendorId == 0x0554 && info.productId == 0x0064) {
       return _buttonMappingsPowerMic4;
     }
     return _buttonMappingsSpeechMike;
@@ -431,8 +444,6 @@ class SpeechMikeHidDevice extends DictationDevice {
     if (input != null) {
       data.setRange(1, data.length, input);
     }
-    // Philips SpeechMike Premium/III commands are sent as Output Reports.
-    // Using Report ID 1 for control commands.
     await hidDevice.sendReport(HidReport(1, data), HidReportType.output);
   }
 
@@ -448,9 +459,9 @@ class SpeechMikeHidDevice extends DictationDevice {
     _commandResolvers[command.value] = completer;
 
     final timer = Timer(Duration(milliseconds: _commandTimeoutMs), () {
-      final comp = _commandResolvers.remove(command.value);
-      if (comp != null) {
-        comp.completeError(
+      final running = _commandResolvers.remove(command.value);
+      if (running != null) {
+        running.completeError(
           TimeoutException(
             'Command ${command.name} timed out after $_commandTimeoutMs ms',
           ),
@@ -461,16 +472,32 @@ class SpeechMikeHidDevice extends DictationDevice {
     _commandTimeouts[command.value] = timer;
 
     await _sendCommand(command, input);
-
     return completer.future;
+  }
+
+  void _clearPendingCommands(Object error) {
+    final runningCommands = _commandResolvers.values.toList(growable: false);
+    _commandResolvers.clear();
+
+    for (final timer in _commandTimeouts.values) {
+      timer.cancel();
+    }
+    _commandTimeouts.clear();
+
+    for (final completer in runningCommands) {
+      if (!completer.isCompleted) {
+        completer.completeError(error);
+      }
+    }
   }
 
   @override
   int filterOutputBitMask(int outputBitMask) {
-    if (_sliderBitsFilter == 0) return outputBitMask;
+    if (_sliderBitsFilter == 0) {
+      return outputBitMask;
+    }
 
     final buttonBitsFilter = ~_sliderBitsFilter;
-
     final sliderValue = outputBitMask & _sliderBitsFilter;
     final buttonValue = outputBitMask & buttonBitsFilter;
 
@@ -482,9 +509,11 @@ class SpeechMikeHidDevice extends DictationDevice {
 
     if (sliderChanged && buttonChanged) {
       return outputBitMask & buttonBitsFilter;
-    } else if (sliderChanged) {
+    }
+    if (sliderChanged) {
       return outputBitMask & _sliderBitsFilter;
-    } else if (buttonChanged) {
+    }
+    if (buttonChanged) {
       return outputBitMask & buttonBitsFilter;
     }
 

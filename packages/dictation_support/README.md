@@ -1,6 +1,6 @@
 ## dictation_support
 
-Support dictation devices using the hid_api package.
+Support dictation devices using `hid_device_manager` on top of `hid_api`.
 
 Based on https://github.com/GoogleChromeLabs/dictation_support
 
@@ -18,23 +18,22 @@ running even when no SpeechMike HID device is currently connected.
 
 ### Exclusive access
 
-`DictationDeviceManager` can now open HID handles in exclusive mode:
+`DictationDeviceManager` now defaults to `HidOpenMode.preferExclusive`, which
+tries exclusive access first and falls back to shared access if another process
+already owns the handle.
 
 ```dart
-final manager = DictationDeviceManager(exclusiveAccess: true);
+final manager = DictationDeviceManager();
 await manager.init();
 ```
 
-You can also change this at runtime:
+You can change the policy at runtime:
 
 ```dart
-await manager.setExclusiveAccess(true);
-await manager.setExclusiveAccess(false);
+await manager.setOpenMode(HidOpenMode.preferExclusive);
+await manager.setOpenMode(HidOpenMode.shared);
+await manager.setOpenMode(HidOpenMode.exclusive);
 ```
 
-Changing this setting refreshes the currently managed devices because HID share
-mode cannot be changed on an already open native handle.
-
-When `exclusiveAccess` is enabled, the manager first tries to open each device
-exclusively. If that fails because another application already owns the device,
-it automatically falls back to shared access so the device can still connect.
+Changing the open mode refreshes the currently managed devices because HID
+share mode cannot be changed on an already open native handle.

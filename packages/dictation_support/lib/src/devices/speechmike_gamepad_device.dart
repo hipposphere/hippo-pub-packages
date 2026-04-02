@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import '../dictation_device.dart';
 import '../enums.dart';
 
@@ -36,15 +37,14 @@ class SpeechMikeGamepadDevice extends DictationDevice {
     ButtonEvent.rewind: 1 << 14,
   };
 
-  SpeechMikeGamepadDevice(super.hidDevice);
+  SpeechMikeGamepadDevice(super.managedDevice);
 
   @override
   DeviceType getDeviceType() => DeviceType.unknown;
 
   @override
   Map<int, int> getButtonMappings() {
-    if (hidDevice.info.vendorId == 0x0554 &&
-        hidDevice.info.productId == 0x0064) {
+    if (info.vendorId == 0x0554 && info.productId == 0x0064) {
       return _buttonMappingsPowerMic4;
     }
     return _buttonMappingsSpeechMike;

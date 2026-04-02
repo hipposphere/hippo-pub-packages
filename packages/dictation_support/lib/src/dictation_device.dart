@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:hid_api/hid_api.dart';
+
+import 'package:hid_device_manager/hid_device_manager.dart';
 import 'package:hippo_utils/hippo_utils.dart';
+
 import 'enums.dart';
 
 typedef ButtonEventListener =
@@ -9,13 +11,13 @@ typedef ButtonEventListener =
 typedef MotionEventListener =
     void Function(DictationDevice device, MotionEvent event);
 
-abstract class DictationDevice {
+abstract class DictationDevice extends HidDeviceController {
+  DictationDevice(super.managedDevice);
+
   static int _nextId = 0;
 
   final int id = _nextId++;
-  final HidDevice hidDevice;
 
-  /// Deduplication interval for input reports (default: 50ms)
   static const Duration defaultDeduplicationInterval = Duration(
     milliseconds: 50,
   );
@@ -24,7 +26,6 @@ abstract class DictationDevice {
 
   final Set<ButtonEventListener> _buttonEventListeners = {};
   int _lastBitMask = 0;
-  bool _isShuttingDown = false;
 
   StreamSubscription<HidReport>? _reportSubscription;
   final DataSubject<int> _buttonEventSubject = DataSubject<int>.seeded(0);
@@ -33,59 +34,47 @@ abstract class DictationDevice {
   final StreamController<ButtonChange> _buttonChangeController =
       StreamController<ButtonChange>.broadcast();
 
-  final StreamController<void> _connectionLostController =
-      StreamController<void>.broadcast();
-
-  DictationDevice(this.hidDevice);
-
-  /// Stream of button event bitmasks
   Stream<int> get buttonEvents => _buttonEventSubject.stream;
-
-  /// Subject of button event bitmasks
   DataSubject<int> get buttonEventsSubject => _buttonEventSubject;
 
-  /// Stream of button state changes
   Stream<ButtonStates> get onButtonStateChanged =>
       _buttonStateChangedSubject.stream;
-
-  /// Subject of button state changes
   DataSubject<ButtonStates> get buttonStateSubject =>
       _buttonStateChangedSubject;
 
-  /// Stream of individual button changes
-  ///
-  /// Emits a [ButtonChange] event for each button that is pressed or released.
-  /// This allows you to see exactly which button changed and whether it was
-  /// pressed or released.
   Stream<ButtonChange> get onButtonChange => _buttonChangeController.stream;
 
-  /// Stream that emits when the connection to the device is lost/error occurs
-  Stream<void> get onConnectionLost => _connectionLostController.stream;
-
-  Future<void> init() async {
-    _startReading();
+  @override
+  Future<void> onAttached() async {
+    _reportSubscription =
+        deduplicatedInputReports(
+          deduplicationInterval: defaultDeduplicationInterval,
+        ).listen(
+          (report) async {
+            if (report.normalizedData.isNotEmpty) {
+              await handleInputReport(
+                report.reportId,
+                ByteData.sublistView(report.normalizedData),
+              );
+            }
+          },
+          onError: (_) {},
+          cancelOnError: false,
+        );
   }
 
-  /// Gives devices a chance to restore their input stream after an external
-  /// application changed state without causing a physical disconnect.
+  @override
   Future<void> recoverConnection() async {
-    if (!hidDevice.isOpen) {
-      throw HidException('Device handle is closed');
-    }
+    await super.recoverConnection();
   }
 
-  Future<void> shutdown({bool closeDevice = true}) async {
-    _isShuttingDown = true;
+  @override
+  Future<void> dispose() async {
     await _reportSubscription?.cancel();
-    _reportSubscription = null;
-    if (closeDevice) {
-      await hidDevice.close();
-    }
     _buttonEventListeners.clear();
     _buttonEventSubject.close();
     _buttonStateChangedSubject.close();
     await _buttonChangeController.close();
-    await _connectionLostController.close();
   }
 
   void addButtonEventListener(ButtonEventListener listener) {
@@ -99,21 +88,17 @@ abstract class DictationDevice {
   void notifyButtonListeners(int outputBitMask) {
     if (outputBitMask == _lastBitMask) return;
 
-    // Detect individual button changes by comparing with previous state
     final changedBits = _lastBitMask ^ outputBitMask;
     final newState = ButtonStates(outputBitMask);
 
-    // Emit individual button change events
     if (changedBits != 0 && !_buttonChangeController.isClosed) {
-      // Check each button bit to see if it changed
       for (int i = 0; i < 32; i++) {
         final buttonMask = 1 << i;
         if ((changedBits & buttonMask) != 0) {
-          final isPressed = (outputBitMask & buttonMask) != 0;
           _buttonChangeController.add(
             ButtonChange(
               buttonMask: buttonMask,
-              isPressed: isPressed,
+              isPressed: (outputBitMask & buttonMask) != 0,
               currentState: newState,
             ),
           );
@@ -121,54 +106,14 @@ abstract class DictationDevice {
       }
     }
 
-    // Emit overall button state change
     _buttonStateChangedSubject.add(newState);
 
-    // Legacy listeners and stream (for backward compatibility)
     for (final listener in _buttonEventListeners) {
       listener(this, outputBitMask);
     }
     _buttonEventSubject.add(outputBitMask);
 
-    // Update last bitmask after all notifications
     _lastBitMask = outputBitMask;
-  }
-
-  void _startReading() {
-    // Use deduplicated reports stream with 50ms interval
-    final reportStream = hidDevice.deduplicatedReports(
-      deduplicationInterval: defaultDeduplicationInterval,
-    );
-
-    _reportSubscription = reportStream.listen(
-      (report) async {
-        if (report.normalizedData.isNotEmpty) {
-          await _onInputReport(report);
-        }
-      },
-      onError: (e) {
-        if (!_isShuttingDown) {
-          // ignore: avoid_print
-          print('Error reading from device: $e');
-          if (!_connectionLostController.isClosed) {
-            _connectionLostController.add(null);
-          }
-        }
-      },
-      cancelOnError: false,
-    );
-
-    // Handle device disconnection
-    hidDevice.onDisconnected.listen((_) {
-      if (!_isShuttingDown) {
-        shutdown(closeDevice: false);
-      }
-    });
-  }
-
-  Future<void> _onInputReport(HidReport report) async {
-    final data = ByteData.sublistView(report.normalizedData);
-    await handleInputReport(report.reportId, data);
   }
 
   Future<void> handleInputReport(int reportId, ByteData data) async {
@@ -186,19 +131,12 @@ abstract class DictationDevice {
       }
     }
 
-    outputBitMask = filterOutputBitMask(outputBitMask);
-
-    notifyButtonListeners(outputBitMask);
+    notifyButtonListeners(filterOutputBitMask(outputBitMask));
   }
 
-  int filterOutputBitMask(int outputBitMask) {
-    return outputBitMask;
-  }
+  int filterOutputBitMask(int outputBitMask) => outputBitMask;
 
-  /// Get the current button state bitmask
   int get currentButtonState => _lastBitMask;
-
-  /// Get the current button states as a [ButtonStates] object
   ButtonStates get currentButtonStates => ButtonStates(_lastBitMask);
 
   DeviceType getDeviceType();

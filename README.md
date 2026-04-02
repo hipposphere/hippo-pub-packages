@@ -17,6 +17,7 @@ This repository contains commonly used Dart & Flutter packages maintained by **H
 - **`packages/hippo_auth`** – Authentication and authorization utilities for Hipposphere applications.
 - **`packages/hippo_ui`** – Additional UI components and design system extensions.
 - **`packages/dictation_support`** – Support dictation devices using the hid_api package.
+- **`packages/hid_device_manager`** – Reactive HID device registration, connection policy, and lifecycle management.
 - **`packages/hid_api`** – Human Interface Device (HID) API bindings for native device communication.
 - **`packages/postgres_base_models`** – Base models and utilities for PostgreSQL database interactions.
 - **`packages/postgres_models_builder`** – Code generation tools for PostgreSQL model creation and management.
@@ -87,6 +88,15 @@ import 'package:hippo_utils/hippo_utils.dart';
 **Focus**: Speech recognition and dictation capabilities.
 
 **Features**: Flutter integration for speech-to-text functionality and voice input support.
+
+### `hid_device_manager`  [→ detailed README](packages/hid_device_manager/README.md)
+**Focus**: Reactive HID device orchestration on top of `hid_api`.
+
+**Features**:
+- **Device Registration**: Match HID devices to typed definitions
+- **Connection Policy**: Auto-connect, reconnect, and open-mode handling
+- **Reactive State**: Subjects and streams for availability, connection state, and device lists
+- **Typed Controllers**: Build semantic device layers without reimplementing HID lifecycle logic
 
 ### `hid_api`  [→ detailed README](packages/hid_api/README.md)
 **Focus**: Human Interface Device (HID) API bindings for native device communication.
@@ -161,4 +171,3 @@ For internal teams: reach out in the Hipposphere developer channel. For external
 ---
 
 Happy building with Hipposphere components & utilities! 🦛
-

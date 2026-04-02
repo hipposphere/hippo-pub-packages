@@ -366,8 +366,17 @@ void HidApiPlugin::HandleMethodCall(
       auto path_it = args->find(flutter::EncodableValue("path"));
       if (path_it == args->end()) { result->Error("INVALID_ARGUMENT", "Path missing"); return; }
       std::string path = std::get<std::string>(path_it->second);
+      bool exclusive = false;
+      auto exclusive_it = args->find(flutter::EncodableValue("exclusive"));
+      if (exclusive_it != args->end()) {
+          if (const auto* exclusive_value = std::get_if<bool>(&exclusive_it->second)) {
+              exclusive = *exclusive_value;
+          }
+      }
+
+      DWORD share_mode = exclusive ? 0 : (FILE_SHARE_READ | FILE_SHARE_WRITE);
       
-      HANDLE handle = CreateFileA(path.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+      HANDLE handle = CreateFileA(path.c_str(), GENERIC_READ | GENERIC_WRITE, share_mode, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
       
       if (handle == INVALID_HANDLE_VALUE) {
           DWORD errorCode = GetLastError();
@@ -379,7 +388,9 @@ void HidApiPlugin::HandleMethodCall(
               message = "Access denied. The device might be a system device (keyboard/mouse) or already opened without shared access.";
           } else if (errorCode == ERROR_SHARING_VIOLATION) {
               code = "SHARING_VIOLATION";
-              message = "Sharing violation. The device is already open by another process with exclusive access.";
+              message = exclusive
+                  ? "Sharing violation. Exclusive access could not be acquired because the device is already open."
+                  : "Sharing violation. The device is already open by another process with exclusive access.";
           } else if (errorCode == ERROR_FILE_NOT_FOUND) {
               code = "NOT_FOUND";
               message = "Device path not found.";

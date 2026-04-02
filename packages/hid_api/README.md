@@ -1,15 +1,19 @@
 # hid_api
 
-A new Flutter plugin project.
+A Flutter HID plugin with support for shared or exclusive device opens.
 
-## Getting Started
+## Usage
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/to/develop-plugins),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
+```dart
+final device = await HidApi.open(path, exclusive: true);
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+If exclusive access cannot be acquired because another application already owns
+the device, `HidApi.open` throws `HidExclusiveAccessException`.
 
+Platform notes:
+
+- Windows: exclusive mode opens the HID handle with `dwShareMode = 0`.
+- macOS: exclusive mode uses `kIOHIDOptionsTypeSeizeDevice`.
+- Linux: the flag is currently accepted but not enforced by this plugin's
+  backend.

@@ -9,7 +9,8 @@ export 'hid_api_platform_interface.dart'
         HidException,
         HidTimeoutException,
         HidDeviceNotFoundException,
-        HidPermissionException;
+        HidPermissionException,
+        HidExclusiveAccessException;
 
 abstract class HidApi {
   /// Initialize native HID subsystem
@@ -36,8 +37,8 @@ abstract class HidApi {
   }
 
   /// Open device by path (recommended)
-  static Future<HidDevice> open(String devicePath) {
-    return HidApiPlatform.instance.open(devicePath);
+  static Future<HidDevice> open(String devicePath, {bool exclusive = false}) {
+    return HidApiPlatform.instance.open(devicePath, exclusive: exclusive);
   }
 
   /// Open device by VID/PID (first match)
@@ -45,6 +46,7 @@ abstract class HidApi {
     required int vendorId,
     required int productId,
     String? serialNumber,
+    bool exclusive = false,
   }) async {
     final devices = await enumerate(
       vendorId: vendorId,
@@ -56,7 +58,7 @@ abstract class HidApi {
       throw HidDeviceNotFoundException();
     }
 
-    return open(devices.first.path);
+    return open(devices.first.path, exclusive: exclusive);
   }
 
   /// Global stream of connected HID devices

@@ -146,12 +146,18 @@ static FlMethodResponse* enumerate_devices(FlValue* args) {
 
 static FlMethodResponse* open_device(HidApiPlugin* self, FlValue* args) {
     const char* path = nullptr;
+    bool exclusive = false;
     if (args && fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
         FlValue* v = fl_value_lookup_string(args, "path");
         if (v && fl_value_get_type(v) == FL_VALUE_TYPE_STRING) path = fl_value_get_string(v);
+        FlValue* exclusive_value = fl_value_lookup_string(args, "exclusive");
+        if (exclusive_value && fl_value_get_type(exclusive_value) == FL_VALUE_TYPE_BOOL) {
+            exclusive = fl_value_get_bool(exclusive_value);
+        }
     }
     
     if (!path) return FL_METHOD_RESPONSE(fl_method_error_response_new("INVALID_ARGUMENT", "Path is required", nullptr));
+    (void)exclusive; // hidapi on Linux does not expose an exclusive-open mode here.
     
     std::lock_guard<std::mutex> lock(devices_mutex);
     if (open_devices.find(path) != open_devices.end()) {

@@ -66,6 +66,14 @@ abstract class DictationDevice {
     _startReading();
   }
 
+  /// Gives devices a chance to restore their input stream after an external
+  /// application changed state without causing a physical disconnect.
+  Future<void> recoverConnection() async {
+    if (!hidDevice.isOpen) {
+      throw HidException('Device handle is closed');
+    }
+  }
+
   Future<void> shutdown({bool closeDevice = true}) async {
     _isShuttingDown = true;
     await _reportSubscription?.cancel();

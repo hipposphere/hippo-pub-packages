@@ -43,11 +43,11 @@ class MethodChannelHidApi extends HidApiPlatform {
   }
 
   @override
-  Future<HidDevice> open(String devicePath) async {
+  Future<HidDevice> open(String devicePath, {bool exclusive = false}) async {
     try {
       final result = await methodChannel.invokeMethod<Map<dynamic, dynamic>>(
         'open',
-        {'path': devicePath},
+        {'path': devicePath, 'exclusive': exclusive},
       );
 
       if (result == null) {
@@ -62,12 +62,16 @@ class MethodChannelHidApi extends HidApiPlatform {
         info: info,
       );
     } on PlatformException catch (e) {
-      if (e.code == 'device_not_found') {
+      final code = e.code.toUpperCase();
+
+      if (code == 'DEVICE_NOT_FOUND' || code == 'NOT_FOUND') {
         throw HidDeviceNotFoundException();
-      } else if (e.code == 'permission_denied') {
+      } else if (code == 'PERMISSION_DENIED' || code == 'ACCESS_DENIED') {
         throw HidPermissionException();
+      } else if (code == 'SHARING_VIOLATION' || code == 'EXCLUSIVE_ACCESS') {
+        throw HidExclusiveAccessException();
       }
-      rethrow;
+      throw HidException(e.message ?? 'Failed to open device');
     }
   }
 

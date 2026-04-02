@@ -36,6 +36,7 @@ class DictationDeviceManager {
       StreamController<(DictationDevice, ButtonChange)>.broadcast();
   final DataSubject<List<DictationDevice>> _connectedDevicesSubject =
       DataSubject<List<DictationDevice>>.seeded([]);
+  final DataSubject<bool> _exclusiveAccessSubject;
 
   // Track button states for all devices
   final Map<int, ButtonStates> _deviceButtonStates = {};
@@ -45,10 +46,17 @@ class DictationDeviceManager {
   final Map<int, StreamSubscription<ButtonChange>> _changeSubscriptions = {};
 
   final bool aggressiveReconnection;
+  bool _exclusiveAccess;
   Timer? _reconnectTimer;
   static const Duration _reconnectInterval = Duration(seconds: 3);
+  bool _isRecoverySweepRunning = false;
+  bool _isDeviceReloadRunning = false;
 
-  DictationDeviceManager({this.aggressiveReconnection = false});
+  DictationDeviceManager({
+    this.aggressiveReconnection = false,
+    bool exclusiveAccess = false,
+  }) : _exclusiveAccess = exclusiveAccess,
+       _exclusiveAccessSubject = DataSubject<bool>.seeded(exclusiveAccess);
 
   /// Stream of newly connected dictation devices
   Stream<DictationDevice> get deviceConnectedStream =>
@@ -74,6 +82,9 @@ class DictationDeviceManager {
   DataSubject<List<DictationDevice>> get connectedDevicesSubject =>
       _connectedDevicesSubject;
 
+  /// Subject of the current exclusive-access setting.
+  DataSubject<bool> get exclusiveAccessSubject => _exclusiveAccessSubject;
+
   /// Stream of the current list of connected devices
   ///
   /// Emits the updated list of connected dictation devices whenever a device
@@ -95,15 +106,35 @@ class DictationDeviceManager {
   Stream<List<DictationDevice>> get connectedDevicesStream =>
       _connectedDevicesSubject.stream;
 
+  /// Stream of exclusive-access setting changes.
+  Stream<bool> get exclusiveAccessStream => _exclusiveAccessSubject.stream;
+
   /// Get the current button states for all devices
   ///
   /// Returns a map of device ID to ButtonStates.
   Map<int, ButtonStates> get allButtonStates =>
       Map.unmodifiable(_deviceButtonStates);
 
+  bool get exclusiveAccess => _exclusiveAccess;
+
   List<DictationDevice> getDevices() {
     _failIfNotInitialized();
     return _devices.values.toList();
+  }
+
+  Future<void> setExclusiveAccess(bool exclusiveAccess) async {
+    if (_exclusiveAccess == exclusiveAccess) {
+      return;
+    }
+
+    _exclusiveAccess = exclusiveAccess;
+    _exclusiveAccessSubject.add(exclusiveAccess);
+
+    if (!_isInitialized || _isDeviceReloadRunning) {
+      return;
+    }
+
+    await _reloadManagedDevices();
   }
 
   Future<void> init() async {
@@ -118,9 +149,7 @@ class DictationDeviceManager {
 
     _isInitialized = true;
 
-    if (aggressiveReconnection) {
-      _startReconnectTimer();
-    }
+    _updateRecoveryTimerState();
 
     // Emit initial device list
     _connectedDevicesSubject.add(_devices.values.toList());
@@ -142,6 +171,9 @@ class DictationDeviceManager {
       await device.shutdown(closeDevice: true);
     }
     _devices.clear();
+    for (final proxyDevice in _pendingProxyDevices.values) {
+      await proxyDevice.shutdown(closeDevice: true);
+    }
     _pendingProxyDevices.clear();
     _deviceButtonStates.clear();
 
@@ -150,6 +182,7 @@ class DictationDeviceManager {
     await _buttonStateChangedController.close();
     await _buttonChangeController.close();
     _connectedDevicesSubject.close();
+    _exclusiveAccessSubject.close();
 
     await HidApi.shutdown();
     _isInitialized = false;
@@ -200,26 +233,7 @@ class DictationDeviceManager {
         return;
       }
       try {
-        final infos = await HidApi.enumerate();
-        // Identify devices that are present but not connected/managed
-        final unmanagedInfos = infos
-            .where(
-              (info) =>
-                  !_devices.containsKey(info.path) &&
-                  !_pendingProxyDevices.containsKey(info.path),
-            )
-            .toList();
-
-        if (unmanagedInfos.isNotEmpty) {
-          // Reuse the logic to create and add devices
-          // This will try to open them. errors are caught inside _createAndAddInitializedDevices
-          final newDevices = await _createAndAddInitializedDevices(
-            unmanagedInfos,
-          );
-          for (final device in newDevices) {
-            _notifyDeviceConnected(device);
-          }
-        }
+        await recoverDevices();
       } catch (e) {
         // ignore: avoid_print
         print('Error in reconnect timer: $e');
@@ -230,6 +244,21 @@ class DictationDeviceManager {
   void _stopReconnectTimer() {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+  }
+
+  void _updateRecoveryTimerState() {
+    final shouldRunTimer =
+        aggressiveReconnection ||
+        _devices.values.any((device) => device is SpeechMikeHidDevice);
+
+    if (shouldRunTimer) {
+      if (_reconnectTimer == null) {
+        _startReconnectTimer();
+      }
+      return;
+    }
+
+    _stopReconnectTimer();
   }
 
   Future<void> _onDeviceListUpdate(List<HidDeviceInfo> currentInfos) async {
@@ -273,6 +302,7 @@ class DictationDeviceManager {
   }
 
   void _notifyDeviceConnected(DictationDevice device) {
+    _updateRecoveryTimerState();
     for (final listener in _deviceConnectEventListeners) {
       listener(device);
     }
@@ -284,6 +314,7 @@ class DictationDeviceManager {
   }
 
   void _notifyDeviceDisconnected(DictationDevice device) {
+    _updateRecoveryTimerState();
     for (final listener in _deviceDisconnectEventListeners) {
       listener(device);
     }
@@ -292,6 +323,43 @@ class DictationDeviceManager {
     }
     // Emit updated device list
     _connectedDevicesSubject.add(_devices.values.toList());
+  }
+
+  /// Re-checks all managed devices and attempts to recover device ownership.
+  ///
+  /// This is useful when another application temporarily changed the device
+  /// state or opened it with exclusive access and later released it.
+  Future<void> recoverDevices() async {
+    _failIfNotInitialized();
+
+    if (_isRecoverySweepRunning || _isDeviceReloadRunning) {
+      return;
+    }
+
+    _isRecoverySweepRunning = true;
+    try {
+      await _recoverManagedDevices();
+
+      final infos = await HidApi.enumerate();
+      final unmanagedInfos = infos
+          .where(
+            (info) =>
+                !_devices.containsKey(info.path) &&
+                !_pendingProxyDevices.containsKey(info.path),
+          )
+          .toList();
+
+      if (unmanagedInfos.isNotEmpty) {
+        final newDevices = await _createAndAddInitializedDevices(
+          unmanagedInfos,
+        );
+        for (final device in newDevices) {
+          _notifyDeviceConnected(device);
+        }
+      }
+    } finally {
+      _isRecoverySweepRunning = false;
+    }
   }
 
   Future<List<DictationDevice>> _createAndAddInitializedDevices(
@@ -306,7 +374,7 @@ class DictationDeviceManager {
       if (implType == null) continue;
 
       try {
-        final hidDevice = await HidApi.open(info.path);
+        final hidDevice = await _openHidDevice(info);
         final device = _createDevice(hidDevice, implType);
 
         if (device == null) continue;
@@ -330,6 +398,23 @@ class DictationDeviceManager {
     _assignPendingProxyDevices();
 
     return result;
+  }
+
+  Future<HidDevice> _openHidDevice(HidDeviceInfo info) async {
+    if (!_exclusiveAccess) {
+      return HidApi.open(info.path, exclusive: false);
+    }
+
+    try {
+      return await HidApi.open(info.path, exclusive: true);
+    } on HidExclusiveAccessException {
+      // ignore: avoid_print
+      print(
+        'Exclusive access unavailable for ${info.path}, '
+        'falling back to shared access',
+      );
+      return HidApi.open(info.path, exclusive: false);
+    }
   }
 
   DictationDevice? _createDevice(
@@ -426,7 +511,6 @@ class DictationDeviceManager {
   }
 
   Future<void> _handleDeviceConnectionLost(DictationDevice device) async {
-    // Find the path for this device
     String? pathToRemove;
     for (final entry in _devices.entries) {
       if (entry.value == device) {
@@ -435,14 +519,14 @@ class DictationDeviceManager {
       }
     }
 
-    if (pathToRemove != null) {
-      _devices.remove(pathToRemove);
-      _unsubscribeFromDevice(device);
-      _deviceButtonStates.remove(device.id);
-      // Close device to release handle, so we can try re-opening
-      await device.shutdown(closeDevice: true);
-      _notifyDeviceDisconnected(device);
+    if (pathToRemove == null) {
+      return;
     }
+    await _removeManagedDeviceByPath(
+      pathToRemove,
+      closeDevice: true,
+      notify: true,
+    );
   }
 
   void _unsubscribeFromDevice(DictationDevice device) {
@@ -450,5 +534,71 @@ class DictationDeviceManager {
     _stateSubscriptions.remove(device.id);
     _changeSubscriptions[device.id]?.cancel();
     _changeSubscriptions.remove(device.id);
+  }
+
+  Future<void> _recoverManagedDevices() async {
+    final deviceEntries = _devices.entries.toList(growable: false);
+
+    for (final entry in deviceEntries) {
+      final path = entry.key;
+      final device = entry.value;
+
+      if (!identical(_devices[path], device)) {
+        continue;
+      }
+
+      try {
+        await device.recoverConnection();
+      } catch (e) {
+        // ignore: avoid_print
+        print('Failed to recover device at $path: $e');
+        await _handleDeviceConnectionLost(device);
+      }
+    }
+  }
+
+  Future<void> _reloadManagedDevices() async {
+    _isDeviceReloadRunning = true;
+    try {
+      final paths = _devices.keys.toList(growable: false);
+      for (final path in paths) {
+        await _removeManagedDeviceByPath(path, closeDevice: true, notify: true);
+      }
+
+      final pendingProxyDevices = _pendingProxyDevices.values.toList(
+        growable: false,
+      );
+      _pendingProxyDevices.clear();
+      for (final proxyDevice in pendingProxyDevices) {
+        await proxyDevice.shutdown(closeDevice: true);
+      }
+
+      final infos = await HidApi.enumerate();
+      final newDevices = await _createAndAddInitializedDevices(infos);
+      for (final device in newDevices) {
+        _notifyDeviceConnected(device);
+      }
+    } finally {
+      _isDeviceReloadRunning = false;
+    }
+  }
+
+  Future<void> _removeManagedDeviceByPath(
+    String path, {
+    required bool closeDevice,
+    required bool notify,
+  }) async {
+    final removedDevice = _devices.remove(path);
+    if (removedDevice == null) {
+      return;
+    }
+
+    _unsubscribeFromDevice(removedDevice);
+    _deviceButtonStates.remove(removedDevice.id);
+    await removedDevice.shutdown(closeDevice: closeDevice);
+
+    if (notify) {
+      _notifyDeviceDisconnected(removedDevice);
+    }
   }
 }

@@ -17,3 +17,10 @@ class HidDeviceNotFoundException extends HidException {
 class HidPermissionException extends HidException {
   HidPermissionException() : super("Permission denied");
 }
+
+class HidExclusiveAccessException extends HidException {
+  HidExclusiveAccessException()
+    : super(
+        "Exclusive access unavailable because the device is already in use",
+      );
+}

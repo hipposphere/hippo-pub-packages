@@ -46,6 +46,7 @@ class SpeechMikeHidDevice extends DictationDevice {
   final Set<MotionEventListener> _motionEventListeners = {};
 
   SpeechMikeGamepadDevice? _proxyDevice;
+  bool _isRecoveringConnection = false;
 
   static const int _commandTimeoutMs = 100;
 
@@ -109,16 +110,14 @@ class SpeechMikeHidDevice extends DictationDevice {
     await super.init();
     await _fetchDeviceCode();
     _determineSliderBitsFilter();
-    // Set event mode to HID - required for button events
+
     try {
-      await setEventMode(EventMode.hid);
+      await _restoreHidEventMode(force: true);
       // ignore: avoid_print
       print('SpeechMike: Event mode set to HID');
-    } on TimeoutException {
+    } catch (e) {
       // ignore: avoid_print
-      print(
-        'SpeechMike: Failed to set event mode (timeout), continuing anyway',
-      );
+      print('SpeechMike: Failed to set event mode to HID: $e');
     }
   }
 
@@ -132,6 +131,22 @@ class SpeechMikeHidDevice extends DictationDevice {
 
   void addMotionEventListener(MotionEventListener listener) {
     _motionEventListeners.add(listener);
+  }
+
+  @override
+  Future<void> recoverConnection() async {
+    await super.recoverConnection();
+
+    if (_isRecoveringConnection || _commandResolvers.isNotEmpty) {
+      return;
+    }
+
+    _isRecoveringConnection = true;
+    try {
+      await _restoreHidEventMode();
+    } finally {
+      _isRecoveringConnection = false;
+    }
   }
 
   int getDeviceCode() => _deviceCode;
@@ -247,6 +262,27 @@ class SpeechMikeHidDevice extends DictationDevice {
     final input = Uint8List(8);
     input[7] = eventMode.value;
     await _sendCommand(_Command.setEventMode, input);
+  }
+
+  Future<void> _restoreHidEventMode({bool force = false}) async {
+    if (!force) {
+      try {
+        final eventMode = await getEventMode();
+        if (eventMode == EventMode.hid) {
+          return;
+        }
+
+        // ignore: avoid_print
+        print('SpeechMike: Restoring HID event mode from ${eventMode.name}');
+      } on TimeoutException {
+        // ignore: avoid_print
+        print(
+          'SpeechMike: Event mode probe timed out, forcing HID mode restore',
+        );
+      }
+    }
+
+    await setEventMode(EventMode.hid);
   }
 
   Future<void> _fetchDeviceCode() async {

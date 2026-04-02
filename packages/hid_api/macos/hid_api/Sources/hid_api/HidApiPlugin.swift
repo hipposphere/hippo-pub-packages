@@ -8,6 +8,7 @@ private let kUSBInterfaceNumber = "bInterfaceNumber" as CFString
 public class HidApiPlugin: NSObject, FlutterPlugin {
     var manager: IOHIDManager?
     private var openDevices: [String: IOHIDDevice] = [:]
+    private var openDeviceOptions: [String: IOOptionBits] = [:]
     private var eventHandlers: [String: ReportStreamHandler] = [:]
     private var disconnectionHandlers: [String: DisconnectionStreamHandler] = [:]
     private var deviceUpdateHandler: DeviceUpdateStreamHandler?
@@ -135,6 +136,10 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
             result(FlutterError(code: "INVALID_ARGUMENT", message: "Path required", details: nil))
             return
         }
+        let exclusive = (args["exclusive"] as? Bool) ?? false
+        let openOptions = exclusive
+            ? IOOptionBits(kIOHIDOptionsTypeSeizeDevice)
+            : IOOptionBits(kIOHIDOptionsTypeNone)
         
         if manager == nil {
              self.manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
@@ -150,11 +155,12 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
         }
         
         if let device = devices.first(where: { getDevicePath($0) == path }) {
-            let ret = IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeNone))
+            let ret = IOHIDDeviceOpen(device, openOptions)
             if ret == kIOReturnSuccess {
                 // Schedule the device on the run loop so callbacks can fire
                 IOHIDDeviceScheduleWithRunLoop(device, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
                 openDevices[path] = device
+                openDeviceOptions[path] = openOptions
                 
                 // Get device properties once
                 let vid = IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0
@@ -221,11 +227,13 @@ public class HidApiPlugin: NSObject, FlutterPlugin {
             result(nil)
             return
         }
+        let openOptions = openDeviceOptions[path] ?? IOOptionBits(kIOHIDOptionsTypeNone)
         
         // Unschedule from run loop before closing
         IOHIDDeviceUnscheduleFromRunLoop(device, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
-        IOHIDDeviceClose(device, IOOptionBits(kIOHIDOptionsTypeNone))
+        IOHIDDeviceClose(device, openOptions)
         openDevices.removeValue(forKey: path)
+        openDeviceOptions.removeValue(forKey: path)
         eventHandlers.removeValue(forKey: path)
         disconnectionHandlers.removeValue(forKey: path)
         result(nil)

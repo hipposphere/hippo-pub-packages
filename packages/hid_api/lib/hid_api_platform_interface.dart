@@ -46,7 +46,7 @@ abstract class HidApiPlatform extends PlatformInterface {
     throw UnimplementedError('enumerate() has not been implemented.');
   }
 
-  Future<HidDevice> open(String devicePath) {
+  Future<HidDevice> open(String devicePath, {bool exclusive = false}) {
     throw UnimplementedError('open() has not been implemented.');
   }
 

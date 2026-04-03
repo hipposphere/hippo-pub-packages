@@ -1,0 +1,162 @@
+part of '../editor.dart';
+
+class _ObjectNodeEditor extends StatelessWidget {
+  const _ObjectNodeEditor({
+    required this.controller,
+    required this.featureOptions,
+    required this.node,
+    required this.path,
+    required this.diagnostics,
+    required this.compactMode,
+    this.showCapabilities = true,
+    this.showStructure = true,
+  });
+
+  final JsonSchemaEditorController controller;
+  final JsonSchemaEditorFeatureOptions featureOptions;
+  final JsonSchemaObjectNode node;
+  final JsonSchemaPath path;
+  final List<JsonSchemaDiagnostic> diagnostics;
+  final bool compactMode;
+  final bool showCapabilities;
+  final bool showStructure;
+
+  @override
+  Widget build(BuildContext context) {
+    final propertyEntries = node.orderedPropertyEntries.toList(growable: false);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showCapabilities &&
+            featureOptions.objectAdditionalProperties &&
+            !node.additionalProperties) ...[
+          _BooleanCapabilityField(
+            label: 'Additional props',
+            value: node.additionalProperties,
+            helpText: _jsonSchemaHelpByKeyword['additionalProperties'],
+            onChanged: (value) => controller.updateNode(
+              path: path,
+              updater: (JsonSchemaObjectNode node) => node.copyWith(additionalProperties: value),
+            ),
+            onCleared: () => controller.updateNode(
+              path: path,
+              updater: (JsonSchemaObjectNode node) =>
+                  node.copyWith(clearAdditionalProperties: true),
+            ),
+          ),
+          const Gap(_editorSectionSpacing),
+        ],
+        if (showStructure) ...[
+          Wrap(
+            spacing: _editorSectionSpacing,
+            runSpacing: _editorSectionSpacing,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _EditorSectionLabel(
+                label: 'Properties',
+                helpText: _jsonSchemaHelpByKeyword['properties'],
+              ),
+            ],
+          ),
+          const Gap(_editorSectionSpacing),
+        ],
+        if (showStructure && propertyEntries.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.7)),
+            ),
+            child: Text(
+              'No properties defined yet.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+            ),
+          ),
+        if (showStructure)
+          ...List.generate(propertyEntries.length, (index) {
+            final entry = propertyEntries[index];
+            final propertyPath = path.childProperty(entry.key);
+            final propertyNode = entry.value;
+            final required = node.required.contains(entry.key);
+            final propertyWarnings = diagnostics
+                .where((item) => item.path == propertyPath)
+                .toList();
+            final propertyHeader = JsonSchemaObjectPropertyHeader(
+              propertyKey: entry.key,
+              nodeType: propertyNode.type,
+              required: required,
+              propertyKeyHelpText: _jsonSchemaHelpByKeyword['propertyKey'],
+              requiredHelpText: _jsonSchemaHelpByKeyword['required'],
+              onPropertyKeyChanged: (nextKey) => controller.renameProperty(
+                objectPath: path,
+                currentKey: entry.key,
+                nextKey: nextKey,
+              ),
+              onTypeChanged: (nextType) => controller.replaceNode(
+                path: propertyPath,
+                node: _defaultNodeForTypePreservingMetadata(propertyNode, nextType),
+              ),
+              onRequiredChanged: (nextRequired) =>
+                  controller.setRequired(objectPath: path, key: entry.key, required: nextRequired),
+              onMoveUp: index == 0
+                  ? null
+                  : () => controller.movePropertyUp(objectPath: path, key: entry.key),
+              onMoveDown: index == propertyEntries.length - 1
+                  ? null
+                  : () => controller.movePropertyDown(objectPath: path, key: entry.key),
+              onRemove: () => controller.removeProperty(objectPath: path, key: entry.key),
+            );
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: JsonSchemaPropertyCard(
+                key: ValueKey('property-card-${entry.key}'),
+                children: [
+                  propertyHeader,
+                  const Gap(12),
+                  if (propertyWarnings.isNotEmpty) ...[
+                    ...propertyWarnings.map(
+                      (item) => JsonSchemaWarningBadge(message: item.message),
+                    ),
+                    const Gap(6),
+                  ],
+                  _SchemaNodeEditor(
+                    controller: controller,
+                    featureOptions: featureOptions,
+                    node: propertyNode,
+                    path: propertyPath,
+                    diagnostics: diagnostics,
+                    compactMode: true,
+                    showHeader: false,
+                    showContainer: false,
+                    showPath: false,
+                  ),
+                ],
+              ),
+            );
+          }),
+        const Gap(16),
+        if (showStructure)
+          Button(
+            onTap: () {
+              controller.addProperty(
+                objectPath: path,
+                key: 'property',
+                node: const JsonSchemaStringNode(),
+              );
+            },
+            type: ButtonType.secondary,
+            prefix: const Icon(Icons.add_rounded),
+            label: 'Add property',
+          ),
+        const Gap(8),
+      ],
+    );
+  }
+}

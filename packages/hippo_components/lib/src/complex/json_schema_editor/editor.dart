@@ -166,14 +166,11 @@ class JsonSchemaEditor extends StatelessWidget {
                   ),
                 SliverChild(
                   maxWidth: 1400,
-                  child: _SchemaNodeEditor(
+                  child: _RootSchemaNodeEditor(
                     controller: controller,
                     node: schema,
-                    featureOptions: controller.featureOptions,
-                    path: const JsonSchemaPath.root(),
                     diagnostics: diagnostics,
                     compactMode: compactMode,
-                    showContainer: false,
                   ),
                 ),
                 SliverGap(256),
@@ -182,6 +179,49 @@ class JsonSchemaEditor extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _RootSchemaNodeEditor extends StatelessWidget {
+  const _RootSchemaNodeEditor({
+    required this.controller,
+    required this.node,
+    required this.diagnostics,
+    required this.compactMode,
+  });
+
+  final JsonSchemaEditorController controller;
+  final JsonSchemaNode node;
+  final List<JsonSchemaDiagnostic> diagnostics;
+  final bool compactMode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _RootSchemaNodeHeader(
+          controller: controller,
+          nodeType: node.type,
+          compactMode: compactMode,
+          onTypeChanged: (nextType) => controller.replaceNode(
+            path: const JsonSchemaPath.root(),
+            node: _defaultNodeForTypePreservingMetadata(node, nextType),
+          ),
+        ),
+        const Gap(_editorSectionSpacing),
+        _SchemaNodeEditor(
+          controller: controller,
+          node: node,
+          featureOptions: controller.featureOptions,
+          path: const JsonSchemaPath.root(),
+          diagnostics: diagnostics,
+          compactMode: compactMode,
+          showHeader: false,
+          showContainer: false,
+        ),
+      ],
     );
   }
 }
@@ -279,9 +319,6 @@ class _SchemaNodeEditor extends StatelessWidget {
             path: path,
             compactMode: compactMode,
             showPath: showPath,
-            trailingActions: path.isRoot
-                ? <Widget>[_RootSchemaActionsMenu(controller: controller)]
-                : const <Widget>[],
             onTypeChanged: (nextType) => controller.replaceNode(
               path: path,
               node: _defaultNodeForTypePreservingMetadata(node, nextType),
@@ -418,6 +455,40 @@ Widget _buildNodeEditorSection({
 }
 
 enum _RootSchemaAction { copyJson, resetSchema, clearSchema }
+
+class _RootSchemaNodeHeader extends StatelessWidget {
+  const _RootSchemaNodeHeader({
+    required this.controller,
+    required this.nodeType,
+    required this.onTypeChanged,
+    required this.compactMode,
+  });
+
+  final JsonSchemaEditorController controller;
+  final JsonSchemaNodeType nodeType;
+  final ValueChanged<JsonSchemaNodeType> onTypeChanged;
+  final bool compactMode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: JsonSchemaEditorNodeHeader(
+            nodeType: nodeType,
+            path: const JsonSchemaPath.root(),
+            compactMode: compactMode,
+            showPath: false,
+            onTypeChanged: onTypeChanged,
+          ),
+        ),
+        const Gap(4),
+        _RootSchemaActionsMenu(controller: controller),
+      ],
+    );
+  }
+}
 
 class _RootSchemaActionsMenu extends StatelessWidget {
   const _RootSchemaActionsMenu({required this.controller});

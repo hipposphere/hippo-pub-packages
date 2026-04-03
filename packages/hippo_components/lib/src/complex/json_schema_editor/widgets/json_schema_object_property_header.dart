@@ -130,7 +130,7 @@ class JsonSchemaObjectPropertyHeader extends StatelessWidget {
               SizedBox(width: propertyKeyWidth, child: propertyKeyField),
               const Gap(8),
               Expanded(
-                child: Align(alignment: Alignment.centerLeft, child: trailing),
+                child: Align(alignment: Alignment.centerRight, child: trailing),
               ),
             ],
           );

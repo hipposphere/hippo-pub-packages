@@ -48,9 +48,14 @@ class _BooleanCapabilityField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _CompactBooleanOption(label: label, value: value, helpText: helpText, onChanged: onChanged),
+        JsonSchemaEditorCompactBooleanOption(
+          label: label,
+          value: value,
+          helpText: helpText,
+          onChanged: onChanged,
+        ),
         const Spacer(),
-        _EditorActionIconButton(
+        JsonSchemaEditorActionIconButton(
           tooltip: 'Remove capability',
           icon: Icons.close,
           onPressed: onCleared,

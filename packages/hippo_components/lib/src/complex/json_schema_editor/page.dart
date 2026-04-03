@@ -20,11 +20,7 @@ class JsonSchemaEditorPage extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final isDesktop = width >= 1024;
-        final previewContent = SingleChildScrollView(
-          padding: EdgeInsets.zero,
-          child: _PreviewAndDiagnostics(controller: controller),
-        );
+        final isDesktop = width >= 1000;
 
         if (isDesktop) {
           return PageContainer(
@@ -43,7 +39,7 @@ class JsonSchemaEditorPage extends StatelessWidget {
               children: [
                 Expanded(flex: 2, child: JsonSchemaEditor(controller: controller)),
                 const VerticalDivider(thickness: 0.5, width: 0.5),
-                Expanded(child: previewContent),
+                Expanded(child: _PreviewAndDiagnostics(controller: controller)),
               ],
             ),
           );
@@ -66,7 +62,7 @@ class JsonSchemaEditorPage extends StatelessWidget {
           ],
           tabViews: [
             JsonSchemaEditor(controller: controller),
-            previewContent,
+            _PreviewAndDiagnostics(controller: controller),
           ],
         );
       },
@@ -81,29 +77,32 @@ class _PreviewAndDiagnostics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DataSubjectBuilder<JsonSchemaNode>(
-      subject: controller.schemaSubject,
-      builder: (context, schemaNode) {
-        return DataSubjectBuilder<List<JsonSchemaDiagnostic>>(
-          subject: controller.diagnosticsSubject,
-          builder: (context, diagnostics) {
-            return Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  JsonSchemaValidationPanel(diagnostics: diagnostics),
-                  const SizedBox(height: 12),
-                  JsonSchemaVisualizationPanel(
-                    controller: controller,
-                    schema: JsonSchema.fromNode(schemaNode),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+    return SingleChildScrollView(
+      padding: EdgeInsets.zero,
+      child: DataSubjectBuilder<JsonSchemaNode>(
+        subject: controller.schemaSubject,
+        builder: (context, schemaNode) {
+          return DataSubjectBuilder<List<JsonSchemaDiagnostic>>(
+            subject: controller.diagnosticsSubject,
+            builder: (context, diagnostics) {
+              return Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    JsonSchemaValidationPanel(diagnostics: diagnostics),
+                    Gap(16),
+                    JsonSchemaVisualizationPanel(
+                      controller: controller,
+                      schema: JsonSchema.fromNode(schemaNode),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

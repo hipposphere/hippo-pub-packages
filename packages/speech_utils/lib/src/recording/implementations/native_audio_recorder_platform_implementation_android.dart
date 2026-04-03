@@ -111,7 +111,7 @@ final class _AndroidJniAudioRecordBackend {
     if (engineId == null) {
       return false;
     }
-    final rawActivity = Jni.androidActivity(engineId);
+    final rawActivity = androidActivity(engineId);
     if (rawActivity == null) {
       return false;
     }
@@ -257,11 +257,11 @@ final class _AndroidJniAudioRecordBackend {
     android_jni.Context? typedContext;
     JString? permission;
     try {
-      rawContext = Jni.androidApplicationContext;
+      rawContext = androidApplicationContext;
       typedContext = rawContext.as(android_jni.Context.type, releaseOriginal: true);
       rawContext = null;
       permission = _recordAudioPermission.toJString();
-      final result = typedContext!.checkSelfPermission(permission);
+      final result = typedContext.checkSelfPermission(permission);
       return result == _permissionGranted;
     } on Object {
       return false;
@@ -290,7 +290,7 @@ final class _AndroidJniAudioRecordBackend {
     JString? permission;
     try {
       permission = _recordAudioPermission.toJString();
-      permissions = JArray<JString?>(JString.nullableType, 1);
+      permissions = JArray.withLength(JString.type, 1);
       permissions[0] = permission;
 
       final initialShouldShowRationale = _safeShouldShowRequestPermissionRationale(
@@ -394,7 +394,7 @@ final class _AndroidJniAudioRecordBackend {
 
   bool _safeHasWindowFocus(android_jni.Activity activity, {required bool fallback}) {
     try {
-      if (activity.isFinishing() || activity.isDestroyed()) {
+      if (activity.isFinishing || activity.isDestroyed) {
         return fallback;
       }
       return activity.hasWindowFocus();
@@ -409,7 +409,7 @@ final class _AndroidJniAudioRecordBackend {
     required bool fallback,
   }) {
     try {
-      if (activity.isFinishing() || activity.isDestroyed()) {
+      if (activity.isFinishing || activity.isDestroyed) {
         return fallback;
       }
       return activity.shouldShowRequestPermissionRationale(permission);
@@ -502,13 +502,15 @@ final class _AndroidJniAudioRecordBackend {
       AudioEncoder.aacLc => _fileEncoderAacLc,
       AudioEncoder.aacHe => _fileEncoderAacHe,
       AudioEncoder.aacEld => _fileEncoderAacEld,
-      AudioEncoder.wav || AudioEncoder.pcm16bits || AudioEncoder.flac || AudioEncoder.opus =>
-        throw ArgumentError.value(
-          encoder,
-          'config.encoding.encoder',
-          'Android file recording supports AAC encoders only. Use AudioEncoder.aacLc, '
-              'AudioEncoder.aacHe, or AudioEncoder.aacEld.',
-        ),
+      AudioEncoder.wav ||
+      AudioEncoder.pcm16bits ||
+      AudioEncoder.flac ||
+      AudioEncoder.opus => throw ArgumentError.value(
+        encoder,
+        'config.encoding.encoder',
+        'Android file recording supports AAC encoders only. Use AudioEncoder.aacLc, '
+            'AudioEncoder.aacHe, or AudioEncoder.aacEld.',
+      ),
     };
   }
 
@@ -560,7 +562,7 @@ final class _AndroidMediaRecorderWorkerBridge implements _AndroidRecorderWorkerB
   final JObject _instance;
 
   factory _AndroidMediaRecorderWorkerBridge.create() {
-    return _AndroidMediaRecorderWorkerBridge._(_constructor.call(_class, JObject.type, []));
+    return _AndroidMediaRecorderWorkerBridge._(_constructor.call(_class, []));
   }
 
   void startFile({
@@ -650,7 +652,7 @@ final class _AndroidAudioRecordWorkerBridge implements _AndroidRecorderWorkerBri
   final JObject _instance;
 
   factory _AndroidAudioRecordWorkerBridge.create() {
-    return _AndroidAudioRecordWorkerBridge._(_constructor.call(_class, JObject.type, []));
+    return _AndroidAudioRecordWorkerBridge._(_constructor.call(_class, []));
   }
 
   void startFile({
@@ -693,7 +695,8 @@ final class _AndroidAudioRecordWorkerBridge implements _AndroidRecorderWorkerBri
   Uint8List readStream({required int maxBytes}) {
     final array = _readStreamMethod.call(_instance, JByteArray.type, [maxBytes]);
     try {
-      return Uint8List.fromList(array.map((value) => value & 0xFF).toList(growable: false));
+      final bytes = array.getRange(0, array.length);
+      return bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes);
     } finally {
       array.release();
     }

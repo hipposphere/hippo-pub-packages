@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
-import 'json_schema_editor_info_icon.dart';
+import 'json_schema_editor_controls.dart';
 import 'json_schema_editor_text_field.dart';
 
 class JsonSchemaObjectPropertyHeader extends StatelessWidget {
@@ -59,8 +59,9 @@ class JsonSchemaObjectPropertyHeader extends StatelessWidget {
         final useInlineLayout = constraints.maxWidth >= 460;
         final propertyKeyWidth = isWide ? 280.0 : 190.0;
         final trailingChildren = <Widget>[
-          _NodeTypeDropdown(
+          JsonSchemaEditorNodeTypeDropdown(
             value: nodeType,
+            compact: true,
             onChanged: (value) {
               if (value == null) {
                 return;
@@ -68,26 +69,26 @@ class JsonSchemaObjectPropertyHeader extends StatelessWidget {
               onTypeChanged(value);
             },
           ),
-          _CompactBooleanOption(
+          JsonSchemaEditorCompactBooleanOption(
             label: 'Required',
             value: required,
             helpText: requiredHelpText,
             dense: useInlineLayout,
             onChanged: onRequiredChanged,
           ),
-          _EditorActionIconButton(
+          JsonSchemaEditorActionIconButton(
             tooltip: 'Move property up',
             icon: Icons.arrow_upward_rounded,
             dense: useInlineLayout,
             onPressed: onMoveUp,
           ),
-          _EditorActionIconButton(
+          JsonSchemaEditorActionIconButton(
             tooltip: 'Move property down',
             icon: Icons.arrow_downward_rounded,
             dense: useInlineLayout,
             onPressed: onMoveDown,
           ),
-          _EditorActionIconButton(
+          JsonSchemaEditorActionIconButton(
             tooltip: 'Remove property',
             icon: Icons.delete_outline,
             dense: useInlineLayout,
@@ -140,138 +141,6 @@ class JsonSchemaObjectPropertyHeader extends StatelessWidget {
           children: [propertyKeyField, const Gap(6), trailing],
         );
       },
-    );
-  }
-}
-
-class _CompactBooleanOption extends StatelessWidget {
-  const _CompactBooleanOption({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-    this.helpText,
-    this.dense = false,
-  });
-
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  final String? helpText;
-  final bool dense;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final borderRadius = BorderRadius.circular(dense ? 10 : 12);
-
-    return InkWell(
-      borderRadius: borderRadius,
-      onTap: () => onChanged(!value),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 8, vertical: dense ? 4 : 6),
-        decoration: BoxDecoration(
-          color: value
-              ? colorScheme.primaryContainer.withValues(alpha: 0.75)
-              : colorScheme.surfaceContainerLowest,
-          borderRadius: borderRadius,
-          border: Border.all(
-            color: value
-                ? colorScheme.primary.withValues(alpha: 0.3)
-                : colorScheme.outlineVariant.withValues(alpha: 0.7),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Checkbox(
-              value: value,
-              visualDensity: dense
-                  ? const VisualDensity(horizontal: -3, vertical: -3)
-                  : VisualDensity.compact,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              onChanged: (next) => onChanged(next ?? false),
-            ),
-            Text(
-              label,
-              style: dense
-                  ? Theme.of(context).textTheme.labelSmall
-                  : Theme.of(context).textTheme.bodySmall,
-            ),
-            if (helpText != null) ...[
-              const Gap(4),
-              JsonSchemaEditorInfoIcon(message: helpText, size: dense ? 12 : 14),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EditorActionIconButton extends StatelessWidget {
-  const _EditorActionIconButton({
-    required this.icon,
-    required this.onPressed,
-    required this.tooltip,
-    this.dense = false,
-  });
-
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final String tooltip;
-  final bool dense;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: tooltip,
-      icon: Icon(icon, size: 18),
-      visualDensity: VisualDensity.compact,
-      constraints: BoxConstraints(minWidth: dense ? 36 : 32, minHeight: dense ? 36 : 32),
-      onPressed: onPressed,
-    );
-  }
-}
-
-class _NodeTypeDropdown extends StatelessWidget {
-  const _NodeTypeDropdown({required this.value, required this.onChanged});
-
-  final JsonSchemaNodeType value;
-  final ValueChanged<JsonSchemaNodeType?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.7)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<JsonSchemaNodeType>(
-          value: value,
-          isDense: true,
-          items: JsonSchemaNodeType.values
-              .map(
-                (type) => DropdownMenuItem(
-                  value: type,
-                  child: Text(switch (type) {
-                    JsonSchemaNodeType.string => 'String',
-                    JsonSchemaNodeType.number => 'Number',
-                    JsonSchemaNodeType.integer => 'Integer',
-                    JsonSchemaNodeType.boolean => 'Boolean',
-                    JsonSchemaNodeType.object => 'Object',
-                    JsonSchemaNodeType.array => 'Array',
-                  }),
-                ),
-              )
-              .toList(),
-          onChanged: onChanged,
-        ),
-      ),
     );
   }
 }

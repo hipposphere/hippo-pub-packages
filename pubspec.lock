@@ -814,10 +814,10 @@ packages:
     dependency: transitive
     description:
       name: forui
-      sha256: "2a151e90ca6ca10cd5ae55f3e6fb9a971830863d9c82ad607b5fd6eecb553ec5"
+      sha256: "0a1611a215b07fff150c94da48cd2b01c8b036636fc58c2177d916cb6ebaaa92"
       url: "https://pub.dev"
     source: hosted
-    version: "0.20.3"
+    version: "0.20.4"
   forui_assets:
     dependency: transitive
     description:
@@ -984,18 +984,26 @@ packages:
     dependency: transitive
     description:
       name: jni
-      sha256: "8706a77e94c76fe9ec9315e18949cc9479cc03af97085ca9c1077b61323ea12d"
+      sha256: c2230682d5bc2362c1c9e8d3c7f406d9cbba23ab3f2e203a025dd47e0fb2e68f
       url: "https://pub.dev"
     source: hosted
-    version: "0.15.2"
+    version: "1.0.0"
+  jni_flutter:
+    dependency: transitive
+    description:
+      name: jni_flutter
+      sha256: "8b59e590786050b1cd866677dddaf76b1ade5e7bc751abe04b86e84d379d3ba6"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   jnigen:
     dependency: transitive
     description:
       name: jnigen
-      sha256: dcb5927c2b15ddd3bfcd1b13a13c063828ac4e495f9f87dd11e7968f68114ac7
+      sha256: "6079cbd103ac24892f597af5be17c43f817b93cb25acb3b51197684f0b102e87"
       url: "https://pub.dev"
     source: hosted
-    version: "0.15.0"
+    version: "0.16.0"
   json_annotation:
     dependency: transitive
     description:

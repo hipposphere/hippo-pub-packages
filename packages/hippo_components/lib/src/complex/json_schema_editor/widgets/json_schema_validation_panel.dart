@@ -26,91 +26,83 @@ class JsonSchemaValidationPanel extends StatelessWidget {
         ? const Color(0xFF163425)
         : const Color(0xFFEAF7EC);
 
-    return Card(
-      elevation: 0,
-      color: colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.55)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+          child: Row(
+            children: [
+              Expanded(child: Text('Validation', style: Theme.of(context).textTheme.titleSmall)),
+              if (warningCount > 0)
+                Text(
+                  '$warningCount warning${warningCount == 1 ? '' : 's'}',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+                ),
+            ],
+          ),
+        ),
+        if (warningCount == 0)
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-            child: Row(
-              children: [
-                Expanded(child: Text('Validation', style: Theme.of(context).textTheme.titleSmall)),
-                if (warningCount > 0)
-                  Text(
-                    '$warningCount warning${warningCount == 1 ? '' : 's'}',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: successContainerColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: successColor.withValues(alpha: 0.18)),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    key: const ValueKey('validation-success-avatar'),
+                    radius: 18,
+                    backgroundColor: successColor,
+                    child: const Icon(Icons.check_rounded, color: Colors.white, size: 18),
                   ),
-              ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'No warnings detected',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: successColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Schema looks good.',
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 144),
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+              itemCount: diagnostics.length,
+              itemBuilder: (context, index) {
+                final item = diagnostics[index];
+                return JsonSchemaWarningBadge(message: '${item.path}: ${item.message}');
+              },
             ),
           ),
-          if (warningCount == 0)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: successContainerColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: successColor.withValues(alpha: 0.18)),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      key: const ValueKey('validation-success-avatar'),
-                      radius: 18,
-                      backgroundColor: successColor,
-                      child: const Icon(Icons.check_rounded, color: Colors.white, size: 18),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'No warnings detected',
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: successColor,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Schema looks good.',
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 144),
-              child: ListView.builder(
-                shrinkWrap: true,
-                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                itemCount: diagnostics.length,
-                itemBuilder: (context, index) {
-                  final item = diagnostics[index];
-                  return JsonSchemaWarningBadge(message: '${item.path}: ${item.message}');
-                },
-              ),
-            ),
-        ],
-      ),
+      ],
     );
   }
 }

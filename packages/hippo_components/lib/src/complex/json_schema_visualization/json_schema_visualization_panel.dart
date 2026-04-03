@@ -28,32 +28,13 @@ class _JsonSchemaVisualizationPanelState extends State<JsonSchemaVisualizationPa
   _JsonSchemaPreviewMode _mode = _JsonSchemaPreviewMode.optimized;
 
   Future<void> _confirmAndRun({
-    required String title,
     required String message,
-    required String confirmLabel,
+    required ConfirmAction confirmAction,
     required VoidCallback action,
   }) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(confirmLabel),
-            ),
-          ],
-        );
-      },
-    );
+    final confirmed = ConfirmModal(text: message, action: confirmAction);
 
-    if (confirmed == true) {
+    if (await confirmed.open(context)) {
       action();
     }
   }
@@ -61,119 +42,105 @@ class _JsonSchemaVisualizationPanelState extends State<JsonSchemaVisualizationPa
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
-    return Card(
-      elevation: 0,
-      color: colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.55)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Schema Preview',
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const Gap(4),
-            Text(switch (_mode) {
-              _JsonSchemaPreviewMode.optimized => 'Compact structural view',
-              _JsonSchemaPreviewMode.json => 'Formatted JSON source',
-            }, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const Gap(10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                SegmentedButton<_JsonSchemaPreviewMode>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(
-                      value: _JsonSchemaPreviewMode.optimized,
-                      icon: Icon(Icons.auto_awesome_rounded),
-                      label: Text('Optimized'),
-                    ),
-                    ButtonSegment(
-                      value: _JsonSchemaPreviewMode.json,
-                      icon: Icon(Icons.data_object_rounded),
-                      label: Text('JSON'),
-                    ),
-                  ],
-                  selected: {_mode},
-                  style: ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Schema Preview',
+            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          Gap(10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SegmentedButton<_JsonSchemaPreviewMode>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: _JsonSchemaPreviewMode.optimized,
+                    icon: Icon(Icons.auto_awesome_rounded),
+                    label: Text('Optimized'),
                   ),
-                  onSelectionChanged: (selection) {
-                    final next = selection.isEmpty ? null : selection.first;
-                    if (next == null || next == _mode) {
-                      return;
-                    }
-                    setState(() {
-                      _mode = next;
-                    });
-                  },
+                  ButtonSegment(
+                    value: _JsonSchemaPreviewMode.json,
+                    icon: Icon(Icons.data_object_rounded),
+                    label: Text('JSON'),
+                  ),
+                ],
+                selected: {_mode},
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                _PreviewActionChip(
-                  onTap: () {
-                    Clipboard.setData(
-                      ClipboardData(text: widget.schema.toJsonString(pretty: true)),
-                    );
-                  },
-                  label: 'Copy JSON',
-                  icon: Icons.content_copy_rounded,
-                ),
-                _PreviewActionChip(
-                  onTap: () {
-                    _confirmAndRun(
-                      title: 'Reset schema?',
-                      message: 'This discards current edits and restores the initial schema.',
-                      confirmLabel: 'Reset schema',
-                      action: widget.controller.reset,
-                    );
-                  },
-                  label: 'Reset',
-                  icon: Icons.history_rounded,
-                ),
-                _PreviewActionChip(
-                  onTap: () {
-                    _confirmAndRun(
-                      title: 'Clear schema?',
-                      message:
-                          'This removes the current schema content and starts again with an empty root object.',
-                      confirmLabel: 'Clear schema',
-                      action: widget.controller.clearRootObject,
-                    );
-                  },
-                  label: 'Clear',
-                  icon: Icons.layers_clear_rounded,
-                ),
-              ],
-            ),
-            const Gap(12),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              child: switch (_mode) {
-                _JsonSchemaPreviewMode.optimized => JsonSchemaVisualization(
-                  key: const ValueKey('optimized-view'),
-                  schema: widget.schema,
-                  extensionOptions: widget.controller.extensionOptions,
-                ),
-                _JsonSchemaPreviewMode.json => _RawJsonSchemaView(
-                  key: const ValueKey('json-view'),
-                  schema: widget.schema,
-                ),
-              },
-            ),
-          ],
-        ),
+                onSelectionChanged: (selection) {
+                  final next = selection.isEmpty ? null : selection.first;
+                  if (next == null || next == _mode) {
+                    return;
+                  }
+                  setState(() {
+                    _mode = next;
+                  });
+                },
+              ),
+              _PreviewActionChip(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: widget.schema.toJsonString(pretty: true)));
+                },
+                label: 'Copy JSON',
+                icon: Icons.content_copy_rounded,
+              ),
+              _PreviewActionChip(
+                onTap: () {
+                  _confirmAndRun(
+                    message: 'This discards current edits and restores the initial schema.',
+                    confirmAction: ConfirmAction.reset(context),
+                    action: widget.controller.reset,
+                  );
+                },
+                label: 'Reset',
+                icon: Icons.history_rounded,
+              ),
+              _PreviewActionChip(
+                onTap: () {
+                  _confirmAndRun(
+                    message:
+                        'This removes the current schema content and starts again with an empty root object.',
+                    confirmAction: const ConfirmAction(
+                      type: ConfirmActionType.destructive,
+                      icon: Icons.layers_clear_rounded,
+                      text: 'Clear schema',
+                    ),
+                    action: widget.controller.clearRootObject,
+                  );
+                },
+                label: 'Clear',
+                icon: Icons.layers_clear_rounded,
+              ),
+            ],
+          ),
+          const Gap(12),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: switch (_mode) {
+              _JsonSchemaPreviewMode.optimized => JsonSchemaVisualization(
+                key: const ValueKey('optimized-view'),
+                schema: widget.schema,
+                extensionOptions: widget.controller.extensionOptions,
+              ),
+              _JsonSchemaPreviewMode.json => _RawJsonSchemaView(
+                key: const ValueKey('json-view'),
+                schema: widget.schema,
+              ),
+            },
+          ),
+        ],
       ),
     );
   }

@@ -107,7 +107,7 @@ class _StringCapabilityField extends StatelessWidget {
           ),
         ),
         const Gap(4),
-        _EditorActionIconButton(
+        JsonSchemaEditorActionIconButton(
           tooltip: 'Remove capability',
           icon: Icons.close,
           onPressed: onRemove,
@@ -180,7 +180,7 @@ class _DropdownCapabilityField extends StatelessWidget {
           JsonSchemaEditorInfoIcon(message: helpText!, size: 15),
         ],
         const Gap(4),
-        _EditorActionIconButton(
+        JsonSchemaEditorActionIconButton(
           tooltip: 'Remove extension',
           icon: Icons.close,
           onPressed: onRemove,

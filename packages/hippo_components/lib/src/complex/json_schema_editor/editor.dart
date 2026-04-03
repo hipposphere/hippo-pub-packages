@@ -14,31 +14,24 @@ import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_property_card.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
+import 'widgets/json_schema_editor_controls.dart';
 import 'widgets/json_schema_editor_info_icon.dart';
+import 'widgets/json_schema_editor_node_header.dart';
 import 'widgets/json_schema_editor_text_field.dart';
 import 'widgets/json_schema_object_property_header.dart';
 import 'widgets/json_schema_validation_panel.dart';
 
 part 'parts/array.dart';
 part 'parts/boolean.dart';
+part 'parts/capabilities.dart';
 part 'parts/extensions.dart';
 part 'parts/number.dart';
 part 'parts/object.dart';
+part 'parts/schema_info.dart';
 part 'parts/string.dart';
 
 bool _isInternalSchemaExtensionKey(String key) {
   return key.trim() == jsonSchemaObjectPropertyOrderExtensionKey;
-}
-
-String? _schemaTypeHelp(JsonSchemaNodeType type) {
-  return switch (type) {
-    JsonSchemaNodeType.string => 'String: text value (e.g., names, labels, IDs).',
-    JsonSchemaNodeType.integer => 'Integer: whole number without decimals.',
-    JsonSchemaNodeType.number => 'Number: numeric value, including decimals.',
-    JsonSchemaNodeType.boolean => 'Boolean: true/false value.',
-    JsonSchemaNodeType.object => 'Object: map with named properties.',
-    JsonSchemaNodeType.array => 'Array: ordered list of items.',
-  };
 }
 
 const _jsonSchemaHelpByKeyword = {
@@ -135,128 +128,6 @@ class _EditorFieldWrap extends StatelessWidget {
           children: [for (final child in children) SizedBox(width: widthForChild, child: child)],
         );
       },
-    );
-  }
-}
-
-class _CompactBooleanOption extends StatelessWidget {
-  const _CompactBooleanOption({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-    this.helpText,
-  });
-
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  final String? helpText;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final borderRadius = BorderRadius.circular(12);
-
-    return InkWell(
-      borderRadius: borderRadius,
-      onTap: () => onChanged(!value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: value
-              ? colorScheme.primaryContainer.withValues(alpha: 0.75)
-              : colorScheme.surfaceContainerLowest,
-          borderRadius: borderRadius,
-          border: Border.all(
-            color: value
-                ? colorScheme.primary.withValues(alpha: 0.3)
-                : colorScheme.outlineVariant.withValues(alpha: 0.7),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Checkbox(
-              value: value,
-              visualDensity: VisualDensity.compact,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              onChanged: (next) => onChanged(next ?? false),
-            ),
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
-            if (helpText != null) ...[
-              const Gap(4),
-              JsonSchemaEditorInfoIcon(message: helpText, size: 14),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EditorActionIconButton extends StatelessWidget {
-  const _EditorActionIconButton({
-    required this.icon,
-    required this.onPressed,
-    required this.tooltip,
-  });
-
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final String tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: tooltip,
-      icon: Icon(icon, size: 18),
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      onPressed: onPressed,
-    );
-  }
-}
-
-class _NodeTypeDropdown extends StatelessWidget {
-  const _NodeTypeDropdown({required this.value, required this.onChanged, this.compact = false});
-
-  final JsonSchemaNodeType value;
-  final ValueChanged<JsonSchemaNodeType?> onChanged;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 10, vertical: compact ? 5 : 2),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(compact ? 10 : 10),
-        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.7)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<JsonSchemaNodeType>(
-          value: value,
-          isDense: true,
-          items: JsonSchemaNodeType.values
-              .map(
-                (type) => DropdownMenuItem(
-                  value: type,
-                  child: Text(switch (type) {
-                    JsonSchemaNodeType.string => 'String',
-                    JsonSchemaNodeType.number => 'Number',
-                    JsonSchemaNodeType.integer => 'Integer',
-                    JsonSchemaNodeType.boolean => 'Boolean',
-                    JsonSchemaNodeType.object => 'Object',
-                    JsonSchemaNodeType.array => 'Array',
-                  }),
-                ),
-              )
-              .toList(),
-          onChanged: onChanged,
-        ),
-      ),
     );
   }
 }
@@ -376,9 +247,6 @@ class _SchemaNodeEditor extends StatelessWidget {
     final hasActiveCapabilitiesSection = extensionEntries.isNotEmpty || hasVisibleNodeCapabilities;
     final hasStructuralSections = _hasStructuralSections(node);
     final colorScheme = Theme.of(context).colorScheme;
-    final typeBadgeColor = compactMode
-        ? colorScheme.secondaryContainer.withValues(alpha: 0.55)
-        : colorScheme.primaryContainer.withValues(alpha: 0.65);
 
     final nodeCapabilities = _buildNodeEditorSection(
       controller: controller,
@@ -405,94 +273,19 @@ class _SchemaNodeEditor extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showHeader) ...[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: typeBadgeColor,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _typeLabel(node.type),
-                            style: Theme.of(
-                              context,
-                            ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const Gap(4),
-                          JsonSchemaEditorInfoIcon(message: _schemaTypeHelp(node.type), size: 14),
-                        ],
-                      ),
-                    ),
-                    if (showPath && !path.isRoot) ...[
-                      const Gap(6),
-                      Text(
-                        path.toString(),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const Gap(8),
-              _NodeTypeDropdown(
-                value: node.type,
-                compact: compactMode,
-                onChanged: (value) {
-                  final nextType = value;
-                  if (nextType == null) {
-                    return;
-                  }
-                  final replacement = _replaceType(node: node, nextType: nextType);
-                  controller.replaceNode(path: path, node: replacement);
-                },
-              ),
-            ],
+          JsonSchemaEditorNodeHeader(
+            nodeType: node.type,
+            path: path,
+            compactMode: compactMode,
+            showPath: showPath,
+            onTypeChanged: (nextType) => controller.replaceNode(
+              path: path,
+              node: _defaultNodeForTypePreservingMetadata(node, nextType),
+            ),
           ),
           const Gap(_editorSectionSpacing),
         ],
-        _EditorFieldWrap(
-          children: [
-            JsonSchemaEditorTextField(
-              value: node.title,
-              hint: 'Title',
-              helpText: _jsonSchemaHelpByKeyword['title'],
-              onChanged: (value) => controller.updateNode(
-                path: path,
-                updater: (JsonSchemaNode current) => current.copyWith(title: value.trim()),
-              ),
-              onCleared: () => controller.updateNode(
-                path: path,
-                updater: (JsonSchemaNode current) => current.copyWith(title: null),
-              ),
-            ),
-            JsonSchemaEditorTextField(
-              value: node.description,
-              hint: 'Description',
-              maxLines: 3,
-              helpText: _jsonSchemaHelpByKeyword['description'],
-              onChanged: (value) => controller.updateNode(
-                path: path,
-                updater: (JsonSchemaNode current) => current.copyWith(description: value),
-              ),
-              onCleared: () => controller.updateNode(
-                path: path,
-                updater: (JsonSchemaNode current) => current.copyWith(description: null),
-              ),
-            ),
-          ],
-        ),
+        _SchemaInfoFields(controller: controller, node: node, path: path),
         if (nodeDiagnostics.isNotEmpty) ...[
           const Gap(_editorSectionSpacing),
           ...nodeDiagnostics.map((item) => JsonSchemaWarningBadge(message: item.message)),
@@ -554,22 +347,6 @@ class _SchemaNodeEditor extends StatelessWidget {
       ),
       child: Padding(padding: EdgeInsets.all(compactMode ? 8 : 10), child: content),
     );
-  }
-
-  JsonSchemaNode _replaceType({
-    required JsonSchemaNode node,
-    required JsonSchemaNodeType nextType,
-  }) => _defaultNodeForTypePreservingMetadata(node, nextType);
-
-  String _typeLabel(JsonSchemaNodeType type) {
-    return switch (type) {
-      JsonSchemaNodeType.string => 'String',
-      JsonSchemaNodeType.number => 'Number',
-      JsonSchemaNodeType.integer => 'Integer',
-      JsonSchemaNodeType.boolean => 'Boolean',
-      JsonSchemaNodeType.object => 'Object',
-      JsonSchemaNodeType.array => 'Array',
-    };
   }
 }
 
@@ -644,336 +421,11 @@ class _ExtensionRowData {
   final JsonSchemaEditorExtensionField? field;
 }
 
-class _CapabilityOption {
-  const _CapabilityOption({
-    required this.icon,
-    required this.label,
-    required this.description,
-    required this.onSelected,
-  });
-
-  final IconData icon;
-  final String label;
-  final String description;
-  final Future<void> Function(BuildContext context) onSelected;
-}
-
-Future<void> _showAddCapabilityDialog({
-  required BuildContext context,
-  required List<_CapabilityOption> options,
-}) async {
-  if (options.isEmpty) {
-    return;
-  }
-
-  final sortedOptions = options.toList(growable: false)
-    ..sort((left, right) => left.label.compareTo(right.label));
-
-  final modal = AdaptiveCupertinoModal(
-    barrierDismissible: true,
-    builder: (dialogContext, isDesktop) {
-      final colorScheme = Theme.of(dialogContext).colorScheme;
-
-      return CupertinoModalPageContainer(
-        title: const Text('Add capability'),
-        child: Material(
-          type: MaterialType.transparency,
-          child: ListView.builder(
-            padding: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, 0, isDesktop ? 24 : 16, 8),
-            itemCount: sortedOptions.length,
-            itemBuilder: (context, index) {
-              final option = sortedOptions[index];
-              return Tile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                showArrowIndicator: true,
-                leading: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: colorScheme.secondaryContainer,
-                  foregroundColor: colorScheme.onSecondaryContainer,
-                  child: Icon(option.icon, size: 18),
-                ),
-                title: Text(option.label),
-                subtitle: Text(option.description),
-                onTap: () {
-                  Navigator.of(dialogContext).pop();
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    option.onSelected(context);
-                  });
-                },
-              );
-            },
-          ),
-        ),
-      );
-    },
-  );
-
-  await modal.show<void>(context);
-}
-
-List<_CapabilityOption> _availableCapabilityOptions({
-  required JsonSchemaNode node,
-  required JsonSchemaPath path,
-  required JsonSchemaEditorController controller,
-  required JsonSchemaEditorFeatureOptions featureOptions,
-  required List<JsonSchemaEditorExtensionField> configuredExtensions,
-}) {
-  final options = <_CapabilityOption>[
-    ..._nodeCapabilityOptions(
-      node: node,
-      path: path,
-      controller: controller,
-      featureOptions: featureOptions,
-    ),
-    ..._extensionCapabilityOptions(
-      node: node,
-      path: path,
-      controller: controller,
-      configuredExtensions: configuredExtensions,
-    ),
-  ];
-
-  if (controller.extensionOptions.allowAddExtensions) {
-    options.add(
-      _CapabilityOption(
-        icon: Icons.extension_rounded,
-        label: 'Custom extension',
-        description: 'Add a custom schema extension key/value entry.',
-        onSelected: (context) => _showCustomExtensionDialog(
-          context: context,
-          controller: controller,
-          path: path,
-          existingExtensionKeys: node.extensions.keys
-              .map((entry) => entry.trim())
-              .where((entry) => !_isInternalSchemaExtensionKey(entry))
-              .toSet(),
-        ),
-      ),
-    );
-  }
-
-  return options;
-}
-
-bool _hasVisibleNodeCapabilities({
-  required JsonSchemaNode node,
-  required JsonSchemaEditorFeatureOptions featureOptions,
-}) {
-  return switch (node) {
-    JsonSchemaStringNode() =>
-      (featureOptions.stringMinLength && node.minLength != null) ||
-          (featureOptions.stringMaxLength && node.maxLength != null) ||
-          (featureOptions.stringPattern &&
-              node.pattern != null &&
-              node.pattern!.trim().isNotEmpty) ||
-          (featureOptions.stringEnum && node.enumValues != null),
-    JsonSchemaNumberNode() =>
-      (featureOptions.numberMinimum && node.minimum != null) ||
-          (featureOptions.numberMaximum && node.maximum != null) ||
-          (featureOptions.numberExclusiveMinimum && node.exclusiveMinimum != null) ||
-          (featureOptions.numberExclusiveMaximum && node.exclusiveMaximum != null) ||
-          (featureOptions.numberMultipleOf && node.multipleOf != null),
-    JsonSchemaBooleanNode() => node.defaultValue != null,
-    JsonSchemaObjectNode() =>
-      featureOptions.objectAdditionalProperties && !node.additionalProperties,
-    JsonSchemaArrayNode() =>
-      (featureOptions.arrayMinItems && node.minItems != null) ||
-          (featureOptions.arrayMaxItems && node.maxItems != null) ||
-          (featureOptions.arrayUniqueItems && node.uniqueItems != null),
-  };
-}
-
 bool _hasStructuralSections(JsonSchemaNode node) {
   return switch (node) {
     JsonSchemaObjectNode() => true,
     JsonSchemaArrayNode() => true,
     _ => false,
-  };
-}
-
-List<_CapabilityOption> _extensionCapabilityOptions({
-  required JsonSchemaNode node,
-  required JsonSchemaPath path,
-  required JsonSchemaEditorController controller,
-  required List<JsonSchemaEditorExtensionField> configuredExtensions,
-}) {
-  final options = <_CapabilityOption>[];
-  for (final field in configuredExtensions) {
-    final key = field.key.trim();
-    if (key.isEmpty || node.extensions.containsKey(key)) {
-      continue;
-    }
-    options.add(
-      _CapabilityOption(
-        icon: Icons.extension_rounded,
-        label: key,
-        description: field.normalizedDescription ?? 'Configured schema extension.',
-        onSelected: (context) async {
-          controller.setNodeField(path: path, key: key, value: _initialValueForField(field));
-        },
-      ),
-    );
-  }
-  return options;
-}
-
-List<_CapabilityOption> _nodeCapabilityOptions({
-  required JsonSchemaNode node,
-  required JsonSchemaPath path,
-  required JsonSchemaEditorController controller,
-  required JsonSchemaEditorFeatureOptions featureOptions,
-}) {
-  return switch (node) {
-    JsonSchemaStringNode() => [
-      if (featureOptions.stringMinLength && node.minLength == null)
-        _CapabilityOption(
-          icon: Icons.straighten_rounded,
-          label: 'Min length',
-          description: _jsonSchemaHelpByKeyword['minLength']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaStringNode node) => node.copyWith(minLength: 0),
-          ),
-        ),
-      if (featureOptions.stringMaxLength && node.maxLength == null)
-        _CapabilityOption(
-          icon: Icons.width_normal_rounded,
-          label: 'Max length',
-          description: _jsonSchemaHelpByKeyword['maxLength']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaStringNode node) => node.copyWith(maxLength: node.minLength ?? 1),
-          ),
-        ),
-      if (featureOptions.stringPattern && (node.pattern == null || node.pattern!.trim().isEmpty))
-        _CapabilityOption(
-          icon: Icons.pattern_rounded,
-          label: 'Pattern',
-          description: _jsonSchemaHelpByKeyword['pattern']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaStringNode node) => node.copyWith(pattern: '.*'),
-          ),
-        ),
-      if (featureOptions.stringEnum && node.enumValues == null)
-        _CapabilityOption(
-          icon: Icons.list_alt_rounded,
-          label: 'Enum',
-          description: _jsonSchemaHelpByKeyword['enum']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaStringNode node) => node.copyWith(enumValues: const ['value']),
-          ),
-        ),
-    ],
-    JsonSchemaNumberNode() => [
-      if (featureOptions.numberMinimum && node.minimum == null)
-        _CapabilityOption(
-          icon: Icons.exposure_neg_1_rounded,
-          label: 'Minimum',
-          description: _jsonSchemaHelpByKeyword['minimum']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaNumberNode node) => node.copyWith(minimum: 0),
-          ),
-        ),
-      if (featureOptions.numberMaximum && node.maximum == null)
-        _CapabilityOption(
-          icon: Icons.exposure_plus_1_rounded,
-          label: 'Maximum',
-          description: _jsonSchemaHelpByKeyword['maximum']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaNumberNode node) => node.copyWith(maximum: node.minimum ?? 1),
-          ),
-        ),
-      if (featureOptions.numberExclusiveMinimum && node.exclusiveMinimum == null)
-        _CapabilityOption(
-          icon: Icons.chevron_left_rounded,
-          label: 'Exclusive min',
-          description: _jsonSchemaHelpByKeyword['exclusiveMinimum']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaNumberNode node) => node.copyWith(exclusiveMinimum: false),
-          ),
-        ),
-      if (featureOptions.numberExclusiveMaximum && node.exclusiveMaximum == null)
-        _CapabilityOption(
-          icon: Icons.chevron_right_rounded,
-          label: 'Exclusive max',
-          description: _jsonSchemaHelpByKeyword['exclusiveMaximum']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaNumberNode node) => node.copyWith(exclusiveMaximum: false),
-          ),
-        ),
-      if (featureOptions.numberMultipleOf && node.multipleOf == null)
-        _CapabilityOption(
-          icon: Icons.percent_rounded,
-          label: 'Multiple of',
-          description: _jsonSchemaHelpByKeyword['multipleOf']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaNumberNode node) => node.copyWith(multipleOf: 1),
-          ),
-        ),
-    ],
-    JsonSchemaBooleanNode() => [
-      if (node.defaultValue == null)
-        _CapabilityOption(
-          icon: Icons.toggle_on_rounded,
-          label: 'Default',
-          description: _jsonSchemaHelpByKeyword['default']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaBooleanNode node) => node.copyWith(defaultValue: false),
-          ),
-        ),
-    ],
-    JsonSchemaObjectNode() => [
-      if (featureOptions.objectAdditionalProperties && node.additionalProperties)
-        _CapabilityOption(
-          icon: Icons.data_object_rounded,
-          label: 'Additional properties',
-          description: _jsonSchemaHelpByKeyword['additionalProperties']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaObjectNode node) => node.copyWith(additionalProperties: false),
-          ),
-        ),
-    ],
-    JsonSchemaArrayNode() => [
-      if (featureOptions.arrayMinItems && node.minItems == null)
-        _CapabilityOption(
-          icon: Icons.format_list_numbered_rounded,
-          label: 'Min items',
-          description: _jsonSchemaHelpByKeyword['minItems']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaArrayNode node) => node.copyWith(minItems: 0),
-          ),
-        ),
-      if (featureOptions.arrayMaxItems && node.maxItems == null)
-        _CapabilityOption(
-          icon: Icons.format_list_numbered_rtl_rounded,
-          label: 'Max items',
-          description: _jsonSchemaHelpByKeyword['maxItems']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaArrayNode node) => node.copyWith(maxItems: node.minItems ?? 1),
-          ),
-        ),
-      if (featureOptions.arrayUniqueItems && node.uniqueItems == null)
-        _CapabilityOption(
-          icon: Icons.fingerprint_rounded,
-          label: 'Unique items',
-          description: _jsonSchemaHelpByKeyword['uniqueItems']!,
-          onSelected: (context) async => controller.updateNode(
-            path: path,
-            updater: (JsonSchemaArrayNode node) => node.copyWith(uniqueItems: false),
-          ),
-        ),
-    ],
   };
 }
 

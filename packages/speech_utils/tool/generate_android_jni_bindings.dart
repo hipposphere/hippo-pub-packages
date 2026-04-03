@@ -2,11 +2,11 @@ import 'dart:io';
 
 import 'package:jnigen/jnigen.dart';
 
-void main(List<String> args) {
+Future<void> main(List<String> args) async {
   final packageRoot = Platform.script.resolve('../');
   final androidJar = _resolveAndroidJar();
 
-  generateJniBindings(
+  await generateJniBindings(
     Config(
       outputConfig: OutputConfig(
         dartConfig: DartCodeOutputConfig(

@@ -9,6 +9,7 @@ import 'dart:ui';
 import 'package:cross_file/cross_file.dart';
 import 'package:ffi/ffi.dart';
 import 'package:jni/jni.dart';
+import 'package:jni_flutter/jni_flutter.dart';
 import 'package:path/path.dart' as path;
 
 import '../encoding/aac_encoder.dart';

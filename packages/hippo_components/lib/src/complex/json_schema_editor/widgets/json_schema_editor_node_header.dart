@@ -21,6 +21,7 @@ class JsonSchemaEditorNodeHeader extends StatelessWidget {
     required this.onTypeChanged,
     this.compactMode = false,
     this.showPath = true,
+    this.trailingActions = const <Widget>[],
   });
 
   final JsonSchemaNodeType nodeType;
@@ -28,6 +29,7 @@ class JsonSchemaEditorNodeHeader extends StatelessWidget {
   final ValueChanged<JsonSchemaNodeType> onTypeChanged;
   final bool compactMode;
   final bool showPath;
+  final List<Widget> trailingActions;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +79,15 @@ class JsonSchemaEditorNodeHeader extends StatelessWidget {
           ),
         ),
         const Gap(8),
+        if (trailingActions.isNotEmpty) ...[
+          ...[
+            for (var i = 0; i < trailingActions.length; i++) ...[
+              trailingActions[i],
+              if (i < trailingActions.length - 1) const Gap(4),
+            ],
+          ],
+          const Gap(4),
+        ],
         JsonSchemaEditorNodeTypeDropdown(
           value: nodeType,
           compact: compactMode,

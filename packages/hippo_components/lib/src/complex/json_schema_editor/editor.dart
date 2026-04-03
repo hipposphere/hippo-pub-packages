@@ -10,6 +10,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_property_card.dart';
 import 'package:hippo_utils/hippo_utils.dart';
@@ -278,6 +279,9 @@ class _SchemaNodeEditor extends StatelessWidget {
             path: path,
             compactMode: compactMode,
             showPath: showPath,
+            trailingActions: path.isRoot
+                ? <Widget>[_RootSchemaActionsMenu(controller: controller)]
+                : const <Widget>[],
             onTypeChanged: (nextType) => controller.replaceNode(
               path: path,
               node: _defaultNodeForTypePreservingMetadata(node, nextType),
@@ -411,6 +415,103 @@ Widget _buildNodeEditorSection({
       showStructure: showStructure,
     ),
   };
+}
+
+enum _RootSchemaAction { copyJson, resetSchema, clearSchema }
+
+class _RootSchemaActionsMenu extends StatelessWidget {
+  const _RootSchemaActionsMenu({required this.controller});
+
+  final JsonSchemaEditorController controller;
+
+  Future<void> _confirmAndRun({
+    required BuildContext context,
+    required String message,
+    required ConfirmAction confirmAction,
+    required VoidCallback action,
+  }) async {
+    final confirmed = ConfirmModal(text: message, action: confirmAction);
+    if (await confirmed.open(context)) {
+      action();
+    }
+  }
+
+  Future<void> _onSelected(BuildContext context, _RootSchemaAction action) async {
+    switch (action) {
+      case _RootSchemaAction.copyJson:
+        await Clipboard.setData(ClipboardData(text: controller.toJsonString(pretty: true)));
+      case _RootSchemaAction.resetSchema:
+        await _confirmAndRun(
+          context: context,
+          message: 'This discards current edits and restores the initial schema.',
+          confirmAction: ConfirmAction.reset(context),
+          action: controller.reset,
+        );
+      case _RootSchemaAction.clearSchema:
+        await _confirmAndRun(
+          context: context,
+          message:
+              'This removes the current schema content and starts again with an empty root object.',
+          confirmAction: ConfirmAction(
+            type: ConfirmActionType.destructive,
+            icon: Icons.layers_clear_rounded,
+            text: context.cl.actions_clear,
+          ),
+          action: controller.clearRootObject,
+        );
+    }
+  }
+
+  PullDownMenuItem _menuItem({
+    required BuildContext context,
+    required _RootSchemaAction value,
+    required IconData icon,
+    required String label,
+    bool isDestructive = false,
+  }) {
+    return PullDownMenuItem(
+      onTap: () => _onSelected(context, value),
+      icon: icon,
+      title: label,
+      isDestructive: isDestructive,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PullDownButton(
+      itemBuilder: (context) => <PullDownMenuEntry>[
+        _menuItem(
+          context: context,
+          value: _RootSchemaAction.copyJson,
+          icon: Icons.content_copy_rounded,
+          label: 'Copy JSON',
+        ),
+        _menuItem(
+          context: context,
+          value: _RootSchemaAction.resetSchema,
+          icon: Icons.restore_rounded,
+          label: context.cl.actions_reset,
+        ),
+        _menuItem(
+          context: context,
+          value: _RootSchemaAction.clearSchema,
+          icon: Icons.layers_clear_rounded,
+          label: context.cl.actions_clear,
+          isDestructive: true,
+        ),
+      ],
+      buttonBuilder: (context, showMenu) => SimpleTappable(
+        tooltip: 'Schema actions',
+        onTap: showMenu,
+        radius: BorderRadius.circular(10),
+        child: const Padding(
+          padding: EdgeInsets.all(4),
+          child: Icon(Icons.more_horiz_rounded, size: 18),
+        ),
+      ),
+    );
+  }
 }
 
 class _ExtensionRowData {

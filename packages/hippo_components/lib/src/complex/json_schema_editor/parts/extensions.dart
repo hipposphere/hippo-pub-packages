@@ -70,6 +70,8 @@ class _ExtensionNodeEditor extends StatelessWidget {
           path: path,
           extensionKey: extensionKey,
           extensionValue: _extensionValueAsString(extensionValue),
+          minLines: extensionField?.minLines ?? 1,
+          maxLines: extensionField?.maxLines ?? 1,
           helpText: helpText,
         ),
         JsonSchemaEditorExtensionFieldType.stringEnum => _StringEnumExtensionNodeField(

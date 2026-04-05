@@ -8,6 +8,24 @@ class JsonSchemaEditorExample extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = JsonSchemaEditorController(
+      customValidators: [
+        (node) {
+          final diagnostics = <JsonSchemaDiagnostic>[];
+          node.traverse().forEach((traversed) {
+            if (traversed.node.title == null || traversed.node.title!.length < 3) {
+              diagnostics.add(
+                JsonSchemaDiagnostic(
+                  path: traversed.path,
+                  message: 'Title must be at least 3 characters long',
+                  severity: .warning,
+                ),
+              );
+            }
+          });
+
+          return diagnostics;
+        },
+      ],
       featureOptions: JsonSchemaEditorFeatureOptions(
         arrayUniqueItems: false,
         arrayMaxItems: false,
@@ -53,9 +71,11 @@ class JsonSchemaEditorExample extends StatelessWidget {
           ),
           JsonSchemaEditorExtensionField(
             key: 'x-string-label',
-            description: 'Label for string nodes',
+            description: 'Multiline notes for string nodes',
             valueType: JsonSchemaEditorExtensionFieldType.string,
-            defaultValue: 'string-level',
+            defaultValue: 'Line 1\nLine 2',
+            minLines: 2,
+            maxLines: 6,
             applicableNodeTypes: const {JsonSchemaNodeType.string},
           ),
         ],

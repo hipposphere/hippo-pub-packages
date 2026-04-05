@@ -199,23 +199,23 @@ class _RootSchemaNodeEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: [
         _RootSchemaNodeHeader(
           controller: controller,
           nodeType: node.type,
           compactMode: compactMode,
           onTypeChanged: (nextType) => controller.replaceNode(
-            path: const JsonSchemaPath.root(),
+            path: JsonSchemaPath.root(),
             node: _defaultNodeForTypePreservingMetadata(node, nextType),
           ),
         ),
-        const Gap(_editorSectionSpacing),
+        Gap(_editorSectionSpacing),
         _SchemaNodeEditor(
           controller: controller,
           node: node,
           featureOptions: controller.featureOptions,
-          path: const JsonSchemaPath.root(),
+          path: JsonSchemaPath.root(),
           diagnostics: diagnostics,
           compactMode: compactMode,
           showHeader: false,
@@ -438,8 +438,6 @@ Widget _buildNodeEditorSection({
       path: path,
       diagnostics: diagnostics,
       compactMode: compactMode,
-      showCapabilities: showCapabilities,
-      showStructure: showStructure,
     ),
     JsonSchemaArrayNode() => _ArrayNodeEditor(
       controller: controller,

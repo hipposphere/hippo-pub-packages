@@ -198,4 +198,41 @@ void main() {
 
     expect(find.text('Enum'), findsOneWidget);
   });
+
+  testWidgets('applies configured min and max lines to string extension field', (
+    WidgetTester tester,
+  ) async {
+    final controller = JsonSchemaEditorController(
+      extensionOptions: JsonSchemaEditorExtensionOptions(
+        configurableExtensionsForAllNodeTypes: const [
+          JsonSchemaEditorExtensionField(
+            key: 'x-notes',
+            valueType: JsonSchemaEditorExtensionFieldType.string,
+            minLines: 2,
+            maxLines: 5,
+            applicableNodeTypes: {JsonSchemaNodeType.string},
+          ),
+        ],
+      ),
+      initialSchema: JsonSchema.fromNode(
+        const JsonSchemaStringNode(extensions: {'x-notes': 'Line 1'}),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: JsonSchemaEditor(controller: controller, compactMode: true)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final extensionField = tester.widget<TextField>(
+      find.byWidgetPredicate(
+        (widget) => widget is TextField && widget.decoration?.labelText == 'x-notes',
+      ),
+    );
+
+    expect(extensionField.minLines, 2);
+    expect(extensionField.maxLines, 5);
+  });
 }

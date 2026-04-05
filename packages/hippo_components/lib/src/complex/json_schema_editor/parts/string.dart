@@ -6,6 +6,8 @@ class _StringExtensionNodeField extends StatelessWidget {
     required this.path,
     required this.extensionKey,
     required this.extensionValue,
+    this.minLines = 1,
+    this.maxLines = 1,
     this.helpText,
   });
 
@@ -13,6 +15,8 @@ class _StringExtensionNodeField extends StatelessWidget {
   final JsonSchemaPath path;
   final String extensionKey;
   final String extensionValue;
+  final int minLines;
+  final int maxLines;
   final String? helpText;
 
   @override
@@ -21,6 +25,8 @@ class _StringExtensionNodeField extends StatelessWidget {
       value: extensionValue,
       hint: extensionKey,
       helpText: helpText,
+      minLines: minLines,
+      maxLines: maxLines,
       onChanged: (value) => controller.setNodeField(path: path, key: extensionKey, value: value),
       onEmpty: () => controller.removeNodeField(path: path, key: extensionKey),
       onRemove: () => controller.removeNodeField(path: path, key: extensionKey),
@@ -78,9 +84,11 @@ class _StringCapabilityField extends StatelessWidget {
     required this.onEmpty,
     required this.onRemove,
     this.helpText,
+    this.minLines = 1,
     this.maxLines = 1,
     this.keyboardType,
-  });
+  }) : assert(minLines > 0, 'minLines must be greater than 0'),
+       assert(maxLines >= minLines, 'maxLines must be greater than or equal to minLines');
 
   final String? value;
   final String hint;
@@ -88,6 +96,7 @@ class _StringCapabilityField extends StatelessWidget {
   final VoidCallback onEmpty;
   final VoidCallback onRemove;
   final String? helpText;
+  final int minLines;
   final int maxLines;
   final TextInputType? keyboardType;
 
@@ -100,6 +109,7 @@ class _StringCapabilityField extends StatelessWidget {
             value: value,
             hint: hint,
             helpText: helpText,
+            minLines: minLines,
             maxLines: maxLines,
             keyboardType: keyboardType,
             onChanged: onChanged,

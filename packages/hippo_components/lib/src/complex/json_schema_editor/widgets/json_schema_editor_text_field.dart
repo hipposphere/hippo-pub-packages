@@ -22,8 +22,10 @@ class JsonSchemaEditorTextField extends StatefulWidget {
     this.onSubmitted,
     this.onCleared,
     this.keyboardType,
+    this.minLines = 1,
     this.maxLines = 1,
-  });
+  }) : assert(minLines > 0, 'minLines must be greater than 0'),
+       assert(maxLines >= minLines, 'maxLines must be greater than or equal to minLines');
 
   final String? value;
   final String hint;
@@ -33,6 +35,7 @@ class JsonSchemaEditorTextField extends StatefulWidget {
   final ValueChanged<String>? onSubmitted;
   final VoidCallback? onCleared;
   final TextInputType? keyboardType;
+  final int minLines;
   final int maxLines;
 
   @override
@@ -109,18 +112,18 @@ class _JsonSchemaEditorTextFieldState extends State<JsonSchemaEditorTextField> {
       controller: _controller,
       focusNode: _focusNode,
       keyboardType: widget.keyboardType,
-      minLines: widget.maxLines > 1 ? 3 : 1,
+      minLines: widget.minLines,
       maxLines: widget.maxLines,
       style: theme.textTheme.bodyMedium,
       decoration: InputDecoration(
         isDense: true,
         labelText: widget.hint,
-        alignLabelWithHint: widget.maxLines > 1,
+        alignLabelWithHint: widget.maxLines > 1 || widget.minLines > 1,
         filled: true,
         fillColor: theme.colorScheme.surfaceContainerLowest,
         contentPadding: EdgeInsets.symmetric(
           horizontal: 12,
-          vertical: widget.maxLines > 1 ? 16 : 12,
+          vertical: widget.maxLines > 1 || widget.minLines > 1 ? 16 : 12,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

@@ -24,14 +24,19 @@ class JsonSchemaEditorExtensionField {
     this.description,
     this.defaultValue,
     this.enumValues = const [],
+    this.minLines = 1,
+    this.maxLines = 1,
     this.applicableNodeTypes = const {},
-  });
+  }) : assert(minLines > 0, 'minLines must be greater than 0'),
+       assert(maxLines >= minLines, 'maxLines must be greater than or equal to minLines');
 
   final String key;
   final String? description;
   final JsonSchemaEditorExtensionFieldType valueType;
   final Object? defaultValue;
   final List<String> enumValues;
+  final int minLines;
+  final int maxLines;
   final Set<JsonSchemaNodeType> applicableNodeTypes;
 
   bool get isString => valueType == JsonSchemaEditorExtensionFieldType.string;
@@ -108,10 +113,9 @@ class JsonSchemaEditorExtensionOptions {
   }
 
   List<String> extensionKeysForNodeType(JsonSchemaNodeType type) {
-    return extensionsForNodeType(type)
-        .map((item) => item.key)
-        .where((key) => key.isNotEmpty)
-        .toList(growable: false);
+    return extensionsForNodeType(
+      type,
+    ).map((item) => item.key).where((key) => key.isNotEmpty).toList(growable: false);
   }
 
   bool isConfiguredForNodeType(JsonSchemaNodeType type, String key) {

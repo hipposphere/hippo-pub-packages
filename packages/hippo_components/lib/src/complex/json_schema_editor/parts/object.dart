@@ -78,39 +78,40 @@ class _ObjectNodeEditor extends StatelessWidget {
           final propertyPath = path.childProperty(entry.key);
           final propertyNode = entry.value;
           final required = node.required.contains(entry.key);
-          final propertyWarnings = diagnostics.where((item) => item.path == propertyPath).toList();
-          final propertyHeader = JsonSchemaObjectPropertyHeader(
-            propertyKey: entry.key,
-            nodeType: propertyNode.type,
-            required: required,
-            propertyKeyHelpText: _jsonSchemaHelpByKeyword['propertyKey'],
-            requiredHelpText: _jsonSchemaHelpByKeyword['required'],
-            onPropertyKeyChanged: (nextKey) => controller.renameProperty(
-              objectPath: path,
-              currentKey: entry.key,
-              nextKey: nextKey,
-            ),
-            onTypeChanged: (nextType) => controller.replaceNode(
-              path: propertyPath,
-              node: _defaultNodeForTypePreservingMetadata(propertyNode, nextType),
-            ),
-            onRequiredChanged: (nextRequired) =>
-                controller.setRequired(objectPath: path, key: entry.key, required: nextRequired),
-            onMoveUp: index == 0
-                ? null
-                : () => controller.movePropertyUp(objectPath: path, key: entry.key),
-            onMoveDown: index == propertyEntries.length - 1
-                ? null
-                : () => controller.movePropertyDown(objectPath: path, key: entry.key),
-            onRemove: () => controller.removeProperty(objectPath: path, key: entry.key),
-          );
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: JsonSchemaPropertyCard(
               key: ValueKey('property-card-${entry.key}'),
               children: [
-                propertyHeader,
+                JsonSchemaObjectPropertyHeader(
+                  propertyKey: entry.key,
+                  nodeType: propertyNode.type,
+                  required: required,
+                  propertyKeyHelpText: _jsonSchemaHelpByKeyword['propertyKey'],
+                  requiredHelpText: _jsonSchemaHelpByKeyword['required'],
+                  onPropertyKeyChanged: (nextKey) => controller.renameProperty(
+                    objectPath: path,
+                    currentKey: entry.key,
+                    nextKey: nextKey,
+                  ),
+                  onTypeChanged: (nextType) => controller.replaceNode(
+                    path: propertyPath,
+                    node: _defaultNodeForTypePreservingMetadata(propertyNode, nextType),
+                  ),
+                  onRequiredChanged: (nextRequired) => controller.setRequired(
+                    objectPath: path,
+                    key: entry.key,
+                    required: nextRequired,
+                  ),
+                  onMoveUp: index == 0
+                      ? null
+                      : () => controller.movePropertyUp(objectPath: path, key: entry.key),
+                  onMoveDown: index == propertyEntries.length - 1
+                      ? null
+                      : () => controller.movePropertyDown(objectPath: path, key: entry.key),
+                  onRemove: () => controller.removeProperty(objectPath: path, key: entry.key),
+                ),
                 Gap(16),
                 _SchemaNodeEditor(
                   controller: controller,

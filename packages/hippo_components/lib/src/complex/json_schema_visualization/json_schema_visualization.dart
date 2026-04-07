@@ -19,7 +19,7 @@ bool _isInternalSchemaExtensionKey(String key) {
   return key.trim() == jsonSchemaObjectPropertyOrderExtensionKey;
 }
 
-class JsonSchemaVisualization extends StatelessWidget {
+class JsonSchemaVisualization extends StatefulWidget {
   const JsonSchemaVisualization({
     super.key,
     required this.schema,
@@ -30,12 +30,25 @@ class JsonSchemaVisualization extends StatelessWidget {
   final JsonSchemaEditorExtensionOptions extensionOptions;
 
   @override
+  State<JsonSchemaVisualization> createState() => _JsonSchemaVisualizationState();
+}
+
+class _JsonSchemaVisualizationState extends State<JsonSchemaVisualization> {
+  bool _showDetails = false;
+
+  @override
   Widget build(BuildContext context) {
     return _JsonSchemaNodeCard(
-      node: schema.node,
+      node: widget.schema.node,
       path: const JsonSchemaPath.root(),
-      extensionOptions: extensionOptions,
+      extensionOptions: widget.extensionOptions,
       isRoot: true,
+      showDetails: _showDetails,
+      onToggleDetails: () {
+        setState(() {
+          _showDetails = !_showDetails;
+        });
+      },
     );
   }
 }
@@ -45,17 +58,21 @@ class _JsonSchemaNodeCard extends StatelessWidget {
     required this.node,
     required this.path,
     required this.extensionOptions,
+    required this.showDetails,
     this.propertyKey,
     this.isRequired = false,
     this.isRoot = false,
+    this.onToggleDetails,
   });
 
   final JsonSchemaNode node;
   final JsonSchemaPath path;
   final JsonSchemaEditorExtensionOptions extensionOptions;
+  final bool showDetails;
   final String? propertyKey;
   final bool isRequired;
   final bool isRoot;
+  final VoidCallback? onToggleDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -146,20 +163,21 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                             backgroundColor: spec.accent.withValues(alpha: 0.14),
                             foregroundColor: spec.accent,
                           ),
-                          _SchemaBadge(
-                            label: path.toJsonPointerString(),
-                            icon: Icons.route_rounded,
-                            backgroundColor: colorScheme.surfaceContainerHighest.withValues(
-                              alpha: 0.55,
+                          if (showDetails)
+                            _SchemaBadge(
+                              label: path.toJsonPointerString(),
+                              icon: Icons.route_rounded,
+                              backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+                                alpha: 0.55,
+                              ),
+                              foregroundColor: colorScheme.onSurfaceVariant,
+                              monospace: true,
+                              tooltip: 'Copy JSON Pointer',
+                              onTap: () {
+                                Clipboard.setData(ClipboardData(text: jsonPointer));
+                              },
                             ),
-                            foregroundColor: colorScheme.onSurfaceVariant,
-                            monospace: true,
-                            tooltip: 'Copy JSON Pointer',
-                            onTap: () {
-                              Clipboard.setData(ClipboardData(text: jsonPointer));
-                            },
-                          ),
-                          if (propertyKey != null && propertyKey!.trim().isNotEmpty)
+                          if (showDetails && propertyKey != null && propertyKey!.trim().isNotEmpty)
                             _SchemaBadge(
                               label: propertyKey!.trim(),
                               icon: Icons.key_rounded,
@@ -169,7 +187,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                               foregroundColor: colorScheme.onSurface,
                               monospace: true,
                             ),
-                          if (isRequired)
+                          if (showDetails && isRequired)
                             _SchemaBadge(
                               label: 'required',
                               icon: Icons.star_rounded,
@@ -196,6 +214,10 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (isRoot && onToggleDetails != null) ...[
+                  const Gap(8),
+                  _SchemaDetailsToggleButton(showDetails: showDetails, onTap: onToggleDetails!),
+                ],
               ],
             ),
             if (capabilityItems.isNotEmpty) ...[
@@ -237,7 +259,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                     ? Icons.view_stream_rounded
                     : Icons.data_object_rounded,
                 accent: spec.accent,
-                trailing: objectNode != null
+                trailing: showDetails && objectNode != null
                     ? [
                         _SectionMetaBadge(
                           key: const ValueKey('section-meta-Properties-properties'),
@@ -292,6 +314,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
               propertyKey: entries[index].key,
               path: currentPath.childProperty(entries[index].key),
               extensionOptions: options,
+              showDetails: showDetails,
               isRequired: currentNode.required.contains(entries[index].key),
             ),
             if (index < entries.length - 1) const Gap(8),
@@ -306,6 +329,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
           propertyKey: 'items',
           path: currentPath.childItems(),
           extensionOptions: options,
+          showDetails: showDetails,
         ),
       ];
     }
@@ -564,6 +588,44 @@ class _SectionMetaBadge extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SchemaDetailsToggleButton extends StatelessWidget {
+  const _SchemaDetailsToggleButton({required this.showDetails, required this.onTap});
+
+  final bool showDetails;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Tooltip(
+      message: showDetails ? 'Hide details' : 'Show details',
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.55)),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Icon(
+                showDetails ? Icons.visibility_rounded : Icons.visibility_off_outlined,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         ),
       ),
     );

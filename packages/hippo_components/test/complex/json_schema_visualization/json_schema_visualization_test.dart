@@ -5,7 +5,7 @@ import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 void main() {
-  testWidgets('renders nested schema structure and extensions without internal scrolling', (
+  testWidgets('hides visualization details by default and reveals them via the toggle', (
     WidgetTester tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1400, 2400));
@@ -95,16 +95,36 @@ void main() {
     expect(find.textContaining('Properties:', findRichText: true), findsNothing);
     expect(find.textContaining('Required:', findRichText: true), findsNothing);
     expect(find.textContaining('Additional props:', findRichText: true), findsNothing);
+    expect(find.byTooltip('2 properties'), findsNothing);
+    expect(find.byTooltip('1 required properties'), findsNothing);
+    expect(find.byTooltip('Additional properties allowed'), findsNothing);
+    expect(find.text('/flags/-'), findsNothing);
+    expect(find.byType(Scrollable), findsNothing);
+
+    await tester.tap(find.byTooltip('Show details'));
+    await tester.pumpAndSettle();
+
     expect(find.byTooltip('2 properties'), findsOneWidget);
     expect(find.byTooltip('1 required properties'), findsOneWidget);
     expect(find.byTooltip('Additional properties allowed'), findsOneWidget);
     expect(find.text('/flags/-'), findsOneWidget);
-    expect(find.byType(Scrollable), findsNothing);
   });
 
   testWidgets('copies the displayed JSON Pointer when the path chip is tapped', (
     WidgetTester tester,
   ) async {
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    MethodCall? clipboardMethodCall;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        clipboardMethodCall = call;
+      }
+      return null;
+    });
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
     final schema = JsonSchema.fromNode(
       const JsonSchemaObjectNode(
         properties: {'flags': JsonSchemaArrayNode(items: JsonSchemaBooleanNode())},
@@ -118,11 +138,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byTooltip('Show details'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('/flags/-'));
     await tester.pump();
 
-    final clipboardData = await Clipboard.getData('text/plain');
-    expect(clipboardData?.text, '/flags/-');
+    expect(clipboardMethodCall?.method, 'Clipboard.setData');
+    expect((clipboardMethodCall?.arguments as Map<Object?, Object?>?)?['text'], '/flags/-');
   });
 
   testWidgets('renders object properties in configured order and hides internal order metadata', (

@@ -7,8 +7,10 @@
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 
@@ -58,14 +60,9 @@ class PageHeader extends CupertinoNavigationBar {
 class PageHeaderDragRegion extends StatelessWidget implements ObstructingPreferredSizeWidget {
   final PageHeader child;
   final GestureDragStartCallback? onPanStart;
-  final bool windowsOnly;
+  final GestureDoubleTapCallback? onDoubleTap;
 
-  const PageHeaderDragRegion({
-    super.key,
-    required this.child,
-    this.onPanStart,
-    this.windowsOnly = true,
-  });
+  const PageHeaderDragRegion({super.key, required this.child, this.onPanStart, this.onDoubleTap});
 
   @override
   Size get preferredSize => child.preferredSize;
@@ -75,13 +72,13 @@ class PageHeaderDragRegion extends StatelessWidget implements ObstructingPreferr
 
   @override
   Widget build(BuildContext context) {
-    final handler = (windowsOnly && defaultTargetPlatform != TargetPlatform.windows)
-        ? null
-        : onPanStart;
-    if (handler == null) {
-      return child;
-    }
-    return GestureDetector(behavior: .opaque, onPanStart: handler, child: child);
+    return GestureDetector(
+      behavior: .opaque,
+      onPanStart: onPanStart,
+      onDoubleTap: onDoubleTap,
+      supportedDevices: PointerDeviceKind.values.toSet(),
+      child: child,
+    );
   }
 }
 

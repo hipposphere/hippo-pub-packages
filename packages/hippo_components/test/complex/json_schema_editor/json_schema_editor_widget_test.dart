@@ -96,6 +96,26 @@ void main() {
     expect(find.byKey(const ValueKey('property-card-child')), findsOneWidget);
   });
 
+  testWidgets('shows JSON Pointer paths for nested array item editors', (
+    WidgetTester tester,
+  ) async {
+    final controller = JsonSchemaEditorController(
+      initialSchema: JsonSchema.fromNode(
+        const JsonSchemaArrayNode(items: JsonSchemaArrayNode(items: JsonSchemaStringNode())),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: JsonSchemaEditor(controller: controller, compactMode: true)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('/-'), findsOneWidget);
+    expect(find.text('/-/-'), findsOneWidget);
+  });
+
   testWidgets('shows only active capabilities and adds new ones from the modal', (
     WidgetTester tester,
   ) async {

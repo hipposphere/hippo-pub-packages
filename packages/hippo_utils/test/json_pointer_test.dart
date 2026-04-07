@@ -47,6 +47,58 @@ void main() {
       expect(child.parent(), ptr);
       expect(ptr.parent().isRoot, true);
     });
+
+    test('reads nested values from decoded JSON documents', () {
+      final json = {
+        'user': {
+          'name': 'Ada',
+          'aliases': ['A', 'B'],
+          'special': {
+            'a/b': {'m~n': 42},
+          },
+        },
+      };
+
+      expect(JsonPointer('/user/name').read(json), 'Ada');
+      expect(JsonPointer('/user/aliases/1').read(json), 'B');
+      expect(JsonPointer('/user/special/a~1b/m~0n').read(json), 42);
+      expect(JsonPointer.empty().read(json), same(json));
+    });
+
+    test('existsIn distinguishes null values from missing paths', () {
+      final json = {
+        'user': {'nickname': null},
+      };
+
+      expect(JsonPointer('/user/nickname').read(json), isNull);
+      expect(JsonPointer('/user/nickname').existsIn(json), true);
+
+      expect(JsonPointer('/user/missing').read(json), isNull);
+      expect(JsonPointer('/user/missing').existsIn(json), false);
+    });
+
+    test('rejects invalid or out-of-bounds array lookups', () {
+      final json = {
+        'users': [
+          {'name': 'Ada'},
+        ],
+      };
+
+      expect(JsonPointer('/users/0/name').read(json), 'Ada');
+      expect(JsonPointer('/users/1/name').existsIn(json), false);
+      expect(JsonPointer('/users/01/name').existsIn(json), false);
+      expect(JsonPointer('/users/-/name').existsIn(json), false);
+    });
+
+    test('top-level pointer lookup helpers resolve values from JSON documents', () {
+      final json = {
+        'user': {'name': 'Ada'},
+      };
+
+      expect(jsonValueAtPointer(json, '/user/name'), 'Ada');
+      expect(jsonPointerExists(json, '/user/name'), true);
+      expect(jsonPointerExists(json, '/user/missing'), false);
+    });
   });
 
   group('JsonPointerMap<T>', () {
@@ -84,6 +136,25 @@ void main() {
 
       // Should not match shorter/longer segments
       expect(map.match(JsonPointer('/users/0')), isNull);
+    });
+  });
+
+  group('JsonSchemaPath', () {
+    test('converts schema paths to JSON Pointer strings', () {
+      expect(const JsonSchemaPath.root().toJsonPointerString(), '');
+      expect(const JsonSchemaPath.root().childProperty('user').toJsonPointerString(), '/user');
+      expect(
+        const JsonSchemaPath.root().childProperty('users').childItems().toJsonPointerString(),
+        '/users/-',
+      );
+      expect(
+        const JsonSchemaPath.root()
+            .childProperty('special')
+            .childProperty('a/b')
+            .childProperty('m~n')
+            .toJsonPointerString(),
+        '/special/a~1b/m~0n',
+      );
     });
   });
 }

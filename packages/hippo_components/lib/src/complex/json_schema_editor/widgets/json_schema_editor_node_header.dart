@@ -66,7 +66,7 @@ class JsonSchemaEditorNodeHeader extends StatelessWidget {
               if (showPath && !path.isRoot) ...[
                 const Gap(6),
                 Text(
-                  path.toString(),
+                  path.toJsonPointerString(),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                     fontFamily: 'monospace',

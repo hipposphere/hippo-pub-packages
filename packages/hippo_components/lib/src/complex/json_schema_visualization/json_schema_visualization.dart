@@ -10,6 +10,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_editor_info_icon.dart';
 import 'package:hippo_utils/hippo_utils.dart';
@@ -63,6 +64,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
     final spec = _schemaTypeSpec(node.type);
     final title = _titleForNode(node: node, propertyKey: propertyKey, isRoot: isRoot);
     final details = _detailsForNode(node);
+    final jsonPointer = path.toJsonPointerString();
     final sortedExtensions =
         node.extensions.entries.where((entry) => !_isInternalSchemaExtensionKey(entry.key)).toList()
           ..sort((left, right) => left.key.compareTo(right.key));
@@ -145,13 +147,17 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                             foregroundColor: spec.accent,
                           ),
                           _SchemaBadge(
-                            label: path.toString(),
+                            label: path.toJsonPointerString(),
                             icon: Icons.route_rounded,
                             backgroundColor: colorScheme.surfaceContainerHighest.withValues(
                               alpha: 0.55,
                             ),
                             foregroundColor: colorScheme.onSurfaceVariant,
                             monospace: true,
+                            tooltip: 'Copy JSON Pointer',
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: jsonPointer));
+                            },
                           ),
                           if (propertyKey != null && propertyKey!.trim().isNotEmpty)
                             _SchemaBadge(
@@ -571,6 +577,8 @@ class _SchemaBadge extends StatelessWidget {
     required this.backgroundColor,
     required this.foregroundColor,
     this.monospace = false,
+    this.onTap,
+    this.tooltip,
   });
 
   final String label;
@@ -578,30 +586,45 @@ class _SchemaBadge extends StatelessWidget {
   final Color backgroundColor;
   final Color foregroundColor;
   final bool monospace;
+  final VoidCallback? onTap;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(color: backgroundColor, borderRadius: BorderRadius.circular(999)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 12, color: foregroundColor),
-            const Gap(4),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: foregroundColor,
-                fontWeight: FontWeight.w600,
-                fontFamily: monospace ? 'monospace' : null,
-              ),
+    final content = Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(color: backgroundColor, borderRadius: BorderRadius.circular(999)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 12, color: foregroundColor),
+                const Gap(4),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: foregroundColor,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: monospace ? 'monospace' : null,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
+
+    if (tooltip == null || tooltip!.trim().isEmpty) {
+      return content;
+    }
+
+    return Tooltip(message: tooltip!, child: content);
   }
 }
 

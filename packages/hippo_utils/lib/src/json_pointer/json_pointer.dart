@@ -11,14 +11,14 @@
 import 'package:flutter/foundation.dart';
 
 /// A class representing a JSON Pointer following RFC 6901 semantics.
-/// 
+///
 /// See: https://datatracker.ietf.org/doc/html/rfc6901
 @immutable
 class JsonPointer {
   const JsonPointer._(this.segments);
 
   /// Parses a string representation of a JSON Pointer.
-  /// 
+  ///
   /// Throws a [FormatException] if the pointer doesn't start with a "/" and is not empty.
   factory JsonPointer(String pointer) {
     if (pointer.isEmpty) {
@@ -27,15 +27,15 @@ class JsonPointer {
     if (!pointer.startsWith('/')) {
       throw FormatException('A JSON Pointer must start with a "/" or be empty.', pointer);
     }
-    
+
     final rawSegments = pointer.substring(1).split('/');
     final parsedSegments = <String>[];
-    
+
     for (final segment in rawSegments) {
       // RFC 6901 unescaping: ~1 becomes /, ~0 becomes ~
       parsedSegments.add(segment.replaceAll('~1', '/').replaceAll('~0', '~'));
     }
-    
+
     return JsonPointer._(parsedSegments);
   }
 
@@ -51,11 +51,64 @@ class JsonPointer {
   JsonPointer child(String segment) {
     return JsonPointer._([...segments, segment]);
   }
-  
+
   /// Returns the parent [JsonPointer] by removing the last segment.
   JsonPointer parent() {
     if (segments.isEmpty) return this;
     return JsonPointer._(segments.sublist(0, segments.length - 1));
+  }
+
+  /// Reads the value at this pointer from a decoded JSON [document].
+  ///
+  /// Returns `null` when the pointer does not resolve or when the resolved
+  /// JSON value is `null`. Use [existsIn] to distinguish between the two.
+  Object? read(dynamic document) {
+    return _resolve(document).value;
+  }
+
+  /// Returns `true` when this pointer resolves inside the given JSON [document].
+  bool existsIn(dynamic document) {
+    return _resolve(document).found;
+  }
+
+  _JsonPointerLookupResult _resolve(dynamic document) {
+    Object? current = document;
+
+    for (final segment in segments) {
+      if (current is Map) {
+        if (!current.containsKey(segment)) {
+          return const _JsonPointerLookupResult.notFound();
+        }
+        current = current[segment];
+        continue;
+      }
+
+      if (current is List) {
+        final index = _tryParseArrayIndex(segment);
+        if (index == null || index >= current.length) {
+          return const _JsonPointerLookupResult.notFound();
+        }
+        current = current[index];
+        continue;
+      }
+
+      return const _JsonPointerLookupResult.notFound();
+    }
+
+    return _JsonPointerLookupResult.found(current);
+  }
+
+  static int? _tryParseArrayIndex(String segment) {
+    if (segment == '-') {
+      return null;
+    }
+
+    final index = int.tryParse(segment);
+    if (index == null || index < 0 || index.toString() != segment) {
+      return null;
+    }
+
+    return index;
   }
 
   @override
@@ -90,4 +143,25 @@ class JsonPointer {
 
   @override
   int get hashCode => Object.hashAll(segments);
+}
+
+/// Reads a value from a decoded JSON [document] at the given JSON Pointer [path].
+Object? jsonValueAtPointer(dynamic document, String path) {
+  return JsonPointer(path).read(document);
+}
+
+/// Returns `true` when [path] resolves inside the decoded JSON [document].
+bool jsonPointerExists(dynamic document, String path) {
+  return JsonPointer(path).existsIn(document);
+}
+
+final class _JsonPointerLookupResult {
+  const _JsonPointerLookupResult._({required this.found, this.value});
+
+  const _JsonPointerLookupResult.found(Object? value) : this._(found: true, value: value);
+
+  const _JsonPointerLookupResult.notFound() : this._(found: false);
+
+  final bool found;
+  final Object? value;
 }

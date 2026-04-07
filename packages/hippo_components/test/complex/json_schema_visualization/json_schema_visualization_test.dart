@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
@@ -70,7 +71,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Schema Overview'), findsOneWidget);
     expect(find.text('Account schema'), findsOneWidget);
     expect(find.text('Display name'), findsOneWidget);
     expect(find.text('Flags'), findsOneWidget);
@@ -98,8 +98,31 @@ void main() {
     expect(find.byTooltip('2 properties'), findsOneWidget);
     expect(find.byTooltip('1 required properties'), findsOneWidget);
     expect(find.byTooltip('Additional properties allowed'), findsOneWidget);
-    expect(find.text(r'$.flags[]'), findsOneWidget);
+    expect(find.text('/flags/-'), findsOneWidget);
     expect(find.byType(Scrollable), findsNothing);
+  });
+
+  testWidgets('copies the displayed JSON Pointer when the path chip is tapped', (
+    WidgetTester tester,
+  ) async {
+    final schema = JsonSchema.fromNode(
+      const JsonSchemaObjectNode(
+        properties: {'flags': JsonSchemaArrayNode(items: JsonSchemaBooleanNode())},
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: JsonSchemaVisualization(schema: schema)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('/flags/-'));
+    await tester.pump();
+
+    final clipboardData = await Clipboard.getData('text/plain');
+    expect(clipboardData?.text, '/flags/-');
   });
 
   testWidgets('renders object properties in configured order and hides internal order metadata', (

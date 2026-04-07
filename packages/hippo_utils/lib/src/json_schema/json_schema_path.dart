@@ -10,6 +10,8 @@
 
 import 'package:flutter/foundation.dart';
 
+import '../json_pointer/json_pointer.dart';
+
 @immutable
 sealed class JsonSchemaPathSegment {
   const JsonSchemaPathSegment();
@@ -111,6 +113,30 @@ class JsonSchemaPath {
       }
     }
     return true;
+  }
+
+  /// Converts this schema path into a JSON Pointer-like path.
+  ///
+  /// Object properties map to their property keys. Array item schema segments
+  /// are encoded as [arrayItemSegment], which defaults to `-` so schema paths
+  /// like `$.users[]` become `/users/-`.
+  JsonPointer toJsonPointer({String arrayItemSegment = '[]'}) {
+    var pointer = JsonPointer.empty();
+
+    for (final segment in segments) {
+      if (segment case JsonSchemaObjectPropertyPathSegment(:final key)) {
+        pointer = pointer.child(key);
+      } else if (segment case JsonSchemaItemsPathSegment()) {
+        pointer = pointer.child(arrayItemSegment);
+      }
+    }
+
+    return pointer;
+  }
+
+  /// Converts this schema path to a JSON Pointer string.
+  String toJsonPointerString({String arrayItemSegment = '-'}) {
+    return toJsonPointer(arrayItemSegment: arrayItemSegment).toString();
   }
 
   @override

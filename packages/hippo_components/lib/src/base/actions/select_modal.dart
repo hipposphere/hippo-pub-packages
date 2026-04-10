@@ -117,7 +117,7 @@ class SelectModal<T> {
             selectedItemSubject: selectedItemSubject,
             emptyButton: emptyButton,
           ),
-          if (additionalSlivers != null) ...additionalSlivers!,
+          ...?additionalSlivers,
         ],
       ),
       type: (context) => modalType,

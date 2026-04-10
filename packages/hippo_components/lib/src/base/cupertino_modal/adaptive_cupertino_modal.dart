@@ -33,7 +33,7 @@ class SimpleAdaptiveCupertinoModal {
   Future<T?> show<T>(BuildContext context) {
     final modal = AdaptiveCupertinoModal(
       barrierDismissible: barrierDismissible,
-      builder: (context, isDesktop) {
+      builder: (context, isDesktop, scrollController) {
         return CupertinoModalContainer(
           leading: CupertinoModalCloseButton(
             iconColor: closeButtonIconColor,
@@ -67,7 +67,7 @@ class SimplePageAdaptiveCupertinoModal {
   Future<T?> show<T>(BuildContext context) {
     final modal = AdaptiveCupertinoModal(
       barrierDismissible: barrierDismissible,
-      builder: (context, isDesktop) {
+      builder: (context, isDesktop, scrollController) {
         return CupertinoModalPageContainer(
           leading: CupertinoModalCloseButton(
             iconColor: closeButtonIconColor,
@@ -86,7 +86,8 @@ class SimplePageAdaptiveCupertinoModal {
 class AdaptiveCupertinoModal {
   final List<BlocDefiner> blocDefiners;
   final bool barrierDismissible;
-  final Widget Function(BuildContext context, bool isDesktop) builder;
+  final Widget Function(BuildContext context, bool isDesktop, ScrollController? scrollController)
+  builder;
 
   AdaptiveCupertinoModal({
     this.barrierDismissible = true,
@@ -100,7 +101,7 @@ class AdaptiveCupertinoModal {
     if (size.width < 700) {
       return showCupertinoSheet<T>(
         context: context,
-        builder: (context) {
+        scrollableBuilder: (context, scrollController) {
           return AnnotatedRegion<SystemUiOverlayStyle>(
             value: SystemUiOverlayStyle(
               statusBarColor: Colors.transparent,
@@ -111,13 +112,15 @@ class AdaptiveCupertinoModal {
 
             child: Material(
               type: MaterialType.transparency,
-              child: MultiBlocProvider(blocDefiners: blocDefiners, child: builder(context, false)),
+              child: MultiBlocProvider(
+                blocDefiners: blocDefiners,
+                child: builder(context, false, scrollController),
+              ),
             ),
           );
         },
       );
     }
-
     return showCupertinoModalPopup(
       context: context,
       barrierDismissible: barrierDismissible,
@@ -133,7 +136,7 @@ class AdaptiveCupertinoModal {
               alignment: Alignment.center,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: builder(context, true),
+                child: builder(context, true, null),
               ),
             ),
           ),
@@ -160,7 +163,7 @@ class MultiPageAdaptiveCupertinoModal {
     final modal = AdaptiveCupertinoModal(
       blocDefiners: blocDefiners,
       barrierDismissible: barrierDismissible,
-      builder: (context, isDesktop) {
+      builder: (context, isDesktop, scrollController) {
         return ValueListenableBuilder(
           valueListenable: selectedPageIndex,
           builder: (context, selectedIndex, _) {

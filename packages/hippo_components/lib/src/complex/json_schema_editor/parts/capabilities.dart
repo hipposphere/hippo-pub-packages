@@ -27,7 +27,7 @@ Future<void> _showAddCapabilityDialog({
 
   final modal = AdaptiveCupertinoModal(
     barrierDismissible: true,
-    builder: (dialogContext, isDesktop) {
+    builder: (dialogContext, isDesktop, scrollController) {
       final colorScheme = Theme.of(dialogContext).colorScheme;
 
       return CupertinoModalPageContainer(
@@ -35,6 +35,7 @@ Future<void> _showAddCapabilityDialog({
         child: Material(
           type: MaterialType.transparency,
           child: ListView.builder(
+            controller: scrollController,
             padding: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, 0, isDesktop ? 24 : 16, 8),
             itemCount: sortedOptions.length,
             itemBuilder: (context, index) {

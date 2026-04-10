@@ -84,13 +84,14 @@ class SelectHotkeyModal {
     );
 
     final modal = AdaptiveCupertinoModal(
-      builder: (context, _) {
+      builder: (context, _, scrollController) {
         return RawSelectHotkeysModal(
           controller: controller,
           builder: (context, selectedHotkeys, resetKeys) {
             return CupertinoModalPageContainer(
               title: Text('Select Hotkey'),
               child: CustomScrollView(
+                controller: scrollController,
                 slivers: [
                   SliverGap(16),
                   SliverColumn(

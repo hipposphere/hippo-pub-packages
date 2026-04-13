@@ -24,12 +24,12 @@ void main() {
       featureOptions: const JsonSchemaEditorFeatureOptions(
         arrayOptions: JsonSchemaEditorArrayFeatureOptions(uniqueItems: false),
       ),
-      extensionOptions: const JsonSchemaEditorExtensionOptions(
+      extensionOptions: JsonSchemaEditorExtensionOptions(
         configurableExtensions: [
           JsonSchemaEditorExtensionField(
             key: 'x-token',
-            label: 'Token',
-            description: 'Authorization metadata for this schema node.',
+            label: (_) => 'Token',
+            description: (_) => 'Authorization metadata for this schema node.',
           ),
         ],
       ),
@@ -73,12 +73,12 @@ void main() {
       featureOptions: const JsonSchemaEditorFeatureOptions(
         arrayOptions: JsonSchemaEditorArrayFeatureOptions(uniqueItems: false),
       ),
-      extensionOptions: const JsonSchemaEditorExtensionOptions(
+      extensionOptions: JsonSchemaEditorExtensionOptions(
         configurableExtensions: [
           JsonSchemaEditorExtensionField(
             key: 'x-token',
-            label: 'Token',
-            description: 'Authorization metadata for this schema node.',
+            label: (_) => 'Token',
+            description: (_) => 'Authorization metadata for this schema node.',
           ),
         ],
       ),

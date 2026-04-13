@@ -124,11 +124,11 @@ void main() {
     final controller = JsonSchemaEditorController(
       extensionOptions: JsonSchemaEditorExtensionOptions(
         allowAddExtensions: false,
-        configurableExtensions: const [
+        configurableExtensions: [
           JsonSchemaEditorExtensionField(
             key: 'x-token',
-            label: 'Token',
-            description: 'Authorization token for this node.',
+            label: (_) => 'Token',
+            description: (_) => 'Authorization token for this node.',
           ),
         ],
       ),
@@ -223,10 +223,10 @@ void main() {
   ) async {
     final controller = JsonSchemaEditorController(
       extensionOptions: JsonSchemaEditorExtensionOptions(
-        configurableExtensions: const [
+        configurableExtensions: [
           JsonSchemaEditorExtensionField(
             key: 'x-notes',
-            label: 'Notes',
+            label: (_) => 'Notes',
             valueType: JsonSchemaEditorExtensionFieldType.string,
             minLines: 2,
             maxLines: 5,
@@ -262,9 +262,9 @@ void main() {
         configurableExtensions: [
           JsonSchemaEditorExtensionField(
             key: 'x-notes',
-            label: 'Notes',
-            hintBuilder: translateLazy(en: 'Notes', de: 'Notizen', zh: '备注'),
-            descriptionBuilder: translateLazy(
+            label: (_) => 'Notes',
+            hint: translateLazy(en: 'Notes', de: 'Notizen', zh: '备注'),
+            description: translateLazy(
               en: 'English help text',
               de: 'Deutscher Hilfetext',
               zh: '中文帮助文本',

@@ -51,10 +51,9 @@ void main() {
       configurableExtensions: [
         JsonSchemaEditorExtensionField(
           key: 'x-group',
-          label: 'Group',
-          description: 'Grouping metadata',
-          hintBuilder: translateLazy(en: 'Group', de: 'Gruppe', zh: '分组'),
-          descriptionBuilder: translateLazy(
+          label: (_) => 'Group',
+          hint: translateLazy(en: 'Group', de: 'Gruppe', zh: '分组'),
+          description: translateLazy(
             en: 'Grouping metadata',
             de: 'Gruppierungsmetadaten',
             zh: '分组元数据',
@@ -64,24 +63,24 @@ void main() {
         ),
         JsonSchemaEditorExtensionField(
           key: 'x-priority',
-          label: 'Priority',
-          description: 'Priority ordering',
+          label: (_) => 'Priority',
+          description: (_) => 'Priority ordering',
           valueType: JsonSchemaEditorExtensionFieldType.number,
           applicableNodeTypes: {JsonSchemaNodeType.array},
           applicableScopes: {JsonSchemaEditorExtensionFieldScope.objectProperty},
         ),
         JsonSchemaEditorExtensionField(
           key: 'x-enabled',
-          label: 'Enabled marker',
-          description: 'Boolean feature marker',
+          label: (_) => 'Enabled marker',
+          description: (_) => 'Boolean feature marker',
           valueType: JsonSchemaEditorExtensionFieldType.boolean,
           applicableNodeTypes: {JsonSchemaNodeType.boolean},
           applicableScopes: {JsonSchemaEditorExtensionFieldScope.arrayItem},
         ),
         JsonSchemaEditorExtensionField(
           key: 'x-token',
-          label: 'Token',
-          description: 'Authorization token',
+          label: (_) => 'Token',
+          description: (_) => 'Authorization token',
           applicableScopes: {JsonSchemaEditorExtensionFieldScope.objectProperty},
         ),
       ],

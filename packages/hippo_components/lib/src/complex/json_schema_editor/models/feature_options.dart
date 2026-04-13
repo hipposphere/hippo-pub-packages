@@ -26,10 +26,9 @@ class JsonSchemaEditorExtensionField {
   const JsonSchemaEditorExtensionField({
     required this.key,
     this.label,
-    this.hintBuilder,
+    this.hint,
     this.valueType = JsonSchemaEditorExtensionFieldType.string,
     this.description,
-    this.descriptionBuilder,
     this.defaultValue,
     this.enumValues = const [],
     this.minLines = 1,
@@ -40,10 +39,9 @@ class JsonSchemaEditorExtensionField {
        assert(maxLines >= minLines, 'maxLines must be greater than or equal to minLines');
 
   final String key;
-  final String? label;
-  final Contextable<String>? hintBuilder;
-  final String? description;
-  final Contextable<String>? descriptionBuilder;
+  final Contextable<String>? label;
+  final Contextable<String>? hint;
+  final Contextable<String>? description;
   final JsonSchemaEditorExtensionFieldType valueType;
   final Object? defaultValue;
   final List<String> enumValues;
@@ -78,20 +76,16 @@ class JsonSchemaEditorExtensionField {
     return applicableScopes.contains(_extensionFieldScopeForPath(path));
   }
 
-  String? get normalizedDescription {
-    return _normalizedString(description);
-  }
-
-  String? get normalizedLabel {
-    return _normalizedString(label);
+  String? resolveLabel(BuildContext context) {
+    return _normalizedString(label?.call(context));
   }
 
   String? resolveDescription(BuildContext context) {
-    return _normalizedString(descriptionBuilder?.call(context) ?? description);
+    return _normalizedString(description?.call(context));
   }
 
   String? resolveHint(BuildContext context) {
-    return _normalizedString(hintBuilder?.call(context) ?? label);
+    return _normalizedString(hint?.call(context));
   }
 
   String resolveDisplayLabel(BuildContext context) {
@@ -103,8 +97,8 @@ class JsonSchemaEditorExtensionField {
     return trimmedKey.isEmpty ? key : trimmedKey;
   }
 
-  String get displayLabel {
-    final resolvedLabel = normalizedLabel;
+  String displayLabel(BuildContext context) {
+    final resolvedLabel = resolveLabel(context);
     if (resolvedLabel != null) {
       return resolvedLabel;
     }

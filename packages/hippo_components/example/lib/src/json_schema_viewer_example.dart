@@ -14,8 +14,7 @@ class _JsonSchemaViewerExamplePageState extends State<JsonSchemaViewerExamplePag
     configurableExtensions: [
       JsonSchemaEditorExtensionField(
         key: 'x-source',
-        description: 'Where this field originates in the upstream system.',
-        descriptionBuilder: translateLazy(
+        description: translateLazy(
           en: 'Where this field originates in the upstream system.',
           de: 'Woher dieses Feld im Quellsystem stammt.',
           zh: '该字段在上游系统中的来源。',
@@ -23,9 +22,8 @@ class _JsonSchemaViewerExamplePageState extends State<JsonSchemaViewerExamplePag
       ),
       JsonSchemaEditorExtensionField(
         key: 'x-ui-hint',
-        description: 'Preferred rendering hint for consuming clients.',
-        hintBuilder: translateLazy(en: 'UI hint', de: 'UI-Hinweis', zh: '界面提示'),
-        descriptionBuilder: translateLazy(
+        hint: translateLazy(en: 'UI hint', de: 'UI-Hinweis', zh: '界面提示'),
+        description: translateLazy(
           en: 'Preferred rendering hint for consuming clients.',
           de: 'Bevorzugter Darstellungs-Hinweis für konsumierende Clients.',
           zh: '供消费端使用的首选渲染提示。',
@@ -33,23 +31,23 @@ class _JsonSchemaViewerExamplePageState extends State<JsonSchemaViewerExamplePag
       ),
       JsonSchemaEditorExtensionField(
         key: 'x-section',
-        description: 'Logical UI or domain section for grouped fields.',
-        hintBuilder: translateLazy(en: 'Section', de: 'Bereich', zh: '分区'),
+        description: (_) => 'Logical UI or domain section for grouped fields.',
+        hint: translateLazy(en: 'Section', de: 'Bereich', zh: '分区'),
         applicableNodeTypes: {JsonSchemaNodeType.object},
       ),
       JsonSchemaEditorExtensionField(
         key: 'x-ordering',
-        description: 'Ordering or uniqueness rule expected by the consumer.',
+        description: (_) => 'Ordering or uniqueness rule expected by the consumer.',
         applicableNodeTypes: {JsonSchemaNodeType.array},
       ),
       JsonSchemaEditorExtensionField(
         key: 'x-flag',
-        description: 'Feature flag or rollout marker tied to the field.',
+        description: (_) => 'Feature flag or rollout marker tied to the field.',
         applicableNodeTypes: {JsonSchemaNodeType.boolean},
       ),
       JsonSchemaEditorExtensionField(
         key: 'x-unit',
-        description: 'Display unit for numeric values in the UI.',
+        description: (_) => 'Display unit for numeric values in the UI.',
         applicableNodeTypes: {JsonSchemaNodeType.integer, JsonSchemaNodeType.number},
       ),
     ],

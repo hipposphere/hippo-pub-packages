@@ -157,6 +157,7 @@ class _DropdownCapabilityField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final notSetLabel = context.lazyTranslate(en: 'Not set', de: 'Nicht gesetzt', zh: '未设置');
 
     return Row(
       children: [
@@ -165,6 +166,7 @@ class _DropdownCapabilityField extends StatelessWidget {
             initialValue: value,
             isExpanded: true,
             isDense: true,
+            itemHeight: null,
             decoration: InputDecoration(
               isDense: true,
               labelText: label,
@@ -191,31 +193,28 @@ class _DropdownCapabilityField extends StatelessWidget {
             selectedItemBuilder: (context) => [
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  context.lazyTranslate(en: 'Not set', de: 'Nicht gesetzt', zh: '未设置'),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: Text(notSetLabel, overflow: TextOverflow.ellipsis),
               ),
               ...entries.map(
                 (entry) => Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(entry.resolveDisplayLabel(context), overflow: TextOverflow.ellipsis),
+                  child: _DropdownEntryLabel(
+                    label: entry.resolveDisplayLabel(context),
+                    description: entry.resolveDescription(context),
+                    compact: true,
+                  ),
                 ),
               ),
             ],
             items: <DropdownMenuItem<String>>[
-              DropdownMenuItem<String>(
-                value: '',
-                child: Text(context.lazyTranslate(en: 'Not set', de: 'Nicht gesetzt', zh: '未设置')),
-              ),
+              DropdownMenuItem<String>(value: '', child: Text(notSetLabel)),
               ...entries.map((entry) {
                 final value = entry.normalizedValue!;
                 final displayLabel = entry.resolveDisplayLabel(context);
                 final description = entry.resolveDescription(context);
-                final child = Text(displayLabel, overflow: TextOverflow.ellipsis);
                 return DropdownMenuItem<String>(
                   value: value,
-                  child: description == null ? child : Tooltip(message: description, child: child),
+                  child: _DropdownEntryLabel(label: displayLabel, description: description),
                 );
               }),
             ],
@@ -235,6 +234,53 @@ class _DropdownCapabilityField extends StatelessWidget {
           ),
           icon: Icons.close,
           onPressed: onRemove,
+        ),
+      ],
+    );
+  }
+}
+
+class _DropdownEntryLabel extends StatelessWidget {
+  const _DropdownEntryLabel({required this.label, this.description, this.compact = false});
+
+  final String label;
+  final String? description;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final effectiveDescription = description?.trim();
+    if (effectiveDescription == null || effectiveDescription.isEmpty) {
+      return Text(label, overflow: TextOverflow.ellipsis);
+    }
+    if (compact) {
+      return RichText(
+        overflow: TextOverflow.ellipsis,
+        text: TextSpan(
+          style: theme.textTheme.bodyMedium,
+          children: [
+            TextSpan(text: label),
+            TextSpan(
+              text: ' - $effectiveDescription',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, overflow: TextOverflow.ellipsis),
+        const Gap(2),
+        Text(
+          effectiveDescription,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
       ],
     );

@@ -105,16 +105,26 @@ class _JsonSchemaNodeCard extends StatelessWidget {
           monospace: detail.monospace,
         ),
       ),
-      ...sortedExtensions.map(
-        (entry) => _SchemaExtensionPill(
+      ...sortedExtensions.map((entry) {
+        final configuredField = configuredExtensions[entry.key.trim()];
+        final preview = _resolveSchemaExtensionPreview(
+          context: context,
+          configuredField: configuredField,
+          value: entry.value,
+        );
+        return _SchemaExtensionPill(
           extensionKey: entry.key,
-          extensionLabel:
-              configuredExtensions[entry.key.trim()]?.resolveDisplayLabel(context) ?? entry.key,
+          extensionLabel: configuredField?.resolveDisplayLabel(context) ?? entry.key,
           extensionValue: entry.value,
-          description: configuredExtensions[entry.key.trim()]?.resolveDescription(context),
+          displayValue: preview.preview,
+          description: _joinSchemaExtensionDescriptions(
+            configuredField?.resolveDescription(context),
+            preview.description,
+          ),
+          showRawValueInInfo: preview.showRawValueInInfo,
           accent: spec.accent,
-        ),
-      ),
+        );
+      }),
     ];
     final children = _childrenForNode(context, node, extensionOptions, path);
     final objectNode = switch (node) {
@@ -384,25 +394,29 @@ class _SchemaExtensionPill extends StatelessWidget {
     required this.extensionKey,
     required this.extensionLabel,
     required this.extensionValue,
+    required this.displayValue,
     required this.description,
+    required this.showRawValueInInfo,
     required this.accent,
   });
 
   final String extensionKey;
   final String extensionLabel;
   final Object? extensionValue;
+  final String displayValue;
   final String? description;
+  final bool showRawValueInInfo;
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final valueText = _previewSchemaValue(context, extensionValue);
     final infoMessage = _schemaValueInfoMessage(
       context: context,
       value: extensionValue,
-      preview: valueText,
+      preview: displayValue,
       description: description,
+      showRawValue: showRawValueInInfo,
     );
     final useCodeStyle =
         extensionValue is Map ||
@@ -446,7 +460,7 @@ class _SchemaExtensionPill extends StatelessWidget {
                       ),
                     ),
                     TextSpan(
-                      text: valueText,
+                      text: displayValue,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurface,
                         fontWeight: FontWeight.w700,
@@ -981,6 +995,7 @@ String? _schemaValueInfoMessage({
   required Object? value,
   required String preview,
   String? description,
+  bool showRawValue = true,
 }) {
   final sections = <String>[];
   final trimmedDescription = description?.trim();
@@ -989,7 +1004,7 @@ String? _schemaValueInfoMessage({
   }
 
   final fullValue = _stringifySchemaValue(value);
-  if (fullValue != preview) {
+  if (showRawValue && fullValue != preview) {
     sections.add(
       context.lazyTranslate(en: 'Value: $fullValue', de: 'Wert: $fullValue', zh: '值：$fullValue'),
     );
@@ -999,6 +1014,57 @@ String? _schemaValueInfoMessage({
     return null;
   }
   return sections.join('\n\n');
+}
+
+class _ResolvedSchemaExtensionPreview {
+  const _ResolvedSchemaExtensionPreview({
+    required this.preview,
+    this.description,
+    this.showRawValueInInfo = true,
+  });
+
+  final String preview;
+  final String? description;
+  final bool showRawValueInInfo;
+}
+
+_ResolvedSchemaExtensionPreview _resolveSchemaExtensionPreview({
+  required BuildContext context,
+  required JsonSchemaEditorExtensionField? configuredField,
+  required Object? value,
+}) {
+  if (configuredField == null || !configuredField.isStringEnum || value is! String) {
+    return _ResolvedSchemaExtensionPreview(preview: _previewSchemaValue(context, value));
+  }
+
+  final normalizedValue = value.trim();
+  if (normalizedValue.isEmpty) {
+    return _ResolvedSchemaExtensionPreview(preview: _previewSchemaValue(context, value));
+  }
+
+  for (final entry in configuredField.availableEnumEntries) {
+    if (entry.normalizedValue != normalizedValue) {
+      continue;
+    }
+    return _ResolvedSchemaExtensionPreview(
+      preview: entry.resolveDisplayLabel(context),
+      description: entry.resolveDescription(context),
+      showRawValueInInfo: false,
+    );
+  }
+
+  return _ResolvedSchemaExtensionPreview(preview: _previewSchemaValue(context, value));
+}
+
+String? _joinSchemaExtensionDescriptions(String? first, String? second) {
+  final values = [
+    if (first != null && first.trim().isNotEmpty) first.trim(),
+    if (second != null && second.trim().isNotEmpty) second.trim(),
+  ];
+  if (values.isEmpty) {
+    return null;
+  }
+  return values.toSet().join('\n\n');
 }
 
 String _stringifySchemaValue(Object? value) {

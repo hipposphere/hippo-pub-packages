@@ -80,6 +80,14 @@ void main() {
           key: 'x-token',
           label: (_) => 'Token',
           description: (_) => 'Authorization token',
+          valueType: JsonSchemaEditorExtensionFieldType.stringEnum,
+          enumValues: [
+            JsonSchemaEditorExtensionEnumValue(
+              value: 'admin',
+              label: (_) => 'Administrator',
+              description: (_) => 'Administrative token',
+            ),
+          ],
           applicableScopes: {JsonSchemaEditorExtensionFieldScope.objectProperty},
         ),
       ],
@@ -104,10 +112,11 @@ void main() {
     expect(find.text('Boolean feature marker'), findsNothing);
     expect(find.text('configured'), findsNothing);
     expect(find.textContaining('Group: public', findRichText: true), findsOneWidget);
-    expect(find.textContaining('Token: admin', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Token: Administrator', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Token: admin', findRichText: true), findsNothing);
     expect(find.textContaining('Priority: 2', findRichText: true), findsOneWidget);
     expect(find.textContaining('Enabled marker: false', findRichText: true), findsOneWidget);
-    expect(find.byTooltip('Authorization token'), findsOneWidget);
+    expect(find.byTooltip('Authorization token\n\nAdministrative token'), findsOneWidget);
     expect(find.byTooltip('Grouping metadata'), findsOneWidget);
     expect(find.byTooltip('Priority ordering'), findsOneWidget);
     expect(find.byTooltip('Boolean feature marker'), findsOneWidget);

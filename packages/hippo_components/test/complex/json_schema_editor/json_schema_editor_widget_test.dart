@@ -285,17 +285,20 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Administrator'), findsOneWidget);
+    expect(find.textContaining('Administrator', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Can manage all settings.', findRichText: true), findsOneWidget);
     expect(find.text('admin'), findsNothing);
 
     await tester.tap(find.byWidgetPredicate((widget) => widget is DropdownButtonFormField<String>));
     await tester.pumpAndSettle();
 
+    expect(find.textContaining('Can manage all settings.', findRichText: true), findsWidgets);
+
     await tester.tap(find.text('Member').last);
     await tester.pumpAndSettle();
 
     expect((controller.schema as JsonSchemaStringNode).extensions['x-role'], 'member');
-    expect(find.text('Member'), findsOneWidget);
+    expect(find.textContaining('Member', findRichText: true), findsOneWidget);
     expect(find.text('member'), findsNothing);
   });
 

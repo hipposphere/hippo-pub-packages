@@ -68,7 +68,7 @@ class JsonSchemaEditorExample extends StatelessWidget {
             valueType: JsonSchemaEditorExtensionFieldType.stringEnum,
             defaultValue: 'test',
             enumValues: [
-              const JsonSchemaEditorExtensionEnumValue(value: 'test'),
+              JsonSchemaEditorExtensionEnumValue(value: 'test', description: (_) => 'test'),
               JsonSchemaEditorExtensionEnumValue(
                 value: 'token',
                 label: translateLazy(en: 'Token', de: 'Token', zh: '令牌'),

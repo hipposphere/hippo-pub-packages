@@ -11,7 +11,7 @@ class JsonSchemaViewerExamplePage extends StatefulWidget {
 
 class _JsonSchemaViewerExamplePageState extends State<JsonSchemaViewerExamplePage> {
   static const _extensionOptions = JsonSchemaEditorExtensionOptions(
-    configurableExtensionsForAllNodeTypes: [
+    configurableExtensions: [
       JsonSchemaEditorExtensionField(
         key: 'x-source',
         description: 'Where this field originates in the upstream system.',
@@ -20,39 +20,27 @@ class _JsonSchemaViewerExamplePageState extends State<JsonSchemaViewerExamplePag
         key: 'x-ui-hint',
         description: 'Preferred rendering hint for consuming clients.',
       ),
+      JsonSchemaEditorExtensionField(
+        key: 'x-section',
+        description: 'Logical UI or domain section for grouped fields.',
+        applicableNodeTypes: {JsonSchemaNodeType.object},
+      ),
+      JsonSchemaEditorExtensionField(
+        key: 'x-ordering',
+        description: 'Ordering or uniqueness rule expected by the consumer.',
+        applicableNodeTypes: {JsonSchemaNodeType.array},
+      ),
+      JsonSchemaEditorExtensionField(
+        key: 'x-flag',
+        description: 'Feature flag or rollout marker tied to the field.',
+        applicableNodeTypes: {JsonSchemaNodeType.boolean},
+      ),
+      JsonSchemaEditorExtensionField(
+        key: 'x-unit',
+        description: 'Display unit for numeric values in the UI.',
+        applicableNodeTypes: {JsonSchemaNodeType.integer, JsonSchemaNodeType.number},
+      ),
     ],
-    configurableExtensions: {
-      JsonSchemaNodeType.object: [
-        JsonSchemaEditorExtensionField(
-          key: 'x-section',
-          description: 'Logical UI or domain section for grouped fields.',
-        ),
-      ],
-      JsonSchemaNodeType.array: [
-        JsonSchemaEditorExtensionField(
-          key: 'x-ordering',
-          description: 'Ordering or uniqueness rule expected by the consumer.',
-        ),
-      ],
-      JsonSchemaNodeType.boolean: [
-        JsonSchemaEditorExtensionField(
-          key: 'x-flag',
-          description: 'Feature flag or rollout marker tied to the field.',
-        ),
-      ],
-      JsonSchemaNodeType.integer: [
-        JsonSchemaEditorExtensionField(
-          key: 'x-unit',
-          description: 'Display unit for numeric values in the UI.',
-        ),
-      ],
-      JsonSchemaNodeType.number: [
-        JsonSchemaEditorExtensionField(
-          key: 'x-unit',
-          description: 'Display unit for numeric values in the UI.',
-        ),
-      ],
-    },
   );
 
   static final _samples = <_SchemaSample>[

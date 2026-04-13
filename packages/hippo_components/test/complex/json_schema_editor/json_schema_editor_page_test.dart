@@ -14,7 +14,7 @@ Widget _buildTestApp(Widget child) {
 }
 
 void main() {
-  testWidgets('shows the explanation guide with the custom description on desktop', (
+  testWidgets('does not render the explanation guide inline on desktop', (
     WidgetTester tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1400, 1600));
@@ -25,7 +25,7 @@ void main() {
         arrayOptions: JsonSchemaEditorArrayFeatureOptions(uniqueItems: false),
       ),
       extensionOptions: const JsonSchemaEditorExtensionOptions(
-        configurableExtensionsForAllNodeTypes: [
+        configurableExtensions: [
           JsonSchemaEditorExtensionField(
             key: 'x-token',
             label: 'Token',
@@ -53,8 +53,62 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.byKey(const ValueKey('json-schema-explaination-page')), findsNothing);
+    expect(find.text('JSON Schema Guide'), findsNothing);
+    expect(find.text('Custom schema guide text'), findsNothing);
+    expect(find.text('General concept'), findsNothing);
+    expect(find.text('Node types'), findsNothing);
+    expect(find.text('Supported capabilities'), findsNothing);
+    expect(find.text('Configured extensions'), findsNothing);
+    expect(find.text('Token'), findsNothing);
+  });
+
+  testWidgets('opens the guide route from the root schema actions menu', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final controller = JsonSchemaEditorController(
+      featureOptions: const JsonSchemaEditorFeatureOptions(
+        arrayOptions: JsonSchemaEditorArrayFeatureOptions(uniqueItems: false),
+      ),
+      extensionOptions: const JsonSchemaEditorExtensionOptions(
+        configurableExtensions: [
+          JsonSchemaEditorExtensionField(
+            key: 'x-token',
+            label: 'Token',
+            description: 'Authorization metadata for this schema node.',
+          ),
+        ],
+      ),
+      initialSchema: JsonSchema.fromNode(
+        const JsonSchemaObjectNode(
+          title: 'Account schema',
+          properties: {'name': JsonSchemaStringNode(title: 'Name')},
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _buildTestApp(
+        JsonSchemaEditorPage(
+          title: 'JSON Schema Editor',
+          controller: controller,
+          explanationDescription: 'Custom schema guide text',
+          onSave: (context, schema) async => true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Guide'));
+    await tester.pumpAndSettle();
+
     expect(find.byKey(const ValueKey('json-schema-explaination-page')), findsOneWidget);
-    expect(find.text('JSON Schema Guide'), findsOneWidget);
+    expect(find.text('JSON Schema Guide'), findsWidgets);
     expect(find.text('Custom schema guide text'), findsOneWidget);
     expect(find.text('General concept'), findsOneWidget);
     expect(find.text('Node types'), findsOneWidget);
@@ -64,7 +118,7 @@ void main() {
     expect(find.text('Unique items'), findsNothing);
   });
 
-  testWidgets('adds a guide tab on smaller layouts', (WidgetTester tester) async {
+  testWidgets('does not add a guide tab on smaller layouts', (WidgetTester tester) async {
     await tester.binding.setSurfaceSize(const Size(700, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -84,13 +138,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Guide'), findsOneWidget);
-
-    await tester.tap(find.text('Guide'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('JSON Schema Guide'), findsOneWidget);
-    expect(find.text('Compact guide text'), findsOneWidget);
-    expect(find.text('Supported capabilities'), findsOneWidget);
+    expect(find.text('Editor'), findsOneWidget);
+    expect(find.text('Preview'), findsOneWidget);
+    expect(find.text('Guide'), findsNothing);
+    expect(find.byKey(const ValueKey('json-schema-explaination-page')), findsNothing);
+    expect(find.text('Compact guide text'), findsNothing);
   });
 }

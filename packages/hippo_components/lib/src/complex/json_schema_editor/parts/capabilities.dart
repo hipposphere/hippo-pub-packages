@@ -31,7 +31,13 @@ Future<void> _showAddCapabilityDialog({
       final colorScheme = Theme.of(dialogContext).colorScheme;
 
       return CupertinoModalPageContainer(
-        title: const Text('Add capability'),
+        title: Text(
+          dialogContext.lazyTranslate(
+            en: 'Add capability',
+            de: 'Fähigkeit hinzufügen',
+            zh: '添加能力',
+          ),
+        ),
         child: ListView.builder(
           controller: scrollController,
           padding: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, 0, isDesktop ? 24 : 16, 8),
@@ -66,6 +72,7 @@ Future<void> _showAddCapabilityDialog({
 }
 
 List<_CapabilityOption> _availableCapabilityOptions({
+  required BuildContext context,
   required JsonSchemaNode node,
   required JsonSchemaPath path,
   required JsonSchemaEditorController controller,
@@ -74,12 +81,14 @@ List<_CapabilityOption> _availableCapabilityOptions({
 }) {
   final options = <_CapabilityOption>[
     ..._nodeCapabilityOptions(
+      context: context,
       node: node,
       path: path,
       controller: controller,
       featureOptions: featureOptions,
     ),
     ..._extensionCapabilityOptions(
+      context: context,
       node: node,
       path: path,
       controller: controller,
@@ -91,8 +100,16 @@ List<_CapabilityOption> _availableCapabilityOptions({
     options.add(
       _CapabilityOption(
         icon: Icons.extension_rounded,
-        label: 'Custom extension',
-        description: 'Add a custom schema extension key/value entry.',
+        label: context.lazyTranslate(
+          en: 'Custom extension',
+          de: 'Eigene Erweiterung',
+          zh: '自定义扩展',
+        ),
+        description: context.lazyTranslate(
+          en: 'Add a custom schema extension key/value entry.',
+          de: 'Fügt einen eigenen Schema-Erweiterungseintrag als Schlüssel/Wert hinzu.',
+          zh: '添加一个自定义 Schema 扩展键值项。',
+        ),
         onSelected: (context) => _showCustomExtensionDialog(
           context: context,
           controller: controller,
@@ -141,6 +158,7 @@ bool _hasVisibleNodeCapabilities({
 }
 
 List<_CapabilityOption> _extensionCapabilityOptions({
+  required BuildContext context,
   required JsonSchemaNode node,
   required JsonSchemaPath path,
   required JsonSchemaEditorController controller,
@@ -156,7 +174,13 @@ List<_CapabilityOption> _extensionCapabilityOptions({
       _CapabilityOption(
         icon: Icons.extension_rounded,
         label: field.displayLabel,
-        description: field.normalizedDescription ?? 'Configured schema extension.',
+        description:
+            field.normalizedDescription ??
+            context.lazyTranslate(
+              en: 'Configured schema extension.',
+              de: 'Konfigurierte Schema-Erweiterung.',
+              zh: '已配置的 Schema 扩展。',
+            ),
         onSelected: (context) async {
           controller.setNodeField(path: path, key: key, value: _initialValueForField(field));
         },
@@ -167,6 +191,7 @@ List<_CapabilityOption> _extensionCapabilityOptions({
 }
 
 List<_CapabilityOption> _nodeCapabilityOptions({
+  required BuildContext context,
   required JsonSchemaNode node,
   required JsonSchemaPath path,
   required JsonSchemaEditorController controller,
@@ -183,8 +208,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (stringOptions.minLength && node.minLength == null)
         _CapabilityOption(
           icon: Icons.straighten_rounded,
-          label: 'Min length',
-          description: _jsonSchemaHelpByKeyword['minLength']!,
+          label: jsonSchemaKeywordLabel(context, 'minLength'),
+          description: jsonSchemaHelpByKeyword(context, 'minLength')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaStringNode node) => node.copyWith(minLength: 0),
@@ -193,8 +218,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (stringOptions.maxLength && node.maxLength == null)
         _CapabilityOption(
           icon: Icons.width_normal_rounded,
-          label: 'Max length',
-          description: _jsonSchemaHelpByKeyword['maxLength']!,
+          label: jsonSchemaKeywordLabel(context, 'maxLength'),
+          description: jsonSchemaHelpByKeyword(context, 'maxLength')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaStringNode node) => node.copyWith(maxLength: node.minLength ?? 1),
@@ -203,8 +228,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (stringOptions.pattern && (node.pattern == null || node.pattern!.trim().isEmpty))
         _CapabilityOption(
           icon: Icons.pattern_rounded,
-          label: 'Pattern',
-          description: _jsonSchemaHelpByKeyword['pattern']!,
+          label: jsonSchemaKeywordLabel(context, 'pattern'),
+          description: jsonSchemaHelpByKeyword(context, 'pattern')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaStringNode node) => node.copyWith(pattern: '.*'),
@@ -213,8 +238,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (stringOptions.enumValues && node.enumValues == null)
         _CapabilityOption(
           icon: Icons.list_alt_rounded,
-          label: 'Enum',
-          description: _jsonSchemaHelpByKeyword['enum']!,
+          label: jsonSchemaKeywordLabel(context, 'enum'),
+          description: jsonSchemaHelpByKeyword(context, 'enum')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaStringNode node) => node.copyWith(enumValues: const ['value']),
@@ -225,8 +250,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (numberOptions.minimum && node.minimum == null)
         _CapabilityOption(
           icon: Icons.exposure_neg_1_rounded,
-          label: 'Minimum',
-          description: _jsonSchemaHelpByKeyword['minimum']!,
+          label: jsonSchemaKeywordLabel(context, 'minimum'),
+          description: jsonSchemaHelpByKeyword(context, 'minimum')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaNumberNode node) => node.copyWith(minimum: 0),
@@ -235,8 +260,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (numberOptions.maximum && node.maximum == null)
         _CapabilityOption(
           icon: Icons.exposure_plus_1_rounded,
-          label: 'Maximum',
-          description: _jsonSchemaHelpByKeyword['maximum']!,
+          label: jsonSchemaKeywordLabel(context, 'maximum'),
+          description: jsonSchemaHelpByKeyword(context, 'maximum')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaNumberNode node) => node.copyWith(maximum: node.minimum ?? 1),
@@ -245,8 +270,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (numberOptions.exclusiveMinimum && node.exclusiveMinimum == null)
         _CapabilityOption(
           icon: Icons.chevron_left_rounded,
-          label: 'Exclusive min',
-          description: _jsonSchemaHelpByKeyword['exclusiveMinimum']!,
+          label: jsonSchemaKeywordLabel(context, 'exclusiveMinimum'),
+          description: jsonSchemaHelpByKeyword(context, 'exclusiveMinimum')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaNumberNode node) => node.copyWith(exclusiveMinimum: false),
@@ -255,8 +280,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (numberOptions.exclusiveMaximum && node.exclusiveMaximum == null)
         _CapabilityOption(
           icon: Icons.chevron_right_rounded,
-          label: 'Exclusive max',
-          description: _jsonSchemaHelpByKeyword['exclusiveMaximum']!,
+          label: jsonSchemaKeywordLabel(context, 'exclusiveMaximum'),
+          description: jsonSchemaHelpByKeyword(context, 'exclusiveMaximum')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaNumberNode node) => node.copyWith(exclusiveMaximum: false),
@@ -265,8 +290,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (numberOptions.multipleOf && node.multipleOf == null)
         _CapabilityOption(
           icon: Icons.percent_rounded,
-          label: 'Multiple of',
-          description: _jsonSchemaHelpByKeyword['multipleOf']!,
+          label: jsonSchemaKeywordLabel(context, 'multipleOf'),
+          description: jsonSchemaHelpByKeyword(context, 'multipleOf')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaNumberNode node) => node.copyWith(multipleOf: 1),
@@ -277,8 +302,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (booleanOptions.defaultValue && node.defaultValue == null)
         _CapabilityOption(
           icon: Icons.toggle_on_rounded,
-          label: 'Default',
-          description: _jsonSchemaHelpByKeyword['default']!,
+          label: jsonSchemaKeywordLabel(context, 'default'),
+          description: jsonSchemaHelpByKeyword(context, 'default')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaBooleanNode node) => node.copyWith(defaultValue: false),
@@ -289,8 +314,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (objectOptions.additionalProperties && node.additionalProperties)
         _CapabilityOption(
           icon: Icons.data_object_rounded,
-          label: 'Additional properties',
-          description: _jsonSchemaHelpByKeyword['additionalProperties']!,
+          label: jsonSchemaKeywordLabel(context, 'additionalProperties'),
+          description: jsonSchemaHelpByKeyword(context, 'additionalProperties')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaObjectNode node) => node.copyWith(additionalProperties: false),
@@ -301,8 +326,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (arrayOptions.minItems && node.minItems == null)
         _CapabilityOption(
           icon: Icons.format_list_numbered_rounded,
-          label: 'Min items',
-          description: _jsonSchemaHelpByKeyword['minItems']!,
+          label: jsonSchemaKeywordLabel(context, 'minItems'),
+          description: jsonSchemaHelpByKeyword(context, 'minItems')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaArrayNode node) => node.copyWith(minItems: 0),
@@ -311,8 +336,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (arrayOptions.maxItems && node.maxItems == null)
         _CapabilityOption(
           icon: Icons.format_list_numbered_rtl_rounded,
-          label: 'Max items',
-          description: _jsonSchemaHelpByKeyword['maxItems']!,
+          label: jsonSchemaKeywordLabel(context, 'maxItems'),
+          description: jsonSchemaHelpByKeyword(context, 'maxItems')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaArrayNode node) => node.copyWith(maxItems: node.minItems ?? 1),
@@ -321,8 +346,8 @@ List<_CapabilityOption> _nodeCapabilityOptions({
       if (arrayOptions.uniqueItems && node.uniqueItems == null)
         _CapabilityOption(
           icon: Icons.fingerprint_rounded,
-          label: 'Unique items',
-          description: _jsonSchemaHelpByKeyword['uniqueItems']!,
+          label: jsonSchemaKeywordLabel(context, 'uniqueItems'),
+          description: jsonSchemaHelpByKeyword(context, 'uniqueItems')!,
           onSelected: (context) async => controller.updateNode(
             path: path,
             updater: (JsonSchemaArrayNode node) => node.copyWith(uniqueItems: false),

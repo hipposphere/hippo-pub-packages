@@ -64,8 +64,8 @@ class _NumberNodeEditor extends StatelessWidget {
       if (showCapabilities && numberOptions.minimum && node.minimum != null)
         JsonSchemaEditorTextField(
           value: node.minimum?.toString(),
-          hint: 'Minimum',
-          helpText: _jsonSchemaHelpByKeyword['minimum'],
+          hint: jsonSchemaKeywordLabel(context, 'minimum'),
+          helpText: jsonSchemaHelpByKeyword(context, 'minimum'),
           keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
           onChanged: (value) => _updateDouble(
             value,
@@ -82,8 +82,8 @@ class _NumberNodeEditor extends StatelessWidget {
       if (showCapabilities && numberOptions.maximum && node.maximum != null)
         JsonSchemaEditorTextField(
           value: node.maximum?.toString(),
-          hint: 'Maximum',
-          helpText: _jsonSchemaHelpByKeyword['maximum'],
+          hint: jsonSchemaKeywordLabel(context, 'maximum'),
+          helpText: jsonSchemaHelpByKeyword(context, 'maximum'),
           keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
           onChanged: (value) => _updateDouble(
             value,
@@ -100,8 +100,8 @@ class _NumberNodeEditor extends StatelessWidget {
       if (showCapabilities && numberOptions.multipleOf && node.multipleOf != null)
         JsonSchemaEditorTextField(
           value: node.multipleOf?.toString(),
-          hint: 'Multiple of',
-          helpText: _jsonSchemaHelpByKeyword['multipleOf'],
+          hint: jsonSchemaKeywordLabel(context, 'multipleOf'),
+          helpText: jsonSchemaHelpByKeyword(context, 'multipleOf'),
           keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: false),
           onChanged: (value) => _updateDouble(
             value,
@@ -128,9 +128,9 @@ class _NumberNodeEditor extends StatelessWidget {
             numberOptions.exclusiveMinimum &&
             node.exclusiveMinimum != null) ...[
           _BooleanCapabilityField(
-            label: 'Exclusive min',
+            label: jsonSchemaKeywordLabel(context, 'exclusiveMinimum'),
             value: node.exclusiveMinimum!,
-            helpText: _jsonSchemaHelpByKeyword['exclusiveMinimum'],
+            helpText: jsonSchemaHelpByKeyword(context, 'exclusiveMinimum'),
             onChanged: (value) => controller.updateNode(
               path: path,
               updater: (JsonSchemaNumberNode node) => node.copyWith(exclusiveMinimum: value),
@@ -146,9 +146,9 @@ class _NumberNodeEditor extends StatelessWidget {
             numberOptions.exclusiveMaximum &&
             node.exclusiveMaximum != null) ...[
           _BooleanCapabilityField(
-            label: 'Exclusive max',
+            label: jsonSchemaKeywordLabel(context, 'exclusiveMaximum'),
             value: node.exclusiveMaximum!,
-            helpText: _jsonSchemaHelpByKeyword['exclusiveMaximum'],
+            helpText: jsonSchemaHelpByKeyword(context, 'exclusiveMaximum'),
             onChanged: (value) => controller.updateNode(
               path: path,
               updater: (JsonSchemaNumberNode node) => node.copyWith(exclusiveMaximum: value),

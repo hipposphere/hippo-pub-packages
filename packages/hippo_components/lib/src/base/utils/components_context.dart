@@ -14,17 +14,21 @@ extension ComponentsContextExtension on BuildContext {
   ComponentsLocalizations get cl => ComponentsLocalizations.of(this)!;
 
   String lazyTranslate({required String en, String? de, String? fr, String? es, String? zh}) {
-    final localeName = cl.localeName;
-    if (localeName == 'de' && de != null) {
+    final localeName =
+        ComponentsLocalizations.of(this)?.localeName ??
+        Localizations.maybeLocaleOf(this)?.toLanguageTag() ??
+        'en';
+    final languageCode = localeName.split(RegExp(r'[-_]')).first.toLowerCase();
+    if (languageCode == 'de' && de != null) {
       return de;
     }
-    if (localeName == 'fr' && fr != null) {
+    if (languageCode == 'fr' && fr != null) {
       return fr;
     }
-    if (localeName == 'es' && es != null) {
+    if (languageCode == 'es' && es != null) {
       return es;
     }
-    if (localeName == 'zh' && zh != null) {
+    if (languageCode == 'zh' && zh != null) {
       return zh;
     }
     return en;
@@ -43,6 +47,12 @@ Contextable<String> translateCL(String Function(ComponentsLocalizations cl) tran
   return (context) => translate(ComponentsLocalizations.of(context)!);
 }
 
-Contextable<String> translateLazy({required String en, String? de, String? fr, String? es}) {
-  return (context) => context.lazyTranslate(en: en, de: de, fr: fr, es: es);
+Contextable<String> translateLazy({
+  required String en,
+  String? de,
+  String? fr,
+  String? es,
+  String? zh,
+}) {
+  return (context) => context.lazyTranslate(en: en, de: de, fr: fr, es: es, zh: zh);
 }

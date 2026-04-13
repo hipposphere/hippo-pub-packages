@@ -28,8 +28,8 @@ class _ArrayNodeEditor extends StatelessWidget {
       if (showCapabilities && arrayOptions.minItems && node.minItems != null)
         JsonSchemaEditorTextField(
           value: node.minItems?.toString(),
-          hint: 'Min items',
-          helpText: _jsonSchemaHelpByKeyword['minItems'],
+          hint: jsonSchemaKeywordLabel(context, 'minItems'),
+          helpText: jsonSchemaHelpByKeyword(context, 'minItems'),
           keyboardType: const TextInputType.numberWithOptions(),
           onChanged: (value) => _updateInt(
             value,
@@ -46,8 +46,8 @@ class _ArrayNodeEditor extends StatelessWidget {
       if (showCapabilities && arrayOptions.maxItems && node.maxItems != null)
         JsonSchemaEditorTextField(
           value: node.maxItems?.toString(),
-          hint: 'Max items',
-          helpText: _jsonSchemaHelpByKeyword['maxItems'],
+          hint: jsonSchemaKeywordLabel(context, 'maxItems'),
+          helpText: jsonSchemaHelpByKeyword(context, 'maxItems'),
           keyboardType: const TextInputType.numberWithOptions(),
           onChanged: (value) => _updateInt(
             value,
@@ -72,9 +72,9 @@ class _ArrayNodeEditor extends StatelessWidget {
         ],
         if (showCapabilities && arrayOptions.uniqueItems && node.uniqueItems != null) ...[
           _BooleanCapabilityField(
-            label: 'Unique items',
+            label: jsonSchemaKeywordLabel(context, 'uniqueItems'),
             value: node.uniqueItems!,
-            helpText: _jsonSchemaHelpByKeyword['uniqueItems'],
+            helpText: jsonSchemaHelpByKeyword(context, 'uniqueItems'),
             onChanged: (value) => controller.updateNode(
               path: path,
               updater: (JsonSchemaArrayNode node) => node.copyWith(uniqueItems: value),
@@ -88,7 +88,13 @@ class _ArrayNodeEditor extends StatelessWidget {
         ],
         if (showStructure) ...[
           const Divider(height: 20),
-          const _EditorSectionLabel(label: 'Item schema'),
+          _EditorSectionLabel(
+            label: context.lazyTranslate(
+              en: 'Item schema',
+              de: 'Element-Schema',
+              zh: '元素 Schema',
+            ),
+          ),
           const Gap(6),
           _SchemaNodeEditor(
             controller: controller,

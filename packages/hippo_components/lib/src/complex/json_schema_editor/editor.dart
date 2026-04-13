@@ -36,8 +36,6 @@ bool _isInternalSchemaExtensionKey(String key) {
   return key.trim() == jsonSchemaObjectPropertyOrderExtensionKey;
 }
 
-const _jsonSchemaHelpByKeyword = jsonSchemaHelpByKeyword;
-
 const _editorSectionSpacing = 8.0;
 
 class _EditorSectionLabel extends StatelessWidget {
@@ -113,11 +111,13 @@ class JsonSchemaEditor extends StatelessWidget {
     required this.controller,
     this.compactMode = false,
     this.title,
+    this.guideDescription,
   });
 
   final JsonSchemaEditorController controller;
   final bool compactMode;
   final String? title;
+  final String? guideDescription;
 
   @override
   Widget build(BuildContext context) {
@@ -145,6 +145,7 @@ class JsonSchemaEditor extends StatelessWidget {
                     node: schema,
                     diagnostics: diagnostics,
                     compactMode: compactMode,
+                    guideDescription: guideDescription,
                   ),
                 ),
                 SliverGap(256),
@@ -163,12 +164,14 @@ class _RootSchemaNodeEditor extends StatelessWidget {
     required this.node,
     required this.diagnostics,
     required this.compactMode,
+    this.guideDescription,
   });
 
   final JsonSchemaEditorController controller;
   final JsonSchemaNode node;
   final List<JsonSchemaDiagnostic> diagnostics;
   final bool compactMode;
+  final String? guideDescription;
 
   @override
   Widget build(BuildContext context) {
@@ -179,6 +182,7 @@ class _RootSchemaNodeEditor extends StatelessWidget {
           controller: controller,
           nodeType: node.type,
           compactMode: compactMode,
+          guideDescription: guideDescription,
           onTypeChanged: (nextType) => controller.replaceNode(
             path: JsonSchemaPath.root(),
             node: _defaultNodeForTypePreservingMetadata(node, nextType),
@@ -249,6 +253,7 @@ class _SchemaNodeEditor extends StatelessWidget {
       );
     }
     final availableCapabilityOptions = _availableCapabilityOptions(
+      context: context,
       node: node,
       path: path,
       controller: controller,
@@ -308,8 +313,8 @@ class _SchemaNodeEditor extends StatelessWidget {
         if (hasActiveCapabilitiesSection) ...[
           const Gap(_editorSectionSpacing),
           _EditorSectionLabel(
-            label: 'Capabilities',
-            helpText: _jsonSchemaHelpByKeyword['extensionField'],
+            label: context.lazyTranslate( en: 'Capabilities', de: 'Fähigkeiten', zh: '能力'),
+            helpText: jsonSchemaHelpByKeyword(context, 'extensionField'),
           ),
           const Gap(6),
         ],
@@ -334,7 +339,13 @@ class _SchemaNodeEditor extends StatelessWidget {
               onPressed: () =>
                   _showAddCapabilityDialog(context: context, options: availableCapabilityOptions),
               icon: const Icon(Icons.add_circle_outline_rounded),
-              label: const Text('Add capability'),
+              label: Text(
+                context.lazyTranslate(
+                  en: 'Add capability',
+                  de: 'Fähigkeit hinzufügen',
+                  zh: '添加能力',
+                ),
+              ),
             ),
           ),
         ],
@@ -427,7 +438,7 @@ Widget _buildNodeEditorSection({
   };
 }
 
-enum _RootSchemaAction { copyJson, resetSchema, clearSchema }
+enum _RootSchemaAction { guide, copyJson, resetSchema, clearSchema }
 
 class _RootSchemaNodeHeader extends StatelessWidget {
   const _RootSchemaNodeHeader({
@@ -435,12 +446,14 @@ class _RootSchemaNodeHeader extends StatelessWidget {
     required this.nodeType,
     required this.onTypeChanged,
     required this.compactMode,
+    this.guideDescription,
   });
 
   final JsonSchemaEditorController controller;
   final JsonSchemaNodeType nodeType;
   final ValueChanged<JsonSchemaNodeType> onTypeChanged;
   final bool compactMode;
+  final String? guideDescription;
 
   @override
   Widget build(BuildContext context) {
@@ -457,16 +470,17 @@ class _RootSchemaNodeHeader extends StatelessWidget {
           ),
         ),
         const Gap(4),
-        _RootSchemaActionsMenu(controller: controller),
+        _RootSchemaActionsMenu(controller: controller, guideDescription: guideDescription),
       ],
     );
   }
 }
 
 class _RootSchemaActionsMenu extends StatelessWidget {
-  const _RootSchemaActionsMenu({required this.controller});
+  const _RootSchemaActionsMenu({required this.controller, this.guideDescription});
 
   final JsonSchemaEditorController controller;
+  final String? guideDescription;
 
   Future<void> _confirmAndRun({
     required BuildContext context,
@@ -482,20 +496,34 @@ class _RootSchemaActionsMenu extends StatelessWidget {
 
   Future<void> _onSelected(BuildContext context, _RootSchemaAction action) async {
     switch (action) {
+      case _RootSchemaAction.guide:
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (context) =>
+                JsonSchemaEditorGuidePage(controller: controller, description: guideDescription),
+          ),
+        );
       case _RootSchemaAction.copyJson:
         await Clipboard.setData(ClipboardData(text: controller.toJsonString(pretty: true)));
       case _RootSchemaAction.resetSchema:
         await _confirmAndRun(
           context: context,
-          message: 'This discards current edits and restores the initial schema.',
+          message: context.lazyTranslate(
+            en: 'This discards current edits and restores the initial schema.',
+            de: 'Dadurch werden aktuelle Änderungen verworfen und das ursprüngliche Schema wiederhergestellt.',
+            zh: '这会丢弃当前修改并恢复初始 Schema。',
+          ),
           confirmAction: ConfirmAction.reset(context),
           action: controller.reset,
         );
       case _RootSchemaAction.clearSchema:
         await _confirmAndRun(
           context: context,
-          message:
-              'This removes the current schema content and starts again with an empty root object.',
+          message: context.lazyTranslate(
+            en: 'This removes the current schema content and starts again with an empty root object.',
+            de: 'Dadurch wird der aktuelle Schema-Inhalt entfernt und mit einem leeren Root-Objekt neu begonnen.',
+            zh: '这会移除当前 Schema 内容，并以一个空的根对象重新开始。',
+          ),
           confirmAction: ConfirmAction(
             type: ConfirmActionType.destructive,
             icon: Icons.layers_clear_rounded,
@@ -527,9 +555,15 @@ class _RootSchemaActionsMenu extends StatelessWidget {
       itemBuilder: (context) => <PullDownMenuEntry>[
         _menuItem(
           context: context,
+          value: _RootSchemaAction.guide,
+          icon: Icons.menu_book_rounded,
+          label: context.lazyTranslate( en: 'Guide', de: 'Leitfaden', zh: '指南'),
+        ),
+        _menuItem(
+          context: context,
           value: _RootSchemaAction.copyJson,
           icon: Icons.content_copy_rounded,
-          label: 'Copy JSON',
+          label: context.lazyTranslate( en: 'Copy JSON', de: 'JSON kopieren', zh: '复制 JSON'),
         ),
         _menuItem(
           context: context,
@@ -546,7 +580,11 @@ class _RootSchemaActionsMenu extends StatelessWidget {
         ),
       ],
       buttonBuilder: (context, showMenu) => SimpleTappable(
-        tooltip: 'Schema actions',
+        tooltip: context.lazyTranslate(
+          en: 'Schema actions',
+          de: 'Schema-Aktionen',
+          zh: 'Schema 操作',
+        ),
         onTap: showMenu,
         radius: BorderRadius.circular(10),
         child: const Padding(

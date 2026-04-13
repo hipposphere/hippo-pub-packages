@@ -122,7 +122,11 @@ class _StringCapabilityField extends StatelessWidget {
         ),
         const Gap(4),
         JsonSchemaEditorActionIconButton(
-          tooltip: 'Remove capability',
+          tooltip: context.lazyTranslate(
+            en: 'Remove capability',
+            de: 'Fähigkeit entfernen',
+            zh: '移除能力',
+          ),
           icon: Icons.close,
           onPressed: onRemove,
         ),
@@ -183,7 +187,12 @@ class _DropdownCapabilityField extends StatelessWidget {
               ),
             ),
             items: <DropdownMenuItem<String>>[
-              const DropdownMenuItem<String>(value: '', child: Text('Not set')),
+              DropdownMenuItem<String>(
+                value: '',
+                child: Text(
+                  context.lazyTranslate( en: 'Not set', de: 'Nicht gesetzt', zh: '未设置'),
+                ),
+              ),
               ...values.map((entry) => DropdownMenuItem<String>(value: entry, child: Text(entry))),
             ],
             onChanged: onChanged,
@@ -195,7 +204,11 @@ class _DropdownCapabilityField extends StatelessWidget {
         ],
         const Gap(4),
         JsonSchemaEditorActionIconButton(
-          tooltip: 'Remove extension',
+          tooltip: context.lazyTranslate(
+            en: 'Remove extension',
+            de: 'Erweiterung entfernen',
+            zh: '移除扩展',
+          ),
           icon: Icons.close,
           onPressed: onRemove,
         ),
@@ -232,8 +245,8 @@ class _StringNodeEditor extends StatelessWidget {
       if (showCapabilities && stringOptions.minLength && node.minLength != null)
         JsonSchemaEditorTextField(
           value: node.minLength?.toString(),
-          hint: 'Min length',
-          helpText: _jsonSchemaHelpByKeyword['minLength'],
+          hint: jsonSchemaKeywordLabel(context, 'minLength'),
+          helpText: jsonSchemaHelpByKeyword(context, 'minLength'),
           keyboardType: const TextInputType.numberWithOptions(),
           onChanged: (value) => _updateInt(
             value,
@@ -250,8 +263,8 @@ class _StringNodeEditor extends StatelessWidget {
       if (showCapabilities && stringOptions.maxLength && node.maxLength != null)
         JsonSchemaEditorTextField(
           value: node.maxLength?.toString(),
-          hint: 'Max length',
-          helpText: _jsonSchemaHelpByKeyword['maxLength'],
+          hint: jsonSchemaKeywordLabel(context, 'maxLength'),
+          helpText: jsonSchemaHelpByKeyword(context, 'maxLength'),
           keyboardType: const TextInputType.numberWithOptions(),
           onChanged: (value) => _updateInt(
             value,
@@ -280,8 +293,12 @@ class _StringNodeEditor extends StatelessWidget {
             node.pattern!.trim().isNotEmpty) ...[
           JsonSchemaEditorTextField(
             value: node.pattern,
-            hint: 'Pattern (RegExp)',
-            helpText: _jsonSchemaHelpByKeyword['pattern'],
+            hint: context.lazyTranslate(
+              en: 'Pattern (RegExp)',
+              de: 'Muster (RegExp)',
+              zh: '模式（正则表达式）',
+            ),
+            helpText: jsonSchemaHelpByKeyword(context, 'pattern'),
             onChanged: (value) => controller.updateNode(
               path: path,
               updater: (JsonSchemaStringNode node) => node.copyWith(pattern: value),
@@ -296,8 +313,12 @@ class _StringNodeEditor extends StatelessWidget {
         if (showCapabilities && stringOptions.enumValues && node.enumValues != null) ...[
           _StringCapabilityField(
             value: _stringEnumInput(node.enumValues),
-            hint: 'Enum (comma/line list)',
-            helpText: _jsonSchemaHelpByKeyword['enum'],
+            hint: context.lazyTranslate(
+              en: 'Enum (comma/line list)',
+              de: 'Enum (Komma-/Zeilenliste)',
+              zh: '枚举（逗号或换行列表）',
+            ),
+            helpText: jsonSchemaHelpByKeyword(context, 'enum'),
             maxLines: 3,
             onChanged: (value) {
               final next = _readStringListFromText(value) ?? const <String>[];

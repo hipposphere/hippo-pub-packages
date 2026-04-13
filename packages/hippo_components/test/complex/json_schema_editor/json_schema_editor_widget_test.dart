@@ -5,6 +5,7 @@ import 'package:hippo_utils/hippo_utils.dart';
 
 Widget _buildTestApp(Widget child) {
   return MaterialApp(
+    locale: const Locale('en'),
     theme: ThemeData(splashFactory: NoSplash.splashFactory),
     home: Scaffold(body: child),
   );
@@ -121,7 +122,7 @@ void main() {
     final controller = JsonSchemaEditorController(
       extensionOptions: JsonSchemaEditorExtensionOptions(
         allowAddExtensions: false,
-        configurableExtensionsForAllNodeTypes: const [
+        configurableExtensions: const [
           JsonSchemaEditorExtensionField(
             key: 'x-token',
             label: 'Token',
@@ -220,7 +221,7 @@ void main() {
   ) async {
     final controller = JsonSchemaEditorController(
       extensionOptions: JsonSchemaEditorExtensionOptions(
-        configurableExtensionsForAllNodeTypes: const [
+        configurableExtensions: const [
           JsonSchemaEditorExtensionField(
             key: 'x-notes',
             label: 'Notes',

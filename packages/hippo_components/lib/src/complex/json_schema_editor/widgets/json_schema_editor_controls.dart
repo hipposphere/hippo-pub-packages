@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
+import '../json_schema_editor_descriptions.dart';
 import 'json_schema_editor_info_icon.dart';
 
 class JsonSchemaEditorCompactBooleanOption extends StatelessWidget {
@@ -132,17 +133,8 @@ class JsonSchemaEditorNodeTypeDropdown extends StatelessWidget {
           isDense: true,
           items: JsonSchemaNodeType.values
               .map(
-                (type) => DropdownMenuItem(
-                  value: type,
-                  child: Text(switch (type) {
-                    JsonSchemaNodeType.string => 'String',
-                    JsonSchemaNodeType.number => 'Number',
-                    JsonSchemaNodeType.integer => 'Integer',
-                    JsonSchemaNodeType.boolean => 'Boolean',
-                    JsonSchemaNodeType.object => 'Object',
-                    JsonSchemaNodeType.array => 'Array',
-                  }),
-                ),
+                (type) =>
+                    DropdownMenuItem(value: type, child: Text(jsonSchemaTypeLabel(context, type))),
               )
               .toList(),
           onChanged: onChanged,

@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hippo_components/hippo_components.dart';
+import 'package:hippo_components/src/complex/json_schema_editor/json_schema_editor_descriptions.dart';
 import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_editor_info_icon.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
@@ -79,8 +80,13 @@ class _JsonSchemaNodeCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final spec = _schemaTypeSpec(node.type);
-    final title = _titleForNode(node: node, propertyKey: propertyKey, isRoot: isRoot);
-    final details = _detailsForNode(node);
+    final title = _titleForNode(
+      context: context,
+      node: node,
+      propertyKey: propertyKey,
+      isRoot: isRoot,
+    );
+    final details = _detailsForNode(context, node);
     final jsonPointer = path.toJsonPointerString();
     final sortedExtensions =
         node.extensions.entries.where((entry) => !_isInternalSchemaExtensionKey(entry.key)).toList()
@@ -109,7 +115,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
         ),
       ),
     ];
-    final children = _childrenForNode(node, extensionOptions, path);
+    final children = _childrenForNode(context, node, extensionOptions, path);
     final objectNode = switch (node) {
       JsonSchemaObjectNode objectNode => objectNode,
       _ => null,
@@ -159,7 +165,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                         runSpacing: 6,
                         children: [
                           _SchemaBadge(
-                            label: _typeLabel(node.type),
+                            label: jsonSchemaTypeLabel(context, node.type),
                             icon: spec.icon,
                             backgroundColor: spec.accent.withValues(alpha: 0.14),
                             foregroundColor: spec.accent,
@@ -173,7 +179,11 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                               ),
                               foregroundColor: colorScheme.onSurfaceVariant,
                               monospace: true,
-                              tooltip: 'Copy JSON Pointer',
+                              tooltip: context.lazyTranslate(
+                                en: 'Copy JSON Pointer',
+                                de: 'JSON Pointer kopieren',
+                                zh: '复制 JSON Pointer',
+                              ),
                               onTap: () {
                                 Clipboard.setData(ClipboardData(text: jsonPointer));
                               },
@@ -190,7 +200,11 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                             ),
                           if (showDetails && isRequired)
                             _SchemaBadge(
-                              label: 'required',
+                              label: context.lazyTranslate(
+                                en: 'required',
+                                de: 'Pflicht',
+                                zh: '必填',
+                              ),
                               icon: Icons.star_rounded,
                               backgroundColor: colorScheme.primaryContainer,
                               foregroundColor: colorScheme.onPrimaryContainer,
@@ -230,7 +244,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
             ) when enumValues.isNotEmpty) ...[
               const Gap(10),
               _SectionHeading(
-                label: 'Enum Values',
+                label: context.lazyTranslate( en: 'Enum Values', de: 'Enum-Werte', zh: '枚举值'),
                 icon: Icons.format_list_bulleted_rounded,
                 accent: spec.accent,
                 count: enumValues.length,
@@ -255,7 +269,13 @@ class _JsonSchemaNodeCard extends StatelessWidget {
             if (children.isNotEmpty) ...[
               const Gap(10),
               _SectionHeading(
-                label: node is JsonSchemaArrayNode ? 'Item Schema' : 'Properties',
+                label: node is JsonSchemaArrayNode
+                    ? context.lazyTranslate(
+                        en: 'Item Schema',
+                        de: 'Element-Schema',
+                        zh: '元素 Schema',
+                      )
+                    : jsonSchemaKeywordLabel(context, 'properties'),
                 icon: node is JsonSchemaArrayNode
                     ? Icons.view_stream_rounded
                     : Icons.data_object_rounded,
@@ -266,14 +286,22 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                           key: const ValueKey('section-meta-Properties-properties'),
                           icon: Icons.data_object_rounded,
                           label: objectNode.properties.length.toString(),
-                          tooltip: '${objectNode.properties.length} properties',
+                          tooltip: context.lazyTranslate(
+                            en: '${objectNode.properties.length} properties',
+                            de: '${objectNode.properties.length} Properties',
+                            zh: '${objectNode.properties.length} 个属性',
+                          ),
                           accent: spec.accent,
                         ),
                         _SectionMetaBadge(
                           key: const ValueKey('section-meta-Properties-required'),
                           icon: Icons.star_rounded,
                           label: objectNode.required.length.toString(),
-                          tooltip: '${objectNode.required.length} required properties',
+                          tooltip: context.lazyTranslate(
+                            en: '${objectNode.required.length} required properties',
+                            de: '${objectNode.required.length} Pflicht-Properties',
+                            zh: '${objectNode.required.length} 个必填属性',
+                          ),
                           accent: spec.accent,
                         ),
                         _SectionMetaBadge(
@@ -282,8 +310,16 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                               ? Icons.lock_open_rounded
                               : Icons.lock_rounded,
                           tooltip: objectNode.additionalProperties
-                              ? 'Additional properties allowed'
-                              : 'Additional properties blocked',
+                              ? context.lazyTranslate(
+                                  en: 'Additional properties allowed',
+                                  de: 'Zusätzliche Properties erlaubt',
+                                  zh: '允许额外属性',
+                                )
+                              : context.lazyTranslate(
+                                  en: 'Additional properties blocked',
+                                  de: 'Zusätzliche Properties blockiert',
+                                  zh: '禁止额外属性',
+                                ),
                           accent: spec.accent,
                         ),
                       ]
@@ -299,6 +335,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
   }
 
   List<Widget> _childrenForNode(
+    BuildContext context,
     JsonSchemaNode currentNode,
     JsonSchemaEditorExtensionOptions options,
     JsonSchemaPath currentPath,
@@ -307,7 +344,13 @@ class _JsonSchemaNodeCard extends StatelessWidget {
       final entries = currentNode.orderedPropertyEntries.toList();
       return [
         if (entries.isEmpty)
-          const _SchemaEmptyState(message: 'No properties defined yet.')
+          _SchemaEmptyState(
+            message: context.lazyTranslate(
+              en: 'No properties defined yet.',
+              de: 'Noch keine Properties definiert.',
+              zh: '尚未定义任何属性。',
+            ),
+          )
         else
           for (var index = 0; index < entries.length; index += 1) ...[
             _JsonSchemaNodeCard(
@@ -357,8 +400,9 @@ class _SchemaExtensionPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final valueText = _previewSchemaValue(extensionValue);
+    final valueText = _previewSchemaValue(context, extensionValue);
     final infoMessage = _schemaValueInfoMessage(
+      context: context,
       value: extensionValue,
       preview: valueText,
       description: description,
@@ -608,7 +652,9 @@ class _SchemaDetailsToggleButton extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Tooltip(
-      message: showDetails ? 'Hide details' : 'Show details',
+      message: showDetails
+          ? context.lazyTranslate( en: 'Hide details', de: 'Details ausblenden', zh: '隐藏详情')
+          : context.lazyTranslate( en: 'Show details', de: 'Details anzeigen', zh: '显示详情'),
       child: Material(
         color: Colors.transparent,
         child: Ink(
@@ -770,18 +816,8 @@ _SchemaTypeSpec _schemaTypeSpec(JsonSchemaNodeType type) {
   };
 }
 
-String _typeLabel(JsonSchemaNodeType type) {
-  return switch (type) {
-    JsonSchemaNodeType.string => 'String',
-    JsonSchemaNodeType.number => 'Number',
-    JsonSchemaNodeType.integer => 'Integer',
-    JsonSchemaNodeType.boolean => 'Boolean',
-    JsonSchemaNodeType.object => 'Object',
-    JsonSchemaNodeType.array => 'Array',
-  };
-}
-
 String _titleForNode({
+  required BuildContext context,
   required JsonSchemaNode node,
   required String? propertyKey,
   required bool isRoot,
@@ -795,29 +831,35 @@ String _titleForNode({
     return trimmedPropertyKey;
   }
   if (isRoot) {
-    return 'Root schema';
+    return context.lazyTranslate( en: 'Root schema', de: 'Root-Schema', zh: '根 Schema');
   }
-  return node is JsonSchemaArrayNode ? 'Array items' : '${_typeLabel(node.type)} schema';
+  return node is JsonSchemaArrayNode
+      ? context.lazyTranslate( en: 'Array items', de: 'Array-Elemente', zh: '数组元素')
+      : context.lazyTranslate(
+          en: '${jsonSchemaTypeLabel(context, node.type)} schema',
+          de: '${jsonSchemaTypeLabel(context, node.type)}-Schema',
+          zh: '${jsonSchemaTypeLabel(context, node.type)} Schema',
+        );
 }
 
-List<_SchemaDetail> _detailsForNode(JsonSchemaNode node) {
+List<_SchemaDetail> _detailsForNode(BuildContext context, JsonSchemaNode node) {
   return switch (node) {
     JsonSchemaStringNode() => [
       if (node.minLength != null)
         _SchemaDetail(
-          label: 'Min length',
+          label: jsonSchemaKeywordLabel(context, 'minLength'),
           value: node.minLength.toString(),
           icon: Icons.straighten_rounded,
         ),
       if (node.maxLength != null)
         _SchemaDetail(
-          label: 'Max length',
+          label: jsonSchemaKeywordLabel(context, 'maxLength'),
           value: node.maxLength.toString(),
           icon: Icons.width_normal_rounded,
         ),
       if (node.pattern != null && node.pattern!.trim().isNotEmpty)
         _SchemaDetail(
-          label: 'Pattern',
+          label: jsonSchemaKeywordLabel(context, 'pattern'),
           value: node.pattern!.trim(),
           icon: Icons.code_rounded,
           monospace: true,
@@ -826,31 +868,31 @@ List<_SchemaDetail> _detailsForNode(JsonSchemaNode node) {
     JsonSchemaNumberNode() => [
       if (node.minimum != null)
         _SchemaDetail(
-          label: 'Minimum',
+          label: jsonSchemaKeywordLabel(context, 'minimum'),
           value: _formatNumber(node.minimum),
           icon: Icons.south_rounded,
         ),
       if (node.maximum != null)
         _SchemaDetail(
-          label: 'Maximum',
+          label: jsonSchemaKeywordLabel(context, 'maximum'),
           value: _formatNumber(node.maximum),
           icon: Icons.north_rounded,
         ),
       if (node.exclusiveMinimum != null)
         _SchemaDetail(
-          label: 'Exclusive min',
+          label: jsonSchemaKeywordLabel(context, 'exclusiveMinimum'),
           value: node.exclusiveMinimum! ? 'true' : 'false',
           icon: Icons.lock_open_rounded,
         ),
       if (node.exclusiveMaximum != null)
         _SchemaDetail(
-          label: 'Exclusive max',
+          label: jsonSchemaKeywordLabel(context, 'exclusiveMaximum'),
           value: node.exclusiveMaximum! ? 'true' : 'false',
           icon: Icons.lock_outline_rounded,
         ),
       if (node.multipleOf != null)
         _SchemaDetail(
-          label: 'Multiple of',
+          label: jsonSchemaKeywordLabel(context, 'multipleOf'),
           value: _formatNumber(node.multipleOf),
           icon: Icons.grid_3x3_rounded,
         ),
@@ -858,7 +900,7 @@ List<_SchemaDetail> _detailsForNode(JsonSchemaNode node) {
     JsonSchemaBooleanNode() => [
       if (node.defaultValue != null)
         _SchemaDetail(
-          label: 'Default',
+          label: jsonSchemaKeywordLabel(context, 'default'),
           value: node.defaultValue! ? 'true' : 'false',
           icon: Icons.toggle_on_rounded,
           monospace: true,
@@ -868,19 +910,19 @@ List<_SchemaDetail> _detailsForNode(JsonSchemaNode node) {
     JsonSchemaArrayNode() => [
       if (node.minItems != null)
         _SchemaDetail(
-          label: 'Min items',
+          label: jsonSchemaKeywordLabel(context, 'minItems'),
           value: node.minItems.toString(),
           icon: Icons.format_list_numbered_rounded,
         ),
       if (node.maxItems != null)
         _SchemaDetail(
-          label: 'Max items',
+          label: jsonSchemaKeywordLabel(context, 'maxItems'),
           value: node.maxItems.toString(),
           icon: Icons.format_list_numbered_rtl_rounded,
         ),
       if (node.uniqueItems != null)
         _SchemaDetail(
-          label: 'Unique items',
+          label: jsonSchemaKeywordLabel(context, 'uniqueItems'),
           value: node.uniqueItems! ? 'true' : 'false',
           icon: Icons.fingerprint_rounded,
           monospace: true,
@@ -899,7 +941,7 @@ String _formatNumber(num? value) {
   return value.toString();
 }
 
-String _previewSchemaValue(Object? value) {
+String _previewSchemaValue(BuildContext context, Object? value) {
   if (value == null || value is num || value is bool) {
     return _stringifySchemaValue(value);
   }
@@ -914,13 +956,21 @@ String _previewSchemaValue(Object? value) {
     if (value.isEmpty) {
       return '[]';
     }
-    return 'List (${value.length})';
+    return context.lazyTranslate(
+      en: 'List (${value.length})',
+      de: 'Liste (${value.length})',
+      zh: '列表（${value.length}）',
+    );
   }
   if (value is Map) {
     if (value.isEmpty) {
       return '{}';
     }
-    return 'Object (${value.length})';
+    return context.lazyTranslate(
+      en: 'Object (${value.length})',
+      de: 'Objekt (${value.length})',
+      zh: '对象（${value.length}）',
+    );
   }
   final text = value.toString().trim();
   if (text.length <= 36) {
@@ -930,6 +980,7 @@ String _previewSchemaValue(Object? value) {
 }
 
 String? _schemaValueInfoMessage({
+  required BuildContext context,
   required Object? value,
   required String preview,
   String? description,
@@ -942,7 +993,13 @@ String? _schemaValueInfoMessage({
 
   final fullValue = _stringifySchemaValue(value);
   if (fullValue != preview) {
-    sections.add('Value: $fullValue');
+    sections.add(
+      context.lazyTranslate(
+        en: 'Value: $fullValue',
+        de: 'Wert: $fullValue',
+        zh: '值：$fullValue',
+      ),
+    );
   }
 
   if (sections.isEmpty) {

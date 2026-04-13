@@ -49,7 +49,7 @@ class JsonSchemaEditorExample extends StatelessWidget {
       ),
       extensionOptions: JsonSchemaEditorExtensionOptions(
         allowAddExtensions: false,
-        configurableExtensionsForAllNodeTypes: [
+        configurableExtensions: [
           JsonSchemaEditorExtensionField(
             key: 'x-root',
             label: 'Root',
@@ -60,6 +60,7 @@ class JsonSchemaEditorExample extends StatelessWidget {
           JsonSchemaEditorExtensionField(
             key: 'x-token',
             label: 'Token',
+            description: 'This is the ideal token!',
             valueType: JsonSchemaEditorExtensionFieldType.stringEnum,
             defaultValue: 'test',
             enumValues: ['test', 'token', 'admin'],

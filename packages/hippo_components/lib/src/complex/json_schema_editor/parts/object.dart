@@ -28,9 +28,13 @@ class _ObjectNodeEditor extends StatelessWidget {
       children: [
         if (objectOptions.additionalProperties && !node.additionalProperties) ...[
           _BooleanCapabilityField(
-            label: 'Additional props',
+            label: context.lazyTranslate(
+              en: 'Additional props',
+              de: 'Zusätzliche Props',
+              zh: '额外属性',
+            ),
             value: node.additionalProperties,
-            helpText: _jsonSchemaHelpByKeyword['additionalProperties'],
+            helpText: jsonSchemaHelpByKeyword(context, 'additionalProperties'),
             onChanged: (value) => controller.updateNode(
               path: path,
               updater: (JsonSchemaObjectNode node) => node.copyWith(additionalProperties: value),
@@ -50,8 +54,8 @@ class _ObjectNodeEditor extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             _EditorSectionLabel(
-              label: 'Properties',
-              helpText: _jsonSchemaHelpByKeyword['properties'],
+              label: jsonSchemaKeywordLabel(context, 'properties'),
+              helpText: jsonSchemaHelpByKeyword(context, 'properties'),
             ),
           ],
         ),
@@ -67,7 +71,11 @@ class _ObjectNodeEditor extends StatelessWidget {
               border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.7)),
             ),
             child: Text(
-              'No properties defined yet.',
+              context.lazyTranslate(
+                en: 'No properties defined yet.',
+                de: 'Noch keine Properties definiert.',
+                zh: '尚未定义任何属性。',
+              ),
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
@@ -89,8 +97,8 @@ class _ObjectNodeEditor extends StatelessWidget {
                   propertyKey: entry.key,
                   nodeType: propertyNode.type,
                   required: required,
-                  propertyKeyHelpText: _jsonSchemaHelpByKeyword['propertyKey'],
-                  requiredHelpText: _jsonSchemaHelpByKeyword['required'],
+                  propertyKeyHelpText: jsonSchemaHelpByKeyword(context, 'propertyKey'),
+                  requiredHelpText: jsonSchemaHelpByKeyword(context, 'required'),
                   onPropertyKeyChanged: (nextKey) => controller.renameProperty(
                     objectPath: path,
                     currentKey: entry.key,
@@ -140,7 +148,11 @@ class _ObjectNodeEditor extends StatelessWidget {
           },
           type: ButtonType.secondary,
           prefix: const Icon(Icons.add_rounded),
-          label: 'Add property',
+          label: context.lazyTranslate(
+            en: 'Add property',
+            de: 'Property hinzufügen',
+            zh: '添加属性',
+          ),
         ),
         Gap(8),
       ],

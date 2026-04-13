@@ -13,8 +13,8 @@ class _SchemaInfoFields extends StatelessWidget {
       children: [
         JsonSchemaEditorTextField(
           value: node.title,
-          hint: 'Title',
-          helpText: _jsonSchemaHelpByKeyword['title'],
+          hint: jsonSchemaKeywordLabel(context, 'title'),
+          helpText: jsonSchemaHelpByKeyword(context, 'title'),
           onChanged: (value) => controller.updateNode(
             path: path,
             updater: (JsonSchemaNode current) => current.copyWith(title: value.trim()),
@@ -26,9 +26,9 @@ class _SchemaInfoFields extends StatelessWidget {
         ),
         JsonSchemaEditorTextField(
           value: node.description,
-          hint: 'Description',
+          hint: jsonSchemaKeywordLabel(context, 'description'),
           maxLines: 3,
-          helpText: _jsonSchemaHelpByKeyword['description'],
+          helpText: jsonSchemaHelpByKeyword(context, 'description'),
           onChanged: (value) => controller.updateNode(
             path: path,
             updater: (JsonSchemaNode current) => current.copyWith(description: value),

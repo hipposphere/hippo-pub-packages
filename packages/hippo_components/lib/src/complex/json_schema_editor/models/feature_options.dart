@@ -103,19 +103,18 @@ class JsonSchemaEditorExtensionField {
 
 @immutable
 class JsonSchemaEditorExtensionOptions {
-  /// Describes which extension keys are editable for each node type and optional
-  /// default values to prefill in the editor UI.
-  /// Applies recursively to all node kinds (object, string, number, boolean, array).
+  /// Describes which extension keys are editable and optional default values to
+  /// prefill in the editor UI.
+  /// Each field can scope itself to node types and node positions via
+  /// `applicableNodeTypes` and `applicableScopes`.
   const JsonSchemaEditorExtensionOptions({
-    this.configurableExtensionsForAllNodeTypes = const [],
-    this.configurableExtensions = const {},
+    this.configurableExtensions = const [],
     this.allowAddExtensions = true,
   });
 
   static const JsonSchemaEditorExtensionOptions none = JsonSchemaEditorExtensionOptions();
 
-  final List<JsonSchemaEditorExtensionField> configurableExtensionsForAllNodeTypes;
-  final Map<JsonSchemaNodeType, List<JsonSchemaEditorExtensionField>> configurableExtensions;
+  final List<JsonSchemaEditorExtensionField> configurableExtensions;
   final bool allowAddExtensions;
 
   List<JsonSchemaEditorExtensionField> extensionsForNodeType(
@@ -123,19 +122,7 @@ class JsonSchemaEditorExtensionOptions {
     JsonSchemaPath? path,
   }) {
     final merged = <String, JsonSchemaEditorExtensionField>{};
-
-    for (final field in configurableExtensionsForAllNodeTypes) {
-      if (!field.supportsNodeType(type) || (path != null && !field.supportsPath(path))) {
-        continue;
-      }
-      final key = field.key.trim();
-      if (key.isNotEmpty) {
-        merged[key] = field;
-      }
-    }
-
-    final specific = configurableExtensions[type] ?? const [];
-    for (final field in specific) {
+    for (final field in configurableExtensions) {
       if (!field.supportsNodeType(type) || (path != null && !field.supportsPath(path))) {
         continue;
       }

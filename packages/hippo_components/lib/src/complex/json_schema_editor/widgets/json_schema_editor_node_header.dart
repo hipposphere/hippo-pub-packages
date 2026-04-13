@@ -54,13 +54,16 @@ class JsonSchemaEditorNodeHeader extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      jsonSchemaTypeLabel(nodeType),
+                      jsonSchemaTypeLabel(context, nodeType),
                       style: Theme.of(
                         context,
                       ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const Gap(4),
-                    JsonSchemaEditorInfoIcon(message: jsonSchemaTypeHelp(nodeType), size: 14),
+                    JsonSchemaEditorInfoIcon(
+                      message: jsonSchemaTypeHelp(context, nodeType),
+                      size: 14,
+                    ),
                   ],
                 ),
               ),

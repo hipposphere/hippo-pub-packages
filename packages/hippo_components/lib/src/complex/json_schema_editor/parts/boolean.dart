@@ -58,7 +58,11 @@ class _BooleanCapabilityField extends StatelessWidget {
         ),
         const Spacer(),
         JsonSchemaEditorActionIconButton(
-          tooltip: 'Remove capability',
+          tooltip: context.lazyTranslate(
+            en: 'Remove capability',
+            de: 'Fähigkeit entfernen',
+            zh: '移除能力',
+          ),
           icon: Icons.close,
           onPressed: onCleared,
         ),
@@ -96,9 +100,9 @@ class _BooleanNodeEditor extends StatelessWidget {
       children: [
         if (showCapabilities && booleanOptions.defaultValue && node.defaultValue != null)
           _BooleanCapabilityField(
-            label: 'Default true',
+            label: jsonSchemaKeywordLabel(context, 'default'),
             value: node.defaultValue!,
-            helpText: _jsonSchemaHelpByKeyword['default'],
+            helpText: jsonSchemaHelpByKeyword(context, 'default'),
             onChanged: (value) => controller.updateNode(
               path: path,
               updater: (JsonSchemaBooleanNode node) => node.copyWith(defaultValue: value),

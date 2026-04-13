@@ -36,21 +36,21 @@ class _JsonSchemaVisualizationPanelState extends State<JsonSchemaVisualizationPa
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Schema Preview',
+            context.lazyTranslate(en: 'Schema Preview', de: 'Schema-Vorschau', zh: 'Schema 预览'),
             style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const Gap(10),
           SegmentedButton<_JsonSchemaPreviewMode>(
             showSelectedIcon: false,
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: _JsonSchemaPreviewMode.optimized,
-                icon: Icon(Icons.auto_awesome_rounded),
-                label: Text('Optimized'),
+                icon: const Icon(Icons.auto_awesome_rounded),
+                label: Text(context.lazyTranslate(en: 'Optimized', de: 'Optimiert', zh: '优化视图')),
               ),
               ButtonSegment(
                 value: _JsonSchemaPreviewMode.json,
-                icon: Icon(Icons.data_object_rounded),
+                icon: const Icon(Icons.data_object_rounded),
                 label: Text('JSON'),
               ),
             ],

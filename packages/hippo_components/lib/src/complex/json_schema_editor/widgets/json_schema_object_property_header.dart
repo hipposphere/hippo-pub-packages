@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
+import '../json_schema_editor_descriptions.dart';
 import 'json_schema_editor_controls.dart';
 import 'json_schema_editor_text_field.dart';
 
@@ -70,26 +71,38 @@ class JsonSchemaObjectPropertyHeader extends StatelessWidget {
             },
           ),
           JsonSchemaEditorCompactBooleanOption(
-            label: 'Required',
+            label: jsonSchemaKeywordLabel(context, 'required'),
             value: required,
             helpText: requiredHelpText,
             dense: useInlineLayout,
             onChanged: onRequiredChanged,
           ),
           JsonSchemaEditorActionIconButton(
-            tooltip: 'Move property up',
+            tooltip: context.lazyTranslate(
+              en: 'Move property up',
+              de: 'Property nach oben verschieben',
+              zh: '上移属性',
+            ),
             icon: Icons.arrow_upward_rounded,
             dense: useInlineLayout,
             onPressed: onMoveUp,
           ),
           JsonSchemaEditorActionIconButton(
-            tooltip: 'Move property down',
+            tooltip: context.lazyTranslate(
+              en: 'Move property down',
+              de: 'Property nach unten verschieben',
+              zh: '下移属性',
+            ),
             icon: Icons.arrow_downward_rounded,
             dense: useInlineLayout,
             onPressed: onMoveDown,
           ),
           JsonSchemaEditorActionIconButton(
-            tooltip: 'Remove property',
+            tooltip: context.lazyTranslate(
+              en: 'Remove property',
+              de: 'Property entfernen',
+              zh: '移除属性',
+            ),
             icon: Icons.delete_outline,
             dense: useInlineLayout,
             onPressed: onRemove,
@@ -115,7 +128,7 @@ class JsonSchemaObjectPropertyHeader extends StatelessWidget {
 
         final propertyKeyField = JsonSchemaEditorTextField(
           value: propertyKey,
-          hint: 'Property key',
+          hint: jsonSchemaKeywordLabel(context, 'propertyKey'),
           helpText: propertyKeyHelpText,
           debounceDelay: debounceDelay,
           onChanged: _commitPropertyKey,

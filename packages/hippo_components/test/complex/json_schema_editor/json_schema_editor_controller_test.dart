@@ -282,7 +282,7 @@ void main() {
     test('filters configured extensions by node type and scope', () {
       final controller = JsonSchemaEditorController(
         extensionOptions: JsonSchemaEditorExtensionOptions(
-          configurableExtensionsForAllNodeTypes: [
+          configurableExtensions: [
             const JsonSchemaEditorExtensionField(
               key: 'x-shared',
               valueType: JsonSchemaEditorExtensionFieldType.string,

@@ -17,7 +17,7 @@ class _ExtensionNodeEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final keywordHelpText = _jsonSchemaHelpByKeyword[extensionKey];
+    final keywordHelpText = jsonSchemaHelpByKeyword(context, extensionKey);
     final helpText = extensionField?.normalizedDescription ?? keywordHelpText;
     final extensionLabel = extensionField?.displayLabel ?? extensionKey;
 
@@ -130,7 +130,11 @@ class _JsonValueExtensionNodeField extends StatelessWidget {
   Widget build(BuildContext context) {
     return _StringCapabilityField(
       value: _jsonValueAsInput(extensionValue),
-      hint: '$extensionLabel (JSON)',
+      hint: context.lazyTranslate(
+        en: '$extensionLabel (JSON)',
+        de: '$extensionLabel (JSON)',
+        zh: '$extensionLabel（JSON）',
+      ),
       helpText: helpText,
       maxLines: extensionValue is Map || extensionValue is List ? 8 : 4,
       onChanged: (next) => _updateJsonValue(
@@ -166,7 +170,11 @@ class _JsonArrayExtensionNodeField extends StatelessWidget {
     final value = extensionValue is List ? extensionValue : const <Object?>[];
     return _StringCapabilityField(
       value: _jsonValueAsInput(value),
-      hint: '$extensionLabel (JSON array)',
+      hint: context.lazyTranslate(
+        en: '$extensionLabel (JSON array)',
+        de: '$extensionLabel (JSON-Array)',
+        zh: '$extensionLabel（JSON 数组）',
+      ),
       helpText: helpText,
       maxLines: 10,
       onChanged: (next) => _updateJsonArray(
@@ -192,15 +200,29 @@ Future<void> _showCustomExtensionDialog({
     context: context,
     builder: (dialogContext) {
       return AlertDialog(
-        title: const Text('Add custom extension'),
+        title: Text(
+          dialogContext.lazyTranslate(
+            en: 'Add custom extension',
+            de: 'Eigene Erweiterung hinzufügen',
+            zh: '添加自定义扩展',
+          ),
+        ),
         content: TextField(
           controller: keyController,
-          decoration: const InputDecoration(labelText: 'Extension key'),
+          decoration: InputDecoration(
+            labelText: dialogContext.lazyTranslate(
+              en: 'Extension key',
+              de: 'Erweiterungs-Key',
+              zh: '扩展键',
+            ),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
+            child: Text(
+              dialogContext.lazyTranslate( en: 'Cancel', de: 'Abbrechen', zh: '取消'),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -211,7 +233,7 @@ Future<void> _showCustomExtensionDialog({
               controller.setNodeField(path: path, key: finalKey, value: '');
               Navigator.of(dialogContext).pop();
             },
-            child: const Text('Add'),
+            child: Text(dialogContext.lazyTranslate( en: 'Add', de: 'Hinzufügen', zh: '添加')),
           ),
         ],
       );

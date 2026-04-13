@@ -6,6 +6,7 @@ import 'package:hippo_utils/hippo_utils.dart';
 
 Widget _buildTestApp(Widget child) {
   return MaterialApp(
+    locale: const Locale('en'),
     theme: ThemeData(splashFactory: NoSplash.splashFactory),
     home: Scaffold(body: child),
   );

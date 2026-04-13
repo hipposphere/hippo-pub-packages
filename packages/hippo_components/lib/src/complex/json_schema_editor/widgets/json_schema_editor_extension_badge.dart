@@ -60,7 +60,7 @@ class JsonSchemaExtensionStateBadge extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     if (!isConfigured) {
       return JsonSchemaEditorChipLabel(
-        label: 'custom',
+        label: context.lazyTranslate(en: 'custom', de: 'eigen', zh: '自定义'),
         icon: Icons.extension,
         color: colorScheme.errorContainer,
         textColor: colorScheme.onErrorContainer,
@@ -68,14 +68,14 @@ class JsonSchemaExtensionStateBadge extends StatelessWidget {
     }
     if (isImplemented) {
       return JsonSchemaEditorChipLabel(
-        label: 'active',
+        label: context.lazyTranslate(en: 'active', de: 'aktiv', zh: '已启用'),
         icon: Icons.check_circle,
         color: colorScheme.secondaryContainer,
         textColor: colorScheme.onSecondaryContainer,
       );
     }
     return JsonSchemaEditorChipLabel(
-      label: 'available',
+      label: context.lazyTranslate(en: 'available', de: 'verfügbar', zh: '可用'),
       icon: Icons.tune,
       color: colorScheme.surfaceContainerHighest,
       textColor: colorScheme.onSurfaceVariant,

@@ -8,6 +8,7 @@
 // ---------------------------------------------------------------------------
 */
 import 'package:flutter/material.dart';
+import 'package:hippo_components/src/base/utils/components_context.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 class JsonSchemaValidationPanel extends StatelessWidget {
@@ -33,10 +34,19 @@ class JsonSchemaValidationPanel extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
           child: Row(
             children: [
-              Expanded(child: Text('Validation', style: Theme.of(context).textTheme.titleSmall)),
+              Expanded(
+                child: Text(
+                  context.lazyTranslate(en: 'Validation', de: 'Validierung', zh: '校验'),
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
               if (warningCount > 0)
                 Text(
-                  '$warningCount warning${warningCount == 1 ? '' : 's'}',
+                  context.lazyTranslate(
+                    en: warningCount == 1 ? '1 warning' : '$warningCount warnings',
+                    de: warningCount == 1 ? '1 Warnung' : '$warningCount Warnungen',
+                    zh: warningCount == 1 ? '1 条警告' : '$warningCount 条警告',
+                  ),
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
@@ -69,7 +79,11 @@ class JsonSchemaValidationPanel extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'No warnings detected',
+                          context.lazyTranslate(
+                            en: 'No warnings detected',
+                            de: 'Keine Warnungen gefunden',
+                            zh: '未发现警告',
+                          ),
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: successColor,
@@ -77,7 +91,11 @@ class JsonSchemaValidationPanel extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Schema looks good.',
+                          context.lazyTranslate(
+                            en: 'Schema looks good.',
+                            de: 'Das Schema sieht gut aus.',
+                            zh: 'Schema 看起来没有问题。',
+                          ),
                           style: Theme.of(
                             context,
                           ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),

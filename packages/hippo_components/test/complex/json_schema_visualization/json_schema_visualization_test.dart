@@ -6,6 +6,7 @@ import 'package:hippo_utils/hippo_utils.dart';
 
 Widget _buildTestApp(Widget child) {
   return MaterialApp(
+    locale: const Locale('en'),
     theme: ThemeData(splashFactory: NoSplash.splashFactory),
     home: Scaffold(body: child),
   );
@@ -45,35 +46,30 @@ void main() {
     );
 
     const extensionOptions = JsonSchemaEditorExtensionOptions(
-      configurableExtensions: {
-        JsonSchemaNodeType.object: [
-          JsonSchemaEditorExtensionField(
-            key: 'x-group',
-            label: 'Group',
-            description: 'Grouping metadata',
-            applicableScopes: {JsonSchemaEditorExtensionFieldScope.root},
-          ),
-        ],
-        JsonSchemaNodeType.array: [
-          JsonSchemaEditorExtensionField(
-            key: 'x-priority',
-            label: 'Priority',
-            description: 'Priority ordering',
-            valueType: JsonSchemaEditorExtensionFieldType.number,
-            applicableScopes: {JsonSchemaEditorExtensionFieldScope.objectProperty},
-          ),
-        ],
-        JsonSchemaNodeType.boolean: [
-          JsonSchemaEditorExtensionField(
-            key: 'x-enabled',
-            label: 'Enabled marker',
-            description: 'Boolean feature marker',
-            valueType: JsonSchemaEditorExtensionFieldType.boolean,
-            applicableScopes: {JsonSchemaEditorExtensionFieldScope.arrayItem},
-          ),
-        ],
-      },
-      configurableExtensionsForAllNodeTypes: [
+      configurableExtensions: [
+        JsonSchemaEditorExtensionField(
+          key: 'x-group',
+          label: 'Group',
+          description: 'Grouping metadata',
+          applicableNodeTypes: {JsonSchemaNodeType.object},
+          applicableScopes: {JsonSchemaEditorExtensionFieldScope.root},
+        ),
+        JsonSchemaEditorExtensionField(
+          key: 'x-priority',
+          label: 'Priority',
+          description: 'Priority ordering',
+          valueType: JsonSchemaEditorExtensionFieldType.number,
+          applicableNodeTypes: {JsonSchemaNodeType.array},
+          applicableScopes: {JsonSchemaEditorExtensionFieldScope.objectProperty},
+        ),
+        JsonSchemaEditorExtensionField(
+          key: 'x-enabled',
+          label: 'Enabled marker',
+          description: 'Boolean feature marker',
+          valueType: JsonSchemaEditorExtensionFieldType.boolean,
+          applicableNodeTypes: {JsonSchemaNodeType.boolean},
+          applicableScopes: {JsonSchemaEditorExtensionFieldScope.arrayItem},
+        ),
         JsonSchemaEditorExtensionField(
           key: 'x-token',
           label: 'Token',

@@ -227,8 +227,10 @@ class _JsonSchemaViewerExamplePageState extends State<JsonSchemaViewerExamplePag
   Widget build(BuildContext context) {
     final sample = _samples[_selectedSampleIndex];
 
-    return PageContainer(
+    return PlatformPageContainer(
       title: 'JSON Schema Viewer',
+      onHeaderPanStart: (_) {},
+      onDoubleTap: () {},
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 1100;

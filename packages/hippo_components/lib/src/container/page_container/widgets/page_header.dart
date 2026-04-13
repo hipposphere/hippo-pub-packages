@@ -57,7 +57,7 @@ class PageHeader extends CupertinoNavigationBar {
        );
 }
 
-class PageHeaderDragRegion extends StatelessWidget implements ObstructingPreferredSizeWidget {
+class PageHeaderDragRegion extends StatefulWidget implements ObstructingPreferredSizeWidget {
   final PageHeader child;
   final GestureDragStartCallback? onPanStart;
   final GestureDoubleTapCallback? onDoubleTap;
@@ -71,13 +71,39 @@ class PageHeaderDragRegion extends StatelessWidget implements ObstructingPreferr
   bool shouldFullyObstruct(BuildContext context) => child.shouldFullyObstruct(context);
 
   @override
+  State<PageHeaderDragRegion> createState() => _PageHeaderDragRegionState();
+}
+
+class _PageHeaderDragRegionState extends State<PageHeaderDragRegion> {
+  DateTime? lastTap;
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: .opaque,
-      onPanStart: onPanStart,
-      onDoubleTap: onDoubleTap,
-      supportedDevices: PointerDeviceKind.values.toSet(),
-      child: child,
+    return RawGestureDetector(
+      behavior: .deferToChild,
+      gestures: {
+        PanGestureRecognizer: GestureRecognizerFactoryWithHandlers<PanGestureRecognizer>(
+          () => PanGestureRecognizer(),
+          (instance) {
+            instance.onStart = widget.onPanStart;
+          },
+        ),
+        TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+          () => TapGestureRecognizer(),
+          (instance) {
+            if (widget.onDoubleTap != null) {
+              instance.onTap = () {
+                final now = DateTime.now();
+                if (lastTap != null && now.difference(lastTap!) < Duration(milliseconds: 300)) {
+                  widget.onDoubleTap!();
+                }
+                lastTap = now;
+              };
+            }
+          },
+        ),
+      },
+      child: widget.child,
     );
   }
 }

@@ -22,6 +22,7 @@ class PlatformPageContainer extends StatelessWidget {
   final Color? backgroundColor;
   final bool showNavBarBorder;
   final GestureDragStartCallback? onHeaderPanStart;
+  final VoidCallback? onDoubleTap;
   const PlatformPageContainer({
     super.key,
     this.desktopTopBar,
@@ -33,6 +34,7 @@ class PlatformPageContainer extends StatelessWidget {
     this.backAction = const PageHeaderBackAction(),
     this.showNavBarBorder = true,
     this.onHeaderPanStart,
+    this.onDoubleTap,
   });
 
   @override
@@ -54,6 +56,7 @@ class PlatformPageContainer extends StatelessWidget {
               backgroundColor: backgroundColor,
               navigationBar: PageHeaderDragRegion(
                 onPanStart: onHeaderPanStart,
+                onDoubleTap: onDoubleTap,
                 child: PageHeader(
                   backAction: backAction,
                   title: title,

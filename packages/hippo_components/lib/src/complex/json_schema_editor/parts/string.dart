@@ -67,7 +67,7 @@ class _StringEnumExtensionNodeField extends StatelessWidget {
 
     return _DropdownCapabilityField(
       label: extensionLabel,
-      value: currentValue,
+      value: currentValue.isEmpty ? null : currentValue,
       entries: valueEntries,
       helpText: helpText,
       onChanged: (value) {
@@ -157,7 +157,6 @@ class _DropdownCapabilityField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final notSetLabel = context.lazyTranslate(en: 'Not set', de: 'Nicht gesetzt', zh: '未设置');
 
     return Row(
       children: [
@@ -190,24 +189,19 @@ class _DropdownCapabilityField extends StatelessWidget {
                 borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.2),
               ),
             ),
-            selectedItemBuilder: (context) => [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(notSetLabel, overflow: TextOverflow.ellipsis),
-              ),
-              ...entries.map(
-                (entry) => Align(
-                  alignment: Alignment.centerLeft,
-                  child: _DropdownEntryLabel(
-                    label: entry.resolveDisplayLabel(context),
-                    description: entry.resolveDescription(context),
-                    compact: true,
+            selectedItemBuilder: (context) => entries
+                .map(
+                  (entry) => Align(
+                    alignment: Alignment.centerLeft,
+                    child: _DropdownEntryLabel(
+                      label: entry.resolveDisplayLabel(context),
+                      description: entry.resolveDescription(context),
+                      compact: true,
+                    ),
                   ),
-                ),
-              ),
-            ],
+                )
+                .toList(growable: false),
             items: <DropdownMenuItem<String>>[
-              DropdownMenuItem<String>(value: '', child: Text(notSetLabel)),
               ...entries.map((entry) {
                 final value = entry.normalizedValue!;
                 final displayLabel = entry.resolveDisplayLabel(context);

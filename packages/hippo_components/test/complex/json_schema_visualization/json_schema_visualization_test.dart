@@ -14,6 +14,10 @@ Widget _buildTestApp(Widget child, {Locale locale = const Locale('en')}) {
   );
 }
 
+Finder _findOptionalTooltip(String message) {
+  return find.byWidgetPredicate((widget) => widget is OptionalTooltip && widget.message == message);
+}
+
 void main() {
   testWidgets('hides visualization details by default and reveals them via the toggle', (
     WidgetTester tester,
@@ -116,25 +120,26 @@ void main() {
     expect(find.textContaining('Token: admin', findRichText: true), findsNothing);
     expect(find.textContaining('Priority: 2', findRichText: true), findsOneWidget);
     expect(find.textContaining('Enabled marker: false', findRichText: true), findsOneWidget);
-    expect(find.byTooltip('Authorization token\n\nAdministrative token'), findsOneWidget);
-    expect(find.byTooltip('Grouping metadata'), findsOneWidget);
-    expect(find.byTooltip('Priority ordering'), findsOneWidget);
-    expect(find.byTooltip('Boolean feature marker'), findsOneWidget);
+    expect(_findOptionalTooltip('Authorization token\n\nAdministrative token'), findsOneWidget);
+    expect(_findOptionalTooltip('Grouping metadata'), findsOneWidget);
+    expect(_findOptionalTooltip('Priority ordering'), findsOneWidget);
+    expect(_findOptionalTooltip('Boolean feature marker'), findsOneWidget);
     expect(find.textContaining('Properties:', findRichText: true), findsNothing);
     expect(find.textContaining('Required:', findRichText: true), findsNothing);
     expect(find.textContaining('Additional props:', findRichText: true), findsNothing);
-    expect(find.byTooltip('2 properties'), findsNothing);
-    expect(find.byTooltip('1 required properties'), findsNothing);
-    expect(find.byTooltip('Additional properties allowed'), findsNothing);
+    expect(_findOptionalTooltip('2 properties'), findsNothing);
+    expect(_findOptionalTooltip('1 required properties'), findsNothing);
+    expect(_findOptionalTooltip('Additional properties allowed'), findsNothing);
     expect(find.text('/flags/-'), findsNothing);
     expect(find.byType(Scrollable), findsNothing);
 
-    await tester.tap(find.byTooltip('Show details'));
+    expect(_findOptionalTooltip('Show details'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.visibility_off_outlined));
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('2 properties'), findsOneWidget);
-    expect(find.byTooltip('1 required properties'), findsOneWidget);
-    expect(find.byTooltip('Additional properties allowed'), findsOneWidget);
+    expect(_findOptionalTooltip('2 properties'), findsOneWidget);
+    expect(_findOptionalTooltip('1 required properties'), findsOneWidget);
+    expect(_findOptionalTooltip('Additional properties allowed'), findsOneWidget);
     expect(find.text('/flags/-'), findsOneWidget);
   });
 
@@ -162,11 +167,12 @@ void main() {
     await tester.pumpWidget(_buildTestApp(JsonSchemaVisualization(schema: schema)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Show details'));
+    expect(_findOptionalTooltip('Show details'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.visibility_off_outlined));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('/flags/-'));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(clipboardMethodCall?.method, 'Clipboard.setData');
     expect((clipboardMethodCall?.arguments as Map<Object?, Object?>?)?['text'], '/flags/-');

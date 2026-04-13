@@ -13,6 +13,10 @@ Widget _buildTestApp(Widget child, {Locale locale = const Locale('en')}) {
   );
 }
 
+Finder _findOptionalTooltip(String message) {
+  return find.byWidgetPredicate((widget) => widget is OptionalTooltip && widget.message == message);
+}
+
 void main() {
   testWidgets('renders editor and reacts to root type changes', (WidgetTester tester) async {
     final controller = JsonSchemaEditorController(
@@ -292,6 +296,7 @@ void main() {
     await tester.tap(find.byWidgetPredicate((widget) => widget is DropdownButtonFormField<String>));
     await tester.pumpAndSettle();
 
+    expect(find.text('Nicht gesetzt'), findsNothing);
     expect(find.textContaining('Can manage all settings.', findRichText: true), findsWidgets);
 
     await tester.tap(find.text('Member').last);
@@ -340,6 +345,6 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.byTooltip('Deutscher Hilfetext'), findsOneWidget);
+    expect(_findOptionalTooltip('Deutscher Hilfetext'), findsOneWidget);
   });
 }

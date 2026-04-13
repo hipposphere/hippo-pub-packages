@@ -7,6 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import 'package:flutter/material.dart';
+import 'package:hippo_components/src/base/other/optional_tooltip.dart';
 
 class JsonSchemaEditorInfoIcon extends StatelessWidget {
   const JsonSchemaEditorInfoIcon({super.key, required this.message, this.size = 16});
@@ -20,7 +21,7 @@ class JsonSchemaEditorInfoIcon extends StatelessWidget {
     if (hint == null || hint.isEmpty) {
       return const SizedBox.shrink();
     }
-    return Tooltip(
+    return OptionalTooltip(
       message: hint,
       child: Icon(Icons.info_outline, size: size, color: Theme.of(context).colorScheme.primary),
     );

@@ -622,7 +622,7 @@ class _SectionMetaBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
+    return OptionalTooltip(
       message: tooltip,
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: label == null ? 7 : 8, vertical: 3),
@@ -662,7 +662,7 @@ class _SchemaDetailsToggleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Tooltip(
+    return OptionalTooltip(
       message: showDetails
           ? context.lazyTranslate(en: 'Hide details', de: 'Details ausblenden', zh: '隐藏详情')
           : context.lazyTranslate(en: 'Show details', de: 'Details anzeigen', zh: '显示详情'),
@@ -746,7 +746,7 @@ class _SchemaBadge extends StatelessWidget {
       return content;
     }
 
-    return Tooltip(message: tooltip!, child: content);
+    return OptionalTooltip(message: tooltip!, child: content);
   }
 }
 

@@ -22,7 +22,7 @@ class _JsonSchemaViewerExamplePageState extends State<JsonSchemaViewerExamplePag
       ),
       JsonSchemaEditorExtensionField(
         key: 'x-ui-hint',
-        hint: translateLazy(en: 'UI hint', de: 'UI-Hinweis', zh: '界面提示'),
+        label: translateLazy(en: 'UI hint', de: 'UI-Hinweis', zh: '界面提示'),
         description: translateLazy(
           en: 'Preferred rendering hint for consuming clients.',
           de: 'Bevorzugter Darstellungs-Hinweis für konsumierende Clients.',
@@ -32,7 +32,7 @@ class _JsonSchemaViewerExamplePageState extends State<JsonSchemaViewerExamplePag
       JsonSchemaEditorExtensionField(
         key: 'x-section',
         description: (_) => 'Logical UI or domain section for grouped fields.',
-        hint: translateLazy(en: 'Section', de: 'Bereich', zh: '分区'),
+        label: translateLazy(en: 'Section', de: 'Bereich', zh: '分区'),
         applicableNodeTypes: {JsonSchemaNodeType.object},
       ),
       JsonSchemaEditorExtensionField(

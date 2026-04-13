@@ -26,7 +26,6 @@ class JsonSchemaEditorExtensionField {
   const JsonSchemaEditorExtensionField({
     required this.key,
     this.label,
-    this.hint,
     this.valueType = JsonSchemaEditorExtensionFieldType.string,
     this.description,
     this.defaultValue,
@@ -40,7 +39,6 @@ class JsonSchemaEditorExtensionField {
 
   final String key;
   final Contextable<String>? label;
-  final Contextable<String>? hint;
   final Contextable<String>? description;
   final JsonSchemaEditorExtensionFieldType valueType;
   final Object? defaultValue;
@@ -84,12 +82,8 @@ class JsonSchemaEditorExtensionField {
     return _normalizedString(description?.call(context));
   }
 
-  String? resolveHint(BuildContext context) {
-    return _normalizedString(hint?.call(context));
-  }
-
   String resolveDisplayLabel(BuildContext context) {
-    final resolvedLabel = resolveHint(context);
+    final resolvedLabel = resolveLabel(context);
     if (resolvedLabel != null) {
       return resolvedLabel;
     }

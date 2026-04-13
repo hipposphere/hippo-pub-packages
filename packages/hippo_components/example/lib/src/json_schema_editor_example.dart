@@ -52,8 +52,7 @@ class JsonSchemaEditorExample extends StatelessWidget {
         configurableExtensions: [
           JsonSchemaEditorExtensionField(
             key: 'x-root',
-            label: (_) => 'Root',
-            hint: translateLazy(en: 'Root', de: 'Wurzel', zh: '根节点'),
+            label: translateLazy(en: 'Root', de: 'Wurzel', zh: '根节点'),
             valueType: JsonSchemaEditorExtensionFieldType.string,
             defaultValue: 'test',
             applicableScopes: {JsonSchemaEditorExtensionFieldScope.root},
@@ -86,8 +85,7 @@ class JsonSchemaEditorExample extends StatelessWidget {
           ),
           JsonSchemaEditorExtensionField(
             key: 'x-object-label',
-            label: (_) => 'Object label',
-            hint: translateLazy(en: 'Object label', de: 'Objekt-Label', zh: '对象标签'),
+            label: translateLazy(en: 'Object label', de: 'Objekt-Label', zh: '对象标签'),
             description: translateLazy(
               en: 'Label for object nodes',
               de: 'Label für Objektknoten',
@@ -99,8 +97,7 @@ class JsonSchemaEditorExample extends StatelessWidget {
           ),
           JsonSchemaEditorExtensionField(
             key: 'x-string-label',
-            label: (_) => 'String notes',
-            hint: translateLazy(en: 'String notes', de: 'String-Notizen', zh: '字符串备注'),
+            label: translateLazy(en: 'String notes', de: 'String-Notizen', zh: '字符串备注'),
             description: translateLazy(
               en: 'Multiline notes for string nodes',
               de: 'Mehrzeilige Notizen für String-Knoten',

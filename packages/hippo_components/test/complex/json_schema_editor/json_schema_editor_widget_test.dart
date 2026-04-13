@@ -262,8 +262,7 @@ void main() {
         configurableExtensions: [
           JsonSchemaEditorExtensionField(
             key: 'x-notes',
-            label: (_) => 'Notes',
-            hint: translateLazy(en: 'Notes', de: 'Notizen', zh: '备注'),
+            label: translateLazy(en: 'Notes', de: 'Notizen', zh: '备注'),
             description: translateLazy(
               en: 'English help text',
               de: 'Deutscher Hilfetext',

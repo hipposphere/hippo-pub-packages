@@ -51,8 +51,7 @@ void main() {
       configurableExtensions: [
         JsonSchemaEditorExtensionField(
           key: 'x-group',
-          label: (_) => 'Group',
-          hint: translateLazy(en: 'Group', de: 'Gruppe', zh: '分组'),
+          label: translateLazy(en: 'Group', de: 'Gruppe', zh: '分组'),
           description: translateLazy(
             en: 'Grouping metadata',
             de: 'Gruppierungsmetadaten',

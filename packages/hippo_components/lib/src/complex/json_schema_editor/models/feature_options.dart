@@ -18,6 +18,40 @@ enum JsonSchemaEditorExtensionFieldType { string, number, boolean, stringEnum }
 enum JsonSchemaEditorExtensionFieldScope { root, objectProperty, arrayItem }
 
 @immutable
+class JsonSchemaEditorExtensionEnumValue {
+  const JsonSchemaEditorExtensionEnumValue({required this.value, this.label, this.description});
+
+  final String value;
+  final Contextable<String>? label;
+  final Contextable<String>? description;
+
+  String? get normalizedValue {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  String? resolveLabel(BuildContext context) {
+    return _normalizedString(label?.call(context));
+  }
+
+  String? resolveDescription(BuildContext context) {
+    return _normalizedString(description?.call(context));
+  }
+
+  String resolveDisplayLabel(BuildContext context) {
+    final resolvedLabel = resolveLabel(context);
+    if (resolvedLabel != null) {
+      return resolvedLabel;
+    }
+    final normalizedValue = this.normalizedValue;
+    if (normalizedValue != null) {
+      return normalizedValue;
+    }
+    return value;
+  }
+}
+
+@immutable
 class JsonSchemaEditorExtensionField {
   /// `applicableNodeTypes` allows scoping this extension to specific node kinds.
   /// Empty set means all node types.
@@ -42,7 +76,7 @@ class JsonSchemaEditorExtensionField {
   final Contextable<String>? description;
   final JsonSchemaEditorExtensionFieldType valueType;
   final Object? defaultValue;
-  final List<String> enumValues;
+  final List<JsonSchemaEditorExtensionEnumValue> enumValues;
   final int minLines;
   final int maxLines;
   final Set<JsonSchemaNodeType> applicableNodeTypes;
@@ -53,14 +87,17 @@ class JsonSchemaEditorExtensionField {
   bool get isNumber => valueType == JsonSchemaEditorExtensionFieldType.number;
   bool get isBoolean => valueType == JsonSchemaEditorExtensionFieldType.boolean;
 
+  List<JsonSchemaEditorExtensionEnumValue> get availableEnumEntries {
+    if (!isStringEnum || enumValues.isEmpty) {
+      return const [];
+    }
+    return List.unmodifiable(enumValues.where((entry) => entry.normalizedValue != null));
+  }
+
   List<String> get availableEnumValues {
-    if (!isStringEnum) {
-      return const [];
-    }
-    if (enumValues.isEmpty) {
-      return const [];
-    }
-    return List.unmodifiable(enumValues);
+    return List.unmodifiable(
+      availableEnumEntries.map((entry) => entry.normalizedValue!).toList(growable: false),
+    );
   }
 
   bool supportsNodeType(JsonSchemaNodeType type) {

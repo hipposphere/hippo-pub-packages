@@ -254,6 +254,51 @@ void main() {
     expect(extensionField.maxLines, 5);
   });
 
+  testWidgets('renders enum entry labels while storing raw enum values', (
+    WidgetTester tester,
+  ) async {
+    final controller = JsonSchemaEditorController(
+      extensionOptions: JsonSchemaEditorExtensionOptions(
+        configurableExtensions: [
+          JsonSchemaEditorExtensionField(
+            key: 'x-role',
+            label: (_) => 'Role',
+            valueType: JsonSchemaEditorExtensionFieldType.stringEnum,
+            enumValues: [
+              JsonSchemaEditorExtensionEnumValue(value: 'member', label: (_) => 'Member'),
+              JsonSchemaEditorExtensionEnumValue(
+                value: 'admin',
+                label: (_) => 'Administrator',
+                description: (_) => 'Can manage all settings.',
+              ),
+            ],
+          ),
+        ],
+      ),
+      initialSchema: JsonSchema.fromNode(
+        const JsonSchemaStringNode(extensions: {'x-role': 'admin'}),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _buildTestApp(JsonSchemaEditor(controller: controller, compactMode: true)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Administrator'), findsOneWidget);
+    expect(find.text('admin'), findsNothing);
+
+    await tester.tap(find.byWidgetPredicate((widget) => widget is DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Member').last);
+    await tester.pumpAndSettle();
+
+    expect((controller.schema as JsonSchemaStringNode).extensions['x-role'], 'member');
+    expect(find.text('Member'), findsOneWidget);
+    expect(find.text('member'), findsNothing);
+  });
+
   testWidgets('resolves localized extension hint and description builders', (
     WidgetTester tester,
   ) async {

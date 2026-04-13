@@ -43,7 +43,7 @@ class _StringEnumExtensionNodeField extends StatelessWidget {
     required this.extensionKey,
     required this.extensionLabel,
     required this.extensionValue,
-    required this.values,
+    required this.entries,
     this.helpText,
   });
 
@@ -52,21 +52,23 @@ class _StringEnumExtensionNodeField extends StatelessWidget {
   final String extensionKey;
   final String extensionLabel;
   final String extensionValue;
-  final List<String> values;
+  final List<JsonSchemaEditorExtensionEnumValue> entries;
   final String? helpText;
 
   @override
   Widget build(BuildContext context) {
-    final valueEntries = values.where((item) => item.trim().isNotEmpty).toList(growable: false);
+    final valueEntries = entries
+        .where((item) => item.normalizedValue != null)
+        .toList(growable: false);
     final currentValue = _normalizeStringEnumValue(
       value: extensionValue,
-      allowedValues: valueEntries,
+      allowedValues: valueEntries.map((entry) => entry.normalizedValue!).toList(growable: false),
     );
 
     return _DropdownCapabilityField(
       label: extensionLabel,
       value: currentValue,
-      values: valueEntries,
+      entries: valueEntries,
       helpText: helpText,
       onChanged: (value) {
         if (value == null || value.isEmpty) {
@@ -139,7 +141,7 @@ class _DropdownCapabilityField extends StatelessWidget {
   const _DropdownCapabilityField({
     required this.label,
     required this.value,
-    required this.values,
+    required this.entries,
     required this.onChanged,
     required this.onRemove,
     this.helpText,
@@ -147,7 +149,7 @@ class _DropdownCapabilityField extends StatelessWidget {
 
   final String label;
   final String? value;
-  final List<String> values;
+  final List<JsonSchemaEditorExtensionEnumValue> entries;
   final ValueChanged<String?> onChanged;
   final VoidCallback onRemove;
   final String? helpText;
@@ -186,12 +188,36 @@ class _DropdownCapabilityField extends StatelessWidget {
                 borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.2),
               ),
             ),
+            selectedItemBuilder: (context) => [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  context.lazyTranslate(en: 'Not set', de: 'Nicht gesetzt', zh: '未设置'),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              ...entries.map(
+                (entry) => Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(entry.resolveDisplayLabel(context), overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ],
             items: <DropdownMenuItem<String>>[
               DropdownMenuItem<String>(
                 value: '',
                 child: Text(context.lazyTranslate(en: 'Not set', de: 'Nicht gesetzt', zh: '未设置')),
               ),
-              ...values.map((entry) => DropdownMenuItem<String>(value: entry, child: Text(entry))),
+              ...entries.map((entry) {
+                final value = entry.normalizedValue!;
+                final displayLabel = entry.resolveDisplayLabel(context);
+                final description = entry.resolveDescription(context);
+                final child = Text(displayLabel, overflow: TextOverflow.ellipsis);
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: description == null ? child : Tooltip(message: description, child: child),
+                );
+              }),
             ],
             onChanged: onChanged,
           ),

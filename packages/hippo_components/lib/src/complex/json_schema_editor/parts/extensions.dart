@@ -85,7 +85,7 @@ class _ExtensionNodeEditor extends StatelessWidget {
           extensionKey: extensionKey,
           extensionLabel: extensionLabel,
           extensionValue: _extensionValueAsString(extensionValue),
-          values: extensionField?.availableEnumValues ?? const [],
+          entries: extensionField?.availableEnumEntries ?? const [],
           helpText: helpText,
         ),
         JsonSchemaEditorExtensionFieldType.number => _NumberExtensionNodeField(

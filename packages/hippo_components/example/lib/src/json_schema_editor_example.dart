@@ -67,7 +67,27 @@ class JsonSchemaEditorExample extends StatelessWidget {
             ),
             valueType: JsonSchemaEditorExtensionFieldType.stringEnum,
             defaultValue: 'test',
-            enumValues: ['test', 'token', 'admin'],
+            enumValues: [
+              const JsonSchemaEditorExtensionEnumValue(value: 'test'),
+              JsonSchemaEditorExtensionEnumValue(
+                value: 'token',
+                label: translateLazy(en: 'Token', de: 'Token', zh: '令牌'),
+                description: translateLazy(
+                  en: 'Standard access token',
+                  de: 'Standard-Zugriffstoken',
+                  zh: '标准访问令牌',
+                ),
+              ),
+              JsonSchemaEditorExtensionEnumValue(
+                value: 'admin',
+                label: translateLazy(en: 'Admin', de: 'Admin', zh: '管理员'),
+                description: translateLazy(
+                  en: 'Administrative token',
+                  de: 'Administratives Token',
+                  zh: '管理令牌',
+                ),
+              ),
+            ],
           ),
           JsonSchemaEditorExtensionField(
             key: 'x-enabled',

@@ -21,7 +21,11 @@ class AuthSession {
   }
 
   Map<String, dynamic> toMap() {
-    return {'id': id, 'token': token, 'expires_at': expiresAt.toIso8601String()};
+    return {
+      'id': id,
+      'token': token,
+      'expires_at': expiresAt.toIso8601String(),
+    };
   }
 
   String encode() {
@@ -33,7 +37,8 @@ class AuthSession {
   }
 
   bool get canBeRefreshed {
-    return !isExpired && expiresAt.isBefore(DateTime.now().add(Duration(days: 89)));
+    return !isExpired &&
+        expiresAt.isBefore(DateTime.now().add(Duration(days: 89)));
   }
 
   @override

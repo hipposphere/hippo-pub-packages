@@ -6,8 +6,6 @@ void main() {
     'command': Property(Strings()),
     'count': Property(Nullable(Ints())),
   });
-  final out = generateDartClasses([
-    payload,
-  ]);
+  final out = generateDartClasses([payload]);
   print(out.toString());
 }

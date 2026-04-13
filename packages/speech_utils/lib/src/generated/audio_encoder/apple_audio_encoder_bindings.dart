@@ -1,6 +1,8 @@
 // ignore_for_file: non_constant_identifier_names
 
-@ffi.DefaultAsset('package:speech_utils/src/generated/audio_encoder/apple_audio_encoder_bindings.dart')
+@ffi.DefaultAsset(
+  'package:speech_utils/src/generated/audio_encoder/apple_audio_encoder_bindings.dart',
+)
 library;
 
 import 'dart:ffi' as ffi;

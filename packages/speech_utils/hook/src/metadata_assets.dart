@@ -12,7 +12,8 @@ const _iosAudioMetadataSources = <String>[
   'native/ios/speech_utils_native_audio_codec_bindings.mm',
   'native/ios/speech_utils_native_audio_codec.mm',
 ];
-const _macosAudioMetadataBindingsSource = 'native/macos/speech_utils_native_audio_codec_bindings.mm';
+const _macosAudioMetadataBindingsSource =
+    'native/macos/speech_utils_native_audio_codec_bindings.mm';
 const _macosAudioMetadataSources = <String>[
   'native/macos/speech_utils_native_audio_codec_bindings.mm',
   'native/macos/speech_utils_native_audio_codec.mm',

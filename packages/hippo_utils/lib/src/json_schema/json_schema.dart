@@ -33,43 +33,39 @@ class JsonSchema {
 
 Map<String, dynamic> _cloneMap(Map<String, dynamic> raw) {
   return Map<String, dynamic>.unmodifiable(
-    raw.map(
-      (key, value) {
-        if (value is Map<String, dynamic>) {
-          return MapEntry(key, _cloneMap(value));
-        }
-        if (value is Map) {
-          return MapEntry(
-            key,
-            _cloneMap(
-              value.map((entryKey, entryValue) => MapEntry(entryKey.toString(), entryValue)),
-            ),
-          );
-        }
-        if (value is List) {
-          return MapEntry(key, _cloneList(value));
-        }
-        return MapEntry(key, value);
-      },
-    ),
+    raw.map((key, value) {
+      if (value is Map<String, dynamic>) {
+        return MapEntry(key, _cloneMap(value));
+      }
+      if (value is Map) {
+        return MapEntry(
+          key,
+          _cloneMap(value.map((entryKey, entryValue) => MapEntry(entryKey.toString(), entryValue))),
+        );
+      }
+      if (value is List) {
+        return MapEntry(key, _cloneList(value));
+      }
+      return MapEntry(key, value);
+    }),
   );
 }
 
 List<Object?> _cloneList(List list) {
   return List<Object?>.unmodifiable(
-    list.map(
-      (entry) {
-        if (entry is Map<String, dynamic>) {
-          return _cloneMap(entry);
-        }
-        if (entry is Map) {
-          return _cloneMap(entry.map((entryKey, entryValue) => MapEntry(entryKey.toString(), entryValue)));
-        }
-        if (entry is List) {
-          return _cloneList(entry);
-        }
-        return entry;
-      },
-    ).toList(),
+    list.map((entry) {
+      if (entry is Map<String, dynamic>) {
+        return _cloneMap(entry);
+      }
+      if (entry is Map) {
+        return _cloneMap(
+          entry.map((entryKey, entryValue) => MapEntry(entryKey.toString(), entryValue)),
+        );
+      }
+      if (entry is List) {
+        return _cloneList(entry);
+      }
+      return entry;
+    }).toList(),
   );
 }

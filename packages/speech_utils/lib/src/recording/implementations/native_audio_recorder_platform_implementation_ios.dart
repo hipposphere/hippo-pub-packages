@@ -3,15 +3,15 @@ part of 'package:speech_utils/src/recording/native_audio_recorder.dart';
 final class _IosNativeAudioRecorderPlatformImplementation
     extends NativeAudioRecorderPlatformImplementation {
   const _IosNativeAudioRecorderPlatformImplementation()
-      : super(
-          platform: NativeAudioRecorderPlatform.iOS,
-          supportsInputSelection: true,
-          capabilities: const NativeAudioRecorderCapabilities(
-            supportsNoiseCancellation: false,
-            supportsEchoCancellation: false,
-            supportsVoiceIsolation: true,
-          ),
-        );
+    : super(
+        platform: NativeAudioRecorderPlatform.iOS,
+        supportsInputSelection: true,
+        capabilities: const NativeAudioRecorderCapabilities(
+          supportsNoiseCancellation: false,
+          supportsEchoCancellation: false,
+          supportsVoiceIsolation: true,
+        ),
+      );
 
   static const _runtimeConfigBuilder = _IosNativeRecorderRuntimeConfigBuilder();
 
@@ -25,8 +25,7 @@ final class _IosNativeAudioRecorderPlatformImplementation
   bool requestPermission() => _requestIosMicrophonePermissionViaFfi();
 
   @override
-  List<InputDevice> listInputDevices() =>
-      _listIosAudioRecorderInputDevicesViaFfi();
+  List<InputDevice> listInputDevices() => _listIosAudioRecorderInputDevicesViaFfi();
 
   @override
   void startFile({required String outputPath, required AudioRecorderConfig config}) {

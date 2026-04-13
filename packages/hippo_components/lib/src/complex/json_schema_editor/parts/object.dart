@@ -148,11 +148,7 @@ class _ObjectNodeEditor extends StatelessWidget {
           },
           type: ButtonType.secondary,
           prefix: const Icon(Icons.add_rounded),
-          label: context.lazyTranslate(
-            en: 'Add property',
-            de: 'Property hinzufügen',
-            zh: '添加属性',
-          ),
+          label: context.lazyTranslate(en: 'Add property', de: 'Property hinzufügen', zh: '添加属性'),
         ),
         Gap(8),
       ],

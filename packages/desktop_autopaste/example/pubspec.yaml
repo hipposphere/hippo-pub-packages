@@ -15,10 +15,10 @@ dependencies:
     path: ../
   hippo_components:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.3
+    version: ^0.1.44
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.2.6
+    version: ^0.2.7
   hotkey_api:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.0

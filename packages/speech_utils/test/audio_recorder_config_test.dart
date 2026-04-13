@@ -198,10 +198,7 @@ void main() {
     test('AudioEncodingConfig supports explicit bitrate clearing via constructor', () {
       const base = AudioEncodingConfig(encoder: AudioEncoder.aacLc, bitrateBps: 64000);
       const withoutBitrate = AudioEncodingConfig(encoder: AudioEncoder.aacLc);
-      const withEncoder = AudioEncodingConfig(
-        encoder: AudioEncoder.wav,
-        bitrateBps: 64000,
-      );
+      const withEncoder = AudioEncodingConfig(encoder: AudioEncoder.wav, bitrateBps: 64000);
 
       expect(withoutBitrate.bitrateBps, isNull);
       expect(withoutBitrate.encoder, equals(AudioEncoder.aacLc));

@@ -189,9 +189,7 @@ class _DropdownCapabilityField extends StatelessWidget {
             items: <DropdownMenuItem<String>>[
               DropdownMenuItem<String>(
                 value: '',
-                child: Text(
-                  context.lazyTranslate( en: 'Not set', de: 'Nicht gesetzt', zh: '未设置'),
-                ),
+                child: Text(context.lazyTranslate(en: 'Not set', de: 'Nicht gesetzt', zh: '未设置')),
               ),
               ...values.map((entry) => DropdownMenuItem<String>(value: entry, child: Text(entry))),
             ],

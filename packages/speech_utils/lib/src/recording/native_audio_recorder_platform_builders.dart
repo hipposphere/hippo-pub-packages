@@ -72,8 +72,7 @@ final class _MacosNativeRecorderRuntimeConfigBuilder extends _NativeRecorderRunt
   }
 }
 
-final class _WindowsNativeRecorderRuntimeConfigBuilder
-    extends _NativeRecorderRuntimeConfigBuilder {
+final class _WindowsNativeRecorderRuntimeConfigBuilder extends _NativeRecorderRuntimeConfigBuilder {
   const _WindowsNativeRecorderRuntimeConfigBuilder();
 
   @override
@@ -85,8 +84,8 @@ final class _WindowsNativeRecorderRuntimeConfigBuilder
     final windowsPreferredPeriodFrames = windowsTargetDuration == null
         ? 0
         : (((windowsTargetDuration.inMicroseconds * config.sampleRateHz) ~/
-                    Duration.microsecondsPerSecond)
-                .clamp(0, 0x7fffffff));
+                  Duration.microsecondsPerSecond)
+              .clamp(0, 0x7fffffff));
 
     return _NativeRecorderRuntimeConfig(
       processingFlags: _buildProcessingFlagsForPlatform(
@@ -105,7 +104,9 @@ final class _WindowsNativeRecorderRuntimeConfigBuilder
       windowsFlags: _buildWindowsFlags(windows),
       windowsCaptureCategoryCode: _encodeWindowsCaptureCategory(windows?.captureCategory),
       windowsUseCommunicationsDevice: windows?.useCommunicationsDevice == true ? 1 : 0,
-      windowsVoiceProcessingModeCode: _encodeWindowsVoiceProcessingMode(windows?.voiceProcessingMode),
+      windowsVoiceProcessingModeCode: _encodeWindowsVoiceProcessingMode(
+        windows?.voiceProcessingMode,
+      ),
     );
   }
 

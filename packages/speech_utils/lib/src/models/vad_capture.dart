@@ -51,7 +51,11 @@ final class VadCaptureOutputConfig {
     segmentEncoding.validate();
     fullRecordingEncoding?.validate();
     if (fullRecordingFileStem.trim().isEmpty) {
-      throw ArgumentError.value(fullRecordingFileStem, 'fullRecordingFileStem', 'Must not be empty');
+      throw ArgumentError.value(
+        fullRecordingFileStem,
+        'fullRecordingFileStem',
+        'Must not be empty',
+      );
     }
   }
 }

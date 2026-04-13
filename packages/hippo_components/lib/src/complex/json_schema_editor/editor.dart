@@ -313,7 +313,7 @@ class _SchemaNodeEditor extends StatelessWidget {
         if (hasActiveCapabilitiesSection) ...[
           const Gap(_editorSectionSpacing),
           _EditorSectionLabel(
-            label: context.lazyTranslate( en: 'Capabilities', de: 'Fähigkeiten', zh: '能力'),
+            label: context.lazyTranslate(en: 'Capabilities', de: 'Fähigkeiten', zh: '能力'),
             helpText: jsonSchemaHelpByKeyword(context, 'extensionField'),
           ),
           const Gap(6),
@@ -340,11 +340,7 @@ class _SchemaNodeEditor extends StatelessWidget {
                   _showAddCapabilityDialog(context: context, options: availableCapabilityOptions),
               icon: const Icon(Icons.add_circle_outline_rounded),
               label: Text(
-                context.lazyTranslate(
-                  en: 'Add capability',
-                  de: 'Fähigkeit hinzufügen',
-                  zh: '添加能力',
-                ),
+                context.lazyTranslate(en: 'Add capability', de: 'Fähigkeit hinzufügen', zh: '添加能力'),
               ),
             ),
           ),
@@ -557,13 +553,13 @@ class _RootSchemaActionsMenu extends StatelessWidget {
           context: context,
           value: _RootSchemaAction.guide,
           icon: Icons.menu_book_rounded,
-          label: context.lazyTranslate( en: 'Guide', de: 'Leitfaden', zh: '指南'),
+          label: context.lazyTranslate(en: 'Guide', de: 'Leitfaden', zh: '指南'),
         ),
         _menuItem(
           context: context,
           value: _RootSchemaAction.copyJson,
           icon: Icons.content_copy_rounded,
-          label: context.lazyTranslate( en: 'Copy JSON', de: 'JSON kopieren', zh: '复制 JSON'),
+          label: context.lazyTranslate(en: 'Copy JSON', de: 'JSON kopieren', zh: '复制 JSON'),
         ),
         _menuItem(
           context: context,

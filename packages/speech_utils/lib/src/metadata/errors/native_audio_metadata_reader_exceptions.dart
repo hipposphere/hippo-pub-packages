@@ -9,10 +9,7 @@ class NativeAudioMetadataReaderException implements Exception {
 
   @override
   String toString() {
-    final parts = <String>[
-      message,
-      if (details != null && details!.isNotEmpty) 'details=$details',
-    ];
+    final parts = <String>[message, if (details != null && details!.isNotEmpty) 'details=$details'];
     return 'NativeAudioMetadataReaderException: ${parts.join(' | ')}';
   }
 }

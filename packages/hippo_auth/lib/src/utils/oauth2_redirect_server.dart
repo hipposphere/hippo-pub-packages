@@ -73,19 +73,14 @@ class OAuth2RedirectServer {
         if (error != null) {
           await _writeHtmlResponse(
             request,
-            _buildErrorPage(
-              errorDetail: error,
-            ),
+            _buildErrorPage(errorDetail: error),
           );
           _completeWithError(StateError('OAuth2 error: $error'));
           return;
         }
 
         if (sessionId != null && token != null && expiresAt != null) {
-          await _writeHtmlResponse(
-            request,
-            _buildSuccessPage(),
-          );
+          await _writeHtmlResponse(request, _buildSuccessPage());
 
           await Future.delayed(const Duration(milliseconds: 500));
 
@@ -99,9 +94,7 @@ class OAuth2RedirectServer {
         } else {
           await _writeHtmlResponse(
             request,
-            _buildErrorPage(
-              errorDetail: 'Missing session parameters',
-            ),
+            _buildErrorPage(errorDetail: 'Missing session parameters'),
             statusCode: HttpStatus.badRequest,
           );
         }
@@ -187,8 +180,9 @@ class OAuth2RedirectServer {
     final closeMarkup = showCloseButton
         ? '<button class="button" type="button" onclick="window.close()">Close window</button>'
         : '';
-    final autoCloseScript =
-        autoClose ? '<script>setTimeout(() => window.close(), 200);</script>' : '';
+    final autoCloseScript = autoClose
+        ? '<script>setTimeout(() => window.close(), 200);</script>'
+        : '';
 
     return '''
 <!DOCTYPE html>

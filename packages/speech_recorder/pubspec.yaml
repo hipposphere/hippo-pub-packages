@@ -15,10 +15,10 @@ dependencies:
   cross_file: "^0.3.5+2"
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.2.6
+    version: ^0.2.7
   hippo_components:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.24
+    version: ^0.1.44
   speech_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.2.5

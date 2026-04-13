@@ -81,15 +81,18 @@ void main() {
       );
     });
 
-    test('throws NativeAudioMetadataUnsupportedPlatformException on unsupported platform', () async {
-      final reader = NativeAudioMetadataReader(platform: NativeAudioMetadataPlatform.unsupported);
+    test(
+      'throws NativeAudioMetadataUnsupportedPlatformException on unsupported platform',
+      () async {
+        final reader = NativeAudioMetadataReader(platform: NativeAudioMetadataPlatform.unsupported);
 
-      expect(await reader.isAvailable(), isFalse);
-      expect(
-        () => reader.readAudioMetadata(inputPath: 'clip.m4a'),
-        throwsA(isA<NativeAudioMetadataUnsupportedPlatformException>()),
-      );
-    });
+        expect(await reader.isAvailable(), isFalse);
+        expect(
+          () => reader.readAudioMetadata(inputPath: 'clip.m4a'),
+          throwsA(isA<NativeAudioMetadataUnsupportedPlatformException>()),
+        );
+      },
+    );
 
     test('throws ArgumentError for empty path', () {
       final reader = NativeAudioMetadataReader(

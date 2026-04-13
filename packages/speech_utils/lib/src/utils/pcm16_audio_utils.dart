@@ -12,11 +12,7 @@ final class Pcm16AudioUtils {
   /// Returns an [Int16List] view over [pcm16Bytes] with optional byte offset/length.
   ///
   /// If the start offset is not aligned, the method returns an aligned copy.
-  static Int16List asAlignedInt16List(
-    Uint8List pcm16Bytes, {
-    int byteOffset = 0,
-    int? byteLength,
-  }) {
+  static Int16List asAlignedInt16List(Uint8List pcm16Bytes, {int byteOffset = 0, int? byteLength}) {
     if (byteOffset < 0 || byteOffset > pcm16Bytes.lengthInBytes) {
       throw ArgumentError.value(
         byteOffset,
@@ -57,7 +53,11 @@ final class Pcm16AudioUtils {
 
     final aligned = Uint8List(effectiveByteLength);
     aligned.setRange(0, effectiveByteLength, pcm16Bytes, byteOffset);
-    return Int16List.view(aligned.buffer, aligned.offsetInBytes, effectiveByteLength ~/ bytesPerSample);
+    return Int16List.view(
+      aligned.buffer,
+      aligned.offsetInBytes,
+      effectiveByteLength ~/ bytesPerSample,
+    );
   }
 
   /// Ensures that a byte buffer uses an even address offset.
@@ -109,7 +109,8 @@ final class Pcm16AudioUtils {
   /// Concatenates frame buffers and optional trailing bytes.
   static Uint8List concatByteBlocks(List<Uint8List> blocks, {Uint8List? trailing}) {
     final trailingLength = trailing?.lengthInBytes ?? 0;
-    final totalLength = blocks.fold<int>(0, (sum, frame) => sum + frame.lengthInBytes) + trailingLength;
+    final totalLength =
+        blocks.fold<int>(0, (sum, frame) => sum + frame.lengthInBytes) + trailingLength;
     if (totalLength == 0) {
       return Uint8List(0);
     }

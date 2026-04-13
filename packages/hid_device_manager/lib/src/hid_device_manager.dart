@@ -1,5 +1,3 @@
-library hid_device_manager;
-
 import 'dart:async';
 import 'dart:typed_data';
 

@@ -119,8 +119,8 @@ class _MobileState<T> extends State<_Mobile<T>> {
     }
 
     final targetRouteName = _resolveRouteName(targetState);
-    final hasStateChange = _activeRouteName != targetRouteName ||
-        _activeStateData != targetState.data;
+    final hasStateChange =
+        _activeRouteName != targetRouteName || _activeStateData != targetState.data;
     if (_activeRouteName == null || hasStateChange) {
       _ignoreNextRoutePop = navigator.canPop();
       if (navigator.canPop()) {

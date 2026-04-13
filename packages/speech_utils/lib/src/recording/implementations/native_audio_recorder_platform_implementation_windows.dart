@@ -3,15 +3,15 @@ part of 'package:speech_utils/src/recording/native_audio_recorder.dart';
 final class _WindowsNativeAudioRecorderPlatformImplementation
     extends NativeAudioRecorderPlatformImplementation {
   const _WindowsNativeAudioRecorderPlatformImplementation()
-      : super(
-          platform: NativeAudioRecorderPlatform.windows,
-          supportsInputSelection: true,
-          capabilities: const NativeAudioRecorderCapabilities(
-            supportsNoiseCancellation: true,
-            supportsEchoCancellation: false,
-            supportsVoiceIsolation: true,
-          ),
-        );
+    : super(
+        platform: NativeAudioRecorderPlatform.windows,
+        supportsInputSelection: true,
+        capabilities: const NativeAudioRecorderCapabilities(
+          supportsNoiseCancellation: true,
+          supportsEchoCancellation: false,
+          supportsVoiceIsolation: true,
+        ),
+      );
 
   static const _runtimeConfigBuilder = _WindowsNativeRecorderRuntimeConfigBuilder();
 
@@ -25,8 +25,7 @@ final class _WindowsNativeAudioRecorderPlatformImplementation
   bool requestPermission() => _requestWindowsMicrophonePermissionViaFfi();
 
   @override
-  List<InputDevice> listInputDevices() =>
-      _listWindowsAudioRecorderInputDevicesViaFfi();
+  List<InputDevice> listInputDevices() => _listWindowsAudioRecorderInputDevicesViaFfi();
 
   @override
   void startFile({required String outputPath, required AudioRecorderConfig config}) {

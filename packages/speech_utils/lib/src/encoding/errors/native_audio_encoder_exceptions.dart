@@ -9,16 +9,12 @@ class NativeAudioEncoderException implements Exception {
 
   @override
   String toString() {
-    final parts = <String>[
-      message,
-      if (details != null && details!.isNotEmpty) 'details=$details',
-    ];
+    final parts = <String>[message, if (details != null && details!.isNotEmpty) 'details=$details'];
     return 'NativeAudioEncoderException: ${parts.join(' | ')}';
   }
 }
 
 /// Thrown when the native AAC encoder is used on an unsupported platform.
-final class NativeAudioEncoderUnsupportedPlatformException
-    extends NativeAudioEncoderException {
+final class NativeAudioEncoderUnsupportedPlatformException extends NativeAudioEncoderException {
   const NativeAudioEncoderUnsupportedPlatformException(super.message);
 }

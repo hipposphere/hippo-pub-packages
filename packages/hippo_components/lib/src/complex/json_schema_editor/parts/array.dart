@@ -89,11 +89,7 @@ class _ArrayNodeEditor extends StatelessWidget {
         if (showStructure) ...[
           const Divider(height: 20),
           _EditorSectionLabel(
-            label: context.lazyTranslate(
-              en: 'Item schema',
-              de: 'Element-Schema',
-              zh: '元素 Schema',
-            ),
+            label: context.lazyTranslate(en: 'Item schema', de: 'Element-Schema', zh: '元素 Schema'),
           ),
           const Gap(6),
           _SchemaNodeEditor(

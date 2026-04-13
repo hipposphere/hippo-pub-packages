@@ -15,14 +15,14 @@ dependencies:
     sdk: flutter
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.2.6
+    version: ^0.2.7
   chopper: ^8.5.0
   json_annotation: ^4.11.0
   collection: ^1.19.1
   http: ^1.6.0
   hippo_components:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.12
+    version: ^0.1.44
 
 dev_dependencies:
   flutter_test:

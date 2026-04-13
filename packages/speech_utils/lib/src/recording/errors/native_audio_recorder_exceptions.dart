@@ -18,8 +18,7 @@ class NativeAudioRecorderException implements Exception {
 }
 
 /// Thrown when recorder operations are requested on an unsupported platform.
-final class NativeAudioRecorderUnsupportedPlatformException
-    extends NativeAudioRecorderException {
+final class NativeAudioRecorderUnsupportedPlatformException extends NativeAudioRecorderException {
   const NativeAudioRecorderUnsupportedPlatformException(super.message);
 }
 

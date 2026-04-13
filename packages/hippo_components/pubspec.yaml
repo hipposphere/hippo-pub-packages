@@ -50,7 +50,7 @@ dependencies:
   # Local Packages
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.2.6
+    version: ^0.2.7
 
 dev_dependencies:
   flutter_test:

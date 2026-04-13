@@ -125,7 +125,9 @@ void main() {
       final source = <String, dynamic>{
         'type': 'string',
         'title': 'Tokenized',
-        'x-token': {'enum': ['read', 'write']},
+        'x-token': {
+          'enum': ['read', 'write'],
+        },
       };
       final node = JsonSchemaNode.fromJson(source);
 

@@ -109,7 +109,7 @@ class TabbedPageContainer extends StatelessWidget {
   const TabbedPageContainer({
     super.key,
     this.actions = const [],
-    this.backAction,
+    this.backAction = const PageHeaderBackAction(),
     required this.title,
     required this.tabs,
     required this.tabViews,

@@ -3,6 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
+Widget _buildTestApp(Widget child) {
+  return MaterialApp(
+    theme: ThemeData(splashFactory: NoSplash.splashFactory),
+    home: Scaffold(body: child),
+  );
+}
+
 void main() {
   testWidgets('renders editor and reacts to root type changes', (WidgetTester tester) async {
     final controller = JsonSchemaEditorController(
@@ -10,9 +17,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: JsonSchemaEditor(controller: controller, compactMode: true)),
-      ),
+      _buildTestApp(JsonSchemaEditor(controller: controller, compactMode: true)),
     );
     await tester.pumpAndSettle();
 
@@ -53,9 +58,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: JsonSchemaEditor(controller: controller, compactMode: true)),
-      ),
+      _buildTestApp(JsonSchemaEditor(controller: controller, compactMode: true)),
     );
     await tester.pumpAndSettle();
 
@@ -84,9 +87,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: JsonSchemaEditor(controller: controller, compactMode: true)),
-      ),
+      _buildTestApp(JsonSchemaEditor(controller: controller, compactMode: true)),
     );
     await tester.pumpAndSettle();
 
@@ -106,9 +107,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: JsonSchemaEditor(controller: controller, compactMode: true)),
-      ),
+      _buildTestApp(JsonSchemaEditor(controller: controller, compactMode: true)),
     );
     await tester.pumpAndSettle();
 
@@ -125,6 +124,7 @@ void main() {
         configurableExtensionsForAllNodeTypes: const [
           JsonSchemaEditorExtensionField(
             key: 'x-token',
+            label: 'Token',
             description: 'Authorization token for this node.',
           ),
         ],
@@ -133,9 +133,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: JsonSchemaEditor(controller: controller, compactMode: true)),
-      ),
+      _buildTestApp(JsonSchemaEditor(controller: controller, compactMode: true)),
     );
     await tester.pumpAndSettle();
 
@@ -147,10 +145,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Enum'), findsOneWidget);
-    expect(find.text('x-token'), findsOneWidget);
+    expect(find.text('Token'), findsOneWidget);
     expect(find.byType(CircleAvatar), findsWidgets);
 
-    final extensionTile = find.widgetWithText(Tile, 'x-token');
+    final extensionTile = find.widgetWithText(Tile, 'Token');
     await tester.ensureVisible(extensionTile);
     await tester.tap(extensionTile);
     await tester.pump(const Duration(seconds: 1));
@@ -158,7 +156,7 @@ void main() {
 
     expect(find.text('Extensions'), findsNothing);
     expect(find.text('Capabilities'), findsOneWidget);
-    expect(find.text('x-token'), findsWidgets);
+    expect(find.text('Token'), findsWidgets);
     expect(find.text('active'), findsNothing);
 
     await tester.tap(find.text('Add capability'));
@@ -181,9 +179,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: JsonSchemaEditor(controller: controller, compactMode: true)),
-      ),
+      _buildTestApp(JsonSchemaEditor(controller: controller, compactMode: true)),
     );
     await tester.pumpAndSettle();
 
@@ -227,6 +223,7 @@ void main() {
         configurableExtensionsForAllNodeTypes: const [
           JsonSchemaEditorExtensionField(
             key: 'x-notes',
+            label: 'Notes',
             valueType: JsonSchemaEditorExtensionFieldType.string,
             minLines: 2,
             maxLines: 5,
@@ -240,15 +237,13 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: JsonSchemaEditor(controller: controller, compactMode: true)),
-      ),
+      _buildTestApp(JsonSchemaEditor(controller: controller, compactMode: true)),
     );
     await tester.pumpAndSettle();
 
     final extensionField = tester.widget<TextField>(
       find.byWidgetPredicate(
-        (widget) => widget is TextField && widget.decoration?.labelText == 'x-notes',
+        (widget) => widget is TextField && widget.decoration?.labelText == 'Notes',
       ),
     );
 

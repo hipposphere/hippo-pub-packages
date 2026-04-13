@@ -86,7 +86,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
         node.extensions.entries.where((entry) => !_isInternalSchemaExtensionKey(entry.key)).toList()
           ..sort((left, right) => left.key.compareTo(right.key));
     final configuredExtensions = {
-      for (final field in extensionOptions.extensionsForNodeType(node.type))
+      for (final field in extensionOptions.extensionsForNodeType(node.type, path: path))
         if (!_isInternalSchemaExtensionKey(field.key)) field.key.trim(): field,
     };
     final capabilityItems = <Widget>[
@@ -102,6 +102,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
       ...sortedExtensions.map(
         (entry) => _SchemaExtensionPill(
           extensionKey: entry.key,
+          extensionLabel: configuredExtensions[entry.key.trim()]?.displayLabel ?? entry.key,
           extensionValue: entry.value,
           description: configuredExtensions[entry.key.trim()]?.normalizedDescription,
           accent: spec.accent,
@@ -341,12 +342,14 @@ class _JsonSchemaNodeCard extends StatelessWidget {
 class _SchemaExtensionPill extends StatelessWidget {
   const _SchemaExtensionPill({
     required this.extensionKey,
+    required this.extensionLabel,
     required this.extensionValue,
     required this.description,
     required this.accent,
   });
 
   final String extensionKey;
+  final String extensionLabel;
   final Object? extensionValue;
   final String? description;
   final Color accent;
@@ -387,7 +390,7 @@ class _SchemaExtensionPill extends StatelessWidget {
                 text: TextSpan(
                   children: [
                     TextSpan(
-                      text: extensionKey,
+                      text: extensionLabel,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w700,

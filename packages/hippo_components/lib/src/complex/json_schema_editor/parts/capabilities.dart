@@ -32,34 +32,31 @@ Future<void> _showAddCapabilityDialog({
 
       return CupertinoModalPageContainer(
         title: const Text('Add capability'),
-        child: Material(
-          type: MaterialType.transparency,
-          child: ListView.builder(
-            controller: scrollController,
-            padding: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, 0, isDesktop ? 24 : 16, 8),
-            itemCount: sortedOptions.length,
-            itemBuilder: (context, index) {
-              final option = sortedOptions[index];
-              return Tile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                showArrowIndicator: true,
-                leading: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: colorScheme.secondaryContainer,
-                  foregroundColor: colorScheme.onSecondaryContainer,
-                  child: Icon(option.icon, size: 18),
-                ),
-                title: Text(option.label),
-                subtitle: Text(option.description),
-                onTap: () {
-                  Navigator.of(dialogContext).pop();
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    option.onSelected(context);
-                  });
-                },
-              );
-            },
-          ),
+        child: ListView.builder(
+          controller: scrollController,
+          padding: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, 0, isDesktop ? 24 : 16, 8),
+          itemCount: sortedOptions.length,
+          itemBuilder: (context, index) {
+            final option = sortedOptions[index];
+            return Tile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              showArrowIndicator: true,
+              leading: CircleAvatar(
+                radius: 18,
+                backgroundColor: colorScheme.secondaryContainer,
+                foregroundColor: colorScheme.onSecondaryContainer,
+                child: Icon(option.icon, size: 18),
+              ),
+              title: Text(option.label),
+              subtitle: Text(option.description),
+              onTap: () {
+                Navigator.of(dialogContext).pop();
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  option.onSelected(context);
+                });
+              },
+            );
+          },
         ),
       );
     },
@@ -116,27 +113,30 @@ bool _hasVisibleNodeCapabilities({
   required JsonSchemaNode node,
   required JsonSchemaEditorFeatureOptions featureOptions,
 }) {
+  final stringOptions = featureOptions.stringOptions;
+  final numberOptions = featureOptions.numberOptions;
+  final booleanOptions = featureOptions.booleanOptions;
+  final objectOptions = featureOptions.objectOptions;
+  final arrayOptions = featureOptions.arrayOptions;
+
   return switch (node) {
     JsonSchemaStringNode() =>
-      (featureOptions.stringMinLength && node.minLength != null) ||
-          (featureOptions.stringMaxLength && node.maxLength != null) ||
-          (featureOptions.stringPattern &&
-              node.pattern != null &&
-              node.pattern!.trim().isNotEmpty) ||
-          (featureOptions.stringEnum && node.enumValues != null),
+      (stringOptions.minLength && node.minLength != null) ||
+          (stringOptions.maxLength && node.maxLength != null) ||
+          (stringOptions.pattern && node.pattern != null && node.pattern!.trim().isNotEmpty) ||
+          (stringOptions.enumValues && node.enumValues != null),
     JsonSchemaNumberNode() =>
-      (featureOptions.numberMinimum && node.minimum != null) ||
-          (featureOptions.numberMaximum && node.maximum != null) ||
-          (featureOptions.numberExclusiveMinimum && node.exclusiveMinimum != null) ||
-          (featureOptions.numberExclusiveMaximum && node.exclusiveMaximum != null) ||
-          (featureOptions.numberMultipleOf && node.multipleOf != null),
-    JsonSchemaBooleanNode() => node.defaultValue != null,
-    JsonSchemaObjectNode() =>
-      featureOptions.objectAdditionalProperties && !node.additionalProperties,
+      (numberOptions.minimum && node.minimum != null) ||
+          (numberOptions.maximum && node.maximum != null) ||
+          (numberOptions.exclusiveMinimum && node.exclusiveMinimum != null) ||
+          (numberOptions.exclusiveMaximum && node.exclusiveMaximum != null) ||
+          (numberOptions.multipleOf && node.multipleOf != null),
+    JsonSchemaBooleanNode() => booleanOptions.defaultValue && node.defaultValue != null,
+    JsonSchemaObjectNode() => objectOptions.additionalProperties && !node.additionalProperties,
     JsonSchemaArrayNode() =>
-      (featureOptions.arrayMinItems && node.minItems != null) ||
-          (featureOptions.arrayMaxItems && node.maxItems != null) ||
-          (featureOptions.arrayUniqueItems && node.uniqueItems != null),
+      (arrayOptions.minItems && node.minItems != null) ||
+          (arrayOptions.maxItems && node.maxItems != null) ||
+          (arrayOptions.uniqueItems && node.uniqueItems != null),
   };
 }
 
@@ -155,7 +155,7 @@ List<_CapabilityOption> _extensionCapabilityOptions({
     options.add(
       _CapabilityOption(
         icon: Icons.extension_rounded,
-        label: key,
+        label: field.displayLabel,
         description: field.normalizedDescription ?? 'Configured schema extension.',
         onSelected: (context) async {
           controller.setNodeField(path: path, key: key, value: _initialValueForField(field));
@@ -172,9 +172,15 @@ List<_CapabilityOption> _nodeCapabilityOptions({
   required JsonSchemaEditorController controller,
   required JsonSchemaEditorFeatureOptions featureOptions,
 }) {
+  final stringOptions = featureOptions.stringOptions;
+  final numberOptions = featureOptions.numberOptions;
+  final booleanOptions = featureOptions.booleanOptions;
+  final objectOptions = featureOptions.objectOptions;
+  final arrayOptions = featureOptions.arrayOptions;
+
   return switch (node) {
     JsonSchemaStringNode() => [
-      if (featureOptions.stringMinLength && node.minLength == null)
+      if (stringOptions.minLength && node.minLength == null)
         _CapabilityOption(
           icon: Icons.straighten_rounded,
           label: 'Min length',
@@ -184,7 +190,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
             updater: (JsonSchemaStringNode node) => node.copyWith(minLength: 0),
           ),
         ),
-      if (featureOptions.stringMaxLength && node.maxLength == null)
+      if (stringOptions.maxLength && node.maxLength == null)
         _CapabilityOption(
           icon: Icons.width_normal_rounded,
           label: 'Max length',
@@ -194,7 +200,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
             updater: (JsonSchemaStringNode node) => node.copyWith(maxLength: node.minLength ?? 1),
           ),
         ),
-      if (featureOptions.stringPattern && (node.pattern == null || node.pattern!.trim().isEmpty))
+      if (stringOptions.pattern && (node.pattern == null || node.pattern!.trim().isEmpty))
         _CapabilityOption(
           icon: Icons.pattern_rounded,
           label: 'Pattern',
@@ -204,7 +210,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
             updater: (JsonSchemaStringNode node) => node.copyWith(pattern: '.*'),
           ),
         ),
-      if (featureOptions.stringEnum && node.enumValues == null)
+      if (stringOptions.enumValues && node.enumValues == null)
         _CapabilityOption(
           icon: Icons.list_alt_rounded,
           label: 'Enum',
@@ -216,7 +222,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
     ],
     JsonSchemaNumberNode() => [
-      if (featureOptions.numberMinimum && node.minimum == null)
+      if (numberOptions.minimum && node.minimum == null)
         _CapabilityOption(
           icon: Icons.exposure_neg_1_rounded,
           label: 'Minimum',
@@ -226,7 +232,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
             updater: (JsonSchemaNumberNode node) => node.copyWith(minimum: 0),
           ),
         ),
-      if (featureOptions.numberMaximum && node.maximum == null)
+      if (numberOptions.maximum && node.maximum == null)
         _CapabilityOption(
           icon: Icons.exposure_plus_1_rounded,
           label: 'Maximum',
@@ -236,7 +242,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
             updater: (JsonSchemaNumberNode node) => node.copyWith(maximum: node.minimum ?? 1),
           ),
         ),
-      if (featureOptions.numberExclusiveMinimum && node.exclusiveMinimum == null)
+      if (numberOptions.exclusiveMinimum && node.exclusiveMinimum == null)
         _CapabilityOption(
           icon: Icons.chevron_left_rounded,
           label: 'Exclusive min',
@@ -246,7 +252,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
             updater: (JsonSchemaNumberNode node) => node.copyWith(exclusiveMinimum: false),
           ),
         ),
-      if (featureOptions.numberExclusiveMaximum && node.exclusiveMaximum == null)
+      if (numberOptions.exclusiveMaximum && node.exclusiveMaximum == null)
         _CapabilityOption(
           icon: Icons.chevron_right_rounded,
           label: 'Exclusive max',
@@ -256,7 +262,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
             updater: (JsonSchemaNumberNode node) => node.copyWith(exclusiveMaximum: false),
           ),
         ),
-      if (featureOptions.numberMultipleOf && node.multipleOf == null)
+      if (numberOptions.multipleOf && node.multipleOf == null)
         _CapabilityOption(
           icon: Icons.percent_rounded,
           label: 'Multiple of',
@@ -268,7 +274,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
     ],
     JsonSchemaBooleanNode() => [
-      if (node.defaultValue == null)
+      if (booleanOptions.defaultValue && node.defaultValue == null)
         _CapabilityOption(
           icon: Icons.toggle_on_rounded,
           label: 'Default',
@@ -280,7 +286,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
     ],
     JsonSchemaObjectNode() => [
-      if (featureOptions.objectAdditionalProperties && node.additionalProperties)
+      if (objectOptions.additionalProperties && node.additionalProperties)
         _CapabilityOption(
           icon: Icons.data_object_rounded,
           label: 'Additional properties',
@@ -292,7 +298,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
         ),
     ],
     JsonSchemaArrayNode() => [
-      if (featureOptions.arrayMinItems && node.minItems == null)
+      if (arrayOptions.minItems && node.minItems == null)
         _CapabilityOption(
           icon: Icons.format_list_numbered_rounded,
           label: 'Min items',
@@ -302,7 +308,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
             updater: (JsonSchemaArrayNode node) => node.copyWith(minItems: 0),
           ),
         ),
-      if (featureOptions.arrayMaxItems && node.maxItems == null)
+      if (arrayOptions.maxItems && node.maxItems == null)
         _CapabilityOption(
           icon: Icons.format_list_numbered_rtl_rounded,
           label: 'Max items',
@@ -312,7 +318,7 @@ List<_CapabilityOption> _nodeCapabilityOptions({
             updater: (JsonSchemaArrayNode node) => node.copyWith(maxItems: node.minItems ?? 1),
           ),
         ),
-      if (featureOptions.arrayUniqueItems && node.uniqueItems == null)
+      if (arrayOptions.uniqueItems && node.uniqueItems == null)
         _CapabilityOption(
           icon: Icons.fingerprint_rounded,
           label: 'Unique items',

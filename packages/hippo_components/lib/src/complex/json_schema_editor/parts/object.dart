@@ -21,11 +21,12 @@ class _ObjectNodeEditor extends StatelessWidget {
   Widget build(BuildContext context) {
     final propertyEntries = node.orderedPropertyEntries.toList(growable: false);
     final colorScheme = Theme.of(context).colorScheme;
+    final objectOptions = featureOptions.objectOptions;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (featureOptions.objectAdditionalProperties && !node.additionalProperties) ...[
+        if (objectOptions.additionalProperties && !node.additionalProperties) ...[
           _BooleanCapabilityField(
             label: 'Additional props',
             value: node.additionalProperties,

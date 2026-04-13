@@ -14,12 +14,17 @@ import 'package:hippo_utils/hippo_utils.dart';
 
 enum JsonSchemaEditorExtensionFieldType { string, number, boolean, stringEnum }
 
+enum JsonSchemaEditorExtensionFieldScope { root, objectProperty, arrayItem }
+
 @immutable
 class JsonSchemaEditorExtensionField {
   /// `applicableNodeTypes` allows scoping this extension to specific node kinds.
   /// Empty set means all node types.
+  /// `applicableScopes` allows scoping this extension to root, object-property,
+  /// or array-item node locations. Empty set means all node scopes.
   const JsonSchemaEditorExtensionField({
     required this.key,
+    this.label,
     this.valueType = JsonSchemaEditorExtensionFieldType.string,
     this.description,
     this.defaultValue,
@@ -27,10 +32,12 @@ class JsonSchemaEditorExtensionField {
     this.minLines = 1,
     this.maxLines = 1,
     this.applicableNodeTypes = const {},
+    this.applicableScopes = const {},
   }) : assert(minLines > 0, 'minLines must be greater than 0'),
        assert(maxLines >= minLines, 'maxLines must be greater than or equal to minLines');
 
   final String key;
+  final String? label;
   final String? description;
   final JsonSchemaEditorExtensionFieldType valueType;
   final Object? defaultValue;
@@ -38,6 +45,7 @@ class JsonSchemaEditorExtensionField {
   final int minLines;
   final int maxLines;
   final Set<JsonSchemaNodeType> applicableNodeTypes;
+  final Set<JsonSchemaEditorExtensionFieldScope> applicableScopes;
 
   bool get isString => valueType == JsonSchemaEditorExtensionFieldType.string;
   bool get isStringEnum => valueType == JsonSchemaEditorExtensionFieldType.stringEnum;
@@ -58,6 +66,13 @@ class JsonSchemaEditorExtensionField {
     return applicableNodeTypes.isEmpty || applicableNodeTypes.contains(type);
   }
 
+  bool supportsPath(JsonSchemaPath path) {
+    if (applicableScopes.isEmpty) {
+      return true;
+    }
+    return applicableScopes.contains(_extensionFieldScopeForPath(path));
+  }
+
   String? get normalizedDescription {
     final rawDescription = description;
     if (rawDescription == null) {
@@ -65,6 +80,24 @@ class JsonSchemaEditorExtensionField {
     }
     final trimmed = rawDescription.trim();
     return trimmed.isEmpty ? null : trimmed;
+  }
+
+  String? get normalizedLabel {
+    final rawLabel = label;
+    if (rawLabel == null) {
+      return null;
+    }
+    final trimmed = rawLabel.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  String get displayLabel {
+    final resolvedLabel = normalizedLabel;
+    if (resolvedLabel != null) {
+      return resolvedLabel;
+    }
+    final trimmedKey = key.trim();
+    return trimmedKey.isEmpty ? key : trimmedKey;
   }
 }
 
@@ -85,11 +118,14 @@ class JsonSchemaEditorExtensionOptions {
   final Map<JsonSchemaNodeType, List<JsonSchemaEditorExtensionField>> configurableExtensions;
   final bool allowAddExtensions;
 
-  List<JsonSchemaEditorExtensionField> extensionsForNodeType(JsonSchemaNodeType type) {
+  List<JsonSchemaEditorExtensionField> extensionsForNodeType(
+    JsonSchemaNodeType type, {
+    JsonSchemaPath? path,
+  }) {
     final merged = <String, JsonSchemaEditorExtensionField>{};
 
     for (final field in configurableExtensionsForAllNodeTypes) {
-      if (!field.supportsNodeType(type)) {
+      if (!field.supportsNodeType(type) || (path != null && !field.supportsPath(path))) {
         continue;
       }
       final key = field.key.trim();
@@ -100,7 +136,7 @@ class JsonSchemaEditorExtensionOptions {
 
     final specific = configurableExtensions[type] ?? const [];
     for (final field in specific) {
-      if (!field.supportsNodeType(type)) {
+      if (!field.supportsNodeType(type) || (path != null && !field.supportsPath(path))) {
         continue;
       }
       final key = field.key.trim();
@@ -112,18 +148,19 @@ class JsonSchemaEditorExtensionOptions {
     return List.unmodifiable(merged.values);
   }
 
-  List<String> extensionKeysForNodeType(JsonSchemaNodeType type) {
+  List<String> extensionKeysForNodeType(JsonSchemaNodeType type, {JsonSchemaPath? path}) {
     return extensionsForNodeType(
       type,
+      path: path,
     ).map((item) => item.key).where((key) => key.isNotEmpty).toList(growable: false);
   }
 
-  bool isConfiguredForNodeType(JsonSchemaNodeType type, String key) {
-    return extensionKeysForNodeType(type).contains(key);
+  bool isConfiguredForNodeType(JsonSchemaNodeType type, String key, {JsonSchemaPath? path}) {
+    return extensionKeysForNodeType(type, path: path).contains(key);
   }
 
-  Object? defaultValueFor(JsonSchemaNodeType type, String key) {
-    for (final field in extensionsForNodeType(type)) {
+  Object? defaultValueFor(JsonSchemaNodeType type, String key, {JsonSchemaPath? path}) {
+    for (final field in extensionsForNodeType(type, path: path)) {
       if (field.key == key) {
         return field.defaultValue;
       }
@@ -132,72 +169,178 @@ class JsonSchemaEditorExtensionOptions {
   }
 }
 
+JsonSchemaEditorExtensionFieldScope _extensionFieldScopeForPath(JsonSchemaPath path) {
+  if (path.isRoot) {
+    return JsonSchemaEditorExtensionFieldScope.root;
+  }
+  final lastSegment = path.last;
+  if (lastSegment is JsonSchemaItemsPathSegment) {
+    return JsonSchemaEditorExtensionFieldScope.arrayItem;
+  }
+  return JsonSchemaEditorExtensionFieldScope.objectProperty;
+}
+
+@immutable
+class JsonSchemaEditorStringFeatureOptions {
+  const JsonSchemaEditorStringFeatureOptions({
+    this.minLength = true,
+    this.maxLength = true,
+    this.pattern = true,
+    this.enumValues = true,
+  });
+
+  static const JsonSchemaEditorStringFeatureOptions allEnabled =
+      JsonSchemaEditorStringFeatureOptions();
+
+  final bool minLength;
+  final bool maxLength;
+  final bool pattern;
+  final bool enumValues;
+
+  bool get hasAnyConstraint => minLength || maxLength || pattern || enumValues;
+
+  JsonSchemaEditorStringFeatureOptions copyWith({
+    bool? minLength,
+    bool? maxLength,
+    bool? pattern,
+    bool? enumValues,
+  }) {
+    return JsonSchemaEditorStringFeatureOptions(
+      minLength: minLength ?? this.minLength,
+      maxLength: maxLength ?? this.maxLength,
+      pattern: pattern ?? this.pattern,
+      enumValues: enumValues ?? this.enumValues,
+    );
+  }
+}
+
+@immutable
+class JsonSchemaEditorNumberFeatureOptions {
+  const JsonSchemaEditorNumberFeatureOptions({
+    this.minimum = true,
+    this.maximum = true,
+    this.exclusiveMinimum = true,
+    this.exclusiveMaximum = true,
+    this.multipleOf = true,
+  });
+
+  static const JsonSchemaEditorNumberFeatureOptions allEnabled =
+      JsonSchemaEditorNumberFeatureOptions();
+
+  final bool minimum;
+  final bool maximum;
+  final bool exclusiveMinimum;
+  final bool exclusiveMaximum;
+  final bool multipleOf;
+
+  JsonSchemaEditorNumberFeatureOptions copyWith({
+    bool? minimum,
+    bool? maximum,
+    bool? exclusiveMinimum,
+    bool? exclusiveMaximum,
+    bool? multipleOf,
+  }) {
+    return JsonSchemaEditorNumberFeatureOptions(
+      minimum: minimum ?? this.minimum,
+      maximum: maximum ?? this.maximum,
+      exclusiveMinimum: exclusiveMinimum ?? this.exclusiveMinimum,
+      exclusiveMaximum: exclusiveMaximum ?? this.exclusiveMaximum,
+      multipleOf: multipleOf ?? this.multipleOf,
+    );
+  }
+}
+
+@immutable
+class JsonSchemaEditorBooleanFeatureOptions {
+  const JsonSchemaEditorBooleanFeatureOptions({this.defaultValue = true});
+
+  static const JsonSchemaEditorBooleanFeatureOptions allEnabled =
+      JsonSchemaEditorBooleanFeatureOptions();
+
+  final bool defaultValue;
+
+  JsonSchemaEditorBooleanFeatureOptions copyWith({bool? defaultValue}) {
+    return JsonSchemaEditorBooleanFeatureOptions(defaultValue: defaultValue ?? this.defaultValue);
+  }
+}
+
+@immutable
+class JsonSchemaEditorArrayFeatureOptions {
+  const JsonSchemaEditorArrayFeatureOptions({
+    this.minItems = true,
+    this.maxItems = true,
+    this.uniqueItems = true,
+  });
+
+  static const JsonSchemaEditorArrayFeatureOptions allEnabled =
+      JsonSchemaEditorArrayFeatureOptions();
+
+  final bool minItems;
+  final bool maxItems;
+  final bool uniqueItems;
+
+  JsonSchemaEditorArrayFeatureOptions copyWith({
+    bool? minItems,
+    bool? maxItems,
+    bool? uniqueItems,
+  }) {
+    return JsonSchemaEditorArrayFeatureOptions(
+      minItems: minItems ?? this.minItems,
+      maxItems: maxItems ?? this.maxItems,
+      uniqueItems: uniqueItems ?? this.uniqueItems,
+    );
+  }
+}
+
+@immutable
+class JsonSchemaEditorObjectFeatureOptions {
+  const JsonSchemaEditorObjectFeatureOptions({this.additionalProperties = true});
+
+  static const JsonSchemaEditorObjectFeatureOptions allEnabled =
+      JsonSchemaEditorObjectFeatureOptions();
+
+  final bool additionalProperties;
+
+  JsonSchemaEditorObjectFeatureOptions copyWith({bool? additionalProperties}) {
+    return JsonSchemaEditorObjectFeatureOptions(
+      additionalProperties: additionalProperties ?? this.additionalProperties,
+    );
+  }
+}
+
 @immutable
 class JsonSchemaEditorFeatureOptions {
   const JsonSchemaEditorFeatureOptions({
-    this.stringMinLength = true,
-    this.stringMaxLength = true,
-    this.stringPattern = true,
-    this.stringEnum = true,
-    this.numberMinimum = true,
-    this.numberMaximum = true,
-    this.numberExclusiveMinimum = true,
-    this.numberExclusiveMaximum = true,
-    this.numberMultipleOf = true,
-    this.arrayMinItems = true,
-    this.arrayMaxItems = true,
-    this.arrayUniqueItems = true,
-    this.objectAdditionalProperties = true,
+    this.stringOptions = JsonSchemaEditorStringFeatureOptions.allEnabled,
+    this.numberOptions = JsonSchemaEditorNumberFeatureOptions.allEnabled,
+    this.booleanOptions = JsonSchemaEditorBooleanFeatureOptions.allEnabled,
+    this.arrayOptions = JsonSchemaEditorArrayFeatureOptions.allEnabled,
+    this.objectOptions = JsonSchemaEditorObjectFeatureOptions.allEnabled,
   });
 
   static const JsonSchemaEditorFeatureOptions allEnabled = JsonSchemaEditorFeatureOptions();
 
-  final bool stringMinLength;
-  final bool stringMaxLength;
-  final bool stringPattern;
-  final bool stringEnum;
-  final bool numberMinimum;
-  final bool numberMaximum;
-  final bool numberExclusiveMinimum;
-  final bool numberExclusiveMaximum;
-  final bool numberMultipleOf;
-  final bool arrayMinItems;
-  final bool arrayMaxItems;
-  final bool arrayUniqueItems;
-  final bool objectAdditionalProperties;
+  final JsonSchemaEditorStringFeatureOptions stringOptions;
+  final JsonSchemaEditorNumberFeatureOptions numberOptions;
+  final JsonSchemaEditorBooleanFeatureOptions booleanOptions;
+  final JsonSchemaEditorArrayFeatureOptions arrayOptions;
+  final JsonSchemaEditorObjectFeatureOptions objectOptions;
 
-  bool get hasAnyStringConstraint =>
-      stringMinLength || stringMaxLength || stringPattern || stringEnum;
+  bool get hasAnyStringConstraint => stringOptions.hasAnyConstraint;
 
   JsonSchemaEditorFeatureOptions copyWith({
-    bool? stringMinLength,
-    bool? stringMaxLength,
-    bool? stringPattern,
-    bool? stringEnum,
-    bool? numberMinimum,
-    bool? numberMaximum,
-    bool? numberExclusiveMinimum,
-    bool? numberExclusiveMaximum,
-    bool? numberMultipleOf,
-    bool? arrayMinItems,
-    bool? arrayMaxItems,
-    bool? arrayUniqueItems,
-    bool? objectAdditionalProperties,
+    JsonSchemaEditorStringFeatureOptions? stringOptions,
+    JsonSchemaEditorNumberFeatureOptions? numberOptions,
+    JsonSchemaEditorBooleanFeatureOptions? booleanOptions,
+    JsonSchemaEditorArrayFeatureOptions? arrayOptions,
+    JsonSchemaEditorObjectFeatureOptions? objectOptions,
   }) {
     return JsonSchemaEditorFeatureOptions(
-      stringMinLength: stringMinLength ?? this.stringMinLength,
-      stringMaxLength: stringMaxLength ?? this.stringMaxLength,
-      stringPattern: stringPattern ?? this.stringPattern,
-      stringEnum: stringEnum ?? this.stringEnum,
-      numberMinimum: numberMinimum ?? this.numberMinimum,
-      numberMaximum: numberMaximum ?? this.numberMaximum,
-      numberExclusiveMinimum: numberExclusiveMinimum ?? this.numberExclusiveMinimum,
-      numberExclusiveMaximum: numberExclusiveMaximum ?? this.numberExclusiveMaximum,
-      numberMultipleOf: numberMultipleOf ?? this.numberMultipleOf,
-      arrayMinItems: arrayMinItems ?? this.arrayMinItems,
-      arrayMaxItems: arrayMaxItems ?? this.arrayMaxItems,
-      arrayUniqueItems: arrayUniqueItems ?? this.arrayUniqueItems,
-      objectAdditionalProperties: objectAdditionalProperties ?? this.objectAdditionalProperties,
+      stringOptions: stringOptions ?? this.stringOptions,
+      numberOptions: numberOptions ?? this.numberOptions,
+      booleanOptions: booleanOptions ?? this.booleanOptions,
+      arrayOptions: arrayOptions ?? this.arrayOptions,
+      objectOptions: objectOptions ?? this.objectOptions,
     );
   }
 }

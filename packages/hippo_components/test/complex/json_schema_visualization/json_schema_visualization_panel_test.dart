@@ -4,6 +4,13 @@ import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_components/src/complex/json_schema_visualization/json_schema_visualization_panel.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
+Widget _buildTestApp(Widget child) {
+  return MaterialApp(
+    theme: ThemeData(splashFactory: NoSplash.splashFactory),
+    home: Scaffold(body: child),
+  );
+}
+
 void main() {
   testWidgets('switches between optimized and pure json preview modes', (
     WidgetTester tester,
@@ -21,13 +28,8 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: JsonSchemaVisualizationPanel(
-            controller: controller,
-            schema: controller.toJsonSchema(),
-          ),
-        ),
+      _buildTestApp(
+        JsonSchemaVisualizationPanel(controller: controller, schema: controller.toJsonSchema()),
       ),
     );
     await tester.pumpAndSettle();
@@ -70,13 +72,8 @@ void main() {
     controller.movePropertyDown(objectPath: const JsonSchemaPath.root(), key: 'first');
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: JsonSchemaVisualizationPanel(
-            controller: controller,
-            schema: controller.toJsonSchema(),
-          ),
-        ),
+      _buildTestApp(
+        JsonSchemaVisualizationPanel(controller: controller, schema: controller.toJsonSchema()),
       ),
     );
     await tester.pumpAndSettle();

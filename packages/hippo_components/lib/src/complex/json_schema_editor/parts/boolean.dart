@@ -5,6 +5,7 @@ class _BooleanExtensionNodeField extends StatelessWidget {
     required this.controller,
     required this.path,
     required this.extensionKey,
+    required this.extensionLabel,
     required this.extensionValue,
     this.helpText,
   });
@@ -12,13 +13,14 @@ class _BooleanExtensionNodeField extends StatelessWidget {
   final JsonSchemaEditorController controller;
   final JsonSchemaPath path;
   final String extensionKey;
+  final String extensionLabel;
   final bool extensionValue;
   final String? helpText;
 
   @override
   Widget build(BuildContext context) {
     return _BooleanCapabilityField(
-      label: extensionKey,
+      label: extensionLabel,
       value: extensionValue,
       helpText: helpText,
       onChanged: (value) {
@@ -68,6 +70,7 @@ class _BooleanCapabilityField extends StatelessWidget {
 class _BooleanNodeEditor extends StatelessWidget {
   const _BooleanNodeEditor({
     required this.controller,
+    required this.featureOptions,
     required this.node,
     required this.path,
     required this.diagnostics,
@@ -77,6 +80,7 @@ class _BooleanNodeEditor extends StatelessWidget {
   });
 
   final JsonSchemaEditorController controller;
+  final JsonSchemaEditorFeatureOptions featureOptions;
   final JsonSchemaBooleanNode node;
   final JsonSchemaPath path;
   final List<JsonSchemaDiagnostic> diagnostics;
@@ -86,10 +90,11 @@ class _BooleanNodeEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final booleanOptions = featureOptions.booleanOptions;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showCapabilities && node.defaultValue != null)
+        if (showCapabilities && booleanOptions.defaultValue && node.defaultValue != null)
           _BooleanCapabilityField(
             label: 'Default true',
             value: node.defaultValue!,

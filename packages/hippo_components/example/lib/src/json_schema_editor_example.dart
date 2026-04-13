@@ -27,43 +27,60 @@ class JsonSchemaEditorExample extends StatelessWidget {
         },
       ],
       featureOptions: JsonSchemaEditorFeatureOptions(
-        arrayUniqueItems: false,
-        arrayMaxItems: false,
-        arrayMinItems: false,
-        numberMaximum: false,
-        numberExclusiveMaximum: false,
-        numberExclusiveMinimum: false,
-        numberMinimum: false,
-        numberMultipleOf: false,
-        stringPattern: false,
-        stringMaxLength: false,
-        stringMinLength: false,
-        objectAdditionalProperties: false,
-        stringEnum: true,
+        arrayOptions: const JsonSchemaEditorArrayFeatureOptions(
+          uniqueItems: false,
+          maxItems: false,
+          minItems: false,
+        ),
+        numberOptions: const JsonSchemaEditorNumberFeatureOptions(
+          maximum: false,
+          exclusiveMaximum: false,
+          exclusiveMinimum: false,
+          minimum: false,
+          multipleOf: false,
+        ),
+        stringOptions: const JsonSchemaEditorStringFeatureOptions(
+          pattern: false,
+          maxLength: false,
+          minLength: false,
+          enumValues: true,
+        ),
+        objectOptions: const JsonSchemaEditorObjectFeatureOptions(additionalProperties: false),
       ),
       extensionOptions: JsonSchemaEditorExtensionOptions(
         allowAddExtensions: false,
         configurableExtensionsForAllNodeTypes: [
           JsonSchemaEditorExtensionField(
+            key: 'x-root',
+            label: 'Root',
+            valueType: JsonSchemaEditorExtensionFieldType.string,
+            defaultValue: 'test',
+            applicableScopes: {JsonSchemaEditorExtensionFieldScope.root},
+          ),
+          JsonSchemaEditorExtensionField(
             key: 'x-token',
+            label: 'Token',
             valueType: JsonSchemaEditorExtensionFieldType.stringEnum,
             defaultValue: 'test',
             enumValues: ['test', 'token', 'admin'],
           ),
           JsonSchemaEditorExtensionField(
             key: 'x-enabled',
+            label: 'Enabled marker',
             valueType: JsonSchemaEditorExtensionFieldType.boolean,
             defaultValue: false,
             applicableNodeTypes: const {JsonSchemaNodeType.boolean},
           ),
           JsonSchemaEditorExtensionField(
             key: 'x-priority',
+            label: 'Priority',
             valueType: JsonSchemaEditorExtensionFieldType.number,
             defaultValue: 0,
             applicableNodeTypes: const {JsonSchemaNodeType.number, JsonSchemaNodeType.integer},
           ),
           JsonSchemaEditorExtensionField(
             key: 'x-object-label',
+            label: 'Object label',
             description: 'Label for object nodes',
             valueType: JsonSchemaEditorExtensionFieldType.string,
             defaultValue: 'object-level',
@@ -71,6 +88,7 @@ class JsonSchemaEditorExample extends StatelessWidget {
           ),
           JsonSchemaEditorExtensionField(
             key: 'x-string-label',
+            label: 'String notes',
             description: 'Multiline notes for string nodes',
             valueType: JsonSchemaEditorExtensionFieldType.string,
             defaultValue: 'Line 1\nLine 2',
@@ -111,6 +129,9 @@ class JsonSchemaEditorExample extends StatelessWidget {
     return JsonSchemaEditorPage(
       title: 'JSON Schema Editor',
       controller: controller,
+      explanationDescription:
+          'This example shows how the editor models a schema tree, which node types are '
+          'available, and which built-in or custom capabilities are enabled in this setup.',
       onSave: (context, schema) async {
         return true;
       },

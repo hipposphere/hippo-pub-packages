@@ -5,6 +5,7 @@ class _NumberExtensionNodeField extends StatelessWidget {
     required this.controller,
     required this.path,
     required this.extensionKey,
+    required this.extensionLabel,
     required this.extensionValue,
     this.helpText,
   });
@@ -12,6 +13,7 @@ class _NumberExtensionNodeField extends StatelessWidget {
   final JsonSchemaEditorController controller;
   final JsonSchemaPath path;
   final String extensionKey;
+  final String extensionLabel;
   final Object? extensionValue;
   final String? helpText;
 
@@ -20,7 +22,7 @@ class _NumberExtensionNodeField extends StatelessWidget {
     final value = extensionValue == null ? '' : extensionValue.toString();
     return _StringCapabilityField(
       value: value,
-      hint: extensionKey,
+      hint: extensionLabel,
       helpText: helpText,
       keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
       onChanged: (next) => _updateDouble(
@@ -57,8 +59,9 @@ class _NumberNodeEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final numberOptions = featureOptions.numberOptions;
     final shortFields = <Widget>[
-      if (showCapabilities && featureOptions.numberMinimum && node.minimum != null)
+      if (showCapabilities && numberOptions.minimum && node.minimum != null)
         JsonSchemaEditorTextField(
           value: node.minimum?.toString(),
           hint: 'Minimum',
@@ -76,7 +79,7 @@ class _NumberNodeEditor extends StatelessWidget {
             ),
           ),
         ),
-      if (showCapabilities && featureOptions.numberMaximum && node.maximum != null)
+      if (showCapabilities && numberOptions.maximum && node.maximum != null)
         JsonSchemaEditorTextField(
           value: node.maximum?.toString(),
           hint: 'Maximum',
@@ -94,7 +97,7 @@ class _NumberNodeEditor extends StatelessWidget {
             ),
           ),
         ),
-      if (showCapabilities && featureOptions.numberMultipleOf && node.multipleOf != null)
+      if (showCapabilities && numberOptions.multipleOf && node.multipleOf != null)
         JsonSchemaEditorTextField(
           value: node.multipleOf?.toString(),
           hint: 'Multiple of',
@@ -122,7 +125,7 @@ class _NumberNodeEditor extends StatelessWidget {
           const Gap(_editorSectionSpacing),
         ],
         if (showCapabilities &&
-            featureOptions.numberExclusiveMinimum &&
+            numberOptions.exclusiveMinimum &&
             node.exclusiveMinimum != null) ...[
           _BooleanCapabilityField(
             label: 'Exclusive min',
@@ -140,7 +143,7 @@ class _NumberNodeEditor extends StatelessWidget {
           const Gap(_editorSectionSpacing),
         ],
         if (showCapabilities &&
-            featureOptions.numberExclusiveMaximum &&
+            numberOptions.exclusiveMaximum &&
             node.exclusiveMaximum != null) ...[
           _BooleanCapabilityField(
             label: 'Exclusive max',

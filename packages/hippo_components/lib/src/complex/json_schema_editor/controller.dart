@@ -64,12 +64,15 @@ class JsonSchemaEditorController {
   JsonSchema get initialJsonSchema => _initialJsonSchema;
 
   List<JsonSchemaDiagnostic> get diagnostics => diagnosticsSubject.value;
-  List<JsonSchemaEditorExtensionField> getConfiguredExtensions(JsonSchemaNodeType type) {
-    return List.unmodifiable(extensionOptions.extensionsForNodeType(type));
+  List<JsonSchemaEditorExtensionField> getConfiguredExtensions(
+    JsonSchemaNodeType type, {
+    JsonSchemaPath? path,
+  }) {
+    return List.unmodifiable(extensionOptions.extensionsForNodeType(type, path: path));
   }
 
-  List<String> getConfiguredExtensionKeys(JsonSchemaNodeType type) =>
-      extensionOptions.extensionKeysForNodeType(type);
+  List<String> getConfiguredExtensionKeys(JsonSchemaNodeType type, {JsonSchemaPath? path}) =>
+      extensionOptions.extensionKeysForNodeType(type, path: path);
 
   void setRoot(JsonSchemaNode next) {
     _apply(_normalizeNode(next));
@@ -343,42 +346,47 @@ class JsonSchemaEditorController {
     JsonSchemaNode node,
     JsonSchemaEditorFeatureOptions options,
   ) {
+    final stringOptions = options.stringOptions;
+    final numberOptions = options.numberOptions;
+    final booleanOptions = options.booleanOptions;
+    final arrayOptions = options.arrayOptions;
+
     return switch (node) {
       JsonSchemaObjectNode() => _normalizeObjectNodeWithOptions(node, options),
       JsonSchemaArrayNode() => JsonSchemaArrayNode(
         title: _trimOrNull(node.title),
         description: _trimOrNull(node.description),
         items: _normalizeNodeWithOptions(node.items, options),
-        minItems: options.arrayMinItems ? node.minItems : null,
-        maxItems: options.arrayMaxItems ? node.maxItems : null,
-        uniqueItems: options.arrayUniqueItems ? node.uniqueItems : null,
+        minItems: arrayOptions.minItems ? node.minItems : null,
+        maxItems: arrayOptions.maxItems ? node.maxItems : null,
+        uniqueItems: arrayOptions.uniqueItems ? node.uniqueItems : null,
         extensions: node.extensions,
       ),
       JsonSchemaStringNode() => JsonSchemaStringNode(
         title: _trimOrNull(node.title),
         description: _trimOrNull(node.description),
-        minLength: options.stringMinLength ? node.minLength : null,
-        maxLength: options.stringMaxLength ? node.maxLength : null,
-        pattern: options.stringPattern ? _trimOrNull(node.pattern) : null,
-        enumValues: options.stringEnum ? node.enumValues : null,
+        minLength: stringOptions.minLength ? node.minLength : null,
+        maxLength: stringOptions.maxLength ? node.maxLength : null,
+        pattern: stringOptions.pattern ? _trimOrNull(node.pattern) : null,
+        enumValues: stringOptions.enumValues ? node.enumValues : null,
         extensions: node.extensions,
       ),
       JsonSchemaNumberNode() => JsonSchemaNumberNode(
         numberType: node.numberType,
         title: _trimOrNull(node.title),
         description: _trimOrNull(node.description),
-        minimum: options.numberMinimum ? node.minimum : null,
-        maximum: options.numberMaximum ? node.maximum : null,
-        exclusiveMinimum: options.numberExclusiveMinimum ? node.exclusiveMinimum : null,
-        exclusiveMaximum: options.numberExclusiveMaximum ? node.exclusiveMaximum : null,
-        multipleOf: options.numberMultipleOf ? node.multipleOf : null,
+        minimum: numberOptions.minimum ? node.minimum : null,
+        maximum: numberOptions.maximum ? node.maximum : null,
+        exclusiveMinimum: numberOptions.exclusiveMinimum ? node.exclusiveMinimum : null,
+        exclusiveMaximum: numberOptions.exclusiveMaximum ? node.exclusiveMaximum : null,
+        multipleOf: numberOptions.multipleOf ? node.multipleOf : null,
         extensions: node.extensions,
       ),
       JsonSchemaBooleanNode() => JsonSchemaBooleanNode(
         title: _trimOrNull(node.title),
         description: _trimOrNull(node.description),
         extensions: node.extensions,
-        defaultValue: node.defaultValue,
+        defaultValue: booleanOptions.defaultValue ? node.defaultValue : null,
       ),
     };
   }
@@ -410,7 +418,9 @@ class JsonSchemaEditorController {
       required: Set<String>.from(
         node.required,
       ).where((key) => normalizedProperties.containsKey(key)).toSet(),
-      additionalProperties: options.objectAdditionalProperties ? node.additionalProperties : true,
+      additionalProperties: options.objectOptions.additionalProperties
+          ? node.additionalProperties
+          : true,
       extensions: node.extensions,
     );
 

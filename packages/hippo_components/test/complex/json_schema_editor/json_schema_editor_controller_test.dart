@@ -279,7 +279,7 @@ void main() {
       expect(controller.schema.extensions.containsKey('x-token'), isFalse);
     });
 
-    test('filters configured extensions by node type', () {
+    test('filters configured extensions by node type and scope', () {
       final controller = JsonSchemaEditorController(
         extensionOptions: JsonSchemaEditorExtensionOptions(
           configurableExtensionsForAllNodeTypes: [
@@ -287,44 +287,76 @@ void main() {
               key: 'x-shared',
               valueType: JsonSchemaEditorExtensionFieldType.string,
             ),
-            JsonSchemaEditorExtensionField(
-              key: 'x-obj-only',
+            const JsonSchemaEditorExtensionField(
+              key: 'x-root-only',
               valueType: JsonSchemaEditorExtensionFieldType.string,
-              applicableNodeTypes: const {JsonSchemaNodeType.object},
+              applicableScopes: {JsonSchemaEditorExtensionFieldScope.root},
             ),
-            JsonSchemaEditorExtensionField(
-              key: 'x-number-only',
+            const JsonSchemaEditorExtensionField(
+              key: 'x-property-only',
+              valueType: JsonSchemaEditorExtensionFieldType.string,
+              applicableScopes: {JsonSchemaEditorExtensionFieldScope.objectProperty},
+            ),
+            const JsonSchemaEditorExtensionField(
+              key: 'x-item-only',
+              valueType: JsonSchemaEditorExtensionFieldType.string,
+              applicableScopes: {JsonSchemaEditorExtensionFieldScope.arrayItem},
+            ),
+            const JsonSchemaEditorExtensionField(
+              key: 'x-obj-root-only',
+              valueType: JsonSchemaEditorExtensionFieldType.string,
+              applicableNodeTypes: {JsonSchemaNodeType.object},
+              applicableScopes: {JsonSchemaEditorExtensionFieldScope.root},
+            ),
+            const JsonSchemaEditorExtensionField(
+              key: 'x-number-item-only',
               valueType: JsonSchemaEditorExtensionFieldType.number,
-              applicableNodeTypes: const {JsonSchemaNodeType.number},
+              applicableNodeTypes: {JsonSchemaNodeType.number},
+              applicableScopes: {JsonSchemaEditorExtensionFieldScope.arrayItem},
             ),
           ],
         ),
       );
 
-      final objectExtensions = controller
-          .getConfiguredExtensions(JsonSchemaNodeType.object)
+      final objectRootExtensions = controller
+          .getConfiguredExtensions(JsonSchemaNodeType.object, path: const JsonSchemaPath.root())
           .map((entry) => entry.key)
           .toSet();
-      final stringExtensions = controller
-          .getConfiguredExtensions(JsonSchemaNodeType.string)
+      final stringPropertyExtensions = controller
+          .getConfiguredExtensions(
+            JsonSchemaNodeType.string,
+            path: const JsonSchemaPath.root().childProperty('name'),
+          )
           .map((entry) => entry.key)
           .toSet();
-      final numberExtensions = controller
-          .getConfiguredExtensions(JsonSchemaNodeType.number)
+      final numberItemExtensions = controller
+          .getConfiguredExtensions(
+            JsonSchemaNodeType.number,
+            path: const JsonSchemaPath.root().childItems(),
+          )
           .map((entry) => entry.key)
           .toSet();
 
-      expect(objectExtensions, contains('x-shared'));
-      expect(objectExtensions, contains('x-obj-only'));
-      expect(objectExtensions, isNot(contains('x-number-only')));
+      expect(objectRootExtensions, contains('x-shared'));
+      expect(objectRootExtensions, contains('x-root-only'));
+      expect(objectRootExtensions, contains('x-obj-root-only'));
+      expect(objectRootExtensions, isNot(contains('x-property-only')));
+      expect(objectRootExtensions, isNot(contains('x-item-only')));
+      expect(objectRootExtensions, isNot(contains('x-number-item-only')));
 
-      expect(stringExtensions, contains('x-shared'));
-      expect(stringExtensions, isNot(contains('x-obj-only')));
-      expect(stringExtensions, isNot(contains('x-number-only')));
+      expect(stringPropertyExtensions, contains('x-shared'));
+      expect(stringPropertyExtensions, contains('x-property-only'));
+      expect(stringPropertyExtensions, isNot(contains('x-root-only')));
+      expect(stringPropertyExtensions, isNot(contains('x-item-only')));
+      expect(stringPropertyExtensions, isNot(contains('x-obj-root-only')));
+      expect(stringPropertyExtensions, isNot(contains('x-number-item-only')));
 
-      expect(numberExtensions, contains('x-shared'));
-      expect(numberExtensions, contains('x-number-only'));
-      expect(numberExtensions, isNot(contains('x-obj-only')));
+      expect(numberItemExtensions, contains('x-shared'));
+      expect(numberItemExtensions, contains('x-item-only'));
+      expect(numberItemExtensions, contains('x-number-item-only'));
+      expect(numberItemExtensions, isNot(contains('x-root-only')));
+      expect(numberItemExtensions, isNot(contains('x-property-only')));
+      expect(numberItemExtensions, isNot(contains('x-obj-root-only')));
     });
 
     test('supports extensions on nested non-object nodes', () {

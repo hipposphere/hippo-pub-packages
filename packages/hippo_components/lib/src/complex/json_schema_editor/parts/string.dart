@@ -5,6 +5,7 @@ class _StringExtensionNodeField extends StatelessWidget {
     required this.controller,
     required this.path,
     required this.extensionKey,
+    required this.extensionLabel,
     required this.extensionValue,
     this.minLines = 1,
     this.maxLines = 1,
@@ -14,6 +15,7 @@ class _StringExtensionNodeField extends StatelessWidget {
   final JsonSchemaEditorController controller;
   final JsonSchemaPath path;
   final String extensionKey;
+  final String extensionLabel;
   final String extensionValue;
   final int minLines;
   final int maxLines;
@@ -23,7 +25,7 @@ class _StringExtensionNodeField extends StatelessWidget {
   Widget build(BuildContext context) {
     return _StringCapabilityField(
       value: extensionValue,
-      hint: extensionKey,
+      hint: extensionLabel,
       helpText: helpText,
       minLines: minLines,
       maxLines: maxLines,
@@ -39,6 +41,7 @@ class _StringEnumExtensionNodeField extends StatelessWidget {
     required this.controller,
     required this.path,
     required this.extensionKey,
+    required this.extensionLabel,
     required this.extensionValue,
     required this.values,
     this.helpText,
@@ -47,6 +50,7 @@ class _StringEnumExtensionNodeField extends StatelessWidget {
   final JsonSchemaEditorController controller;
   final JsonSchemaPath path;
   final String extensionKey;
+  final String extensionLabel;
   final String extensionValue;
   final List<String> values;
   final String? helpText;
@@ -60,7 +64,7 @@ class _StringEnumExtensionNodeField extends StatelessWidget {
     );
 
     return _DropdownCapabilityField(
-      label: extensionKey,
+      label: extensionLabel,
       value: currentValue,
       values: valueEntries,
       helpText: helpText,
@@ -223,8 +227,9 @@ class _StringNodeEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final stringOptions = featureOptions.stringOptions;
     final shortFields = <Widget>[
-      if (showCapabilities && featureOptions.stringMinLength && node.minLength != null)
+      if (showCapabilities && stringOptions.minLength && node.minLength != null)
         JsonSchemaEditorTextField(
           value: node.minLength?.toString(),
           hint: 'Min length',
@@ -242,7 +247,7 @@ class _StringNodeEditor extends StatelessWidget {
             ),
           ),
         ),
-      if (showCapabilities && featureOptions.stringMaxLength && node.maxLength != null)
+      if (showCapabilities && stringOptions.maxLength && node.maxLength != null)
         JsonSchemaEditorTextField(
           value: node.maxLength?.toString(),
           hint: 'Max length',
@@ -270,7 +275,7 @@ class _StringNodeEditor extends StatelessWidget {
           const Gap(_editorSectionSpacing),
         ],
         if (showCapabilities &&
-            featureOptions.stringPattern &&
+            stringOptions.pattern &&
             node.pattern != null &&
             node.pattern!.trim().isNotEmpty) ...[
           JsonSchemaEditorTextField(
@@ -288,7 +293,7 @@ class _StringNodeEditor extends StatelessWidget {
           ),
           const Gap(_editorSectionSpacing),
         ],
-        if (showCapabilities && featureOptions.stringEnum && node.enumValues != null) ...[
+        if (showCapabilities && stringOptions.enumValues && node.enumValues != null) ...[
           _StringCapabilityField(
             value: _stringEnumInput(node.enumValues),
             hint: 'Enum (comma/line list)',

@@ -33,7 +33,7 @@ class OptionalTooltip extends StatelessWidget {
       hover: true,
       childAnchor: childAnchor,
       tipAnchor: tipAnchor,
-      hoverEnterDuration: Duration(milliseconds: 250),
+      style: .delta(hoverEnterDuration: Duration(milliseconds: 250)),
       tipBuilder: (context, style) => Text(message!),
       child: child,
     );

@@ -4,6 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
+Widget _buildTestApp(Widget child) {
+  return MaterialApp(
+    theme: ThemeData(splashFactory: NoSplash.splashFactory),
+    home: Scaffold(body: child),
+  );
+}
+
 void main() {
   testWidgets('hides visualization details by default and reveals them via the toggle', (
     WidgetTester tester,
@@ -40,34 +47,44 @@ void main() {
     const extensionOptions = JsonSchemaEditorExtensionOptions(
       configurableExtensions: {
         JsonSchemaNodeType.object: [
-          JsonSchemaEditorExtensionField(key: 'x-group', description: 'Grouping metadata'),
+          JsonSchemaEditorExtensionField(
+            key: 'x-group',
+            label: 'Group',
+            description: 'Grouping metadata',
+            applicableScopes: {JsonSchemaEditorExtensionFieldScope.root},
+          ),
         ],
         JsonSchemaNodeType.array: [
           JsonSchemaEditorExtensionField(
             key: 'x-priority',
+            label: 'Priority',
             description: 'Priority ordering',
             valueType: JsonSchemaEditorExtensionFieldType.number,
+            applicableScopes: {JsonSchemaEditorExtensionFieldScope.objectProperty},
           ),
         ],
         JsonSchemaNodeType.boolean: [
           JsonSchemaEditorExtensionField(
             key: 'x-enabled',
+            label: 'Enabled marker',
             description: 'Boolean feature marker',
             valueType: JsonSchemaEditorExtensionFieldType.boolean,
+            applicableScopes: {JsonSchemaEditorExtensionFieldScope.arrayItem},
           ),
         ],
       },
       configurableExtensionsForAllNodeTypes: [
-        JsonSchemaEditorExtensionField(key: 'x-token', description: 'Authorization token'),
+        JsonSchemaEditorExtensionField(
+          key: 'x-token',
+          label: 'Token',
+          description: 'Authorization token',
+          applicableScopes: {JsonSchemaEditorExtensionFieldScope.objectProperty},
+        ),
       ],
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: JsonSchemaVisualization(schema: schema, extensionOptions: extensionOptions),
-        ),
-      ),
+      _buildTestApp(JsonSchemaVisualization(schema: schema, extensionOptions: extensionOptions)),
     );
     await tester.pumpAndSettle();
 
@@ -84,10 +101,10 @@ void main() {
     expect(find.text('Priority ordering'), findsNothing);
     expect(find.text('Boolean feature marker'), findsNothing);
     expect(find.text('configured'), findsNothing);
-    expect(find.textContaining('x-group: public', findRichText: true), findsOneWidget);
-    expect(find.textContaining('x-token: admin', findRichText: true), findsOneWidget);
-    expect(find.textContaining('x-priority: 2', findRichText: true), findsOneWidget);
-    expect(find.textContaining('x-enabled: false', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Group: public', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Token: admin', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Priority: 2', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Enabled marker: false', findRichText: true), findsOneWidget);
     expect(find.byTooltip('Authorization token'), findsOneWidget);
     expect(find.byTooltip('Grouping metadata'), findsOneWidget);
     expect(find.byTooltip('Priority ordering'), findsOneWidget);
@@ -131,11 +148,7 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: JsonSchemaVisualization(schema: schema)),
-      ),
-    );
+    await tester.pumpWidget(_buildTestApp(JsonSchemaVisualization(schema: schema)));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Show details'));
@@ -161,11 +174,7 @@ void main() {
       jsonSchemaObjectPropertyOrderExtensionKey: ['third', 'first', 'second'],
     });
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: JsonSchemaVisualization(schema: schema)),
-      ),
-    );
+    await tester.pumpWidget(_buildTestApp(JsonSchemaVisualization(schema: schema)));
     await tester.pumpAndSettle();
 
     final thirdY = tester.getTopLeft(find.text('Third')).dy;

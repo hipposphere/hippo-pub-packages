@@ -1,0 +1,96 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hippo_components/hippo_components.dart';
+import 'package:hippo_utils/hippo_utils.dart';
+
+Widget _buildTestApp(Widget child) {
+  return MaterialApp(
+    locale: const Locale('en'),
+    localizationsDelegates: ComponentsLocalizations.localizationsDelegates,
+    supportedLocales: ComponentsLocalizations.supportedLocales,
+    theme: ThemeData(splashFactory: NoSplash.splashFactory),
+    home: child,
+  );
+}
+
+void main() {
+  testWidgets('shows the explanation guide with the custom description on desktop', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final controller = JsonSchemaEditorController(
+      featureOptions: const JsonSchemaEditorFeatureOptions(
+        arrayOptions: JsonSchemaEditorArrayFeatureOptions(uniqueItems: false),
+      ),
+      extensionOptions: const JsonSchemaEditorExtensionOptions(
+        configurableExtensionsForAllNodeTypes: [
+          JsonSchemaEditorExtensionField(
+            key: 'x-token',
+            label: 'Token',
+            description: 'Authorization metadata for this schema node.',
+          ),
+        ],
+      ),
+      initialSchema: JsonSchema.fromNode(
+        const JsonSchemaObjectNode(
+          title: 'Account schema',
+          properties: {'name': JsonSchemaStringNode(title: 'Name')},
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _buildTestApp(
+        JsonSchemaEditorPage(
+          title: 'JSON Schema Editor',
+          controller: controller,
+          explanationDescription: 'Custom schema guide text',
+          onSave: (context, schema) async => true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('json-schema-explaination-page')), findsOneWidget);
+    expect(find.text('JSON Schema Guide'), findsOneWidget);
+    expect(find.text('Custom schema guide text'), findsOneWidget);
+    expect(find.text('General concept'), findsOneWidget);
+    expect(find.text('Node types'), findsOneWidget);
+    expect(find.text('Supported capabilities'), findsOneWidget);
+    expect(find.text('Configured extensions'), findsOneWidget);
+    expect(find.text('Token'), findsWidgets);
+    expect(find.text('Unique items'), findsNothing);
+  });
+
+  testWidgets('adds a guide tab on smaller layouts', (WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(700, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final controller = JsonSchemaEditorController(
+      initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode(title: 'Label')),
+    );
+
+    await tester.pumpWidget(
+      _buildTestApp(
+        JsonSchemaEditorPage(
+          title: 'JSON Schema Editor',
+          controller: controller,
+          explanationDescription: 'Compact guide text',
+          onSave: (context, schema) async => true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Guide'), findsOneWidget);
+
+    await tester.tap(find.text('Guide'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('JSON Schema Guide'), findsOneWidget);
+    expect(find.text('Compact guide text'), findsOneWidget);
+    expect(find.text('Supported capabilities'), findsOneWidget);
+  });
+}

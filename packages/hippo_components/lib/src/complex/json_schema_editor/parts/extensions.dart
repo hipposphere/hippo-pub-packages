@@ -19,6 +19,7 @@ class _ExtensionNodeEditor extends StatelessWidget {
   Widget build(BuildContext context) {
     final keywordHelpText = _jsonSchemaHelpByKeyword[extensionKey];
     final helpText = extensionField?.normalizedDescription ?? keywordHelpText;
+    final extensionLabel = extensionField?.displayLabel ?? extensionKey;
 
     switch (extensionKey) {
       case 'const':
@@ -28,6 +29,7 @@ class _ExtensionNodeEditor extends StatelessWidget {
             controller: controller,
             path: path,
             extensionKey: extensionKey,
+            extensionLabel: extensionLabel,
             extensionValue: extensionValue,
             helpText: helpText,
           ),
@@ -40,6 +42,7 @@ class _ExtensionNodeEditor extends StatelessWidget {
             controller: controller,
             path: path,
             extensionKey: extensionKey,
+            extensionLabel: extensionLabel,
             extensionValue: extensionValue,
             helpText: helpText,
           ),
@@ -51,6 +54,7 @@ class _ExtensionNodeEditor extends StatelessWidget {
             controller: controller,
             path: path,
             extensionKey: extensionKey,
+            extensionLabel: extensionLabel,
             extensionValue: _extensionValueAsString(extensionValue),
             helpText: helpText,
           ),
@@ -69,6 +73,7 @@ class _ExtensionNodeEditor extends StatelessWidget {
           controller: controller,
           path: path,
           extensionKey: extensionKey,
+          extensionLabel: extensionLabel,
           extensionValue: _extensionValueAsString(extensionValue),
           minLines: extensionField?.minLines ?? 1,
           maxLines: extensionField?.maxLines ?? 1,
@@ -78,6 +83,7 @@ class _ExtensionNodeEditor extends StatelessWidget {
           controller: controller,
           path: path,
           extensionKey: extensionKey,
+          extensionLabel: extensionLabel,
           extensionValue: _extensionValueAsString(extensionValue),
           values: extensionField?.availableEnumValues ?? const [],
           helpText: helpText,
@@ -86,6 +92,7 @@ class _ExtensionNodeEditor extends StatelessWidget {
           controller: controller,
           path: path,
           extensionKey: extensionKey,
+          extensionLabel: extensionLabel,
           extensionValue: extensionValue,
           helpText: helpText,
         ),
@@ -93,6 +100,7 @@ class _ExtensionNodeEditor extends StatelessWidget {
           controller: controller,
           path: path,
           extensionKey: extensionKey,
+          extensionLabel: extensionLabel,
           extensionValue: extensionValue is bool ? (extensionValue as bool) : false,
           helpText: helpText,
         ),
@@ -106,6 +114,7 @@ class _JsonValueExtensionNodeField extends StatelessWidget {
     required this.controller,
     required this.path,
     required this.extensionKey,
+    required this.extensionLabel,
     required this.extensionValue,
     this.helpText,
   });
@@ -113,6 +122,7 @@ class _JsonValueExtensionNodeField extends StatelessWidget {
   final JsonSchemaEditorController controller;
   final JsonSchemaPath path;
   final String extensionKey;
+  final String extensionLabel;
   final Object? extensionValue;
   final String? helpText;
 
@@ -120,7 +130,7 @@ class _JsonValueExtensionNodeField extends StatelessWidget {
   Widget build(BuildContext context) {
     return _StringCapabilityField(
       value: _jsonValueAsInput(extensionValue),
-      hint: '$extensionKey (JSON)',
+      hint: '$extensionLabel (JSON)',
       helpText: helpText,
       maxLines: extensionValue is Map || extensionValue is List ? 8 : 4,
       onChanged: (next) => _updateJsonValue(
@@ -139,6 +149,7 @@ class _JsonArrayExtensionNodeField extends StatelessWidget {
     required this.controller,
     required this.path,
     required this.extensionKey,
+    required this.extensionLabel,
     required this.extensionValue,
     this.helpText,
   });
@@ -146,6 +157,7 @@ class _JsonArrayExtensionNodeField extends StatelessWidget {
   final JsonSchemaEditorController controller;
   final JsonSchemaPath path;
   final String extensionKey;
+  final String extensionLabel;
   final Object? extensionValue;
   final String? helpText;
 
@@ -154,7 +166,7 @@ class _JsonArrayExtensionNodeField extends StatelessWidget {
     final value = extensionValue is List ? extensionValue : const <Object?>[];
     return _StringCapabilityField(
       value: _jsonValueAsInput(value),
-      hint: '$extensionKey (JSON array)',
+      hint: '$extensionLabel (JSON array)',
       helpText: helpText,
       maxLines: 10,
       onChanged: (next) => _updateJsonArray(

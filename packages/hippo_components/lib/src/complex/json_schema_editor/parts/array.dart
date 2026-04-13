@@ -23,8 +23,9 @@ class _ArrayNodeEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final arrayOptions = featureOptions.arrayOptions;
     final shortFields = <Widget>[
-      if (showCapabilities && featureOptions.arrayMinItems && node.minItems != null)
+      if (showCapabilities && arrayOptions.minItems && node.minItems != null)
         JsonSchemaEditorTextField(
           value: node.minItems?.toString(),
           hint: 'Min items',
@@ -42,7 +43,7 @@ class _ArrayNodeEditor extends StatelessWidget {
             ),
           ),
         ),
-      if (showCapabilities && featureOptions.arrayMaxItems && node.maxItems != null)
+      if (showCapabilities && arrayOptions.maxItems && node.maxItems != null)
         JsonSchemaEditorTextField(
           value: node.maxItems?.toString(),
           hint: 'Max items',
@@ -69,7 +70,7 @@ class _ArrayNodeEditor extends StatelessWidget {
           _EditorFieldWrap(children: shortFields),
           const Gap(_editorSectionSpacing),
         ],
-        if (showCapabilities && featureOptions.arrayUniqueItems && node.uniqueItems != null) ...[
+        if (showCapabilities && arrayOptions.uniqueItems && node.uniqueItems != null) ...[
           _BooleanCapabilityField(
             label: 'Unique items',
             value: node.uniqueItems!,

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
+import '../json_schema_editor_descriptions.dart';
 import 'json_schema_editor_controls.dart';
 import 'json_schema_editor_info_icon.dart';
 
@@ -53,13 +54,13 @@ class JsonSchemaEditorNodeHeader extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _typeLabel(nodeType),
+                      jsonSchemaTypeLabel(nodeType),
                       style: Theme.of(
                         context,
                       ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const Gap(4),
-                    JsonSchemaEditorInfoIcon(message: _schemaTypeHelp(nodeType), size: 14),
+                    JsonSchemaEditorInfoIcon(message: jsonSchemaTypeHelp(nodeType), size: 14),
                   ],
                 ),
               ),
@@ -90,26 +91,4 @@ class JsonSchemaEditorNodeHeader extends StatelessWidget {
       ],
     );
   }
-}
-
-String _typeLabel(JsonSchemaNodeType type) {
-  return switch (type) {
-    JsonSchemaNodeType.string => 'String',
-    JsonSchemaNodeType.number => 'Number',
-    JsonSchemaNodeType.integer => 'Integer',
-    JsonSchemaNodeType.boolean => 'Boolean',
-    JsonSchemaNodeType.object => 'Object',
-    JsonSchemaNodeType.array => 'Array',
-  };
-}
-
-String _schemaTypeHelp(JsonSchemaNodeType type) {
-  return switch (type) {
-    JsonSchemaNodeType.string => 'String: text value (e.g., names, labels, IDs).',
-    JsonSchemaNodeType.integer => 'Integer: whole number without decimals.',
-    JsonSchemaNodeType.number => 'Number: numeric value, including decimals.',
-    JsonSchemaNodeType.boolean => 'Boolean: true/false value.',
-    JsonSchemaNodeType.object => 'Object: map with named properties.',
-    JsonSchemaNodeType.array => 'Array: ordered list of items.',
-  };
 }

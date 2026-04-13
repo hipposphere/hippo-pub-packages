@@ -3,9 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
-Widget _buildTestApp(Widget child) {
+Widget _buildTestApp(Widget child, {Locale locale = const Locale('en')}) {
   return MaterialApp(
-    locale: const Locale('en'),
+    locale: locale,
+    localizationsDelegates: ComponentsLocalizations.localizationsDelegates,
+    supportedLocales: ComponentsLocalizations.supportedLocales,
     theme: ThemeData(splashFactory: NoSplash.splashFactory),
     home: Scaffold(body: child),
   );
@@ -250,5 +252,47 @@ void main() {
 
     expect(extensionField.minLines, 2);
     expect(extensionField.maxLines, 5);
+  });
+
+  testWidgets('resolves localized extension hint and description builders', (
+    WidgetTester tester,
+  ) async {
+    final controller = JsonSchemaEditorController(
+      extensionOptions: JsonSchemaEditorExtensionOptions(
+        configurableExtensions: [
+          JsonSchemaEditorExtensionField(
+            key: 'x-notes',
+            label: 'Notes',
+            hintBuilder: translateLazy(en: 'Notes', de: 'Notizen', zh: '备注'),
+            descriptionBuilder: translateLazy(
+              en: 'English help text',
+              de: 'Deutscher Hilfetext',
+              zh: '中文帮助文本',
+            ),
+            valueType: JsonSchemaEditorExtensionFieldType.string,
+            applicableNodeTypes: const {JsonSchemaNodeType.string},
+          ),
+        ],
+      ),
+      initialSchema: JsonSchema.fromNode(
+        const JsonSchemaStringNode(extensions: {'x-notes': 'Line 1'}),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _buildTestApp(
+        JsonSchemaEditor(controller: controller, compactMode: true),
+        locale: const Locale('de'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is TextField && widget.decoration?.labelText == 'Notizen',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('Deutscher Hilfetext'), findsOneWidget);
   });
 }

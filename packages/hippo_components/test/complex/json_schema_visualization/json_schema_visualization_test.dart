@@ -4,9 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
-Widget _buildTestApp(Widget child) {
+Widget _buildTestApp(Widget child, {Locale locale = const Locale('en')}) {
   return MaterialApp(
-    locale: const Locale('en'),
+    locale: locale,
+    localizationsDelegates: ComponentsLocalizations.localizationsDelegates,
+    supportedLocales: ComponentsLocalizations.supportedLocales,
     theme: ThemeData(splashFactory: NoSplash.splashFactory),
     home: Scaffold(body: child),
   );
@@ -45,12 +47,18 @@ void main() {
       ),
     );
 
-    const extensionOptions = JsonSchemaEditorExtensionOptions(
+    final extensionOptions = JsonSchemaEditorExtensionOptions(
       configurableExtensions: [
         JsonSchemaEditorExtensionField(
           key: 'x-group',
           label: 'Group',
           description: 'Grouping metadata',
+          hintBuilder: translateLazy(en: 'Group', de: 'Gruppe', zh: '分组'),
+          descriptionBuilder: translateLazy(
+            en: 'Grouping metadata',
+            de: 'Gruppierungsmetadaten',
+            zh: '分组元数据',
+          ),
           applicableNodeTypes: {JsonSchemaNodeType.object},
           applicableScopes: {JsonSchemaEditorExtensionFieldScope.root},
         ),

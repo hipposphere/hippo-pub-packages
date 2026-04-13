@@ -18,8 +18,8 @@ class _ExtensionNodeEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final keywordHelpText = jsonSchemaHelpByKeyword(context, extensionKey);
-    final helpText = extensionField?.normalizedDescription ?? keywordHelpText;
-    final extensionLabel = extensionField?.displayLabel ?? extensionKey;
+    final helpText = extensionField?.resolveDescription(context) ?? keywordHelpText;
+    final extensionLabel = extensionField?.resolveDisplayLabel(context) ?? extensionKey;
 
     switch (extensionKey) {
       case 'const':
@@ -220,9 +220,7 @@ Future<void> _showCustomExtensionDialog({
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(
-              dialogContext.lazyTranslate( en: 'Cancel', de: 'Abbrechen', zh: '取消'),
-            ),
+            child: Text(dialogContext.lazyTranslate(en: 'Cancel', de: 'Abbrechen', zh: '取消')),
           ),
           TextButton(
             onPressed: () {
@@ -233,7 +231,7 @@ Future<void> _showCustomExtensionDialog({
               controller.setNodeField(path: path, key: finalKey, value: '');
               Navigator.of(dialogContext).pop();
             },
-            child: Text(dialogContext.lazyTranslate( en: 'Add', de: 'Hinzufügen', zh: '添加')),
+            child: Text(dialogContext.lazyTranslate(en: 'Add', de: 'Hinzufügen', zh: '添加')),
           ),
         ],
       );

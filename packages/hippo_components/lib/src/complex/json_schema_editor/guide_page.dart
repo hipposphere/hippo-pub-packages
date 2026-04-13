@@ -115,16 +115,12 @@ class _JsonSchemaExplainationContent extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           _ExplainationSection(
-            title: context.lazyTranslate(
-              en: 'General concept',
-              de: 'Grundkonzept',
-              zh: '整体概念',
-            ),
+            title: context.lazyTranslate(en: 'General concept', de: 'Grundkonzept', zh: '整体概念'),
             entries: generalConceptEntries,
           ),
           const SizedBox(height: 16),
           _ExplainationSection(
-            title: context.lazyTranslate( en: 'Node types', de: 'Knotentypen', zh: '节点类型'),
+            title: context.lazyTranslate(en: 'Node types', de: 'Knotentypen', zh: '节点类型'),
             entries: nodeTypeEntries,
           ),
           const SizedBox(height: 16),
@@ -311,7 +307,7 @@ List<_ExplainationEntry> _generalConceptEntries(
 ) {
   return [
     _ExplainationEntry(
-      title: context.lazyTranslate( en: 'Schema tree', de: 'Schema-Baum', zh: 'Schema 树'),
+      title: context.lazyTranslate(en: 'Schema tree', de: 'Schema-Baum', zh: 'Schema 树'),
       description: context.lazyTranslate(
         en:
             'The root node describes the full JSON document. Child nodes describe nested '
@@ -322,14 +318,10 @@ List<_ExplainationEntry> _generalConceptEntries(
         zh: '根节点描述整个 JSON 文档，子节点描述其下的嵌套属性或数组元素。',
       ),
       icon: Icons.account_tree_rounded,
-      badges: [context.lazyTranslate( en: 'Root schema', de: 'Root-Schema', zh: '根 Schema')],
+      badges: [context.lazyTranslate(en: 'Root schema', de: 'Root-Schema', zh: '根 Schema')],
     ),
     _ExplainationEntry(
-      title: context.lazyTranslate(
-        en: 'Objects and arrays',
-        de: 'Objekte und Arrays',
-        zh: '对象与数组',
-      ),
+      title: context.lazyTranslate(en: 'Objects and arrays', de: 'Objekte und Arrays', zh: '对象与数组'),
       description: context.lazyTranslate(
         en:
             'Object nodes add named properties and required flags. Array nodes define one item '
@@ -340,10 +332,10 @@ List<_ExplainationEntry> _generalConceptEntries(
         zh: '对象节点可以添加命名属性和必填标记，数组节点则定义一个适用于列表每个元素的元素 Schema。',
       ),
       icon: Icons.widgets_rounded,
-      badges: [context.lazyTranslate( en: 'Structure', de: 'Struktur', zh: '结构')],
+      badges: [context.lazyTranslate(en: 'Structure', de: 'Struktur', zh: '结构')],
     ),
     _ExplainationEntry(
-      title: context.lazyTranslate( en: 'Capabilities', de: 'Fähigkeiten', zh: '能力'),
+      title: context.lazyTranslate(en: 'Capabilities', de: 'Fähigkeiten', zh: '能力'),
       description: context.lazyTranslate(
         en:
             'Capabilities add validation rules or metadata to a node. The guide below only lists '
@@ -385,7 +377,7 @@ List<_ExplainationEntry> _generalConceptEntries(
         zh: 'const、allOf、oneOf 和 \$ref 等关键字可用于固定值、组合约束或引用其他 Schema 定义。',
       ),
       icon: Icons.merge_type_rounded,
-      badges: [context.lazyTranslate( en: 'Advanced', de: 'Erweitert', zh: '高级')],
+      badges: [context.lazyTranslate(en: 'Advanced', de: 'Erweitert', zh: '高级')],
     ),
   ];
 }
@@ -413,11 +405,7 @@ List<_ExplainationEntry> _capabilityEntries(
   final booleanOptions = featureOptions.booleanOptions;
   final arrayOptions = featureOptions.arrayOptions;
   final objectOptions = featureOptions.objectOptions;
-  final allNodesBadge = context.lazyTranslate(
-    en: 'All nodes',
-    de: 'Alle Knoten',
-    zh: '所有节点',
-  );
+  final allNodesBadge = context.lazyTranslate(en: 'All nodes', de: 'Alle Knoten', zh: '所有节点');
   final objectBadge = jsonSchemaTypeLabel(context, JsonSchemaNodeType.object);
   final objectPropertiesBadge = context.lazyTranslate(
     en: 'Object properties',
@@ -480,7 +468,7 @@ List<_ExplainationEntry> _capabilityEntries(
       badges: [objectPropertiesBadge],
     ),
     _capabilityEntry(
-      title: context.lazyTranslate( en: 'Array items', de: 'Array-Elemente', zh: '数组元素'),
+      title: context.lazyTranslate(en: 'Array items', de: 'Array-Elemente', zh: '数组元素'),
       description: jsonSchemaHelpByKeyword(context, 'items')!,
       icon: Icons.inventory_2_rounded,
       badges: [arrayBadge],
@@ -589,11 +577,7 @@ List<_ExplainationEntry> _capabilityEntries(
       icon: Icons.extension_rounded,
       badges: [
         if (controller.extensionOptions.allowAddExtensions)
-          context.lazyTranslate(
-            en: 'Custom keys allowed',
-            de: 'Eigene Keys erlaubt',
-            zh: '允许自定义键',
-          ),
+          context.lazyTranslate(en: 'Custom keys allowed', de: 'Eigene Keys erlaubt', zh: '允许自定义键'),
         if (!controller.extensionOptions.allowAddExtensions)
           context.lazyTranslate(
             en: 'Configured keys only',
@@ -636,9 +620,9 @@ List<_ExplainationEntry> _configuredExtensionEntries(
     if (existing == null) {
       merged[key] = _ConfiguredExtensionExplaination(
         key: key,
-        label: field.displayLabel,
+        label: field.resolveDisplayLabel(context),
         description:
-            field.normalizedDescription ??
+            field.resolveDescription(context) ??
             context.lazyTranslate(
               en: 'Configured custom schema extension.',
               de: 'Konfigurierte eigene Schema-Erweiterung.',
@@ -652,9 +636,9 @@ List<_ExplainationEntry> _configuredExtensionEntries(
     }
 
     merged[key] = existing.copyWith(
-      label: existing.label.isEmpty ? field.displayLabel : existing.label,
+      label: existing.label.isEmpty ? field.resolveDisplayLabel(context) : existing.label,
       description: existing.description.isEmpty
-          ? (field.normalizedDescription ?? existing.description)
+          ? (field.resolveDescription(context) ?? existing.description)
           : existing.description,
       nodeTypes: {...existing.nodeTypes, ...nextNodeTypes},
       scopes: {...existing.scopes, ...nextScopes},
@@ -727,7 +711,7 @@ String _extensionValueTypeLabel(BuildContext context, JsonSchemaEditorExtensionF
     ),
     JsonSchemaEditorExtensionFieldType.boolean => context.lazyTranslate(
       en: 'Boolean value',
-      de: 'Boolescher Wert',
+      de: 'Boolean Wert',
       zh: '布尔值',
     ),
     JsonSchemaEditorExtensionFieldType.stringEnum => context.lazyTranslate(
@@ -740,7 +724,7 @@ String _extensionValueTypeLabel(BuildContext context, JsonSchemaEditorExtensionF
 
 String _nodeTypeSummary(BuildContext context, Set<JsonSchemaNodeType> types) {
   if (types.length == JsonSchemaNodeType.values.length) {
-    return context.lazyTranslate( en: 'All node types', de: 'Alle Knotentypen', zh: '所有节点类型');
+    return context.lazyTranslate(en: 'All node types', de: 'Alle Knotentypen', zh: '所有节点类型');
   }
   final labels = types.map((type) => jsonSchemaTypeLabel(context, type)).toList(growable: false)
     ..sort();
@@ -749,7 +733,7 @@ String _nodeTypeSummary(BuildContext context, Set<JsonSchemaNodeType> types) {
 
 String _scopeSummary(BuildContext context, Set<JsonSchemaEditorExtensionFieldScope> scopes) {
   if (scopes.length == JsonSchemaEditorExtensionFieldScope.values.length) {
-    return context.lazyTranslate( en: 'All scopes', de: 'Alle Bereiche', zh: '所有作用域');
+    return context.lazyTranslate(en: 'All scopes', de: 'Alle Bereiche', zh: '所有作用域');
   }
   final labels =
       scopes

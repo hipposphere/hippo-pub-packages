@@ -32,11 +32,7 @@ Future<void> _showAddCapabilityDialog({
 
       return CupertinoModalPageContainer(
         title: Text(
-          dialogContext.lazyTranslate(
-            en: 'Add capability',
-            de: 'Fähigkeit hinzufügen',
-            zh: '添加能力',
-          ),
+          dialogContext.lazyTranslate(en: 'Add capability', de: 'Fähigkeit hinzufügen', zh: '添加能力'),
         ),
         child: ListView.builder(
           controller: scrollController,
@@ -100,11 +96,7 @@ List<_CapabilityOption> _availableCapabilityOptions({
     options.add(
       _CapabilityOption(
         icon: Icons.extension_rounded,
-        label: context.lazyTranslate(
-          en: 'Custom extension',
-          de: 'Eigene Erweiterung',
-          zh: '自定义扩展',
-        ),
+        label: context.lazyTranslate(en: 'Custom extension', de: 'Eigene Erweiterung', zh: '自定义扩展'),
         description: context.lazyTranslate(
           en: 'Add a custom schema extension key/value entry.',
           de: 'Fügt einen eigenen Schema-Erweiterungseintrag als Schlüssel/Wert hinzu.',
@@ -173,9 +165,9 @@ List<_CapabilityOption> _extensionCapabilityOptions({
     options.add(
       _CapabilityOption(
         icon: Icons.extension_rounded,
-        label: field.displayLabel,
+        label: field.resolveDisplayLabel(context),
         description:
-            field.normalizedDescription ??
+            field.resolveDescription(context) ??
             context.lazyTranslate(
               en: 'Configured schema extension.',
               de: 'Konfigurierte Schema-Erweiterung.',

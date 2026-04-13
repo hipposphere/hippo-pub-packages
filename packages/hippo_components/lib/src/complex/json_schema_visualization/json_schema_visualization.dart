@@ -108,9 +108,10 @@ class _JsonSchemaNodeCard extends StatelessWidget {
       ...sortedExtensions.map(
         (entry) => _SchemaExtensionPill(
           extensionKey: entry.key,
-          extensionLabel: configuredExtensions[entry.key.trim()]?.displayLabel ?? entry.key,
+          extensionLabel:
+              configuredExtensions[entry.key.trim()]?.resolveDisplayLabel(context) ?? entry.key,
           extensionValue: entry.value,
-          description: configuredExtensions[entry.key.trim()]?.normalizedDescription,
+          description: configuredExtensions[entry.key.trim()]?.resolveDescription(context),
           accent: spec.accent,
         ),
       ),
@@ -200,11 +201,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
                             ),
                           if (showDetails && isRequired)
                             _SchemaBadge(
-                              label: context.lazyTranslate(
-                                en: 'required',
-                                de: 'Pflicht',
-                                zh: '必填',
-                              ),
+                              label: context.lazyTranslate(en: 'required', de: 'Pflicht', zh: '必填'),
                               icon: Icons.star_rounded,
                               backgroundColor: colorScheme.primaryContainer,
                               foregroundColor: colorScheme.onPrimaryContainer,
@@ -244,7 +241,7 @@ class _JsonSchemaNodeCard extends StatelessWidget {
             ) when enumValues.isNotEmpty) ...[
               const Gap(10),
               _SectionHeading(
-                label: context.lazyTranslate( en: 'Enum Values', de: 'Enum-Werte', zh: '枚举值'),
+                label: context.lazyTranslate(en: 'Enum Values', de: 'Enum-Werte', zh: '枚举值'),
                 icon: Icons.format_list_bulleted_rounded,
                 accent: spec.accent,
                 count: enumValues.length,
@@ -653,8 +650,8 @@ class _SchemaDetailsToggleButton extends StatelessWidget {
 
     return Tooltip(
       message: showDetails
-          ? context.lazyTranslate( en: 'Hide details', de: 'Details ausblenden', zh: '隐藏详情')
-          : context.lazyTranslate( en: 'Show details', de: 'Details anzeigen', zh: '显示详情'),
+          ? context.lazyTranslate(en: 'Hide details', de: 'Details ausblenden', zh: '隐藏详情')
+          : context.lazyTranslate(en: 'Show details', de: 'Details anzeigen', zh: '显示详情'),
       child: Material(
         color: Colors.transparent,
         child: Ink(
@@ -831,10 +828,10 @@ String _titleForNode({
     return trimmedPropertyKey;
   }
   if (isRoot) {
-    return context.lazyTranslate( en: 'Root schema', de: 'Root-Schema', zh: '根 Schema');
+    return context.lazyTranslate(en: 'Root schema', de: 'Root-Schema', zh: '根 Schema');
   }
   return node is JsonSchemaArrayNode
-      ? context.lazyTranslate( en: 'Array items', de: 'Array-Elemente', zh: '数组元素')
+      ? context.lazyTranslate(en: 'Array items', de: 'Array-Elemente', zh: '数组元素')
       : context.lazyTranslate(
           en: '${jsonSchemaTypeLabel(context, node.type)} schema',
           de: '${jsonSchemaTypeLabel(context, node.type)}-Schema',
@@ -994,11 +991,7 @@ String? _schemaValueInfoMessage({
   final fullValue = _stringifySchemaValue(value);
   if (fullValue != preview) {
     sections.add(
-      context.lazyTranslate(
-        en: 'Value: $fullValue',
-        de: 'Wert: $fullValue',
-        zh: '值：$fullValue',
-      ),
+      context.lazyTranslate(en: 'Value: $fullValue', de: 'Wert: $fullValue', zh: '值：$fullValue'),
     );
   }
 

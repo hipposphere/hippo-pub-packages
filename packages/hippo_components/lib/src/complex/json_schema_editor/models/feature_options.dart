@@ -8,8 +8,9 @@
 // ---------------------------------------------------------------------------
 */
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
+import 'package:hippo_components/src/base/utils/typedefs.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 enum JsonSchemaEditorExtensionFieldType { string, number, boolean, stringEnum }
@@ -25,8 +26,10 @@ class JsonSchemaEditorExtensionField {
   const JsonSchemaEditorExtensionField({
     required this.key,
     this.label,
+    this.hintBuilder,
     this.valueType = JsonSchemaEditorExtensionFieldType.string,
     this.description,
+    this.descriptionBuilder,
     this.defaultValue,
     this.enumValues = const [],
     this.minLines = 1,
@@ -38,7 +41,9 @@ class JsonSchemaEditorExtensionField {
 
   final String key;
   final String? label;
+  final Contextable<String>? hintBuilder;
   final String? description;
+  final Contextable<String>? descriptionBuilder;
   final JsonSchemaEditorExtensionFieldType valueType;
   final Object? defaultValue;
   final List<String> enumValues;
@@ -74,21 +79,28 @@ class JsonSchemaEditorExtensionField {
   }
 
   String? get normalizedDescription {
-    final rawDescription = description;
-    if (rawDescription == null) {
-      return null;
-    }
-    final trimmed = rawDescription.trim();
-    return trimmed.isEmpty ? null : trimmed;
+    return _normalizedString(description);
   }
 
   String? get normalizedLabel {
-    final rawLabel = label;
-    if (rawLabel == null) {
-      return null;
+    return _normalizedString(label);
+  }
+
+  String? resolveDescription(BuildContext context) {
+    return _normalizedString(descriptionBuilder?.call(context) ?? description);
+  }
+
+  String? resolveHint(BuildContext context) {
+    return _normalizedString(hintBuilder?.call(context) ?? label);
+  }
+
+  String resolveDisplayLabel(BuildContext context) {
+    final resolvedLabel = resolveHint(context);
+    if (resolvedLabel != null) {
+      return resolvedLabel;
     }
-    final trimmed = rawLabel.trim();
-    return trimmed.isEmpty ? null : trimmed;
+    final trimmedKey = key.trim();
+    return trimmedKey.isEmpty ? key : trimmedKey;
   }
 
   String get displayLabel {
@@ -99,6 +111,14 @@ class JsonSchemaEditorExtensionField {
     final trimmedKey = key.trim();
     return trimmedKey.isEmpty ? key : trimmedKey;
   }
+}
+
+String? _normalizedString(String? value) {
+  if (value == null) {
+    return null;
+  }
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
 }
 
 @immutable

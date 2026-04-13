@@ -10,19 +10,31 @@ class JsonSchemaViewerExamplePage extends StatefulWidget {
 }
 
 class _JsonSchemaViewerExamplePageState extends State<JsonSchemaViewerExamplePage> {
-  static const _extensionOptions = JsonSchemaEditorExtensionOptions(
+  static final _extensionOptions = JsonSchemaEditorExtensionOptions(
     configurableExtensions: [
       JsonSchemaEditorExtensionField(
         key: 'x-source',
         description: 'Where this field originates in the upstream system.',
+        descriptionBuilder: translateLazy(
+          en: 'Where this field originates in the upstream system.',
+          de: 'Woher dieses Feld im Quellsystem stammt.',
+          zh: '该字段在上游系统中的来源。',
+        ),
       ),
       JsonSchemaEditorExtensionField(
         key: 'x-ui-hint',
         description: 'Preferred rendering hint for consuming clients.',
+        hintBuilder: translateLazy(en: 'UI hint', de: 'UI-Hinweis', zh: '界面提示'),
+        descriptionBuilder: translateLazy(
+          en: 'Preferred rendering hint for consuming clients.',
+          de: 'Bevorzugter Darstellungs-Hinweis für konsumierende Clients.',
+          zh: '供消费端使用的首选渲染提示。',
+        ),
       ),
       JsonSchemaEditorExtensionField(
         key: 'x-section',
         description: 'Logical UI or domain section for grouped fields.',
+        hintBuilder: translateLazy(en: 'Section', de: 'Bereich', zh: '分区'),
         applicableNodeTypes: {JsonSchemaNodeType.object},
       ),
       JsonSchemaEditorExtensionField(

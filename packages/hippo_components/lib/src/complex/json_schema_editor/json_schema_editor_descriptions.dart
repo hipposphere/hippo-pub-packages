@@ -140,14 +140,14 @@ String? jsonSchemaHelpByKeyword(BuildContext context, String keyword) {
 
 String jsonSchemaKeywordLabel(BuildContext context, String keyword) {
   return switch (keyword) {
-    'title' => context.lazyTranslate( en: 'Title', de: 'Titel', zh: '标题'),
-    'description' => context.lazyTranslate( en: 'Description', de: 'Beschreibung', zh: '说明'),
-    'minLength' => context.lazyTranslate( en: 'Min length', de: 'Min. Länge', zh: '最小长度'),
-    'maxLength' => context.lazyTranslate( en: 'Max length', de: 'Max. Länge', zh: '最大长度'),
-    'pattern' => context.lazyTranslate( en: 'Pattern', de: 'Muster', zh: '模式'),
-    'enum' => context.lazyTranslate( en: 'Enum', de: 'Enum', zh: '枚举'),
-    'minimum' => context.lazyTranslate( en: 'Minimum', de: 'Minimum', zh: '最小值'),
-    'maximum' => context.lazyTranslate( en: 'Maximum', de: 'Maximum', zh: '最大值'),
+    'title' => context.lazyTranslate(en: 'Title', de: 'Titel', zh: '标题'),
+    'description' => context.lazyTranslate(en: 'Description', de: 'Beschreibung', zh: '说明'),
+    'minLength' => context.lazyTranslate(en: 'Min length', de: 'Min. Länge', zh: '最小长度'),
+    'maxLength' => context.lazyTranslate(en: 'Max length', de: 'Max. Länge', zh: '最大长度'),
+    'pattern' => context.lazyTranslate(en: 'Pattern', de: 'Muster', zh: '模式'),
+    'enum' => context.lazyTranslate(en: 'Enum', de: 'Enum', zh: '枚举'),
+    'minimum' => context.lazyTranslate(en: 'Minimum', de: 'Minimum', zh: '最小值'),
+    'maximum' => context.lazyTranslate(en: 'Maximum', de: 'Maximum', zh: '最大值'),
     'exclusiveMinimum' => context.lazyTranslate(
       en: 'Exclusive min',
       de: 'Exkl. Minimum',
@@ -158,57 +158,37 @@ String jsonSchemaKeywordLabel(BuildContext context, String keyword) {
       de: 'Exkl. Maximum',
       zh: '排除最大值',
     ),
-    'multipleOf' => context.lazyTranslate( en: 'Multiple of', de: 'Vielfaches von', zh: '倍数'),
-    'default' => context.lazyTranslate( en: 'Default', de: 'Standardwert', zh: '默认值'),
+    'multipleOf' => context.lazyTranslate(en: 'Multiple of', de: 'Vielfaches von', zh: '倍数'),
+    'default' => context.lazyTranslate(en: 'Default', de: 'Standardwert', zh: '默认值'),
     'additionalProperties' => context.lazyTranslate(
       en: 'Additional properties',
       de: 'Zusätzliche Properties',
       zh: '额外属性',
     ),
-    'required' => context.lazyTranslate( en: 'Required', de: 'Pflicht', zh: '必填'),
-    'propertyKey' => context.lazyTranslate(
-      en: 'Property key',
-      de: 'Property-Key',
-      zh: '属性键',
-    ),
-    'properties' => context.lazyTranslate( en: 'Properties', de: 'Properties', zh: '属性'),
-    'items' => context.lazyTranslate( en: 'Items', de: 'Elemente', zh: '元素'),
-    'minItems' => context.lazyTranslate( en: 'Min items', de: 'Min. Elemente', zh: '最少元素'),
-    'maxItems' => context.lazyTranslate( en: 'Max items', de: 'Max. Elemente', zh: '最多元素'),
+    'required' => context.lazyTranslate(en: 'Required', de: 'Pflicht', zh: '必填'),
+    'propertyKey' => context.lazyTranslate(en: 'Property key', de: 'Property-Key', zh: '属性键'),
+    'properties' => context.lazyTranslate(en: 'Properties', de: 'Properties', zh: '属性'),
+    'items' => context.lazyTranslate(en: 'Items', de: 'Elemente', zh: '元素'),
+    'minItems' => context.lazyTranslate(en: 'Min items', de: 'Min. Elemente', zh: '最少元素'),
+    'maxItems' => context.lazyTranslate(en: 'Max items', de: 'Max. Elemente', zh: '最多元素'),
     'uniqueItems' => context.lazyTranslate(
       en: 'Unique items',
       de: 'Eindeutige Elemente',
       zh: '唯一元素',
     ),
-    'extensionField' => context.lazyTranslate(
-      en: 'Extensions',
-      de: 'Erweiterungen',
-      zh: '扩展',
-    ),
+    'extensionField' => context.lazyTranslate(en: 'Extensions', de: 'Erweiterungen', zh: '扩展'),
     _ => keyword,
   };
 }
 
 String jsonSchemaTypeLabel(BuildContext context, JsonSchemaNodeType type) {
   return switch (type) {
-    JsonSchemaNodeType.string => context.lazyTranslate(
-      en: 'String',
-      de: 'String',
-      zh: '字符串',
-    ),
-    JsonSchemaNodeType.number => context.lazyTranslate( en: 'Number', de: 'Zahl', zh: '数字'),
-    JsonSchemaNodeType.integer => context.lazyTranslate(
-      en: 'Integer',
-      de: 'Ganzzahl',
-      zh: '整数',
-    ),
-    JsonSchemaNodeType.boolean => context.lazyTranslate(
-      en: 'Boolean',
-      de: 'Boolesch',
-      zh: '布尔值',
-    ),
-    JsonSchemaNodeType.object => context.lazyTranslate( en: 'Object', de: 'Objekt', zh: '对象'),
-    JsonSchemaNodeType.array => context.lazyTranslate( en: 'Array', de: 'Array', zh: '数组'),
+    JsonSchemaNodeType.string => context.lazyTranslate(en: 'String', de: 'String', zh: '字符串'),
+    JsonSchemaNodeType.number => context.lazyTranslate(en: 'Number', de: 'Zahl', zh: '数字'),
+    JsonSchemaNodeType.integer => context.lazyTranslate(en: 'Integer', de: 'Ganzzahl', zh: '整数'),
+    JsonSchemaNodeType.boolean => context.lazyTranslate(en: 'Boolean', de: 'Boolean', zh: '布尔值'),
+    JsonSchemaNodeType.object => context.lazyTranslate(en: 'Object', de: 'Objekt', zh: '对象'),
+    JsonSchemaNodeType.array => context.lazyTranslate(en: 'Array', de: 'Array', zh: '数组'),
   };
 }
 
@@ -231,7 +211,7 @@ String jsonSchemaTypeHelp(BuildContext context, JsonSchemaNodeType type) {
     ),
     JsonSchemaNodeType.boolean => context.lazyTranslate(
       en: 'Boolean: true/false value.',
-      de: 'Boolesch: true/false-Wert.',
+      de: 'Boolean: true/false-Wert.',
       zh: '布尔值：true/false。',
     ),
     JsonSchemaNodeType.object => context.lazyTranslate(

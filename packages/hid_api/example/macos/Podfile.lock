@@ -1,46 +1,26 @@
 PODS:
-  - file_saver (0.0.1):
-    - FlutterMacOS
   - FlutterMacOS (1.0.0)
   - irondash_engine_context (0.0.1):
     - FlutterMacOS
-  - PostHog (3.37.0)
-  - posthog_flutter (0.0.1):
-    - Flutter
-    - FlutterMacOS
-    - PostHog (< 4.0.0, >= 3.32.0)
   - super_native_extensions (0.0.1):
     - FlutterMacOS
 
 DEPENDENCIES:
-  - file_saver (from `Flutter/ephemeral/.symlinks/plugins/file_saver/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
   - irondash_engine_context (from `Flutter/ephemeral/.symlinks/plugins/irondash_engine_context/macos`)
-  - posthog_flutter (from `Flutter/ephemeral/.symlinks/plugins/posthog_flutter/macos`)
   - super_native_extensions (from `Flutter/ephemeral/.symlinks/plugins/super_native_extensions/macos`)
 
-SPEC REPOS:
-  trunk:
-    - PostHog
-
 EXTERNAL SOURCES:
-  file_saver:
-    :path: Flutter/ephemeral/.symlinks/plugins/file_saver/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
   irondash_engine_context:
     :path: Flutter/ephemeral/.symlinks/plugins/irondash_engine_context/macos
-  posthog_flutter:
-    :path: Flutter/ephemeral/.symlinks/plugins/posthog_flutter/macos
   super_native_extensions:
     :path: Flutter/ephemeral/.symlinks/plugins/super_native_extensions/macos
 
 SPEC CHECKSUMS:
-  file_saver: e35bd97de451dde55ff8c38862ed7ad0f3418d0f
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
   irondash_engine_context: 893c7d96d20ce361d7e996f39d360c4c2f9869ba
-  PostHog: f4599de7b238aef131ae00a3026246eca7954a36
-  posthog_flutter: 9535ac2d4ab65ccb9ace3886dcc0b3105198bad5
   super_native_extensions: c2795d6d9aedf4a79fae25cb6160b71b50549189
 
 PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009

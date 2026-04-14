@@ -15,6 +15,7 @@ import 'package:hippo_components/hippo_components.dart';
 
 part 'parts/light_theme.dart';
 part 'parts/dark_theme.dart';
+part 'parts/no_page_transition_theme.dart';
 
 class HippoThemeBuilder extends StatelessWidget {
   final Brightness brightness;

@@ -21,6 +21,7 @@ class App extends StatelessWidget {
   final Widget? home;
   final Locale? locale;
   final Iterable<Locale>? supportedLocales;
+  final PageTransitionsTheme? pageTransitionsTheme;
   final GlobalKey<NavigatorState>? navigatorKey;
   final List<LocalizationsDelegate> localizationsDelegate;
   final List<NavigatorObserver> navigatorObservers;
@@ -31,6 +32,7 @@ class App extends StatelessWidget {
     this.locale,
     this.navigatorKey,
     this.supportedLocales,
+    this.pageTransitionsTheme,
     this.localizationsDelegate = const [],
     this.navigatorObservers = const [],
     this.home,
@@ -41,7 +43,9 @@ class App extends StatelessWidget {
     return FTheme(
       data: brightness == Brightness.light ? lightForuiTheme : darkForuiTheme,
       child: Theme(
-        data: brightness == Brightness.light ? lightMaterialTheme : darkMaterialTheme,
+        data: brightness == Brightness.light
+            ? lightMaterialTheme.copyWith(pageTransitionsTheme: pageTransitionsTheme)
+            : darkMaterialTheme.copyWith(pageTransitionsTheme: pageTransitionsTheme),
         child: CupertinoApp(
           title: title,
           navigatorKey: navigatorKey,

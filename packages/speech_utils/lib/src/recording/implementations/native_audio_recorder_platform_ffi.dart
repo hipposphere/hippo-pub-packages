@@ -3,6 +3,8 @@ part of 'package:speech_utils/src/recording/native_audio_recorder.dart';
 typedef _NativeBoolOutFn = int Function(ffi.Pointer<ffi.Int32>, ffi.Pointer<ffi.Char>, int);
 typedef _NativeStartFileFn = int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Char>, int);
 typedef _NativeStartStreamFn = int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Char>, int);
+typedef _NativeSetContinousCaptureFn =
+    int Function(int, ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Char>, int);
 typedef _NativeReadStreamFn =
     int Function(ffi.Pointer<ffi.Int16>, int, ffi.Pointer<ffi.Uint32>, ffi.Pointer<ffi.Char>, int);
 typedef _NativeStopFn = int Function(ffi.Pointer<ffi.Char>, int);
@@ -181,6 +183,63 @@ void _runRecorderStartStream(
         runtimeConfig.windowsVoiceProcessingModeCode;
 
     final code = fn(startConfigPtr.cast<ffi.Void>(), errorPtr, _recorderErrorBufferBytes);
+    _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
+  } finally {
+    calloc.free(startConfigPtr);
+    if (inputDeviceIdPtr != ffi.nullptr) {
+      calloc.free(inputDeviceIdPtr);
+    }
+    calloc.free(errorPtr);
+  }
+}
+
+void _runRecorderSetContinousCapture(
+  _NativeSetContinousCaptureFn fn, {
+  required bool enabled,
+  required int sampleRateHz,
+  required int channelCount,
+  required int framesPerChunk,
+  required String? inputDeviceId,
+  required _NativeRecorderRuntimeConfig runtimeConfig,
+  required String operation,
+}) {
+  final inputDeviceIdPtr = (inputDeviceId == null || inputDeviceId.trim().isEmpty)
+      ? ffi.nullptr
+      : inputDeviceId.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
+  final startConfigPtr = calloc<_NativeRecorderStartConfigFfi>();
+  final errorPtr = calloc<ffi.Char>(_recorderErrorBufferBytes);
+  try {
+    final startConfig = startConfigPtr.ref;
+    startConfig.sampleRateHz = sampleRateHz;
+    startConfig.channelCount = channelCount;
+    startConfig.framesPerChunk = framesPerChunk;
+    startConfig.outputPathUtf8 = ffi.nullptr;
+    startConfig.inputDeviceIdUtf8 = inputDeviceIdPtr;
+    startConfig.runtime.processingFlags = runtimeConfig.processingFlags;
+    startConfig.runtime.iosSessionModeCode = runtimeConfig.iosSessionModeCode;
+    startConfig.runtime.iosCategoryOptionsFlags = runtimeConfig.iosCategoryOptionsFlags;
+    startConfig.runtime.preferredLatencySeconds = runtimeConfig.preferredLatencySeconds;
+    startConfig.runtime.iosPreferredIoBufferDurationSeconds =
+        runtimeConfig.iosPreferredIoBufferDurationSeconds;
+    startConfig.runtime.iosPreferredInputGain = runtimeConfig.iosPreferredInputGain;
+    startConfig.runtime.fileBitrateBps = runtimeConfig.fileBitrateBps;
+    startConfig.runtime.fileEncoderCode = runtimeConfig.fileEncoderCode;
+    startConfig.runtime.macosProcessingQueueDurationSeconds =
+        runtimeConfig.macosProcessingQueueDurationSeconds;
+    startConfig.runtime.windowsPreferredPeriodFrames = runtimeConfig.windowsPreferredPeriodFrames;
+    startConfig.runtime.windowsFlags = runtimeConfig.windowsFlags;
+    startConfig.runtime.windowsCaptureCategoryCode = runtimeConfig.windowsCaptureCategoryCode;
+    startConfig.runtime.windowsUseCommunicationsDevice =
+        runtimeConfig.windowsUseCommunicationsDevice;
+    startConfig.runtime.windowsVoiceProcessingModeCode =
+        runtimeConfig.windowsVoiceProcessingModeCode;
+
+    final code = fn(
+      enabled ? 1 : 0,
+      startConfigPtr.cast<ffi.Void>(),
+      errorPtr,
+      _recorderErrorBufferBytes,
+    );
     _throwRecorderExceptionIfNeeded(code: code, errorPtr: errorPtr, operation: operation);
   } finally {
     calloc.free(startConfigPtr);

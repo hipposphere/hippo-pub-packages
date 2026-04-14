@@ -34,6 +34,16 @@ external int speech_utils_macos_audio_recorder_start_stream(
 );
 
 @ffi.Native<
+  ffi.Int32 Function(ffi.Int32, ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Char>, ffi.Uint32)
+>()
+external int speech_utils_macos_audio_recorder_set_continous_capture(
+  int enabled,
+  ffi.Pointer<ffi.Void> start_config,
+  ffi.Pointer<ffi.Char> error_utf8,
+  int error_utf8_capacity,
+);
+
+@ffi.Native<
   ffi.Int32 Function(
     ffi.Pointer<ffi.Int16>,
     ffi.Uint32,

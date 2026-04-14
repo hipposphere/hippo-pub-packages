@@ -1,6 +1,6 @@
 name: speech_utils
 description: Utilities for PCM16 VAD segmentation and AAC compression.
-version: 0.2.10
+version: 0.2.11
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -20,7 +20,7 @@ dependencies:
     version: ^0.1.0
   hooks: ^1.0.2
   jni: ^1.0.0
-  jni_flutter: ^1.0.0
+  jni_flutter: ^1.0.1
   native_toolchain_c: ^0.17.6
   path: ^1.9.1
 

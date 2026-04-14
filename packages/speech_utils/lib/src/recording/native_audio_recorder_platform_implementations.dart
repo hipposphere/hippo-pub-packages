@@ -58,6 +58,10 @@ abstract class NativeAudioRecorderPlatformImplementation {
   Uint8List readStream({required int maxSamples});
   FutureOr<void> stop();
   FutureOr<void> reset();
+  FutureOr<void> setContinousCapture(
+    bool enabled, {
+    AudioRecorderConfig config = const AudioRecorderConfig(),
+  }) {}
   bool isRecording();
   Amplitude getAmplitude();
 

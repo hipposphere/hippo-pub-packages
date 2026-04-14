@@ -42,6 +42,16 @@ speech_utils_windows_audio_recorder_start_stream(
 }
 
 extern "C" __declspec(dllexport) int32_t
+speech_utils_windows_audio_recorder_set_continous_capture(
+    int32_t enabled,
+    const speech_utils::recorder::RecorderStartConfig* start_config,
+    char* error_utf8,
+    uint32_t error_utf8_capacity) {
+  return speech_utils::windows_recorder::SetContinousCapture(
+      enabled, start_config, error_utf8, error_utf8_capacity);
+}
+
+extern "C" __declspec(dllexport) int32_t
 speech_utils_windows_audio_recorder_read_stream_pcm16(int16_t* out_samples,
                                                        uint32_t out_sample_capacity,
                                                        uint32_t* out_samples_written,

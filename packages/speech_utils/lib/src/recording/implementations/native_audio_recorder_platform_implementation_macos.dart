@@ -50,6 +50,21 @@ final class _MacosNativeAudioRecorderPlatformImplementation
   }
 
   @override
+  void setContinousCapture(
+    bool enabled, {
+    AudioRecorderConfig config = const AudioRecorderConfig(),
+  }) {
+    _setMacosAudioRecorderContinousCaptureViaFfi(
+      enabled: enabled,
+      sampleRateHz: config.sampleRateHz,
+      channelCount: config.channelCount,
+      framesPerChunk: config.framesPerChunk,
+      inputDeviceId: config.inputDeviceId,
+      runtimeConfig: _runtimeConfigBuilder.build(config),
+    );
+  }
+
+  @override
   Uint8List readStream({required int maxSamples}) {
     return _readMacosAudioRecorderStreamViaFfi(maxSamples: maxSamples);
   }
@@ -114,6 +129,26 @@ void _startMacosAudioRecorderStreamViaFfi({
     inputDeviceId: inputDeviceId,
     runtimeConfig: runtimeConfig,
     operation: 'macOS stream recording start',
+  );
+}
+
+void _setMacosAudioRecorderContinousCaptureViaFfi({
+  required bool enabled,
+  required int sampleRateHz,
+  required int channelCount,
+  required int framesPerChunk,
+  required String? inputDeviceId,
+  required _NativeRecorderRuntimeConfig runtimeConfig,
+}) {
+  _runRecorderSetContinousCapture(
+    macos_bindings.speech_utils_macos_audio_recorder_set_continous_capture,
+    enabled: enabled,
+    sampleRateHz: sampleRateHz,
+    channelCount: channelCount,
+    framesPerChunk: framesPerChunk,
+    inputDeviceId: inputDeviceId,
+    runtimeConfig: runtimeConfig,
+    operation: 'macOS continuous capture toggle',
   );
 }
 

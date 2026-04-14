@@ -40,6 +40,10 @@ class _Bloc extends BlocBase {
   final settingsSubject = DataSubject<_RecorderSettings>.seeded(
     const _RecorderSettings(),
   );
+  final inputDevicesSubject = DataSubject<List<InputDevice>>.seeded(
+    const <InputDevice>[],
+  );
+  final isRefreshingInputDevicesSubject = DataSubject<bool>.seeded(false);
   final latestRecordingSubject = DataSubject<_RecordingDetails?>.seeded(null);
   final playbackStateSubject = DataSubject<PlayerState>.seeded(
     PlayerState.stopped,
@@ -70,13 +74,29 @@ class _Bloc extends BlocBase {
         final appliedBitrateBps = shouldApplyBitrate
             ? settings.bitrateBps
             : null;
-        final recordConfig = AudioRecorderConfig(
+        final baseRecordConfig = AudioRecorderConfig(
           sampleRateHz: settings.sampleRateHz,
           channelCount: settings.channelCount,
           encoding: AudioEncodingConfig(
             encoder: settings.encoder,
             bitrateBps: appliedBitrateBps,
           ),
+        );
+        if (controller.audioRecorder.platform !=
+            NativeAudioRecorderPlatform.unsupported) {
+          await controller.audioRecorder.setContinousCapture(
+            settings.continuousCaptureEnabled,
+            config: baseRecordConfig,
+            inputDeviceId: settings.inputDeviceId,
+          );
+        }
+        final recordConfig = AudioRecorderConfig(
+          sampleRateHz: baseRecordConfig.sampleRateHz,
+          channelCount: baseRecordConfig.channelCount,
+          inputDeviceId: settings.continuousCaptureEnabled
+              ? null
+              : settings.inputDeviceId,
+          encoding: baseRecordConfig.encoding,
         );
         await Directory('tmp').create(recursive: true);
         return SpeechRecorderOptions(
@@ -89,14 +109,85 @@ class _Bloc extends BlocBase {
         unawaited(_onSessionFinished(session));
       },
     );
+    unawaited(refreshInputDevices());
   }
 
   static _Bloc of(BuildContext context) => BlocProvider.of<_Bloc>(context);
 
+  bool get supportsInputSelection =>
+      controller.audioRecorder.supportsInputSelection;
+
+  bool get supportsContinuousCapture =>
+      controller.audioRecorder.platform == NativeAudioRecorderPlatform.macOS ||
+      controller.audioRecorder.platform == NativeAudioRecorderPlatform.windows;
+
   void updateSettings(
     _RecorderSettings Function(_RecorderSettings current) map,
   ) {
-    settingsSubject.add(map(settingsSubject.value));
+    final next = map(settingsSubject.value);
+    settingsSubject.add(next);
+    if (controller.sessionSubject.value == null &&
+        controller.audioRecorder.platform !=
+            NativeAudioRecorderPlatform.unsupported) {
+      unawaited(_syncContinuousCaptureFromSettings(next));
+    }
+  }
+
+  Future<void> _syncContinuousCaptureFromSettings(
+    _RecorderSettings settings,
+  ) async {
+    try {
+      await controller.audioRecorder.setContinousCapture(
+        settings.continuousCaptureEnabled,
+        config: AudioRecorderConfig(
+          sampleRateHz: settings.sampleRateHz,
+          channelCount: settings.channelCount,
+          encoding: AudioEncodingConfig(
+            encoder: settings.encoder,
+            bitrateBps: _ignoresBitrate(settings.encoder)
+                ? null
+                : settings.bitrateBps,
+          ),
+        ),
+        inputDeviceId: settings.inputDeviceId,
+      );
+    } catch (error) {
+      debugPrint('Could not sync continuous capture settings: $error');
+    }
+  }
+
+  Future<void> refreshInputDevices() async {
+    if (isRefreshingInputDevicesSubject.value) {
+      return;
+    }
+    isRefreshingInputDevicesSubject.add(true);
+    try {
+      final devices = await controller.listInputDevices();
+      inputDevicesSubject.add(devices);
+      final selectedId = settingsSubject.value.inputDeviceId;
+      if (selectedId != null &&
+          !devices.any((device) => device.id == selectedId)) {
+        settingsSubject.add(
+          settingsSubject.value.copyWith(clearInputDeviceId: true),
+        );
+      }
+    } catch (error) {
+      debugPrint('Could not list input devices: $error');
+    } finally {
+      isRefreshingInputDevicesSubject.add(false);
+    }
+  }
+
+  String inputDeviceLabel(String? inputDeviceId) {
+    if (inputDeviceId == null) {
+      return 'System default';
+    }
+    for (final device in inputDevicesSubject.value) {
+      if (device.id == inputDeviceId) {
+        return device.label;
+      }
+    }
+    return inputDeviceId;
   }
 
   Future<void> _onSessionFinished(SpeechRecorderSession session) async {
@@ -167,6 +258,8 @@ class _Bloc extends BlocBase {
     unawaited(_audioPlayer.stop());
     unawaited(_audioPlayer.dispose());
     settingsSubject.close();
+    inputDevicesSubject.close();
+    isRefreshingInputDevicesSubject.close();
     latestRecordingSubject.close();
     playbackStateSubject.close();
     playbackErrorSubject.close();
@@ -349,158 +442,279 @@ class _RecorderSettingsCard extends StatelessWidget {
         return DataSubjectBuilder(
           subject: bloc.controller.sessionSubject,
           builder: (context, session) {
-            final hasActiveSession = session != null;
-            final extension = RecordingFileType.fileExtensionFromAudioEncoder(
-              settings.encoder,
-            );
-            final bitrateLikelyIgnored = _ignoresBitrate(settings.encoder);
-            final encoderOptions = _fileEncoderOptionsForCurrentPlatform();
+            return DataSubjectBuilder(
+              subject: bloc.inputDevicesSubject,
+              builder: (context, inputDevices) {
+                return DataSubjectBuilder(
+                  subject: bloc.isRefreshingInputDevicesSubject,
+                  builder: (context, isRefreshingInputDevices) {
+                    final hasActiveSession = session != null;
+                    final extension =
+                        RecordingFileType.fileExtensionFromAudioEncoder(
+                          settings.encoder,
+                        );
+                    final bitrateLikelyIgnored = _ignoresBitrate(
+                      settings.encoder,
+                    );
+                    final encoderOptions =
+                        _fileEncoderOptionsForCurrentPlatform();
+                    final selectedInputLabel = bloc.inputDeviceLabel(
+                      settings.inputDeviceId,
+                    );
 
-            return _CardBox(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Current recording config', style: textTheme.titleSmall),
-                  Gap(8),
-                  Text(
-                    'Output file: tmp/example_recording.$extension',
-                    style: textTheme.bodySmall,
-                  ),
-                  Text(
-                    'Bitrate: ${settings.bitrateBps == null ? 'Auto (recommended)' : '${_formatBitrateKbps(settings.bitrateBps!)} kbps (${settings.bitrateBps} bps)'}',
-                    style: textTheme.bodySmall,
-                  ),
-                  if (hasActiveSession)
-                    Text(
-                      'A recording is active. Changes apply to the next recording.',
-                      style: textTheme.bodySmall,
-                    ),
-                  if (bitrateLikelyIgnored)
-                    Text(
-                      'Bitrate is usually ignored for ${_audioEncoderLabel(settings.encoder)}.',
-                      style: textTheme.bodySmall,
-                    ),
-                  if (Platform.isAndroid)
-                    Text(
-                      'Android file recording uses MediaRecorder and supports AAC outputs only.',
-                      style: textTheme.bodySmall,
-                    ),
-                  Gap(12),
-                  DropdownButtonFormField<AudioEncoder>(
-                    initialValue: settings.encoder,
-                    decoration: InputDecoration(
-                      labelText: 'Encoder',
-                      isDense: true,
-                    ),
-                    items: encoderOptions
-                        .map(
-                          (encoder) => DropdownMenuItem(
-                            value: encoder,
-                            child: Text(_audioEncoderLabel(encoder)),
+                    return _CardBox(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Current recording config',
+                            style: textTheme.titleSmall,
                           ),
-                        )
-                        .toList(growable: false),
-                    onChanged: hasActiveSession
-                        ? null
-                        : (encoder) {
-                            if (encoder == null) {
-                              return;
-                            }
-                            bloc.updateSettings(
-                              (current) => current.copyWith(encoder: encoder),
-                            );
-                          },
-                  ),
-                  Gap(8),
-                  DropdownButtonFormField<int>(
-                    initialValue: settings.sampleRateHz,
-                    decoration: InputDecoration(
-                      labelText: 'Sample rate',
-                      isDense: true,
-                    ),
-                    items: _sampleRateOptionsHz
-                        .map(
-                          (sampleRateHz) => DropdownMenuItem(
-                            value: sampleRateHz,
-                            child: Text('$sampleRateHz Hz'),
+                          Gap(8),
+                          Text(
+                            'Output file: tmp/example_recording.$extension',
+                            style: textTheme.bodySmall,
                           ),
-                        )
-                        .toList(growable: false),
-                    onChanged: hasActiveSession
-                        ? null
-                        : (sampleRateHz) {
-                            if (sampleRateHz == null) {
-                              return;
-                            }
-                            bloc.updateSettings(
-                              (current) =>
-                                  current.copyWith(sampleRateHz: sampleRateHz),
-                            );
-                          },
-                  ),
-                  Gap(8),
-                  DropdownButtonFormField<int>(
-                    initialValue: settings.channelCount,
-                    decoration: InputDecoration(
-                      labelText: 'Channels',
-                      isDense: true,
-                    ),
-                    items: _channelCountOptions
-                        .map(
-                          (channelCount) => DropdownMenuItem(
-                            value: channelCount,
-                            child: Text(
-                              '$channelCount ${channelCount == 1 ? 'channel' : 'channels'}',
+                          Text(
+                            'Input route: $selectedInputLabel',
+                            style: textTheme.bodySmall,
+                          ),
+                          Text(
+                            'Continuous capture: ${settings.continuousCaptureEnabled ? 'Enabled' : 'Disabled'}',
+                            style: textTheme.bodySmall,
+                          ),
+                          Text(
+                            'Bitrate: ${settings.bitrateBps == null ? 'Auto (recommended)' : '${_formatBitrateKbps(settings.bitrateBps!)} kbps (${settings.bitrateBps} bps)'}',
+                            style: textTheme.bodySmall,
+                          ),
+                          if (hasActiveSession)
+                            Text(
+                              'A recording is active. Changes apply to the next recording.',
+                              style: textTheme.bodySmall,
                             ),
+                          if (bitrateLikelyIgnored)
+                            Text(
+                              'Bitrate is usually ignored for ${_audioEncoderLabel(settings.encoder)}.',
+                              style: textTheme.bodySmall,
+                            ),
+                          if (Platform.isAndroid)
+                            Text(
+                              'Android file recording uses MediaRecorder and supports AAC outputs only.',
+                              style: textTheme.bodySmall,
+                            ),
+                          Gap(12),
+                          DropdownButtonFormField<String?>(
+                            initialValue: settings.inputDeviceId,
+                            decoration: InputDecoration(
+                              labelText: 'Input device',
+                              isDense: true,
+                            ),
+                            items: [
+                              const DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text('System default'),
+                              ),
+                              ...inputDevices.map(
+                                (device) => DropdownMenuItem<String?>(
+                                  value: device.id,
+                                  child: Text(
+                                    device.isDefault
+                                        ? '${device.label} (Default)'
+                                        : device.label,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            onChanged:
+                                !bloc.supportsInputSelection || hasActiveSession
+                                ? null
+                                : (inputDeviceId) {
+                                    bloc.updateSettings(
+                                      (current) => inputDeviceId == null
+                                          ? current.copyWith(
+                                              clearInputDeviceId: true,
+                                            )
+                                          : current.copyWith(
+                                              inputDeviceId: inputDeviceId,
+                                            ),
+                                    );
+                                  },
                           ),
-                        )
-                        .toList(growable: false),
-                    onChanged: hasActiveSession
-                        ? null
-                        : (channelCount) {
-                            if (channelCount == null) {
-                              return;
-                            }
-                            bloc.updateSettings(
-                              (current) =>
-                                  current.copyWith(channelCount: channelCount),
-                            );
-                          },
-                  ),
-                  Gap(8),
-                  DropdownButtonFormField<int?>(
-                    initialValue: settings.bitrateBps,
-                    decoration: InputDecoration(
-                      labelText: 'Bitrate',
-                      isDense: true,
-                    ),
-                    items: [
-                      const DropdownMenuItem<int?>(
-                        value: null,
-                        child: Text('Auto (recommended)'),
-                      ),
-                      ..._bitrateOptionsBps.map(
-                        (bitrateBps) => DropdownMenuItem<int?>(
-                          value: bitrateBps,
-                          child: Text(
-                            '${_formatBitrateKbps(bitrateBps)} kbps ($bitrateBps bps)',
+                          Gap(8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: SwitchListTile.adaptive(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: settings.continuousCaptureEnabled,
+                                  onChanged:
+                                      !bloc.supportsContinuousCapture ||
+                                          hasActiveSession
+                                      ? null
+                                      : (value) {
+                                          bloc.updateSettings(
+                                            (current) => current.copyWith(
+                                              continuousCaptureEnabled: value,
+                                            ),
+                                          );
+                                        },
+                                  title: Text('Enable continuous capture'),
+                                  subtitle: Text(
+                                    bloc.supportsContinuousCapture
+                                        ? (settings.continuousCaptureEnabled
+                                              ? 'Warm route: $selectedInputLabel. Starts will reuse it.'
+                                              : 'Disabled. Each start opens the device on demand.')
+                                        : 'Continuous capture is currently implemented on macOS and Windows only.',
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed:
+                                    hasActiveSession || isRefreshingInputDevices
+                                    ? null
+                                    : () {
+                                        unawaited(bloc.refreshInputDevices());
+                                      },
+                                icon: isRefreshingInputDevices
+                                    ? SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Icon(Icons.refresh),
+                                tooltip: 'Refresh input devices',
+                              ),
+                            ],
                           ),
-                        ),
+                          Gap(8),
+                          DropdownButtonFormField<AudioEncoder>(
+                            initialValue: settings.encoder,
+                            decoration: InputDecoration(
+                              labelText: 'Encoder',
+                              isDense: true,
+                            ),
+                            items: encoderOptions
+                                .map(
+                                  (encoder) => DropdownMenuItem(
+                                    value: encoder,
+                                    child: Text(_audioEncoderLabel(encoder)),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: hasActiveSession
+                                ? null
+                                : (encoder) {
+                                    if (encoder == null) {
+                                      return;
+                                    }
+                                    bloc.updateSettings(
+                                      (current) =>
+                                          current.copyWith(encoder: encoder),
+                                    );
+                                  },
+                          ),
+                          Gap(8),
+                          DropdownButtonFormField<int>(
+                            initialValue: settings.sampleRateHz,
+                            decoration: InputDecoration(
+                              labelText: 'Sample rate',
+                              isDense: true,
+                            ),
+                            items: _sampleRateOptionsHz
+                                .map(
+                                  (sampleRateHz) => DropdownMenuItem(
+                                    value: sampleRateHz,
+                                    child: Text('$sampleRateHz Hz'),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: hasActiveSession
+                                ? null
+                                : (sampleRateHz) {
+                                    if (sampleRateHz == null) {
+                                      return;
+                                    }
+                                    bloc.updateSettings(
+                                      (current) => current.copyWith(
+                                        sampleRateHz: sampleRateHz,
+                                      ),
+                                    );
+                                  },
+                          ),
+                          Gap(8),
+                          DropdownButtonFormField<int>(
+                            initialValue: settings.channelCount,
+                            decoration: InputDecoration(
+                              labelText: 'Channels',
+                              isDense: true,
+                            ),
+                            items: _channelCountOptions
+                                .map(
+                                  (channelCount) => DropdownMenuItem(
+                                    value: channelCount,
+                                    child: Text(
+                                      '$channelCount ${channelCount == 1 ? 'channel' : 'channels'}',
+                                    ),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: hasActiveSession
+                                ? null
+                                : (channelCount) {
+                                    if (channelCount == null) {
+                                      return;
+                                    }
+                                    bloc.updateSettings(
+                                      (current) => current.copyWith(
+                                        channelCount: channelCount,
+                                      ),
+                                    );
+                                  },
+                          ),
+                          Gap(8),
+                          DropdownButtonFormField<int?>(
+                            initialValue: settings.bitrateBps,
+                            decoration: InputDecoration(
+                              labelText: 'Bitrate',
+                              isDense: true,
+                            ),
+                            items: [
+                              const DropdownMenuItem<int?>(
+                                value: null,
+                                child: Text('Auto (recommended)'),
+                              ),
+                              ..._bitrateOptionsBps.map(
+                                (bitrateBps) => DropdownMenuItem<int?>(
+                                  value: bitrateBps,
+                                  child: Text(
+                                    '${_formatBitrateKbps(bitrateBps)} kbps ($bitrateBps bps)',
+                                  ),
+                                ),
+                              ),
+                            ],
+                            onChanged: hasActiveSession
+                                ? null
+                                : (bitrateBps) {
+                                    bloc.updateSettings((current) {
+                                      if (bitrateBps == null) {
+                                        return current.copyWith(
+                                          clearBitrateBps: true,
+                                        );
+                                      }
+                                      return current.copyWith(
+                                        bitrateBps: bitrateBps,
+                                      );
+                                    });
+                                  },
+                          ),
+                        ],
                       ),
-                    ],
-                    onChanged: hasActiveSession
-                        ? null
-                        : (bitrateBps) {
-                            bloc.updateSettings((current) {
-                              if (bitrateBps == null) {
-                                return current.copyWith(clearBitrateBps: true);
-                              }
-                              return current.copyWith(bitrateBps: bitrateBps);
-                            });
-                          },
-                  ),
-                ],
-              ),
+                    );
+                  },
+                );
+              },
             );
           },
         );
@@ -532,12 +746,16 @@ class _RecorderSettings {
   final int sampleRateHz;
   final int channelCount;
   final int? bitrateBps;
+  final String? inputDeviceId;
+  final bool continuousCaptureEnabled;
 
   const _RecorderSettings({
     this.encoder = AudioEncoder.aacLc,
     this.sampleRateHz = 16000,
     this.channelCount = 1,
     this.bitrateBps,
+    this.inputDeviceId,
+    this.continuousCaptureEnabled = false,
   });
 
   _RecorderSettings copyWith({
@@ -545,13 +763,21 @@ class _RecorderSettings {
     int? sampleRateHz,
     int? channelCount,
     int? bitrateBps,
+    String? inputDeviceId,
     bool clearBitrateBps = false,
+    bool clearInputDeviceId = false,
+    bool? continuousCaptureEnabled,
   }) {
     return _RecorderSettings(
       encoder: encoder ?? this.encoder,
       sampleRateHz: sampleRateHz ?? this.sampleRateHz,
       channelCount: channelCount ?? this.channelCount,
       bitrateBps: clearBitrateBps ? null : (bitrateBps ?? this.bitrateBps),
+      inputDeviceId: clearInputDeviceId
+          ? null
+          : (inputDeviceId ?? this.inputDeviceId),
+      continuousCaptureEnabled:
+          continuousCaptureEnabled ?? this.continuousCaptureEnabled,
     );
   }
 }

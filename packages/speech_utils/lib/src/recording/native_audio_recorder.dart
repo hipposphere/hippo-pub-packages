@@ -134,12 +134,23 @@ final class NativeAudioRecorder {
   AudioRecorderConfig? _activeRecordingConfig;
   String? _activeTempWavPath;
   Directory? _activeTempDirectory;
+  AudioRecorderConfig _continousCaptureConfig = const AudioRecorderConfig();
+  bool _continousCaptureEnabled = false;
   bool _stopping = false;
   bool _nativeAmplitudePollInFlight = false;
   bool _streamDrainInFlight = false;
 
   static const _defaultReadSampleCapacity = 4096;
   static const _maxReadIterationsPerDrain = 3;
+  static const _windowsStartRetryDelays = <Duration>[
+    Duration(milliseconds: 75),
+    Duration(milliseconds: 150),
+  ];
+  static const _windowsTransientStartErrorNeedles = <String>[
+    'resource unavailable',
+    'device or resource busy',
+    'already in use',
+  ];
 
   NativeAudioRecorderPlatform get platform => _platformImplementation.platform;
 
@@ -177,9 +188,9 @@ final class NativeAudioRecorder {
 
   /// Whether this platform can route capture to a specific input-device ID.
   ///
-  /// Routing is driven only by `AudioRecorderConfig.inputDeviceId` passed to
-  /// `startFileRecording(...)`/`startPcmStream(...)`; no input selection is
-  /// stored internally.
+  /// Routing is driven by `AudioRecorderConfig.inputDeviceId` passed to
+  /// `startFileRecording(...)`/`startPcmStream(...)`, or by the warm-capture
+  /// device remembered through `setContinousCapture(...)`.
   ///
   /// On Apple platforms this is implemented by the native AVCaptureSession
   /// recorder backend using per-start configuration.
@@ -190,6 +201,38 @@ final class NativeAudioRecorder {
   Future<List<InputDevice>> listInputDevices() async {
     _ensureSupportedPlatform();
     return _platformImplementation.listInputDevices();
+  }
+
+  /// Enables or disables background capture warm-up between recordings.
+  ///
+  /// Windows keeps the native capture device running while idle so voice
+  /// processing has already settled when a file or stream session starts.
+  ///
+  /// `config` can be used to preconfigure the warm capture format before the
+  /// first recording starts. `inputDeviceId` overrides the remembered warm
+  /// capture device without requiring the full config to be rebuilt.
+  Future<void> setContinousCapture(
+    bool enabled, {
+    AudioRecorderConfig? config,
+    String? inputDeviceId,
+  }) async {
+    _ensureSupportedPlatform();
+    final previousEnabled = _continousCaptureEnabled;
+    final previousConfig = _continousCaptureConfig;
+    final resolvedConfig = _resolveUpdatedContinousCaptureConfig(
+      config: config,
+      inputDeviceId: inputDeviceId,
+    );
+    resolvedConfig.validate();
+    _continousCaptureEnabled = enabled;
+    _continousCaptureConfig = resolvedConfig;
+    try {
+      await _platformImplementation.setContinousCapture(enabled, config: resolvedConfig);
+    } on Object {
+      _continousCaptureEnabled = previousEnabled;
+      _continousCaptureConfig = previousConfig;
+      rethrow;
+    }
   }
 
   /// Returns the most recent recorder amplitude estimate in dBFS.
@@ -255,7 +298,8 @@ final class NativeAudioRecorder {
     if (outputPath.trim().isEmpty) {
       throw ArgumentError.value(outputPath, 'outputPath', 'Must not be empty');
     }
-    config.validate();
+    final effectiveConfig = _resolveConfiguredStartConfig(config);
+    effectiveConfig.validate();
     if (!config.encoding.encoder.supportsNativeStartOutput) {
       throw ArgumentError.value(
         config.encoding.encoder,
@@ -275,14 +319,14 @@ final class NativeAudioRecorder {
 
     _resetAmplitudeState();
     _activeOutputPath = outputPath;
-    _activeRecordingConfig = config;
+    _activeRecordingConfig = effectiveConfig;
     String nativeOutputPath = outputPath;
     final useNativeDirectAacStart = _shouldUseNativeDirectAacStart(
       outputPath: outputPath,
-      config: config,
+      config: effectiveConfig,
     );
 
-    if (!config.encoding.encoder.supportsNativeStartFile && !useNativeDirectAacStart) {
+    if (!effectiveConfig.encoding.encoder.supportsNativeStartFile && !useNativeDirectAacStart) {
       final tempDirectory = await Directory.systemTemp.createTemp('speech_utils_recorder_');
       _activeTempDirectory = tempDirectory;
       nativeOutputPath = path.join(tempDirectory.path, 'capture.wav');
@@ -290,7 +334,13 @@ final class NativeAudioRecorder {
     }
 
     try {
-      await _platformImplementation.startFile(outputPath: nativeOutputPath, config: config);
+      await _runPlatformStartWithRetry(
+        () => _platformImplementation.startFile(
+          outputPath: nativeOutputPath,
+          config: effectiveConfig,
+        ),
+      );
+      _continousCaptureConfig = effectiveConfig;
       _mode = _RecorderMode.file;
       _restartNativeAmplitudePollingIfNeeded();
     } on Object {
@@ -311,7 +361,8 @@ final class NativeAudioRecorder {
   }) async {
     _ensureSupportedPlatform();
     _ensureIdle();
-    config.validate();
+    final effectiveConfig = _resolveConfiguredStartConfig(config);
+    effectiveConfig.validate();
 
     if (pollInterval <= Duration.zero) {
       throw ArgumentError.value(pollInterval, 'pollInterval', 'Must be > Duration.zero');
@@ -328,8 +379,11 @@ final class NativeAudioRecorder {
     _nativeAmplitudeTimer?.cancel();
     _nativeAmplitudeTimer = null;
 
-    await _platformImplementation.startStream(config: config);
+    await _runPlatformStartWithRetry(
+      () => _platformImplementation.startStream(config: effectiveConfig),
+    );
 
+    _continousCaptureConfig = effectiveConfig;
     _mode = _RecorderMode.stream;
     _streamReadSampleCapacity = readSampleCapacity;
     _streamDrainInFlight = false;
@@ -696,9 +750,16 @@ final class NativeAudioRecorder {
     if (resetError != null) {
       Error.throwWithStackTrace(resetError, resetStackTrace ?? StackTrace.current);
     }
+    if (_continousCaptureEnabled) {
+      await _platformImplementation.setContinousCapture(
+        true,
+        config: _resolveContinousCaptureConfig(),
+      );
+    }
   }
 
   Future<void> dispose() async {
+    _continousCaptureEnabled = false;
     await reset();
     _nativeAmplitudeTimer?.cancel();
     _nativeAmplitudeTimer = null;
@@ -751,6 +812,98 @@ final class NativeAudioRecorder {
     if (_mode != _RecorderMode.stopped) {
       throw NativeAudioRecorderBusyException('Recorder is already running. Call stop() first.');
     }
+  }
+
+  Future<void> _runPlatformStartWithRetry(FutureOr<void> Function() startOperation) async {
+    if (platform != NativeAudioRecorderPlatform.windows) {
+      await startOperation();
+      return;
+    }
+
+    for (var attempt = 0; ; attempt++) {
+      try {
+        await startOperation();
+        return;
+      } on AudioRecorderException catch (error, stackTrace) {
+        if (!_isRetryableWindowsStartError(error) || attempt >= _windowsStartRetryDelays.length) {
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+      }
+
+      try {
+        await _platformImplementation.reset();
+      } on Object {
+        // Preserve the original startup failure when cleanup itself is noisy.
+      }
+      await Future<void>.delayed(_windowsStartRetryDelays[attempt]);
+    }
+  }
+
+  bool _isRetryableWindowsStartError(AudioRecorderException error) {
+    final details = error.details?.toLowerCase();
+    if (details == null || !details.contains('miniaudio capture device')) {
+      return false;
+    }
+
+    for (final needle in _windowsTransientStartErrorNeedles) {
+      if (details.contains(needle)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  AudioRecorderConfig _resolveContinousCaptureConfig() {
+    return _activeRecordingConfig ?? _continousCaptureConfig;
+  }
+
+  AudioRecorderConfig _resolveConfiguredStartConfig(AudioRecorderConfig config) {
+    if (!_continousCaptureEnabled || config.inputDeviceId != null) {
+      return config;
+    }
+
+    final warmInputDeviceId = _continousCaptureConfig.inputDeviceId;
+    if (warmInputDeviceId == null) {
+      return config;
+    }
+
+    return _copyAudioRecorderConfig(config, inputDeviceId: warmInputDeviceId);
+  }
+
+  AudioRecorderConfig _resolveUpdatedContinousCaptureConfig({
+    AudioRecorderConfig? config,
+    String? inputDeviceId,
+  }) {
+    final baseConfig = config ?? _resolveContinousCaptureConfig();
+    final resolvedInputDeviceId = inputDeviceId == null
+        ? baseConfig.inputDeviceId
+        : _normalizeInputDeviceId(inputDeviceId, parameterName: 'inputDeviceId');
+    return _copyAudioRecorderConfig(baseConfig, inputDeviceId: resolvedInputDeviceId);
+  }
+
+  AudioRecorderConfig _copyAudioRecorderConfig(
+    AudioRecorderConfig config, {
+    String? inputDeviceId,
+  }) {
+    return AudioRecorderConfig(
+      sampleRateHz: config.sampleRateHz,
+      channelCount: config.channelCount,
+      framesPerChunk: config.framesPerChunk,
+      inputDeviceId: inputDeviceId,
+      processing: config.processing,
+      iosConfig: config.iosConfig,
+      macosConfig: config.macosConfig,
+      windowsConfig: config.windowsConfig,
+      encoding: config.encoding,
+    );
+  }
+
+  String? _normalizeInputDeviceId(String? inputDeviceId, {required String parameterName}) {
+    final trimmed = inputDeviceId?.trim();
+    if (trimmed != null && trimmed.isEmpty) {
+      throw ArgumentError.value(inputDeviceId, parameterName, 'Must not be blank');
+    }
+    return trimmed;
   }
 
   bool _shouldUseNativeDirectAacStart({

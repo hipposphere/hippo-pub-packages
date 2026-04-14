@@ -31,11 +31,29 @@ class NativeCaptureSessionRecorder;
 
 namespace {
 
-enum class RecorderMode { kStopped, kFile, kStream };
+enum class RecorderMode { kStopped, kContinuous, kFile, kStream };
 
 enum class RecorderLifecycle { kStopped, kStarting, kRunning, kStopping };
 
 enum class FileSink { kNone, kWav, kPcm16, kAacM4A };
+
+enum class CaptureSessionOutputKind { kData, kFile };
+
+struct CaptureSessionConfig {
+  uint32_t sample_rate_hz = 0;
+  uint32_t channel_count = 0;
+  uint32_t frames_per_chunk = 1024;
+  double macos_processing_queue_duration_seconds = 0.0;
+  std::string input_device_id;
+  CaptureSessionOutputKind output_kind = CaptureSessionOutputKind::kData;
+
+  bool IsValid() const { return sample_rate_hz > 0 && channel_count > 0; }
+
+  bool IsCompatibleWith(const CaptureSessionConfig& other) const {
+    return sample_rate_hz == other.sample_rate_hz && channel_count == other.channel_count &&
+           input_device_id == other.input_device_id && output_kind == other.output_kind;
+  }
+};
 
 enum class CaptureFileLifecycle { kInactive, kStarting, kRunning, kStopRequested, kFinished };
 
@@ -76,6 +94,10 @@ bool CaptureFileLifecycleNeedsStopWait(CaptureFileLifecycle lifecycle) {
   return lifecycle == CaptureFileLifecycle::kStarting ||
          lifecycle == CaptureFileLifecycle::kRunning ||
          lifecycle == CaptureFileLifecycle::kStopRequested;
+}
+
+bool IsRecordingMode(RecorderMode mode) {
+  return mode == RecorderMode::kFile || mode == RecorderMode::kStream;
 }
 
 bool WriteJsonArray(NSArray<NSDictionary<NSString*, id>*>* payload, char* out_json_utf8,
@@ -225,6 +247,20 @@ std::string OsStatusToString(const char* context, OSStatus status) {
          ")";
 }
 
+CaptureSessionConfig BuildCaptureSessionConfig(
+    const speech_utils::recorder::RecorderStartConfig& config,
+    CaptureSessionOutputKind output_kind) {
+  CaptureSessionConfig session_config{};
+  session_config.sample_rate_hz = config.sample_rate_hz;
+  session_config.channel_count = config.channel_count;
+  session_config.frames_per_chunk = config.frames_per_chunk > 0 ? config.frames_per_chunk : 1024;
+  session_config.macos_processing_queue_duration_seconds =
+      config.runtime.macos_processing_queue_duration_seconds;
+  session_config.input_device_id = TrimWhitespace(TrimAscii(config.input_device_id_utf8));
+  session_config.output_kind = output_kind;
+  return session_config;
+}
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 NSArray<AVCaptureDeviceType>* ResolveAudioCaptureDeviceTypes() {
@@ -348,6 +384,54 @@ bool CreateAacOutputFile(NSString* output_path, uint32_t sample_rate_hz, uint32_
   return true;
 }
 
+bool PreparePcmFileOutput(NSString* output_path, FileSink sink, uint32_t sample_rate_hz,
+                          uint32_t channel_count, FILE** out_file, char* error_utf8,
+                          uint32_t error_utf8_capacity) {
+  if (out_file == nullptr) {
+    WriteError("PCM output file pointer is null.", error_utf8, error_utf8_capacity);
+    return false;
+  }
+  *out_file = nullptr;
+
+  if (output_path == nil || output_path.length == 0) {
+    WriteError("Output path is missing.", error_utf8, error_utf8_capacity);
+    return false;
+  }
+
+  NSFileManager* fs = NSFileManager.defaultManager;
+  if ([fs fileExistsAtPath:output_path]) {
+    NSError* remove_error = nil;
+    if (![fs removeItemAtPath:output_path error:&remove_error]) {
+      WriteNSError(remove_error, "Failed to remove existing output file", error_utf8,
+                   error_utf8_capacity);
+      return false;
+    }
+  }
+
+  const char* path_fs = output_path.fileSystemRepresentation;
+  if (path_fs == nullptr || path_fs[0] == '\0') {
+    WriteError("Output path cannot be represented as a file-system path.", error_utf8,
+               error_utf8_capacity);
+    return false;
+  }
+
+  FILE* pcm_file = std::fopen(path_fs, "wb");
+  if (pcm_file == nullptr) {
+    WriteError("Failed to open output file.", error_utf8, error_utf8_capacity);
+    return false;
+  }
+
+  if (sink == FileSink::kWav &&
+      !WriteWavHeaderPlaceholder(pcm_file, sample_rate_hz, channel_count)) {
+    std::fclose(pcm_file);
+    WriteError("Failed to write WAV header.", error_utf8, error_utf8_capacity);
+    return false;
+  }
+
+  *out_file = pcm_file;
+  return true;
+}
+
 #if !TARGET_OS_IPHONE
 AVCaptureDevice* ResolveMacosCaptureDevice(NSString* input_uid, char* error_utf8,
                                            uint32_t error_utf8_capacity) {
@@ -410,7 +494,7 @@ class NativeCaptureSessionRecorder {
 
   ~NativeCaptureSessionRecorder() {
     char sink[1] = {0};
-    (void)Stop(sink, sizeof(sink));
+    (void)Reset(sink, sizeof(sink));
   }
 
   int32_t ListInputDevices(char* out_json_utf8, uint32_t out_json_capacity, char* error_utf8,
@@ -500,9 +584,68 @@ class NativeCaptureSessionRecorder {
     }
 
     const FileSink sink = ResolveFileSinkFromPath(output_path);
+    const CaptureSessionConfig requested_session_config = BuildCaptureSessionConfig(
+        config, sink == FileSink::kAacM4A ? CaptureSessionOutputKind::kFile
+                                          : CaptureSessionOutputKind::kData);
 
-    return StartInternal(config, /*frames_per_chunk=*/1024, RecorderMode::kFile, sink,
-                         output_path, error_utf8, error_utf8_capacity);
+    while (true) {
+      bool should_reset = false;
+      bool can_reuse_continuous_session = false;
+
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (lifecycle_ == RecorderLifecycle::kRunning && mode_ == RecorderMode::kContinuous) {
+          if (current_session_config_.IsCompatibleWith(requested_session_config)) {
+            can_reuse_continuous_session = true;
+          } else {
+            should_reset = true;
+          }
+        } else if (lifecycle_ != RecorderLifecycle::kStopped) {
+          WriteError("Recorder is already running.", error_utf8, error_utf8_capacity);
+          return -6;
+        }
+      }
+
+      if (should_reset) {
+        const int32_t reset_code = Reset(error_utf8, error_utf8_capacity);
+        if (reset_code != 0) {
+          return reset_code;
+        }
+        continue;
+      }
+
+      if (can_reuse_continuous_session) {
+        FILE* pcm_file = nullptr;
+        if (!PreparePcmFileOutput(output_path, sink, config.sample_rate_hz, config.channel_count,
+                                  &pcm_file, error_utf8, error_utf8_capacity)) {
+          return -7;
+        }
+
+        {
+          std::lock_guard<std::mutex> lock(mutex_);
+          if (lifecycle_ != RecorderLifecycle::kRunning || mode_ != RecorderMode::kContinuous ||
+              !current_session_config_.IsCompatibleWith(requested_session_config)) {
+            std::fclose(pcm_file);
+            WriteError("Continuous capture session is no longer available.", error_utf8,
+                       error_utf8_capacity);
+            return -8;
+          }
+
+          ApplyActiveModeLocked(RecorderMode::kFile, sink, requested_session_config,
+                                /*frames_per_chunk=*/1024, pcm_file, nullptr,
+                                /*wav_data_bytes=*/0);
+          if (continuous_capture_enabled_) {
+            warm_capture_config_ =
+                BuildCaptureSessionConfig(config, CaptureSessionOutputKind::kData);
+          }
+        }
+        accepting_samples_.store(true, std::memory_order_release);
+        return 0;
+      }
+
+      return StartInternal(config, /*frames_per_chunk=*/1024, RecorderMode::kFile, sink,
+                           output_path, error_utf8, error_utf8_capacity);
+    }
   }
 
   int32_t StartStream(const speech_utils::recorder::RecorderStartConfig& config,
@@ -513,8 +656,125 @@ class NativeCaptureSessionRecorder {
       return -1;
     }
 
-    return StartInternal(config, config.frames_per_chunk, RecorderMode::kStream, FileSink::kNone,
-                         nil, error_utf8, error_utf8_capacity);
+    const CaptureSessionConfig requested_session_config =
+        BuildCaptureSessionConfig(config, CaptureSessionOutputKind::kData);
+
+    while (true) {
+      bool should_reset = false;
+      bool can_reuse_continuous_session = false;
+
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (lifecycle_ == RecorderLifecycle::kRunning && mode_ == RecorderMode::kContinuous) {
+          if (current_session_config_.IsCompatibleWith(requested_session_config)) {
+            can_reuse_continuous_session = true;
+          } else {
+            should_reset = true;
+          }
+        } else if (lifecycle_ != RecorderLifecycle::kStopped) {
+          WriteError("Recorder is already running.", error_utf8, error_utf8_capacity);
+          return -2;
+        }
+      }
+
+      if (should_reset) {
+        const int32_t reset_code = Reset(error_utf8, error_utf8_capacity);
+        if (reset_code != 0) {
+          return reset_code;
+        }
+        continue;
+      }
+
+      if (can_reuse_continuous_session) {
+        {
+          std::lock_guard<std::mutex> lock(mutex_);
+          if (lifecycle_ != RecorderLifecycle::kRunning || mode_ != RecorderMode::kContinuous ||
+              !current_session_config_.IsCompatibleWith(requested_session_config)) {
+            WriteError("Continuous capture session is no longer available.", error_utf8,
+                       error_utf8_capacity);
+            return -3;
+          }
+
+          ApplyActiveModeLocked(RecorderMode::kStream, FileSink::kNone,
+                                requested_session_config,
+                                config.frames_per_chunk, nullptr, nullptr,
+                                /*wav_data_bytes=*/0);
+          if (continuous_capture_enabled_) {
+            warm_capture_config_ =
+                BuildCaptureSessionConfig(config, CaptureSessionOutputKind::kData);
+          }
+        }
+        accepting_samples_.store(true, std::memory_order_release);
+        return 0;
+      }
+
+      return StartInternal(config, config.frames_per_chunk, RecorderMode::kStream,
+                           FileSink::kNone, nil, error_utf8, error_utf8_capacity);
+    }
+  }
+
+  int32_t SetContinousCapture(int32_t enabled,
+                              const speech_utils::recorder::RecorderStartConfig* start_config,
+                              char* error_utf8,
+                              uint32_t error_utf8_capacity) {
+    const bool should_enable = enabled != 0;
+    CaptureSessionConfig requested_warm_config{};
+
+    if (should_enable) {
+      if (start_config == nullptr) {
+        WriteError("Start config pointer is null.", error_utf8, error_utf8_capacity);
+        return -1;
+      }
+      if (start_config->sample_rate_hz == 0 || start_config->channel_count == 0) {
+        WriteError("Sample rate and channel count must be > 0.", error_utf8, error_utf8_capacity);
+        return -2;
+      }
+      requested_warm_config =
+          BuildCaptureSessionConfig(*start_config, CaptureSessionOutputKind::kData);
+    }
+
+    bool should_reset = false;
+    bool should_start_continuous = false;
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      continuous_capture_enabled_ = should_enable;
+      if (should_enable) {
+        warm_capture_config_ = requested_warm_config;
+      }
+
+      if (IsRecordingMode(mode_)) {
+        return 0;
+      }
+
+      if (should_enable) {
+        if (mode_ == RecorderMode::kContinuous &&
+            current_session_config_.IsCompatibleWith(warm_capture_config_)) {
+          ApplyActiveModeLocked(RecorderMode::kContinuous, FileSink::kNone,
+                                warm_capture_config_, warm_capture_config_.frames_per_chunk,
+                                nullptr, nullptr, /*wav_data_bytes=*/0);
+          lifecycle_ = RecorderLifecycle::kRunning;
+          return 0;
+        }
+        should_reset = lifecycle_ != RecorderLifecycle::kStopped;
+        should_start_continuous = true;
+      } else if (mode_ == RecorderMode::kContinuous) {
+        should_reset = true;
+      }
+    }
+
+    if (should_reset) {
+      const int32_t reset_code = Reset(error_utf8, error_utf8_capacity);
+      if (reset_code != 0) {
+        return reset_code;
+      }
+    }
+
+    if (!should_enable || !should_start_continuous) {
+      return 0;
+    }
+
+    return StartContinuousSession(warm_capture_config_, error_utf8, error_utf8_capacity);
   }
 
   int32_t ReadStream(int16_t* out_samples, uint32_t out_sample_capacity,
@@ -545,183 +805,11 @@ class NativeCaptureSessionRecorder {
   }
 
   int32_t Stop(char* error_utf8, uint32_t error_utf8_capacity) {
-    AVCaptureSession* capture_session = nil;
-    AVCaptureAudioDataOutput* capture_output = nil;
-    AVCaptureAudioFileOutput* capture_file_output = nil;
-    FileSink file_sink = FileSink::kNone;
-    dispatch_semaphore_t capture_file_stop_semaphore = nullptr;
-    CaptureFileLifecycle capture_file_lifecycle = CaptureFileLifecycle::kInactive;
-
-    FILE* pcm_file = nullptr;
-    ExtAudioFileRef aac_file = nullptr;
-    uint32_t wav_data_bytes = 0;
-    uint32_t sample_rate_hz = 0;
-    uint32_t channel_count = 0;
-
-    int32_t deferred_code = 0;
-    std::string deferred_error;
-    uint64_t processed_sample_count = 0;
-
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      if (lifecycle_ == RecorderLifecycle::kStopped) {
-        return 0;
-      }
-      lifecycle_ = RecorderLifecycle::kStopping;
-
-      capture_session = capture_session_;
-      capture_output = capture_output_;
-      capture_file_output = capture_file_output_;
-      file_sink = file_sink_;
-      if (capture_file_output_ != nil && file_sink_ == FileSink::kAacM4A) {
-        capture_file_lifecycle = capture_file_lifecycle_;
-        if (CaptureFileLifecycleNeedsStopWait(capture_file_lifecycle_)) {
-          capture_file_stop_semaphore = capture_file_stop_semaphore_;
-          if (capture_file_stop_semaphore == nullptr) {
-            capture_file_stop_semaphore = dispatch_semaphore_create(0);
-            capture_file_stop_semaphore_ = capture_file_stop_semaphore;
-          }
-          capture_file_lifecycle_ = CaptureFileLifecycle::kStopRequested;
-        }
-      }
-      accepting_samples_.store(false, std::memory_order_release);
-    }
-
-    if (capture_output != nil) {
-      [capture_output setSampleBufferDelegate:nil queue:nil];
-    }
-    const bool uses_capture_file_output =
-        capture_file_output != nil && file_sink == FileSink::kAacM4A;
-    const bool should_wait_for_capture_file_output =
-        uses_capture_file_output && CaptureFileLifecycleNeedsStopWait(capture_file_lifecycle);
-    const bool capture_file_output_has_started =
-        uses_capture_file_output &&
-        (capture_file_lifecycle == CaptureFileLifecycle::kRunning || capture_file_output.recording);
-    if (should_wait_for_capture_file_output) {
-      if (capture_file_output_has_started) {
-        [capture_file_output stopRecording];
-      }
-    }
-    if (capture_session != nil && capture_session.running &&
-        (!uses_capture_file_output || capture_file_output_has_started)) {
-      [capture_session stopRunning];
-    }
-    if (should_wait_for_capture_file_output) {
-      if (!WaitForSemaphoreWithMainRunLoop(capture_file_stop_semaphore,
-                                           kCaptureFileStopTimeoutNanos) &&
-          deferred_code == 0) {
-        deferred_code = -43;
-        deferred_error =
-            "Timed out while waiting for AVCaptureAudioFileOutput to finish recording.";
-      }
-    }
-    if (capture_session != nil && capture_session.running) {
-      [capture_session stopRunning];
-    }
-
-    if (capture_queue_ != nullptr) {
-      dispatch_sync(capture_queue_, ^{});
-    }
-    if (processing_queue_ != nullptr) {
-      dispatch_sync(processing_queue_, ^{});
-    }
-
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      mode_ = RecorderMode::kStopped;
-      lifecycle_ = RecorderLifecycle::kStopped;
-      stream_samples_.clear();
-      stream_sample_limit_ = 0;
-      pending_samples_.store(0, std::memory_order_release);
-      pending_sample_limit_.store(0, std::memory_order_release);
-      processed_sample_count = processed_sample_count_.load(std::memory_order_acquire);
-
-      pcm_file = pcm_file_;
-      aac_file = aac_file_;
-      wav_data_bytes = wav_data_bytes_;
-      sample_rate_hz = sample_rate_hz_;
-      channel_count = channel_count_;
-
-      if (deferred_code == 0) {
-        deferred_code = deferred_error_code_;
-        deferred_error = deferred_error_;
-      }
-
-      capture_session_ = nil;
-      capture_input_ = nil;
-      capture_output_ = nil;
-      capture_file_output_ = nil;
-      capture_delegate_ = nil;
-      capture_file_delegate_ = nil;
-      capture_file_stop_semaphore_ = nullptr;
-      capture_file_lifecycle_ = CaptureFileLifecycle::kInactive;
-      target_format_ = nil;
-      pcm_converter_ = nil;
-      file_sink_ = FileSink::kNone;
-      pcm_file_ = nullptr;
-      aac_file_ = nullptr;
-      wav_data_bytes_ = 0;
-      sample_rate_hz_ = 0;
-      channel_count_ = 0;
-      current_dbfs_ = -90.0;
-      max_dbfs_ = -90.0;
-      deferred_error_code_ = 0;
-      deferred_error_.clear();
-    }
-
-    if (!uses_capture_file_output && processed_sample_count == 0 && deferred_code == 0) {
-      deferred_code = -41;
-      deferred_error = "Recorder stopped without capturing any microphone samples.";
-    }
-
-    if ((file_sink == FileSink::kWav || file_sink == FileSink::kPcm16) && pcm_file != nullptr) {
-      if (file_sink == FileSink::kWav) {
-        uint32_t data_bytes_for_header = wav_data_bytes;
-        std::fflush(pcm_file);
-        if (std::fseek(pcm_file, 0, SEEK_END) == 0) {
-          const long total_size = std::ftell(pcm_file);
-          if (total_size >= 44) {
-            const uint64_t computed = static_cast<uint64_t>(total_size - 44);
-            data_bytes_for_header = static_cast<uint32_t>(
-                std::min<uint64_t>(computed, std::numeric_limits<uint32_t>::max()));
-          }
-        }
-        (void)FinalizeWavHeader(pcm_file, data_bytes_for_header, sample_rate_hz, channel_count);
-      }
-      std::fclose(pcm_file);
-    }
-
-    if (file_sink == FileSink::kAacM4A && uses_capture_file_output) {
-      // AAC file capture is finalized by AVCaptureAudioFileOutput delegate callback.
-    } else if (file_sink == FileSink::kAacM4A && aac_file != nullptr) {
-      const OSStatus dispose_status = ExtAudioFileDispose(aac_file);
-      if (dispose_status != noErr && deferred_code == 0) {
-        deferred_code = -33;
-        deferred_error = OsStatusToString("Failed to finalize AAC output file", dispose_status);
-      }
-    } else if (file_sink == FileSink::kAacM4A && deferred_code == 0) {
-      deferred_code = -33;
-      deferred_error = "AAC output handle is unavailable.";
-    }
-
-#if TARGET_OS_IPHONE
-    [AVAudioSession.sharedInstance setActive:NO error:nil];
-#endif
-
-    if (deferred_code != 0) {
-      WriteError(deferred_error, error_utf8, error_utf8_capacity);
-      return deferred_code;
-    }
-
-    return 0;
+    return StopInternal(/*allow_keepalive=*/true, error_utf8, error_utf8_capacity);
   }
 
   int32_t Reset(char* error_utf8, uint32_t error_utf8_capacity) {
-    char sink[1] = {0};
-    (void)error_utf8;
-    (void)error_utf8_capacity;
-    (void)Stop(sink, sizeof(sink));
-    return 0;
+    return StopInternal(/*allow_keepalive=*/false, error_utf8, error_utf8_capacity);
   }
 
   int32_t IsRecording(int32_t* out_is_recording, char* error_utf8,
@@ -732,7 +820,7 @@ class NativeCaptureSessionRecorder {
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
-    *out_is_recording = lifecycle_ == RecorderLifecycle::kStopped ? 0 : 1;
+    *out_is_recording = IsRecordingMode(mode_) ? 1 : 0;
     return 0;
   }
 
@@ -1045,6 +1133,316 @@ class NativeCaptureSessionRecorder {
   }
 
  private:
+  int32_t StopInternal(bool allow_keepalive, char* error_utf8,
+                       uint32_t error_utf8_capacity) {
+    AVCaptureSession* capture_session = nil;
+    AVCaptureAudioDataOutput* capture_output = nil;
+    AVCaptureAudioFileOutput* capture_file_output = nil;
+    FileSink file_sink = FileSink::kNone;
+    dispatch_semaphore_t capture_file_stop_semaphore = nullptr;
+    CaptureFileLifecycle capture_file_lifecycle = CaptureFileLifecycle::kInactive;
+
+    FILE* pcm_file = nullptr;
+    ExtAudioFileRef aac_file = nullptr;
+    uint32_t wav_data_bytes = 0;
+    uint32_t sample_rate_hz = 0;
+    uint32_t channel_count = 0;
+
+    int32_t deferred_code = 0;
+    std::string deferred_error;
+    uint64_t processed_sample_count = 0;
+    bool keep_session_running = false;
+    bool should_restart_continuous = false;
+    CaptureSessionConfig restart_continuous_config{};
+    bool had_active_recording = false;
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (lifecycle_ == RecorderLifecycle::kStopped) {
+        return 0;
+      }
+
+      had_active_recording = IsRecordingMode(mode_);
+      if (allow_keepalive && mode_ == RecorderMode::kContinuous) {
+        return 0;
+      }
+
+      lifecycle_ = RecorderLifecycle::kStopping;
+      file_sink = file_sink_;
+      restart_continuous_config = warm_capture_config_;
+      keep_session_running =
+          allow_keepalive && had_active_recording && continuous_capture_enabled_ &&
+          warm_capture_config_.IsValid() && current_session_config_.IsCompatibleWith(warm_capture_config_) &&
+          current_session_config_.output_kind == CaptureSessionOutputKind::kData &&
+          capture_session_ != nil;
+      should_restart_continuous =
+          allow_keepalive && had_active_recording && continuous_capture_enabled_ &&
+          warm_capture_config_.IsValid() && !keep_session_running;
+
+      if (!keep_session_running) {
+        capture_session = capture_session_;
+        capture_output = capture_output_;
+        capture_file_output = capture_file_output_;
+        if (capture_file_output_ != nil && file_sink_ == FileSink::kAacM4A) {
+          capture_file_lifecycle = capture_file_lifecycle_;
+          if (CaptureFileLifecycleNeedsStopWait(capture_file_lifecycle_)) {
+            capture_file_stop_semaphore = capture_file_stop_semaphore_;
+            if (capture_file_stop_semaphore == nullptr) {
+              capture_file_stop_semaphore = dispatch_semaphore_create(0);
+              capture_file_stop_semaphore_ = capture_file_stop_semaphore;
+            }
+            capture_file_lifecycle_ = CaptureFileLifecycle::kStopRequested;
+          }
+        }
+      }
+      accepting_samples_.store(false, std::memory_order_release);
+    }
+
+    if (keep_session_running) {
+      if (capture_queue_ != nullptr) {
+        dispatch_sync(capture_queue_, ^{});
+      }
+      if (processing_queue_ != nullptr) {
+        dispatch_sync(processing_queue_, ^{});
+      }
+
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        processed_sample_count = processed_sample_count_.load(std::memory_order_acquire);
+        pcm_file = pcm_file_;
+        aac_file = aac_file_;
+        wav_data_bytes = wav_data_bytes_;
+        sample_rate_hz = sample_rate_hz_;
+        channel_count = channel_count_;
+
+        if (deferred_code == 0) {
+          deferred_code = deferred_error_code_;
+          deferred_error = deferred_error_;
+        }
+
+        ApplyActiveModeLocked(RecorderMode::kContinuous, FileSink::kNone, warm_capture_config_,
+                              warm_capture_config_.frames_per_chunk, nullptr, nullptr,
+                              /*wav_data_bytes=*/0);
+        lifecycle_ = RecorderLifecycle::kRunning;
+      }
+
+      accepting_samples_.store(true, std::memory_order_release);
+    } else {
+      if (capture_output != nil) {
+        [capture_output setSampleBufferDelegate:nil queue:nil];
+      }
+      const bool uses_capture_file_output =
+          capture_file_output != nil && file_sink == FileSink::kAacM4A;
+      const bool should_wait_for_capture_file_output =
+          uses_capture_file_output && CaptureFileLifecycleNeedsStopWait(capture_file_lifecycle);
+      const bool capture_file_output_has_started =
+          uses_capture_file_output &&
+          (capture_file_lifecycle == CaptureFileLifecycle::kRunning || capture_file_output.recording);
+      if (should_wait_for_capture_file_output && capture_file_output_has_started) {
+        [capture_file_output stopRecording];
+      }
+      if (capture_session != nil && capture_session.running &&
+          (!uses_capture_file_output || capture_file_output_has_started)) {
+        [capture_session stopRunning];
+      }
+      if (should_wait_for_capture_file_output) {
+        if (!WaitForSemaphoreWithMainRunLoop(capture_file_stop_semaphore,
+                                             kCaptureFileStopTimeoutNanos) &&
+            deferred_code == 0) {
+          deferred_code = -43;
+          deferred_error =
+              "Timed out while waiting for AVCaptureAudioFileOutput to finish recording.";
+        }
+      }
+      if (capture_session != nil && capture_session.running) {
+        [capture_session stopRunning];
+      }
+
+      if (capture_queue_ != nullptr) {
+        dispatch_sync(capture_queue_, ^{});
+      }
+      if (processing_queue_ != nullptr) {
+        dispatch_sync(processing_queue_, ^{});
+      }
+
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        processed_sample_count = processed_sample_count_.load(std::memory_order_acquire);
+        pcm_file = pcm_file_;
+        aac_file = aac_file_;
+        wav_data_bytes = wav_data_bytes_;
+        sample_rate_hz = sample_rate_hz_;
+        channel_count = channel_count_;
+
+        if (deferred_code == 0) {
+          deferred_code = deferred_error_code_;
+          deferred_error = deferred_error_;
+        }
+
+        mode_ = RecorderMode::kStopped;
+        lifecycle_ = RecorderLifecycle::kStopped;
+        ClearBufferedAudioLocked();
+        pending_samples_.store(0, std::memory_order_release);
+        pending_sample_limit_.store(0, std::memory_order_release);
+        capture_session_ = nil;
+        capture_input_ = nil;
+        capture_output_ = nil;
+        capture_file_output_ = nil;
+        capture_delegate_ = nil;
+        capture_file_delegate_ = nil;
+        capture_file_stop_semaphore_ = nullptr;
+        capture_file_lifecycle_ = CaptureFileLifecycle::kInactive;
+        target_format_ = nil;
+        pcm_converter_ = nil;
+        current_session_config_ = {};
+        file_sink_ = FileSink::kNone;
+        pcm_file_ = nullptr;
+        aac_file_ = nullptr;
+        wav_data_bytes_ = 0;
+        sample_rate_hz_ = 0;
+        channel_count_ = 0;
+        ResetAmplitudeStateLocked();
+        deferred_error_code_ = 0;
+        deferred_error_.clear();
+      }
+
+#if TARGET_OS_IPHONE
+      [AVAudioSession.sharedInstance setActive:NO error:nil];
+#endif
+    }
+
+    if (had_active_recording && file_sink != FileSink::kAacM4A && processed_sample_count == 0 &&
+        deferred_code == 0) {
+      deferred_code = -41;
+      deferred_error = "Recorder stopped without capturing any microphone samples.";
+    }
+
+    if ((file_sink == FileSink::kWav || file_sink == FileSink::kPcm16) && pcm_file != nullptr) {
+      if (file_sink == FileSink::kWav) {
+        uint32_t data_bytes_for_header = wav_data_bytes;
+        std::fflush(pcm_file);
+        if (std::fseek(pcm_file, 0, SEEK_END) == 0) {
+          const long total_size = std::ftell(pcm_file);
+          if (total_size >= 44) {
+            const uint64_t computed = static_cast<uint64_t>(total_size - 44);
+            data_bytes_for_header = static_cast<uint32_t>(
+                std::min<uint64_t>(computed, std::numeric_limits<uint32_t>::max()));
+          }
+        }
+        (void)FinalizeWavHeader(pcm_file, data_bytes_for_header, sample_rate_hz, channel_count);
+      }
+      std::fclose(pcm_file);
+    }
+
+    if (file_sink == FileSink::kAacM4A && capture_file_output != nil) {
+      // AAC file capture is finalized by AVCaptureAudioFileOutput delegate callback.
+    } else if (file_sink == FileSink::kAacM4A && aac_file != nullptr) {
+      const OSStatus dispose_status = ExtAudioFileDispose(aac_file);
+      if (dispose_status != noErr && deferred_code == 0) {
+        deferred_code = -33;
+        deferred_error = OsStatusToString("Failed to finalize AAC output file", dispose_status);
+      }
+    } else if (file_sink == FileSink::kAacM4A && had_active_recording && deferred_code == 0) {
+      deferred_code = -33;
+      deferred_error = "AAC output handle is unavailable.";
+    }
+
+    if (should_restart_continuous) {
+      const int32_t restart_code =
+          StartContinuousSession(restart_continuous_config, error_utf8, error_utf8_capacity);
+      if (restart_code != 0 && deferred_code == 0) {
+        return restart_code;
+      }
+    }
+
+    if (deferred_code != 0) {
+      WriteError(deferred_error, error_utf8, error_utf8_capacity);
+      return deferred_code;
+    }
+
+    return 0;
+  }
+
+  int32_t StartContinuousSession(const CaptureSessionConfig& session_config, char* error_utf8,
+                                 uint32_t error_utf8_capacity) {
+    if (!session_config.IsValid()) {
+      return 0;
+    }
+
+    std::string input_device_id_storage = session_config.input_device_id;
+    speech_utils::recorder::RecorderStartConfig start_config{};
+    start_config.sample_rate_hz = session_config.sample_rate_hz;
+    start_config.channel_count = session_config.channel_count;
+    start_config.frames_per_chunk =
+        session_config.frames_per_chunk > 0 ? session_config.frames_per_chunk : 1024;
+    start_config.output_path_utf8 = nullptr;
+    start_config.input_device_id_utf8 =
+        input_device_id_storage.empty() ? nullptr : input_device_id_storage.c_str();
+    start_config.runtime = {};
+    start_config.runtime.macos_processing_queue_duration_seconds =
+        session_config.macos_processing_queue_duration_seconds;
+
+    return StartInternal(start_config, start_config.frames_per_chunk, RecorderMode::kContinuous,
+                         FileSink::kNone, nil, error_utf8, error_utf8_capacity);
+  }
+
+  void ResetAmplitudeStateLocked() {
+    current_dbfs_ = -90.0;
+    max_dbfs_ = -90.0;
+  }
+
+  void ClearBufferedAudioLocked() {
+    stream_samples_.clear();
+    stream_sample_limit_ = 0;
+  }
+
+  void ApplyActiveModeLocked(RecorderMode mode, FileSink sink,
+                             const CaptureSessionConfig& session_config,
+                             uint32_t frames_per_chunk, FILE* pcm_file,
+                             ExtAudioFileRef aac_file, uint32_t wav_data_bytes) {
+    mode_ = mode;
+    file_sink_ = sink;
+    current_session_config_ = session_config;
+    sample_rate_hz_ = session_config.sample_rate_hz;
+    channel_count_ = session_config.channel_count;
+    ClearBufferedAudioLocked();
+
+    if (mode == RecorderMode::kStream) {
+      stream_sample_limit_ =
+          std::max<std::size_t>(
+              static_cast<std::size_t>(session_config.sample_rate_hz) *
+                  session_config.channel_count * 5,
+              static_cast<std::size_t>(frames_per_chunk) * session_config.channel_count * 16);
+    }
+
+    const std::size_t default_pending_limit =
+        std::max<std::size_t>(
+            static_cast<std::size_t>(session_config.sample_rate_hz) *
+                session_config.channel_count * 2,
+            static_cast<std::size_t>(frames_per_chunk) * session_config.channel_count * 32);
+    const double requested_queue_duration_seconds =
+        session_config.macos_processing_queue_duration_seconds;
+    const std::size_t requested_pending_limit =
+        requested_queue_duration_seconds <= 0.0
+            ? 0
+            : static_cast<std::size_t>(std::max<double>(
+                  1.0, requested_queue_duration_seconds * session_config.sample_rate_hz *
+                           session_config.channel_count));
+    pending_sample_limit_.store(
+        requested_pending_limit > 0 ? requested_pending_limit : default_pending_limit,
+        std::memory_order_release);
+    pending_samples_.store(0, std::memory_order_release);
+    processed_sample_count_.store(0, std::memory_order_release);
+
+    pcm_file_ = pcm_file;
+    aac_file_ = aac_file;
+    wav_data_bytes_ = wav_data_bytes;
+
+    deferred_error_code_ = 0;
+    deferred_error_.clear();
+    ResetAmplitudeStateLocked();
+  }
+
   int32_t StartInternal(const speech_utils::recorder::RecorderStartConfig& config,
                         uint32_t frames_per_chunk, RecorderMode mode, FileSink sink,
                         NSString* output_path, char* error_utf8,
@@ -1078,18 +1476,17 @@ class NativeCaptureSessionRecorder {
       capture_file_lifecycle_ = CaptureFileLifecycle::kInactive;
       target_format_ = nil;
       pcm_converter_ = nil;
+      current_session_config_ = {};
       sample_rate_hz_ = 0;
       channel_count_ = 0;
-      stream_samples_.clear();
-      stream_sample_limit_ = 0;
+      ClearBufferedAudioLocked();
       pending_samples_.store(0, std::memory_order_release);
       pending_sample_limit_.store(0, std::memory_order_release);
       processed_sample_count_.store(0, std::memory_order_release);
       pcm_file_ = nullptr;
       aac_file_ = nullptr;
       wav_data_bytes_ = 0;
-      current_dbfs_ = -90.0;
-      max_dbfs_ = -90.0;
+      ResetAmplitudeStateLocked();
       deferred_error_code_ = 0;
       deferred_error_.clear();
     };
@@ -1143,6 +1540,9 @@ class NativeCaptureSessionRecorder {
     use_capture_file_output =
         mode == RecorderMode::kFile && sink == FileSink::kAacM4A;
 #endif
+    const CaptureSessionConfig requested_session_config = BuildCaptureSessionConfig(
+        config, use_capture_file_output ? CaptureSessionOutputKind::kFile
+                                        : CaptureSessionOutputKind::kData);
 
     AVAudioFormat* target_format = nil;
     if (!use_capture_file_output) {
@@ -1378,8 +1778,6 @@ class NativeCaptureSessionRecorder {
 
     {
       std::lock_guard<std::mutex> lock(mutex_);
-      mode_ = mode;
-      file_sink_ = sink;
       capture_session_ = capture_session;
       capture_input_ = capture_input;
       capture_output_ = capture_output;
@@ -1392,39 +1790,11 @@ class NativeCaptureSessionRecorder {
                                   : CaptureFileLifecycle::kInactive;
       target_format_ = target_format;
       pcm_converter_ = nil;
-      sample_rate_hz_ = config.sample_rate_hz;
-      channel_count_ = config.channel_count;
-      stream_samples_.clear();
-      stream_sample_limit_ =
-          std::max<std::size_t>(
-              static_cast<std::size_t>(config.sample_rate_hz) * config.channel_count * 5,
-              static_cast<std::size_t>(frames_per_chunk) * config.channel_count * 16);
-      const std::size_t default_pending_limit =
-          std::max<std::size_t>(
-              static_cast<std::size_t>(config.sample_rate_hz) * config.channel_count * 2,
-              static_cast<std::size_t>(frames_per_chunk) * config.channel_count * 32);
-      const double requested_queue_duration_seconds =
-          config.runtime.macos_processing_queue_duration_seconds;
-      const std::size_t requested_pending_limit =
-          requested_queue_duration_seconds <= 0.0
-              ? 0
-              : static_cast<std::size_t>(std::max<double>(
-                    1.0, requested_queue_duration_seconds * config.sample_rate_hz *
-                             config.channel_count));
-      pending_sample_limit_.store(
-          requested_pending_limit > 0 ? requested_pending_limit : default_pending_limit,
-          std::memory_order_release);
-      pending_samples_.store(0, std::memory_order_release);
-      processed_sample_count_.store(0, std::memory_order_release);
-
-      pcm_file_ = pcm_file;
-      aac_file_ = aac_file;
-      wav_data_bytes_ = wav_data_bytes;
-
-      deferred_error_code_ = 0;
-      deferred_error_.clear();
-      current_dbfs_ = -90.0;
-      max_dbfs_ = -90.0;
+      ApplyActiveModeLocked(mode, sink, requested_session_config, frames_per_chunk, pcm_file,
+                            aac_file, wav_data_bytes);
+      if (continuous_capture_enabled_) {
+        warm_capture_config_ = BuildCaptureSessionConfig(config, CaptureSessionOutputKind::kData);
+      }
     }
 
     if (use_capture_file_output) {
@@ -1595,7 +1965,10 @@ class NativeCaptureSessionRecorder {
 
   RecorderMode mode_ = RecorderMode::kStopped;
   RecorderLifecycle lifecycle_ = RecorderLifecycle::kStopped;
+  bool continuous_capture_enabled_ = false;
   FileSink file_sink_ = FileSink::kNone;
+  CaptureSessionConfig current_session_config_{};
+  CaptureSessionConfig warm_capture_config_{};
 
   AVCaptureSession* capture_session_ = nil;
   AVCaptureDeviceInput* capture_input_ = nil;
@@ -1890,6 +2263,17 @@ int32_t StartStream(const speech_utils::recorder::RecorderStartConfig* start_con
   }
   @autoreleasepool {
     return g_recorder.StartStream(*start_config, error_utf8, error_utf8_capacity);
+  }
+}
+
+int32_t SetContinousCapture(int32_t enabled,
+                            const speech_utils::recorder::RecorderStartConfig* start_config,
+                            char* error_utf8,
+                            uint32_t error_utf8_capacity) {
+  WriteError("", error_utf8, error_utf8_capacity);
+  @autoreleasepool {
+    return g_recorder.SetContinousCapture(enabled, start_config, error_utf8,
+                                          error_utf8_capacity);
   }
 }
 

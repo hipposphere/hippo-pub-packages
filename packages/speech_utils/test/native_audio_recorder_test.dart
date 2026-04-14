@@ -94,6 +94,170 @@ void main() {
       await expectAllFalse(NativeAudioRecorderPlatform.unsupported);
     });
 
+    test('setContinousCapture forwards toggle with latest capture config', () async {
+      final enabledCalls = <bool>[];
+      final configCalls = <AudioRecorderConfig>[];
+      var isRecording = false;
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {
+              isRecording = true;
+            },
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {
+              isRecording = true;
+            },
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        setContinousCaptureFn: ({required enabled, required config}) {
+          enabledCalls.add(enabled);
+          configCalls.add(config);
+        },
+        stopFn: () {
+          isRecording = false;
+        },
+        isRecordingFn: () => isRecording,
+      );
+
+      await recorder.setContinousCapture(true);
+      expect(enabledCalls, <bool>[true]);
+      expect(configCalls.single.sampleRateHz, 16000);
+      expect(configCalls.single.channelCount, 1);
+
+      await recorder.startPcmStream(
+        config: const AudioRecorderConfig(sampleRateHz: 24000, channelCount: 2),
+        pollInterval: const Duration(milliseconds: 50),
+      );
+      await recorder.stop();
+      await recorder.setContinousCapture(false);
+
+      expect(enabledCalls, <bool>[true, false]);
+      expect(configCalls.last.sampleRateHz, 24000);
+      expect(configCalls.last.channelCount, 2);
+    });
+
+    test('reset reapplies continous capture with the latest stream config', () async {
+      final configCalls = <AudioRecorderConfig>[];
+      var isRecording = false;
+      var resetCalls = 0;
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {
+              isRecording = true;
+            },
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {
+              isRecording = true;
+            },
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        setContinousCaptureFn: ({required enabled, required config}) {
+          if (enabled) {
+            configCalls.add(config);
+          }
+        },
+        stopFn: () {
+          isRecording = false;
+        },
+        resetFn: () {
+          isRecording = false;
+          resetCalls++;
+        },
+        isRecordingFn: () => isRecording,
+      );
+
+      await recorder.setContinousCapture(true);
+      await recorder.startPcmStream(
+        config: const AudioRecorderConfig(sampleRateHz: 32000, channelCount: 2),
+        pollInterval: const Duration(milliseconds: 50),
+      );
+      await recorder.reset();
+
+      expect(resetCalls, 1);
+      expect(configCalls, hasLength(2));
+      expect(configCalls.first.sampleRateHz, 16000);
+      expect(configCalls.last.sampleRateHz, 32000);
+      expect(configCalls.last.channelCount, 2);
+    });
+
+    test('setContinousCapture can preconfigure and switch the warm input device', () async {
+      final configCalls = <AudioRecorderConfig>[];
+      String? usedInputDeviceId;
+      var isRecording = false;
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.macOS,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {
+              usedInputDeviceId = inputDeviceId;
+              isRecording = true;
+            },
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        setContinousCaptureFn: ({required enabled, required config}) {
+          configCalls.add(config);
+        },
+        stopFn: () {
+          isRecording = false;
+        },
+        isRecordingFn: () => isRecording,
+      );
+
+      await recorder.setContinousCapture(true, inputDeviceId: 'mic-a');
+      await recorder.setContinousCapture(true, inputDeviceId: 'mic-b');
+      await recorder.startPcmStream(pollInterval: const Duration(milliseconds: 50));
+
+      expect(configCalls.map((config) => config.inputDeviceId), <String?>['mic-a', 'mic-b']);
+      expect(usedInputDeviceId, 'mic-b');
+
+      await recorder.stop();
+    });
+
     test('starts file recording with configured sample rate/channels', () async {
       late String usedOutputPath;
       late int usedSampleRate;
@@ -145,6 +309,101 @@ void main() {
 
       await recorder.stop();
       expect(stopCalls, 1);
+    });
+
+    test('retries transient Windows file start failures', () async {
+      var startAttempts = 0;
+      var stopCalls = 0;
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {
+              startAttempts++;
+              if (startAttempts == 1) {
+                throw const AudioRecorderException(
+                  'Windows file recording start failed',
+                  errorCode: -7,
+                  details: 'Failed to start miniaudio capture device: Resource unavailable',
+                );
+              }
+            },
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        stopFn: () {
+          stopCalls++;
+        },
+        isRecordingFn: () => true,
+      );
+
+      await recorder.startFileRecording(outputPath: '/tmp/retry.wav');
+
+      expect(startAttempts, 2);
+      await recorder.stop();
+      expect(stopCalls, 1);
+    });
+
+    test('does not retry non-transient Windows file start failures', () async {
+      var startAttempts = 0;
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {
+              startAttempts++;
+              throw const AudioRecorderException(
+                'Windows file recording start failed',
+                errorCode: -5,
+                details: 'Failed to open output file for writing.',
+              );
+            },
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        stopFn: () {},
+        isRecordingFn: () => false,
+      );
+
+      await expectLater(
+        recorder.startFileRecording(outputPath: '/tmp/fail.wav'),
+        throwsA(
+          isA<AudioRecorderException>().having(
+            (error) => error.details,
+            'details',
+            'Failed to open output file for writing.',
+          ),
+        ),
+      );
+      expect(startAttempts, 1);
     });
 
     test('startPcmStream drains native PCM chunks', () async {
@@ -199,6 +458,53 @@ void main() {
       expect(stopCalls, 1);
       expect(readCalls, greaterThanOrEqualTo(1));
       expect(usedInputDeviceId, isNull);
+    });
+
+    test('retries transient Windows stream start failures', () async {
+      var startAttempts = 0;
+      var stopCalls = 0;
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {
+              startAttempts++;
+              if (startAttempts == 1) {
+                throw const AudioRecorderException(
+                  'Windows stream recording start failed',
+                  errorCode: -3,
+                  details: 'Failed to start miniaudio capture device: Device or resource busy',
+                );
+              }
+            },
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        stopFn: () {
+          stopCalls++;
+        },
+        isRecordingFn: () => true,
+      );
+
+      await recorder.startPcmStream(pollInterval: const Duration(milliseconds: 50));
+
+      expect(startAttempts, 2);
+      await recorder.stop();
+      expect(stopCalls, 1);
     });
 
     test('throws when starting while already running', () async {

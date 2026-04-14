@@ -26,6 +26,11 @@ int32_t StartStream(const speech_utils::recorder::RecorderStartConfig* start_con
                     char* error_utf8,
                     uint32_t error_utf8_capacity);
 
+int32_t SetContinousCapture(int32_t enabled,
+                            const speech_utils::recorder::RecorderStartConfig* start_config,
+                            char* error_utf8,
+                            uint32_t error_utf8_capacity);
+
 int32_t ReadStreamPcm16(int16_t* out_samples, uint32_t out_sample_capacity,
                         uint32_t* out_samples_written, char* error_utf8,
                         uint32_t error_utf8_capacity);

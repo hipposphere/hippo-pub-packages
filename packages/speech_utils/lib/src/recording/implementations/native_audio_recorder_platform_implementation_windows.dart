@@ -61,6 +61,21 @@ final class _WindowsNativeAudioRecorderPlatformImplementation
   void reset() => _resetWindowsAudioRecorderViaFfi();
 
   @override
+  void setContinousCapture(
+    bool enabled, {
+    AudioRecorderConfig config = const AudioRecorderConfig(),
+  }) {
+    _setWindowsAudioRecorderContinousCaptureViaFfi(
+      enabled: enabled,
+      sampleRateHz: config.sampleRateHz,
+      channelCount: config.channelCount,
+      framesPerChunk: config.framesPerChunk,
+      inputDeviceId: config.inputDeviceId,
+      runtimeConfig: _runtimeConfigBuilder.build(config),
+    );
+  }
+
+  @override
   bool isRecording() => _isWindowsAudioRecorderRunningViaFfi();
 
   @override
@@ -147,6 +162,26 @@ void _resetWindowsAudioRecorderViaFfi() {
   _runRecorderReset(
     windows_bindings.speech_utils_windows_audio_recorder_reset,
     operation: 'Windows recorder reset',
+  );
+}
+
+void _setWindowsAudioRecorderContinousCaptureViaFfi({
+  required bool enabled,
+  required int sampleRateHz,
+  required int channelCount,
+  required int framesPerChunk,
+  required String? inputDeviceId,
+  required _NativeRecorderRuntimeConfig runtimeConfig,
+}) {
+  _runRecorderSetContinousCapture(
+    windows_bindings.speech_utils_windows_audio_recorder_set_continous_capture,
+    enabled: enabled,
+    sampleRateHz: sampleRateHz,
+    channelCount: channelCount,
+    framesPerChunk: framesPerChunk,
+    inputDeviceId: inputDeviceId,
+    runtimeConfig: runtimeConfig,
+    operation: 'Windows continuous capture toggle',
   );
 }
 

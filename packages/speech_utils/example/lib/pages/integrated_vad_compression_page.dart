@@ -40,6 +40,7 @@ class _IntegratedVadCompressionPageState
   final AudioPlayer _player = AudioPlayer();
   late ThemeMode _themeMode;
   late final bool _supportsInputSelection;
+  late final bool _supportsContinuousCapture;
 
   final NativeAudioEncoder _nativeAacEncoder = NativeAudioEncoder();
   final FfmpegAacEncoder _ffmpegAacEncoder = FfmpegAacEncoder();
@@ -66,6 +67,8 @@ class _IntegratedVadCompressionPageState
   bool _isLiveStreaming = false;
   bool _isRefreshingInputDevices = false;
   bool _speechDetected = false;
+  bool _continousCaptureEnabled = false;
+  bool _isApplyingContinousCapture = false;
   int _liveSnippetCount = 0;
   int _liveChunkCount = 0;
   double _currentRms = 0;
@@ -118,6 +121,9 @@ class _IntegratedVadCompressionPageState
     super.initState();
     _themeMode = widget.themeMode;
     _supportsInputSelection = _recorder.supportsInputSelection;
+    _supportsContinuousCapture =
+        _recorder.platform == NativeAudioRecorderPlatform.macOS ||
+        _recorder.platform == NativeAudioRecorderPlatform.windows;
     _player.onPlayerComplete.listen((_) {
       if (!mounted) {
         return;
@@ -224,6 +230,101 @@ class _IntegratedVadCompressionPageState
     return null;
   }
 
+  String? get _selectedInputDeviceId {
+    if (!_supportsInputSelection) {
+      return null;
+    }
+    return (_selectedInputDevice?.isDefault ?? true)
+        ? null
+        : _selectedInputDevice?.id;
+  }
+
+  String get _selectedInputLabel {
+    if (_supportsInputSelection) {
+      return _selectedInputDevice?.label ?? 'System default';
+    }
+    return _inputDevices
+            .where((device) => device.isDefault)
+            .firstOrNull
+            ?.label ??
+        'System default';
+  }
+
+  bool get _canEditInputSelection =>
+      !_isLiveStreaming || _continousCaptureEnabled;
+
+  AudioRecorderConfig _buildLiveRecorderConfig({
+    required bool includeInputDeviceId,
+  }) {
+    final processingController = _processingController;
+    return AudioRecorderConfig(
+      sampleRateHz: _sampleRateHz ?? 16000,
+      channelCount: _channelCount,
+      framesPerChunk: 256,
+      inputDeviceId: includeInputDeviceId ? _selectedInputDeviceId : null,
+      processing: processingController.buildProcessingConfig(),
+      iosConfig: processingController.buildIosRecorderConfig(),
+      macosConfig: processingController.buildMacosRecorderConfig(),
+      encoding: const AudioEncodingConfig(encoder: AudioEncoder.wav),
+    );
+  }
+
+  Future<bool> _syncContinousCapture({
+    bool? enabled,
+    bool logResult = true,
+    String? successMessage,
+  }) async {
+    final nextEnabled = enabled ?? _continousCaptureEnabled;
+    if (!_supportsContinuousCapture) {
+      if (logResult) {
+        _appendLog(
+          'Continuous capture is currently implemented on macOS and Windows only.',
+        );
+      }
+      return false;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isApplyingContinousCapture = true;
+      });
+    }
+
+    try {
+      await _recorder.setContinousCapture(
+        nextEnabled,
+        config: _buildLiveRecorderConfig(includeInputDeviceId: false),
+        inputDeviceId: _selectedInputDeviceId,
+      );
+      if (!mounted) {
+        return true;
+      }
+      setState(() {
+        _continousCaptureEnabled = nextEnabled;
+        _isApplyingContinousCapture = false;
+      });
+      if (logResult) {
+        _appendLog(
+          successMessage ??
+              (nextEnabled
+                  ? 'Continuous capture enabled for "$_selectedInputLabel". Live starts will reuse the warm route.'
+                  : 'Continuous capture disabled. Live starts will cold-open the device again.'),
+        );
+      }
+      return true;
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() {
+          _isApplyingContinousCapture = false;
+        });
+      }
+      _appendLog(
+        'Failed to ${nextEnabled ? 'enable' : 'disable'} continuous capture: $error',
+      );
+      return false;
+    }
+  }
+
   Future<void> _refreshInputDevices({bool logResult = true}) async {
     if (_isRefreshingInputDevices) {
       return;
@@ -274,8 +375,8 @@ class _IntegratedVadCompressionPageState
     }
   }
 
-  void _selectInputDeviceById(String? id) {
-    if (_isLiveStreaming) {
+  Future<void> _selectInputDeviceById(String? id) async {
+    if (!_canEditInputSelection) {
       return;
     }
 
@@ -290,6 +391,14 @@ class _IntegratedVadCompressionPageState
     });
 
     final label = next?.label ?? 'System default';
+    if (_continousCaptureEnabled && _supportsContinuousCapture) {
+      await _syncContinousCapture(
+        successMessage: _isLiveStreaming
+            ? 'Warm capture device switched to $label. The active live session keeps its current route until it stops.'
+            : 'Warm capture device switched to $label.',
+      );
+      return;
+    }
     if (_supportsInputSelection) {
       _appendLog('Input device changed to $label.');
       return;
@@ -506,30 +615,21 @@ class _IntegratedVadCompressionPageState
     );
     await liveDir.create(recursive: true);
 
+    if (_continousCaptureEnabled) {
+      final warmCaptureReady = await _syncContinousCapture(logResult: false);
+      if (!warmCaptureReady) {
+        return;
+      }
+    }
+
     final vadConfig = _buildSpeechVadConfig(preferTenVad: _preferTenVadForLive);
-    final inputDeviceId = _supportsInputSelection
-        ? ((_selectedInputDevice?.isDefault ?? true)
-              ? null
-              : _selectedInputDevice?.id)
-        : null;
-    final processingController = _processingController;
-    final processingConfig = processingController.buildProcessingConfig();
-    final iosConfig = processingController.buildIosRecorderConfig();
-    final macosConfig = processingController.buildMacosRecorderConfig();
     late final VadCaptureSession capture;
     try {
       capture = await _recorder.startVadCapture(
         VadCaptureRequest(
           split: _splitOptions,
-          audio: AudioRecorderConfig(
-            sampleRateHz: _sampleRateHz ?? 16000,
-            channelCount: _channelCount,
-            framesPerChunk: 256,
-            inputDeviceId: inputDeviceId,
-            processing: processingConfig,
-            iosConfig: iosConfig,
-            macosConfig: macosConfig,
-            encoding: const AudioEncodingConfig(encoder: AudioEncoder.wav),
+          audio: _buildLiveRecorderConfig(
+            includeInputDeviceId: !_continousCaptureEnabled,
           ),
           vad: vadConfig,
           telemetry: const VadCaptureTelemetryConfig(
@@ -557,15 +657,11 @@ class _IntegratedVadCompressionPageState
 
     _liveCaptureSession = capture;
     _liveOutputDir = liveDir;
-    final activeInputLabel = _supportsInputSelection
-        ? (_selectedInputDevice?.label ?? 'System default')
-        : (_inputDevices
-                  .where((device) => device.isDefault)
-                  .firstOrNull
-                  ?.label ??
-              'System default');
+    final activeInputLabel = _selectedInputLabel;
     _appendLog(
-      'Live stream started (${capture.backendLabel}) using "$activeInputLabel".',
+      _continousCaptureEnabled
+          ? 'Live stream started (${capture.backendLabel}) using warm capture route "$activeInputLabel".'
+          : 'Live stream started (${capture.backendLabel}) using "$activeInputLabel".',
     );
     if (_preferTenVadForLive) {
       _appendLog(
@@ -581,7 +677,7 @@ class _IntegratedVadCompressionPageState
       );
     }
     _appendLog(
-      'Processing: preset=${processingController.capturePresetLabel}, ${processingController.processingSummary()}.',
+      'Processing: preset=${_processingController.capturePresetLabel}, ${_processingController.processingSummary()}.',
     );
 
     _liveSegmentSubscription = capture.segments.listen(
@@ -1064,6 +1160,20 @@ class _IntegratedVadCompressionPageState
                 Chip(label: Text('Chunks: $_liveChunkCount')),
                 Chip(label: Text('RMS: ${_currentRms.toStringAsFixed(3)}')),
                 Chip(label: Text('dBFS: ${_currentDbfs.toStringAsFixed(1)}')),
+                Chip(
+                  label: Text(
+                    _continousCaptureEnabled
+                        ? 'Continuous: armed'
+                        : 'Continuous: off',
+                  ),
+                ),
+                if (_isApplyingContinousCapture)
+                  Chip(
+                    label: Text(
+                      'Updating warm capture...',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 10),
@@ -1082,7 +1192,7 @@ class _IntegratedVadCompressionPageState
     final encoderAvailable = _selectedAacEncoder != null;
     final tenAvailable = TenVadFfiBackend.supportsCurrentPlatform;
     final canEditVad = !_isLiveStreaming;
-    final selectedDeviceId = _selectedInputDevice?.id;
+    final selectedDeviceId = _selectedInputDeviceId;
     final defaultDevice = _inputDevices
         .where((device) => device.isDefault)
         .firstOrNull;
@@ -1097,7 +1207,7 @@ class _IntegratedVadCompressionPageState
             const SizedBox(height: 4),
             Text(
               _supportsInputSelection
-                  ? 'Choose which microphone route should be used for live capture.'
+                  ? 'Choose which microphone route should be used for live capture. When continuous capture is enabled, the warm route is updated immediately and live starts reuse it.'
                   : 'Input listing is available. Selection is preview-only; live capture follows the system default on this platform.',
               style: theme.textTheme.bodyMedium,
             ),
@@ -1126,13 +1236,18 @@ class _IntegratedVadCompressionPageState
                         ),
                       ),
                     ],
-                    onChanged: canEditVad ? _selectInputDeviceById : null,
+                    onChanged: _canEditInputSelection
+                        ? (value) {
+                            unawaited(_selectInputDeviceById(value));
+                          }
+                        : null,
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton.filledTonal(
                   tooltip: 'Refresh inputs',
-                  onPressed: _isRefreshingInputDevices || _isLiveStreaming
+                  onPressed:
+                      _isRefreshingInputDevices || !_canEditInputSelection
                       ? null
                       : () => unawaited(_refreshInputDevices()),
                   icon: _isRefreshingInputDevices
@@ -1152,6 +1267,36 @@ class _IntegratedVadCompressionPageState
                   : 'System default: ${defaultDevice?.label ?? 'System input'} (selection preview only).',
               style: theme.textTheme.bodySmall,
             ),
+            const Divider(height: 24),
+            Text('Continuous capture', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              _supportsContinuousCapture
+                  ? 'Keep the capture device warm between live sessions. This example starts live capture without an input-device ID while armed so the remembered warm route is what gets exercised.'
+                  : 'Continuous capture is currently implemented on macOS and Windows only.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _continousCaptureEnabled,
+              onChanged:
+                  !_supportsContinuousCapture || _isApplyingContinousCapture
+                  ? null
+                  : (value) {
+                      unawaited(_syncContinousCapture(enabled: value));
+                    },
+              title: const Text('Enable continuous capture'),
+              subtitle: Text(
+                _continousCaptureEnabled
+                    ? 'Warm route: $_selectedInputLabel${_isLiveStreaming ? '. Current live session keeps its active route until stop.' : '.'}'
+                    : 'Disabled. Each start opens the capture device on demand.',
+              ),
+            ),
+            if (_isApplyingContinousCapture)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
             const Divider(height: 24),
             Text('AAC options', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),

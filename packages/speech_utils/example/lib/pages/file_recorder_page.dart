@@ -41,6 +41,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
 
   late ThemeMode _themeMode;
   late final bool _supportsInputSelection;
+  late final bool _supportsContinuousCapture;
 
   List<InputDevice> _inputDevices = <InputDevice>[];
   InputDevice? _selectedInputDevice;
@@ -49,6 +50,8 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
   bool _isRecording = false;
   bool _isFinalizing = false;
   bool _isMetadataReading = false;
+  bool _continousCaptureEnabled = false;
+  bool _isApplyingContinousCapture = false;
   final bool _androidFileRecordingAacOnly = Platform.isAndroid;
 
   int? _sampleRateHz;
@@ -80,6 +83,9 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     super.initState();
     _themeMode = widget.themeMode;
     _supportsInputSelection = _recorder.supportsInputSelection;
+    _supportsContinuousCapture =
+        _recorder.platform == NativeAudioRecorderPlatform.macOS ||
+        _recorder.platform == NativeAudioRecorderPlatform.windows;
     unawaited(_ensureOutputRoot());
     unawaited(_refreshInputDevices(logResult: false));
     _player.onPlayerComplete.listen((_) {
@@ -143,6 +149,100 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     return null;
   }
 
+  String? get _selectedInputDeviceId {
+    if (!_supportsInputSelection) {
+      return null;
+    }
+    return (_selectedInputDevice?.isDefault ?? true)
+        ? null
+        : _selectedInputDevice?.id;
+  }
+
+  String get _selectedInputLabel {
+    if (_supportsInputSelection) {
+      return _selectedInputDevice?.label ?? 'System default';
+    }
+    return _inputDevices
+            .where((device) => device.isDefault)
+            .firstOrNull
+            ?.label ??
+        'System default';
+  }
+
+  bool get _canEditInputSelection =>
+      !_isFinalizing && (!_isRecording || _continousCaptureEnabled);
+
+  AudioRecorderConfig _buildRecorderConfig({
+    required bool includeInputDeviceId,
+  }) {
+    final processingController = _processingController;
+    return AudioRecorderConfig(
+      sampleRateHz: _sampleRateHz ?? 16000,
+      channelCount: _channelCount,
+      inputDeviceId: includeInputDeviceId ? _selectedInputDeviceId : null,
+      processing: processingController.buildProcessingConfig(),
+      iosConfig: processingController.buildIosRecorderConfig(),
+      macosConfig: processingController.buildMacosRecorderConfig(),
+      encoding: _buildEncodingConfig(),
+    );
+  }
+
+  Future<bool> _syncContinousCapture({
+    bool? enabled,
+    bool logResult = true,
+    String? successMessage,
+  }) async {
+    final nextEnabled = enabled ?? _continousCaptureEnabled;
+    if (!_supportsContinuousCapture) {
+      if (logResult) {
+        _appendLog(
+          'Continuous capture is currently implemented on macOS and Windows only.',
+        );
+      }
+      return false;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isApplyingContinousCapture = true;
+      });
+    }
+
+    try {
+      await _recorder.setContinousCapture(
+        nextEnabled,
+        config: _buildRecorderConfig(includeInputDeviceId: false),
+        inputDeviceId: _selectedInputDeviceId,
+      );
+      if (!mounted) {
+        return true;
+      }
+      setState(() {
+        _continousCaptureEnabled = nextEnabled;
+        _isApplyingContinousCapture = false;
+      });
+      if (logResult) {
+        _appendLog(
+          successMessage ??
+              (nextEnabled
+                  ? 'Continuous capture enabled for "$_selectedInputLabel". File recordings will reuse the warm route.'
+                  : 'Continuous capture disabled. File recordings will cold-open the device again.'),
+        );
+      }
+      return true;
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() {
+          _isApplyingContinousCapture = false;
+        });
+      }
+      _appendLog(
+        'Failed to ${nextEnabled ? 'enable' : 'disable'} continuous capture: $error',
+      );
+      return false;
+    }
+  }
+
   Future<void> _refreshInputDevices({bool logResult = true}) async {
     if (_isRefreshingInputDevices) {
       return;
@@ -190,8 +290,8 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     }
   }
 
-  void _selectInputDeviceById(String? id) {
-    if (_isSessionBusy) {
+  Future<void> _selectInputDeviceById(String? id) async {
+    if (!_canEditInputSelection) {
       return;
     }
     final next = _findInputDeviceById(id);
@@ -202,6 +302,14 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
       _selectedInputDevice = next;
     });
     final label = next?.label ?? 'System default';
+    if (_continousCaptureEnabled && _supportsContinuousCapture) {
+      await _syncContinousCapture(
+        successMessage: _isRecording
+            ? 'Warm capture device switched to $label. The active file recording keeps its current route until it stops.'
+            : 'Warm capture device switched to $label.',
+      );
+      return;
+    }
     if (_supportsInputSelection) {
       _appendLog('Input device changed to $label.');
     } else {
@@ -274,26 +382,19 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
       return;
     }
 
+    if (_continousCaptureEnabled) {
+      final warmCaptureReady = await _syncContinousCapture(logResult: false);
+      if (!warmCaptureReady) {
+        return;
+      }
+    }
+
     final outputRoot = await _ensureOutputRoot();
     final outputPath =
         '${outputRoot.path}${Platform.pathSeparator}file_recording_${DateTime.now().millisecondsSinceEpoch}.${_encoderFileExtension(_selectedEncoder)}';
 
-    final processingController = _processingController;
-    final processingConfig = processingController.buildProcessingConfig();
-    final iosConfig = processingController.buildIosRecorderConfig();
-    final macosConfig = processingController.buildMacosRecorderConfig();
-    final config = AudioRecorderConfig(
-      sampleRateHz: _sampleRateHz ?? 16000,
-      channelCount: _channelCount,
-      inputDeviceId: _supportsInputSelection
-          ? ((_selectedInputDevice?.isDefault ?? true)
-                ? null
-                : _selectedInputDevice?.id)
-          : null,
-      processing: processingConfig,
-      iosConfig: iosConfig,
-      macosConfig: macosConfig,
-      encoding: _buildEncodingConfig(),
+    final config = _buildRecorderConfig(
+      includeInputDeviceId: !_continousCaptureEnabled,
     );
 
     try {
@@ -338,19 +439,17 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
       _waveformSpeechFlags.clear();
     });
     _startAmplitudeMonitoring();
-    final activeInputLabel = _supportsInputSelection
-        ? (_selectedInputDevice?.label ?? 'System default')
-        : (_inputDevices
-                  .where((device) => device.isDefault)
-                  .firstOrNull
-                  ?.label ??
-              'System default');
-    _appendLog('Recording started using "$activeInputLabel".');
+    final activeInputLabel = _selectedInputLabel;
+    _appendLog(
+      _continousCaptureEnabled
+          ? 'Recording started using warm capture route "$activeInputLabel".'
+          : 'Recording started using "$activeInputLabel".',
+    );
     _appendLog(
       'Output: $_selectedEncoder (${_sampleRateHz ?? 'auto'} Hz, $_channelCount ch).',
     );
     _appendLog(
-      'Processing: preset=${processingController.capturePresetLabel}, ${processingController.processingSummary()}.',
+      'Processing: preset=${_processingController.capturePresetLabel}, ${_processingController.processingSummary()}.',
     );
   }
 
@@ -657,6 +756,13 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                   ),
                 Chip(label: Text('dBFS: ${_currentDbfs.toStringAsFixed(1)}')),
                 Chip(label: Text('Peak: ${_peakDbfs.toStringAsFixed(1)} dBFS')),
+                Chip(
+                  label: Text(
+                    _continousCaptureEnabled
+                        ? 'Continuous: armed'
+                        : 'Continuous: off',
+                  ),
+                ),
                 if (_isFinalizing)
                   Chip(
                     label: Text(
@@ -668,6 +774,13 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                   Chip(
                     label: Text(
                       'Reading metadata...',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                if (_isApplyingContinousCapture)
+                  Chip(
+                    label: Text(
+                      'Updating warm capture...',
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
@@ -730,7 +843,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
   }
 
   Widget _buildInputCard(ThemeData theme) {
-    final selectedDeviceId = _selectedInputDevice?.id;
+    final selectedDeviceId = _selectedInputDeviceId;
     final defaultDevice = _inputDevices
         .where((device) => device.isDefault)
         .firstOrNull;
@@ -744,7 +857,7 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
             const SizedBox(height: 4),
             Text(
               _supportsInputSelection
-                  ? 'Choose the capture input for this file recording session.'
+                  ? 'Choose the capture input. When continuous capture is enabled, the warm route is updated immediately and file starts reuse it.'
                   : 'Input list is visible; selection is preview-only on this platform.',
               style: theme.textTheme.bodyMedium,
             ),
@@ -773,13 +886,18 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                         ),
                       ),
                     ],
-                    onChanged: _isSessionBusy ? null : _selectInputDeviceById,
+                    onChanged: _canEditInputSelection
+                        ? (value) {
+                            unawaited(_selectInputDeviceById(value));
+                          }
+                        : null,
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton.filledTonal(
                   tooltip: 'Refresh inputs',
-                  onPressed: _isRefreshingInputDevices || _isSessionBusy
+                  onPressed:
+                      _isRefreshingInputDevices || !_canEditInputSelection
                       ? null
                       : () => unawaited(_refreshInputDevices()),
                   icon: _isRefreshingInputDevices
@@ -799,6 +917,38 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
                   : 'System default: ${defaultDevice?.label ?? 'System input'}',
               style: theme.textTheme.bodySmall,
             ),
+            const Divider(height: 24),
+            Text('Continuous capture', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              _supportsContinuousCapture
+                  ? 'Keep the capture device warm between file recordings. This example starts recording without an input-device ID while armed so the remembered warm route is what gets exercised.'
+                  : 'Continuous capture is currently implemented on macOS and Windows only.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _continousCaptureEnabled,
+              onChanged:
+                  !_supportsContinuousCapture ||
+                      _isApplyingContinousCapture ||
+                      _isFinalizing
+                  ? null
+                  : (value) {
+                      unawaited(_syncContinousCapture(enabled: value));
+                    },
+              title: const Text('Enable continuous capture'),
+              subtitle: Text(
+                _continousCaptureEnabled
+                    ? 'Warm route: $_selectedInputLabel${_isRecording ? '. Current file recording keeps its active route until stop.' : '.'}'
+                    : 'Disabled. Each start opens the capture device on demand.',
+              ),
+            ),
+            if (_isApplyingContinousCapture)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
           ],
         ),
       ),

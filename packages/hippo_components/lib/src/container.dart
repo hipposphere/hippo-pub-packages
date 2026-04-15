@@ -20,6 +20,7 @@ export 'container/page_container/platform_page_container.dart';
 export 'container/page_container/detail_page_container.dart';
 export 'container/page_container/widgets/page_header.dart';
 export 'container/page_container/widgets/page_pinned_bar_sliver.dart';
+export 'container/page_container/widgets/page_header_options_button.dart';
 // master_detail_container
 export 'container/main_detail_container/main_detail_container.dart';
 // adaptive_detail_container

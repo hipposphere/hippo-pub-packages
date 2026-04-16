@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:speech_utils/speech_utils.dart';
 import 'package:speech_utils_example/widgets/audio_processing_card.dart';
+import 'package:speech_utils_example/widgets/continuous_capture_duration_preset.dart';
 import 'package:speech_utils_example/widgets/example_dropdown_form_field.dart';
 import 'package:speech_utils_example/widgets/live_waveform.dart';
 import 'package:speech_utils_example/widgets/theme_controls.dart';
@@ -69,6 +70,8 @@ class _IntegratedVadCompressionPageState
   bool _speechDetected = false;
   bool _continousCaptureEnabled = false;
   bool _isApplyingContinousCapture = false;
+  ContinuousCaptureDurationPreset _continousCaptureDurationPreset =
+      ContinuousCaptureDurationPreset.infinite;
   int _liveSnippetCount = 0;
   int _liveChunkCount = 0;
   double _currentRms = 0;
@@ -291,10 +294,11 @@ class _IntegratedVadCompressionPageState
     }
 
     try {
-      await _recorder.setContinousCapture(
+      await _recorder.setContinousRecording(
         nextEnabled,
         config: _buildLiveRecorderConfig(includeInputDeviceId: false),
         inputDeviceId: _selectedInputDeviceId,
+        duration: _continousCaptureDurationPreset.duration,
       );
       if (!mounted) {
         return true;
@@ -307,7 +311,7 @@ class _IntegratedVadCompressionPageState
         _appendLog(
           successMessage ??
               (nextEnabled
-                  ? 'Continuous capture enabled for "$_selectedInputLabel". Live starts will reuse the warm route.'
+                  ? 'Continuous capture enabled for "$_selectedInputLabel" ${_continousCaptureDurationPreset.warmBehaviorLabel}. Live starts will reuse the warm route.'
                   : 'Continuous capture disabled. Live starts will cold-open the device again.'),
         );
       }
@@ -372,6 +376,38 @@ class _IntegratedVadCompressionPageState
         _isRefreshingInputDevices = false;
       });
       _appendLog('Failed to list input devices: $error');
+    }
+  }
+
+  Future<void> _setContinousCaptureDurationPreset(
+    ContinuousCaptureDurationPreset preset,
+  ) async {
+    if (_continousCaptureDurationPreset == preset) {
+      return;
+    }
+
+    final previousPreset = _continousCaptureDurationPreset;
+    if (mounted) {
+      setState(() {
+        _continousCaptureDurationPreset = preset;
+      });
+    }
+
+    if (!_continousCaptureEnabled) {
+      _appendLog(
+        'Continuous capture idle timeout set to ${preset.idleTimeoutLabel}. It will apply the next time continuous capture is enabled.',
+      );
+      return;
+    }
+
+    final applied = await _syncContinousCapture(
+      successMessage:
+          'Continuous capture updated for "$_selectedInputLabel". Idle warm timeout: ${preset.idleTimeoutLabel}.',
+    );
+    if (!applied && mounted) {
+      setState(() {
+        _continousCaptureDurationPreset = previousPreset;
+      });
     }
   }
 
@@ -1291,6 +1327,31 @@ class _IntegratedVadCompressionPageState
                     ? 'Warm route: $_selectedInputLabel${_isLiveStreaming ? '. Current live session keeps its active route until stop.' : '.'}'
                     : 'Disabled. Each start opens the capture device on demand.',
               ),
+            ),
+            ExampleDropdownFormField<ContinuousCaptureDurationPreset>(
+              initialValue: _continousCaptureDurationPreset,
+              decoration: const InputDecoration(
+                labelText: 'Idle warm duration',
+                helperText:
+                    'Choose how long the warm capture should stay active while idle.',
+              ),
+              options: continuousCaptureDurationPresetOptions,
+              onChanged:
+                  !_supportsContinuousCapture || _isApplyingContinousCapture
+                  ? null
+                  : (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      unawaited(_setContinousCaptureDurationPreset(value));
+                    },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _continousCaptureEnabled
+                  ? 'Idle warm timeout: ${_continousCaptureDurationPreset.idleTimeoutLabel}.'
+                  : 'When enabled, warm capture will stay active ${_continousCaptureDurationPreset.warmBehaviorLabel}.',
+              style: theme.textTheme.bodySmall,
             ),
             if (_isApplyingContinousCapture)
               const Padding(

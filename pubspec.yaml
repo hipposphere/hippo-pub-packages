@@ -36,6 +36,7 @@ workspace:
   - packages/hippo_native_deps
   - packages/app_permissions
   - packages/app_permissions/example
+  - packages/dart_axum
   - packages/speech_recorder
   - packages/speech_recorder/example
   - packages/speech_utils

@@ -23,7 +23,7 @@ typedef StartStreamHook =
     });
 
 typedef ReadStreamHook = Uint8List Function({required int maxSamples});
-typedef SetContinousCaptureHook =
+typedef SetContinousRecordingHook =
     FutureOr<void> Function({required bool enabled, required AudioRecorderConfig config});
 
 NativeAudioRecorder recorderFixture({
@@ -35,7 +35,7 @@ NativeAudioRecorder recorderFixture({
   StartFileHook? startFileFn,
   StartStreamHook? startPcmStreamFn,
   ReadStreamHook? readPcmStreamFn,
-  SetContinousCaptureHook? setContinousCaptureFn,
+  SetContinousRecordingHook? setContinousRecordingFn,
   FutureOr<void> Function()? stopFn,
   FutureOr<void> Function()? resetFn,
   bool Function()? isRecordingFn,
@@ -143,8 +143,8 @@ NativeAudioRecorder recorderFixture({
             }
             return Uint8List(0);
           },
-      setContinousCaptureFn:
-          setContinousCaptureFn ??
+      setContinousRecordingFn:
+          setContinousRecordingFn ??
           ({required enabled, required config}) {
             if (isUnsupportedPlatform) {
               throw const NativeAudioRecorderUnsupportedPlatformException(
@@ -189,7 +189,7 @@ final class _TestNativeAudioRecorderPlatformImplementation
     required this.startFileFn,
     required this.startPcmStreamFn,
     required this.readPcmStreamFn,
-    required this.setContinousCaptureFn,
+    required this.setContinousRecordingFn,
     required this.stopFn,
     required this.resetFn,
     required this.isRecordingFn,
@@ -203,7 +203,7 @@ final class _TestNativeAudioRecorderPlatformImplementation
   final StartFileHook startFileFn;
   final StartStreamHook startPcmStreamFn;
   final ReadStreamHook readPcmStreamFn;
-  final SetContinousCaptureHook setContinousCaptureFn;
+  final SetContinousRecordingHook setContinousRecordingFn;
   final FutureOr<void> Function() stopFn;
   final FutureOr<void> Function() resetFn;
   final bool Function() isRecordingFn;
@@ -247,11 +247,11 @@ final class _TestNativeAudioRecorderPlatformImplementation
   }
 
   @override
-  FutureOr<void> setContinousCapture(
+  FutureOr<void> setContinousRecording(
     bool enabled, {
     AudioRecorderConfig config = const AudioRecorderConfig(),
   }) {
-    return setContinousCaptureFn(enabled: enabled, config: config);
+    return setContinousRecordingFn(enabled: enabled, config: config);
   }
 
   @override

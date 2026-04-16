@@ -3,11 +3,14 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/widgets.dart';
 import 'package:speech_utils/speech_utils.dart';
 import 'package:test/test.dart';
 import 'fakes/native_audio_recorder_platform_implementation.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
   group('NativeAudioRecorder', () {
     test('supportsInputSelection reports capability by platform', () {
       NativeAudioRecorder recorderFor(NativeAudioRecorderPlatform platform) {
@@ -94,7 +97,7 @@ void main() {
       await expectAllFalse(NativeAudioRecorderPlatform.unsupported);
     });
 
-    test('setContinousCapture forwards toggle with latest capture config', () async {
+    test('setContinousRecording forwards toggle with latest recording config', () async {
       final enabledCalls = <bool>[];
       final configCalls = <AudioRecorderConfig>[];
       var isRecording = false;
@@ -124,7 +127,7 @@ void main() {
               isRecording = true;
             },
         readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
-        setContinousCaptureFn: ({required enabled, required config}) {
+        setContinousRecordingFn: ({required enabled, required config}) {
           enabledCalls.add(enabled);
           configCalls.add(config);
         },
@@ -134,7 +137,7 @@ void main() {
         isRecordingFn: () => isRecording,
       );
 
-      await recorder.setContinousCapture(true);
+      await recorder.setContinousRecording(true);
       expect(enabledCalls, <bool>[true]);
       expect(configCalls.single.sampleRateHz, 16000);
       expect(configCalls.single.channelCount, 1);
@@ -144,14 +147,14 @@ void main() {
         pollInterval: const Duration(milliseconds: 50),
       );
       await recorder.stop();
-      await recorder.setContinousCapture(false);
+      await recorder.setContinousRecording(false);
 
       expect(enabledCalls, <bool>[true, false]);
       expect(configCalls.last.sampleRateHz, 24000);
       expect(configCalls.last.channelCount, 2);
     });
 
-    test('reset reapplies continous capture with the latest stream config', () async {
+    test('reset reapplies continous recording with the latest stream config', () async {
       final configCalls = <AudioRecorderConfig>[];
       var isRecording = false;
       var resetCalls = 0;
@@ -181,7 +184,7 @@ void main() {
               isRecording = true;
             },
         readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
-        setContinousCaptureFn: ({required enabled, required config}) {
+        setContinousRecordingFn: ({required enabled, required config}) {
           if (enabled) {
             configCalls.add(config);
           }
@@ -196,7 +199,7 @@ void main() {
         isRecordingFn: () => isRecording,
       );
 
-      await recorder.setContinousCapture(true);
+      await recorder.setContinousRecording(true);
       await recorder.startPcmStream(
         config: const AudioRecorderConfig(sampleRateHz: 32000, channelCount: 2),
         pollInterval: const Duration(milliseconds: 50),
@@ -210,7 +213,7 @@ void main() {
       expect(configCalls.last.channelCount, 2);
     });
 
-    test('setContinousCapture can preconfigure and switch the warm input device', () async {
+    test('setContinousRecording can preconfigure and switch the warm input device', () async {
       final configCalls = <AudioRecorderConfig>[];
       String? usedInputDeviceId;
       var isRecording = false;
@@ -239,7 +242,7 @@ void main() {
               isRecording = true;
             },
         readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
-        setContinousCaptureFn: ({required enabled, required config}) {
+        setContinousRecordingFn: ({required enabled, required config}) {
           configCalls.add(config);
         },
         stopFn: () {
@@ -248,14 +251,213 @@ void main() {
         isRecordingFn: () => isRecording,
       );
 
-      await recorder.setContinousCapture(true, inputDeviceId: 'mic-a');
-      await recorder.setContinousCapture(true, inputDeviceId: 'mic-b');
+      await recorder.setContinousRecording(true, inputDeviceId: 'mic-a');
+      await recorder.setContinousRecording(true, inputDeviceId: 'mic-b');
       await recorder.startPcmStream(pollInterval: const Duration(milliseconds: 50));
 
       expect(configCalls.map((config) => config.inputDeviceId), <String?>['mic-a', 'mic-b']);
       expect(usedInputDeviceId, 'mic-b');
 
       await recorder.stop();
+    });
+
+    test(
+      'continousRecordingState hibernates after the warm duration and reactivates after stop',
+      () async {
+        final enabledCalls = <bool>[];
+        var isRecording = false;
+
+        final recorder = recorderFixture(
+          platform: NativeAudioRecorderPlatform.windows,
+          availabilityFn: () => true,
+          hasPermissionFn: () => true,
+          requestPermissionFn: () => true,
+          listInputDevicesFn: () => const <InputDevice>[],
+          startFileFn:
+              ({
+                required outputPath,
+                required sampleRateHz,
+                required channelCount,
+                required inputDeviceId,
+              }) {
+                isRecording = true;
+              },
+          startPcmStreamFn:
+              ({
+                required sampleRateHz,
+                required channelCount,
+                required framesPerChunk,
+                required inputDeviceId,
+              }) {
+                isRecording = true;
+              },
+          readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+          setContinousRecordingFn: ({required enabled, required config}) {
+            enabledCalls.add(enabled);
+          },
+          stopFn: () {
+            isRecording = false;
+          },
+          isRecordingFn: () => isRecording,
+        );
+
+        await recorder.setContinousRecording(true, duration: const Duration(milliseconds: 20));
+        expect(recorder.continousRecordingState, NativeAudioRecorderContinousRecordingState.active);
+
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(
+          recorder.continousRecordingState,
+          NativeAudioRecorderContinousRecordingState.hibernation,
+        );
+        expect(enabledCalls, <bool>[true, false]);
+
+        await recorder.startFileRecording(
+          outputPath: '${Directory.systemTemp.path}${Platform.pathSeparator}hibernation-test.wav',
+        );
+        expect(recorder.continousRecordingState, NativeAudioRecorderContinousRecordingState.active);
+
+        await recorder.stop();
+        expect(enabledCalls, <bool>[true, false, true]);
+        expect(recorder.continousRecordingState, NativeAudioRecorderContinousRecordingState.active);
+
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(enabledCalls, <bool>[true, false, true, false]);
+        expect(
+          recorder.continousRecordingState,
+          NativeAudioRecorderContinousRecordingState.hibernation,
+        );
+      },
+    );
+
+    test('setContinousRecording retries transient Windows warm-start failures', () async {
+      var toggleCalls = 0;
+      var resetCalls = 0;
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        setContinousRecordingFn: ({required enabled, required config}) {
+          toggleCalls++;
+          if (enabled && toggleCalls == 1) {
+            throw const AudioRecorderException(
+              'Warm start failed',
+              details: 'Failed to start miniaudio capture device: device or resource busy',
+            );
+          }
+        },
+        resetFn: () {
+          resetCalls++;
+        },
+        stopFn: () {},
+        isRecordingFn: () => false,
+      );
+
+      await recorder.setContinousRecording(true);
+
+      expect(toggleCalls, 2);
+      expect(resetCalls, 1);
+      expect(recorder.continousRecordingState, NativeAudioRecorderContinousRecordingState.active);
+    });
+
+    test('continousRecordingState reports error after a failed toggle', () async {
+      var failNextToggle = true;
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        setContinousRecordingFn: ({required enabled, required config}) {
+          if (failNextToggle) {
+            failNextToggle = false;
+            throw StateError('warm toggle failed');
+          }
+        },
+        stopFn: () {},
+        isRecordingFn: () => false,
+      );
+
+      await expectLater(recorder.setContinousRecording(true), throwsA(isA<StateError>()));
+      expect(recorder.continousRecordingState, NativeAudioRecorderContinousRecordingState.error);
+
+      await recorder.setContinousRecording(true);
+      expect(recorder.continousRecordingState, NativeAudioRecorderContinousRecordingState.active);
+    });
+
+    test('Windows app detach resets native recorder state', () async {
+      var resetCalls = 0;
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        setContinousRecordingFn: ({required enabled, required config}) {},
+        resetFn: () {
+          resetCalls++;
+        },
+        stopFn: () {},
+        isRecordingFn: () => false,
+      );
+
+      await recorder.setContinousRecording(true);
+      WidgetsBinding.instance.handleAppLifecycleStateChanged(AppLifecycleState.detached);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(resetCalls, 1);
+
+      WidgetsBinding.instance.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await recorder.dispose();
     });
 
     test('starts file recording with configured sample rate/channels', () async {

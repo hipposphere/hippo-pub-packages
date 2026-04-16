@@ -61,7 +61,7 @@ final class _WindowsNativeAudioRecorderPlatformImplementation
   void reset() => _resetWindowsAudioRecorderViaFfi();
 
   @override
-  void setContinousCapture(
+  void setContinousRecording(
     bool enabled, {
     AudioRecorderConfig config = const AudioRecorderConfig(),
   }) {

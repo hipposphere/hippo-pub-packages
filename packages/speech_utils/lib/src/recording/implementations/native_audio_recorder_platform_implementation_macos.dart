@@ -50,7 +50,7 @@ final class _MacosNativeAudioRecorderPlatformImplementation
   }
 
   @override
-  void setContinousCapture(
+  void setContinousRecording(
     bool enabled, {
     AudioRecorderConfig config = const AudioRecorderConfig(),
   }) {

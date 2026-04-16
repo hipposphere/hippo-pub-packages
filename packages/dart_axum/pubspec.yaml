@@ -1,0 +1,19 @@
+name: dart_axum
+description: Express-like Dart HTTP server API powered by a native Rust Axum runtime.
+version: 0.1.0
+homepage: https://hippolabs.org
+publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
+resolution: workspace
+
+environment:
+  sdk: ">=3.11.0 < 4.0.0"
+
+dependencies:
+  code_assets: ^1.0.0
+  ffi: ^2.2.0
+  hooks: ^1.0.2
+  native_toolchain_rust: ^1.0.3
+
+dev_dependencies:
+  lints: ^6.1.0
+  test: ^1.26.0

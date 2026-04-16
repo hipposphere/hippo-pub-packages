@@ -8,6 +8,7 @@ import 'dart:ui';
 
 import 'package:cross_file/cross_file.dart';
 import 'package:ffi/ffi.dart';
+import 'package:flutter/widgets.dart';
 import 'package:jni/jni.dart';
 import 'package:jni_flutter/jni_flutter.dart';
 import 'package:path/path.dart' as path;
@@ -41,6 +42,8 @@ part 'implementations/native_audio_recorder_platform_implementation_android.dart
 part 'implementations/native_audio_recorder_platform_ffi.dart';
 
 enum NativeAudioRecorderPlatform { android, macOS, windows, iOS, unsupported }
+
+enum NativeAudioRecorderContinousRecordingState { disabled, hibernation, error, active }
 
 /// Recorder enhancement capabilities currently implemented by this package.
 ///
@@ -115,7 +118,9 @@ final class NativeAudioRecorder {
   }) : this._(platformImplementation: platformImplementation);
 
   NativeAudioRecorder._({required NativeAudioRecorderPlatformImplementation platformImplementation})
-    : _platformImplementation = platformImplementation;
+    : _platformImplementation = platformImplementation {
+    _appLifecycleListener = _createAppLifecycleListenerIfAvailable();
+  }
 
   final NativeAudioRecorderPlatformImplementation _platformImplementation;
 
@@ -134,8 +139,14 @@ final class NativeAudioRecorder {
   AudioRecorderConfig? _activeRecordingConfig;
   String? _activeTempWavPath;
   Directory? _activeTempDirectory;
-  AudioRecorderConfig _continousCaptureConfig = const AudioRecorderConfig();
-  bool _continousCaptureEnabled = false;
+  AudioRecorderConfig _continousRecordingConfig = const AudioRecorderConfig();
+  bool _continousRecordingEnabled = false;
+  bool _continousRecordingNativeEnabled = false;
+  Duration? _continousRecordingDuration;
+  Timer? _continousRecordingWarmTimer;
+  Object? _continousRecordingError;
+  AppLifecycleListener? _appLifecycleListener;
+  bool _appDetachCleanupInFlight = false;
   bool _stopping = false;
   bool _nativeAmplitudePollInFlight = false;
   bool _streamDrainInFlight = false;
@@ -153,6 +164,19 @@ final class NativeAudioRecorder {
   ];
 
   NativeAudioRecorderPlatform get platform => _platformImplementation.platform;
+
+  NativeAudioRecorderContinousRecordingState get continousRecordingState {
+    if (_continousRecordingError != null) {
+      return NativeAudioRecorderContinousRecordingState.error;
+    }
+    if (!_continousRecordingEnabled) {
+      return NativeAudioRecorderContinousRecordingState.disabled;
+    }
+    if (_mode != _RecorderMode.stopped || _continousRecordingNativeEnabled) {
+      return NativeAudioRecorderContinousRecordingState.active;
+    }
+    return NativeAudioRecorderContinousRecordingState.hibernation;
+  }
 
   bool get isRecording {
     if (_mode == _RecorderMode.stopped) {
@@ -190,7 +214,7 @@ final class NativeAudioRecorder {
   ///
   /// Routing is driven by `AudioRecorderConfig.inputDeviceId` passed to
   /// `startFileRecording(...)`/`startPcmStream(...)`, or by the warm-capture
-  /// device remembered through `setContinousCapture(...)`.
+  /// device remembered through `setContinousRecording(...)`.
   ///
   /// On Apple platforms this is implemented by the native AVCaptureSession
   /// recorder backend using per-start configuration.
@@ -211,26 +235,43 @@ final class NativeAudioRecorder {
   /// `config` can be used to preconfigure the warm capture format before the
   /// first recording starts. `inputDeviceId` overrides the remembered warm
   /// capture device without requiring the full config to be rebuilt.
-  Future<void> setContinousCapture(
+  ///
+  /// When `duration` is set, idle warm capture automatically hibernates after
+  /// that amount of time. After a later recording finishes, warm capture is
+  /// reactivated for the same duration.
+  Future<void> setContinousRecording(
     bool enabled, {
     AudioRecorderConfig? config,
     String? inputDeviceId,
+    Duration? duration,
   }) async {
     _ensureSupportedPlatform();
-    final previousEnabled = _continousCaptureEnabled;
-    final previousConfig = _continousCaptureConfig;
-    final resolvedConfig = _resolveUpdatedContinousCaptureConfig(
+    final previousEnabled = _continousRecordingEnabled;
+    final previousConfig = _continousRecordingConfig;
+    final previousNativeEnabled = _continousRecordingNativeEnabled;
+    final previousDuration = _continousRecordingDuration;
+    final resolvedConfig = _resolveUpdatedContinousRecordingConfig(
       config: config,
       inputDeviceId: inputDeviceId,
     );
+    final resolvedDuration = _normalizeContinousRecordingDuration(duration);
     resolvedConfig.validate();
-    _continousCaptureEnabled = enabled;
-    _continousCaptureConfig = resolvedConfig;
+    _cancelContinousRecordingWarmTimer();
+    _continousRecordingEnabled = enabled;
+    _continousRecordingConfig = resolvedConfig;
+    _continousRecordingDuration = enabled ? resolvedDuration : null;
+    _continousRecordingError = null;
     try {
-      await _platformImplementation.setContinousCapture(enabled, config: resolvedConfig);
-    } on Object {
-      _continousCaptureEnabled = previousEnabled;
-      _continousCaptureConfig = previousConfig;
+      await _setPlatformContinousRecording(enabled: enabled, config: resolvedConfig);
+      _continousRecordingNativeEnabled = enabled && _supportsNativeContinousRecordingWarmCapture;
+      _scheduleContinousRecordingWarmTimerIfNeeded();
+    } on Object catch (error) {
+      _continousRecordingEnabled = previousEnabled;
+      _continousRecordingConfig = previousConfig;
+      _continousRecordingNativeEnabled = previousNativeEnabled;
+      _continousRecordingDuration = previousDuration;
+      _continousRecordingError = error;
+      _scheduleContinousRecordingWarmTimerIfNeeded();
       rethrow;
     }
   }
@@ -340,8 +381,9 @@ final class NativeAudioRecorder {
           config: effectiveConfig,
         ),
       );
-      _continousCaptureConfig = effectiveConfig;
+      _continousRecordingConfig = effectiveConfig;
       _mode = _RecorderMode.file;
+      _cancelContinousRecordingWarmTimer();
       _restartNativeAmplitudePollingIfNeeded();
     } on Object {
       await _cleanupTempRecordingDirectory(_activeTempDirectory);
@@ -383,10 +425,11 @@ final class NativeAudioRecorder {
       () => _platformImplementation.startStream(config: effectiveConfig),
     );
 
-    _continousCaptureConfig = effectiveConfig;
+    _continousRecordingConfig = effectiveConfig;
     _mode = _RecorderMode.stream;
     _streamReadSampleCapacity = readSampleCapacity;
     _streamDrainInFlight = false;
+    _cancelContinousRecordingWarmTimer();
 
     final controller = StreamController<Uint8List>(
       onCancel: () async {
@@ -669,6 +712,10 @@ final class NativeAudioRecorder {
     _currentAmplitudeSpeechSegment = null;
     _streamDrainInFlight = false;
 
+    if (stopError == null) {
+      await _resumeContinousRecordingWarmCaptureIfNeeded();
+    }
+
     final controller = _streamController;
     _streamController = null;
     if (controller != null && !controller.isClosed) {
@@ -750,16 +797,17 @@ final class NativeAudioRecorder {
     if (resetError != null) {
       Error.throwWithStackTrace(resetError, resetStackTrace ?? StackTrace.current);
     }
-    if (_continousCaptureEnabled) {
-      await _platformImplementation.setContinousCapture(
-        true,
-        config: _resolveContinousCaptureConfig(),
-      );
-    }
+    await _resumeContinousRecordingWarmCaptureIfNeeded(forceStart: true);
   }
 
   Future<void> dispose() async {
-    _continousCaptureEnabled = false;
+    _appLifecycleListener?.dispose();
+    _appLifecycleListener = null;
+    _cancelContinousRecordingWarmTimer();
+    _continousRecordingEnabled = false;
+    _continousRecordingNativeEnabled = false;
+    _continousRecordingDuration = null;
+    _continousRecordingError = null;
     await reset();
     _nativeAmplitudeTimer?.cancel();
     _nativeAmplitudeTimer = null;
@@ -839,6 +887,20 @@ final class NativeAudioRecorder {
     }
   }
 
+  Future<void> _setPlatformContinousRecording({
+    required bool enabled,
+    required AudioRecorderConfig config,
+  }) async {
+    if (!enabled || platform != NativeAudioRecorderPlatform.windows) {
+      await _platformImplementation.setContinousRecording(enabled, config: config);
+      return;
+    }
+
+    await _runPlatformStartWithRetry(
+      () => _platformImplementation.setContinousRecording(true, config: config),
+    );
+  }
+
   bool _isRetryableWindowsStartError(AudioRecorderException error) {
     final details = error.details?.toLowerCase();
     if (details == null || !details.contains('miniaudio capture device')) {
@@ -853,16 +915,16 @@ final class NativeAudioRecorder {
     return false;
   }
 
-  AudioRecorderConfig _resolveContinousCaptureConfig() {
-    return _activeRecordingConfig ?? _continousCaptureConfig;
+  AudioRecorderConfig _resolveContinousRecordingConfig() {
+    return _activeRecordingConfig ?? _continousRecordingConfig;
   }
 
   AudioRecorderConfig _resolveConfiguredStartConfig(AudioRecorderConfig config) {
-    if (!_continousCaptureEnabled || config.inputDeviceId != null) {
+    if (!_continousRecordingEnabled || config.inputDeviceId != null) {
       return config;
     }
 
-    final warmInputDeviceId = _continousCaptureConfig.inputDeviceId;
+    final warmInputDeviceId = _continousRecordingConfig.inputDeviceId;
     if (warmInputDeviceId == null) {
       return config;
     }
@@ -870,15 +932,25 @@ final class NativeAudioRecorder {
     return _copyAudioRecorderConfig(config, inputDeviceId: warmInputDeviceId);
   }
 
-  AudioRecorderConfig _resolveUpdatedContinousCaptureConfig({
+  AudioRecorderConfig _resolveUpdatedContinousRecordingConfig({
     AudioRecorderConfig? config,
     String? inputDeviceId,
   }) {
-    final baseConfig = config ?? _resolveContinousCaptureConfig();
+    final baseConfig = config ?? _resolveContinousRecordingConfig();
     final resolvedInputDeviceId = inputDeviceId == null
         ? baseConfig.inputDeviceId
         : _normalizeInputDeviceId(inputDeviceId, parameterName: 'inputDeviceId');
     return _copyAudioRecorderConfig(baseConfig, inputDeviceId: resolvedInputDeviceId);
+  }
+
+  Duration? _normalizeContinousRecordingDuration(Duration? duration) {
+    if (duration == null) {
+      return null;
+    }
+    if (duration <= Duration.zero) {
+      throw ArgumentError.value(duration, 'duration', 'Must be > Duration.zero');
+    }
+    return duration;
   }
 
   AudioRecorderConfig _copyAudioRecorderConfig(
@@ -1277,6 +1349,136 @@ final class NativeAudioRecorder {
     _nativeAmplitudeTimer = Timer.periodic(interval, (_) {
       unawaited(_pollNativeAmplitudeAndEmit());
     });
+  }
+
+  bool get _supportsNativeContinousRecordingWarmCapture {
+    return platform == NativeAudioRecorderPlatform.macOS ||
+        platform == NativeAudioRecorderPlatform.windows;
+  }
+
+  AppLifecycleListener? _createAppLifecycleListenerIfAvailable() {
+    if (platform != NativeAudioRecorderPlatform.windows) {
+      return null;
+    }
+    try {
+      return AppLifecycleListener(onDetach: _handleAppDetached);
+    } on Object {
+      return null;
+    }
+  }
+
+  void _handleAppDetached() {
+    if (_appDetachCleanupInFlight) {
+      return;
+    }
+    _appDetachCleanupInFlight = true;
+    unawaited(_cleanupForAppDetach());
+  }
+
+  Future<void> _cleanupForAppDetach() async {
+    _cancelContinousRecordingWarmTimer();
+    _continousRecordingNativeEnabled = false;
+    _nativeAmplitudeTimer?.cancel();
+    _nativeAmplitudeTimer = null;
+    _streamTimer?.cancel();
+    _streamTimer = null;
+
+    try {
+      await _platformImplementation.reset();
+    } on Object {
+      // Best effort shutdown only.
+    }
+
+    _mode = _RecorderMode.stopped;
+    _stopping = false;
+    _streamReadSampleCapacity = _defaultReadSampleCapacity;
+    _lastAmplitudeEmissionAt = null;
+    _streamDrainInFlight = false;
+
+    final controller = _streamController;
+    _streamController = null;
+    if (controller != null && !controller.isClosed) {
+      final closeFuture = controller.close();
+      if (controller.hasListener) {
+        await closeFuture;
+      } else {
+        unawaited(closeFuture);
+      }
+    }
+
+    await _cleanupTempRecordingDirectory(_activeTempDirectory);
+    _clearActiveRecordingOutputTracking();
+    _resetAmplitudeState();
+  }
+
+  void _cancelContinousRecordingWarmTimer() {
+    _continousRecordingWarmTimer?.cancel();
+    _continousRecordingWarmTimer = null;
+  }
+
+  void _scheduleContinousRecordingWarmTimerIfNeeded() {
+    _cancelContinousRecordingWarmTimer();
+
+    final duration = _continousRecordingDuration;
+    if (!_continousRecordingEnabled ||
+        !_continousRecordingNativeEnabled ||
+        !_supportsNativeContinousRecordingWarmCapture ||
+        _mode != _RecorderMode.stopped ||
+        duration == null) {
+      return;
+    }
+
+    _continousRecordingWarmTimer = Timer(duration, () {
+      unawaited(_hibernateContinousRecordingWarmCaptureIfNeeded());
+    });
+  }
+
+  Future<void> _hibernateContinousRecordingWarmCaptureIfNeeded() async {
+    _cancelContinousRecordingWarmTimer();
+    if (!_continousRecordingEnabled ||
+        !_continousRecordingNativeEnabled ||
+        !_supportsNativeContinousRecordingWarmCapture ||
+        _mode != _RecorderMode.stopped) {
+      return;
+    }
+
+    try {
+      await _setPlatformContinousRecording(
+        enabled: false,
+        config: _resolveContinousRecordingConfig(),
+      );
+      _continousRecordingNativeEnabled = false;
+      _continousRecordingError = null;
+    } on Object catch (error) {
+      _continousRecordingError = error;
+    }
+  }
+
+  Future<void> _resumeContinousRecordingWarmCaptureIfNeeded({bool forceStart = false}) async {
+    _cancelContinousRecordingWarmTimer();
+    if (!_continousRecordingEnabled ||
+        !_supportsNativeContinousRecordingWarmCapture ||
+        _mode != _RecorderMode.stopped) {
+      return;
+    }
+
+    if (_continousRecordingNativeEnabled && !forceStart) {
+      _continousRecordingError = null;
+      _scheduleContinousRecordingWarmTimerIfNeeded();
+      return;
+    }
+
+    try {
+      await _setPlatformContinousRecording(
+        enabled: true,
+        config: _resolveContinousRecordingConfig(),
+      );
+      _continousRecordingNativeEnabled = true;
+      _continousRecordingError = null;
+      _scheduleContinousRecordingWarmTimerIfNeeded();
+    } on Object catch (error) {
+      _continousRecordingError = error;
+    }
   }
 
   Future<void> _pollNativeAmplitudeAndEmit() async {

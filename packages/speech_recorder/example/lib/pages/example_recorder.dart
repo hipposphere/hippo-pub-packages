@@ -84,7 +84,7 @@ class _Bloc extends BlocBase {
         );
         if (controller.audioRecorder.platform !=
             NativeAudioRecorderPlatform.unsupported) {
-          await controller.audioRecorder.setContinousCapture(
+          await controller.audioRecorder.setContinousRecording(
             settings.continuousCaptureEnabled,
             config: baseRecordConfig,
             inputDeviceId: settings.inputDeviceId,
@@ -137,7 +137,7 @@ class _Bloc extends BlocBase {
     _RecorderSettings settings,
   ) async {
     try {
-      await controller.audioRecorder.setContinousCapture(
+      await controller.audioRecorder.setContinousRecording(
         settings.continuousCaptureEnabled,
         config: AudioRecorderConfig(
           sampleRateHz: settings.sampleRateHz,

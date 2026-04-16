@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/widgets.dart';
 import 'package:speech_utils/speech_utils.dart';
@@ -262,6 +263,168 @@ void main() {
     });
 
     test(
+      'macOS continuous capture resolves the default input device when no device id is provided',
+      () async {
+        final configCalls = <AudioRecorderConfig>[];
+        String? usedInputDeviceId;
+        var isRecording = false;
+
+        final recorder = recorderFixture(
+          platform: NativeAudioRecorderPlatform.macOS,
+          availabilityFn: () => true,
+          hasPermissionFn: () => true,
+          requestPermissionFn: () => true,
+          listInputDevicesFn: () => const <InputDevice>[
+            InputDevice(id: 'mic-default', label: 'Default Mic', isDefault: true),
+            InputDevice(id: 'mic-usb', label: 'USB Mic'),
+          ],
+          startFileFn:
+              ({
+                required outputPath,
+                required sampleRateHz,
+                required channelCount,
+                required inputDeviceId,
+              }) {},
+          startPcmStreamFn:
+              ({
+                required sampleRateHz,
+                required channelCount,
+                required framesPerChunk,
+                required inputDeviceId,
+              }) {
+                usedInputDeviceId = inputDeviceId;
+                isRecording = true;
+              },
+          readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+          setContinousRecordingFn: ({required enabled, required config}) {
+            configCalls.add(config);
+          },
+          stopFn: () {
+            isRecording = false;
+          },
+          isRecordingFn: () => isRecording,
+        );
+
+        await recorder.setContinousRecording(true);
+        await recorder.startPcmStream(pollInterval: const Duration(milliseconds: 50));
+
+        expect(configCalls.single.inputDeviceId, 'mic-default');
+        expect(usedInputDeviceId, 'mic-default');
+
+        await recorder.stop();
+      },
+    );
+
+    test(
+      'macOS continuous capture retries after an initial default-device lookup failure',
+      () async {
+        final configCalls = <String?>[];
+        var listCalls = 0;
+
+        final recorder = recorderFixture(
+          platform: NativeAudioRecorderPlatform.macOS,
+          availabilityFn: () => true,
+          hasPermissionFn: () => true,
+          requestPermissionFn: () => true,
+          listInputDevicesFn: () {
+            listCalls++;
+            if (listCalls == 1) {
+              return const <InputDevice>[];
+            }
+            return const <InputDevice>[
+              InputDevice(id: 'mic-default', label: 'Default Mic', isDefault: true),
+            ];
+          },
+          startFileFn:
+              ({
+                required outputPath,
+                required sampleRateHz,
+                required channelCount,
+                required inputDeviceId,
+              }) {},
+          startPcmStreamFn:
+              ({
+                required sampleRateHz,
+                required channelCount,
+                required framesPerChunk,
+                required inputDeviceId,
+              }) {},
+          readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+          setContinousRecordingFn: ({required enabled, required config}) {
+            configCalls.add(config.inputDeviceId);
+            if (enabled && configCalls.length == 1) {
+              throw const AudioRecorderException(
+                'Warm start failed',
+                errorCode: -21,
+                details: 'No audio capture device is available.',
+              );
+            }
+          },
+          stopFn: () {},
+          isRecordingFn: () => false,
+        );
+
+        await recorder.setContinousRecording(true);
+
+        expect(configCalls, <String?>[null, 'mic-default']);
+        expect(recorder.continousRecordingState, NativeAudioRecorderContinousRecordingState.active);
+      },
+    );
+
+    test(
+      'Windows continuous capture resolves the default input device when no device id is provided',
+      () async {
+        final configCalls = <AudioRecorderConfig>[];
+        String? usedInputDeviceId;
+        var isRecording = false;
+
+        final recorder = recorderFixture(
+          platform: NativeAudioRecorderPlatform.windows,
+          availabilityFn: () => true,
+          hasPermissionFn: () => true,
+          requestPermissionFn: () => true,
+          listInputDevicesFn: () => const <InputDevice>[
+            InputDevice(id: 'mic-default', label: 'Default Mic', isDefault: true),
+            InputDevice(id: 'mic-usb', label: 'USB Mic'),
+          ],
+          startFileFn:
+              ({
+                required outputPath,
+                required sampleRateHz,
+                required channelCount,
+                required inputDeviceId,
+              }) {},
+          startPcmStreamFn:
+              ({
+                required sampleRateHz,
+                required channelCount,
+                required framesPerChunk,
+                required inputDeviceId,
+              }) {
+                usedInputDeviceId = inputDeviceId;
+                isRecording = true;
+              },
+          readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+          setContinousRecordingFn: ({required enabled, required config}) {
+            configCalls.add(config);
+          },
+          stopFn: () {
+            isRecording = false;
+          },
+          isRecordingFn: () => isRecording,
+        );
+
+        await recorder.setContinousRecording(true);
+        await recorder.startPcmStream(pollInterval: const Duration(milliseconds: 50));
+
+        expect(configCalls.single.inputDeviceId, 'mic-default');
+        expect(usedInputDeviceId, 'mic-default');
+
+        await recorder.stop();
+      },
+    );
+
+    test(
       'continousRecordingState hibernates after the warm duration and reactivates after stop',
       () async {
         final enabledCalls = <bool>[];
@@ -457,6 +620,47 @@ void main() {
       expect(resetCalls, 1);
 
       WidgetsBinding.instance.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await recorder.dispose();
+    });
+
+    test('Windows app exit request resets native recorder state', () async {
+      var resetCalls = 0;
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        setContinousRecordingFn: ({required enabled, required config}) {},
+        resetFn: () {
+          resetCalls++;
+        },
+        stopFn: () {},
+        isRecordingFn: () => false,
+      );
+
+      await recorder.setContinousRecording(true);
+      final response = await WidgetsBinding.instance.handleRequestAppExit();
+
+      expect(response, AppExitResponse.exit);
+      expect(resetCalls, 1);
+
       await recorder.dispose();
     });
 

@@ -31,6 +31,8 @@ abstract base class AxumSchema {
 
   const factory AxumSchema.reference(String ref) = _AxumReferenceSchema;
 
+  const factory AxumSchema.referenceComponent(String name) = _AxumComponentReferenceSchema;
+
   const factory AxumSchema.nullable(AxumSchema inner) = _AxumNullableSchema;
 
   Map<String, Object?> toJson();
@@ -147,6 +149,17 @@ final class _AxumReferenceSchema extends AxumSchema {
   Map<String, Object?> toJson() => <String, Object?>{r'$ref': ref};
 }
 
+final class _AxumComponentReferenceSchema extends AxumSchema {
+  const _AxumComponentReferenceSchema(this.name);
+
+  final String name;
+
+  @override
+  Map<String, Object?> toJson() {
+    return <String, Object?>{r'$ref': '#/components/schemas/$name'};
+  }
+}
+
 final class _AxumNullableSchema extends AxumSchema {
   const _AxumNullableSchema(this.inner);
 
@@ -161,6 +174,40 @@ final class _AxumNullableSchema extends AxumSchema {
       ],
     };
   }
+}
+
+final class AxumSchemaComponent {
+  const AxumSchemaComponent({
+    required this.name,
+    required this.schema,
+    this.dependencies = const <AxumSchemaComponent>[],
+  }) : assert(name != '');
+
+  AxumSchemaComponent.object({
+    required String name,
+    required Map<String, AxumSchema> properties,
+    Set<String> required = const <String>{},
+    String? description,
+    bool additionalProperties = false,
+    List<AxumSchemaComponent> dependencies = const <AxumSchemaComponent>[],
+  }) : this(
+         name: name,
+         schema: AxumSchema.object(
+           properties: properties,
+           required: required,
+           description: description,
+           additionalProperties: additionalProperties,
+         ),
+         dependencies: dependencies,
+       );
+
+  final String name;
+  final AxumSchema schema;
+  final List<AxumSchemaComponent> dependencies;
+
+  AxumSchema get reference => AxumSchema.referenceComponent(name);
+
+  Map<String, Object?> toJson() => schema.toJson();
 }
 
 final class AxumParameterDocs {
@@ -207,11 +254,13 @@ final class AxumResponseDocs {
     required this.description,
     this.schema,
     this.contentType = 'application/json',
+    this.components = const <AxumSchemaComponent>[],
   });
 
   final String description;
   final AxumSchema? schema;
   final String contentType;
+  final List<AxumSchemaComponent> components;
 
   Map<String, Object?> toJson() {
     final content = schema == null
@@ -223,6 +272,32 @@ final class AxumResponseDocs {
   }
 }
 
+final class AxumRequestBodyDocs {
+  const AxumRequestBodyDocs({
+    required this.schema,
+    this.description,
+    this.contentType = 'application/json',
+    this.components = const <AxumSchemaComponent>[],
+    this.required = true,
+  });
+
+  final AxumSchema schema;
+  final String? description;
+  final String contentType;
+  final List<AxumSchemaComponent> components;
+  final bool required;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'required': required,
+      'content': <String, Object?>{
+        contentType: <String, Object?>{'schema': schema.toJson()},
+      },
+      if (description != null) 'description': description,
+    };
+  }
+}
+
 final class AxumRouteDocs {
   const AxumRouteDocs({
     this.summary,
@@ -230,6 +305,8 @@ final class AxumRouteDocs {
     this.tags = const <String>[],
     this.operationId,
     this.parameters = const <AxumParameterDocs>[],
+    this.requestBody,
+    this.components = const <AxumSchemaComponent>[],
     this.responses = const <int, AxumResponseDocs>{},
   });
 
@@ -238,6 +315,8 @@ final class AxumRouteDocs {
   final List<String> tags;
   final String? operationId;
   final List<AxumParameterDocs> parameters;
+  final AxumRequestBodyDocs? requestBody;
+  final List<AxumSchemaComponent> components;
   final Map<int, AxumResponseDocs> responses;
 }
 

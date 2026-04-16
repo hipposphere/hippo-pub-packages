@@ -454,6 +454,10 @@ AVCaptureDevice* ResolveMacosCaptureDevice(NSString* input_uid, char* error_utf8
     return nil;
   }
 
+  if (default_device != nil && [default_device.uniqueID isEqualToString:input_uid]) {
+    return default_device;
+  }
+
   for (AVCaptureDevice* device in discovery.devices) {
     if ([device.uniqueID isEqualToString:input_uid]) {
       return device;

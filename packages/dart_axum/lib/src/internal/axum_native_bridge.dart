@@ -84,6 +84,46 @@ final class AxumNativeBridge {
     }
   }
 
+  Future<void> startSseResponse({
+    required AxumServer server,
+    required int requestId,
+    required int statusCode,
+    required Map<String, List<String>> headers,
+  }) async {
+    final responsePointer = jsonEncode(<String, Object?>{
+      'status': statusCode,
+      'headers': headers,
+    }).toNativeUtf8(allocator: calloc).cast<ffi.Char>();
+    try {
+      _throwIfError(
+        bindings.dart_axum_start_sse_response(server.id, requestId, responsePointer),
+        action: 'start SSE response',
+      );
+    } finally {
+      calloc.free(responsePointer);
+    }
+  }
+
+  Future<void> sendSseChunk({
+    required AxumServer server,
+    required int streamId,
+    required String chunk,
+  }) async {
+    final chunkPointer = chunk.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
+    try {
+      _throwIfError(
+        bindings.dart_axum_sse_send(server.id, streamId, chunkPointer),
+        action: 'send SSE chunk',
+      );
+    } finally {
+      calloc.free(chunkPointer);
+    }
+  }
+
+  Future<void> closeSseResponse({required AxumServer server, required int streamId}) async {
+    _throwIfError(bindings.dart_axum_sse_close(server.id, streamId), action: 'close SSE response');
+  }
+
   Future<void> sendWebSocketFrame({
     required AxumServer server,
     required int socketId,

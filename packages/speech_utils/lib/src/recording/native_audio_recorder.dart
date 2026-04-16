@@ -146,7 +146,7 @@ final class NativeAudioRecorder {
   Timer? _continousRecordingWarmTimer;
   Object? _continousRecordingError;
   AppLifecycleListener? _appLifecycleListener;
-  bool _appDetachCleanupInFlight = false;
+  Future<void>? _appDetachCleanupFuture;
   bool _stopping = false;
   bool _nativeAmplitudePollInFlight = false;
   bool _streamDrainInFlight = false;
@@ -157,10 +157,19 @@ final class NativeAudioRecorder {
     Duration(milliseconds: 75),
     Duration(milliseconds: 150),
   ];
+  static const _macosContinousStartRetryDelays = <Duration>[
+    Duration(milliseconds: 50),
+    Duration(milliseconds: 125),
+  ];
   static const _windowsTransientStartErrorNeedles = <String>[
     'resource unavailable',
     'device or resource busy',
     'already in use',
+  ];
+  static const _macosTransientContinuousStartErrorNeedles = <String>[
+    'no audio capture device is available',
+    'no macos audio capture device is available',
+    'selected macos input device is not available',
   ];
 
   NativeAudioRecorderPlatform get platform => _platformImplementation.platform;
@@ -891,14 +900,85 @@ final class NativeAudioRecorder {
     required bool enabled,
     required AudioRecorderConfig config,
   }) async {
-    if (!enabled || platform != NativeAudioRecorderPlatform.windows) {
-      await _platformImplementation.setContinousRecording(enabled, config: config);
+    if (enabled && platform == NativeAudioRecorderPlatform.macOS) {
+      await _setMacosPlatformContinousRecordingWithRetry(config: config);
       return;
     }
 
-    await _runPlatformStartWithRetry(
-      () => _platformImplementation.setContinousRecording(true, config: config),
-    );
+    if (enabled && platform == NativeAudioRecorderPlatform.windows) {
+      await _setWindowsPlatformContinousRecordingWithRetry(config: config);
+      return;
+    }
+
+    await _platformImplementation.setContinousRecording(enabled, config: config);
+  }
+
+  Future<void> _setMacosPlatformContinousRecordingWithRetry({
+    required AudioRecorderConfig config,
+  }) async {
+    var configToTry = await _resolveMacosDefaultContinousInputConfig(config);
+    var retriesRemaining = _macosContinousStartRetryDelays.length;
+
+    while (true) {
+      try {
+        await _platformImplementation.setContinousRecording(true, config: configToTry);
+        _continousRecordingConfig = configToTry;
+        return;
+      } on AudioRecorderException catch (error) {
+        if (!_isRetryableMacosContinousStartError(error)) {
+          rethrow;
+        }
+
+        final fallbackConfig = await _resolveMacosDefaultContinousInputConfig(configToTry);
+        if (fallbackConfig.inputDeviceId != configToTry.inputDeviceId) {
+          configToTry = fallbackConfig;
+          continue;
+        }
+
+        if (retriesRemaining == 0) {
+          rethrow;
+        }
+
+        await Future<void>.delayed(
+          _macosContinousStartRetryDelays[_macosContinousStartRetryDelays.length -
+              retriesRemaining],
+        );
+        retriesRemaining--;
+        configToTry = await _resolveMacosDefaultContinousInputConfig(configToTry);
+      }
+    }
+  }
+
+  Future<void> _setWindowsPlatformContinousRecordingWithRetry({
+    required AudioRecorderConfig config,
+  }) async {
+    var configToTry = await _resolvePlatformDefaultContinousInputConfig(config);
+
+    for (var attempt = 0; ; attempt++) {
+      try {
+        await _platformImplementation.setContinousRecording(true, config: configToTry);
+        _continousRecordingConfig = configToTry;
+        return;
+      } on AudioRecorderException catch (error, stackTrace) {
+        final fallbackConfig = await _resolvePlatformDefaultContinousInputConfig(configToTry);
+        if (fallbackConfig.inputDeviceId != configToTry.inputDeviceId) {
+          configToTry = fallbackConfig;
+          continue;
+        }
+
+        if (!_isRetryableWindowsStartError(error) || attempt >= _windowsStartRetryDelays.length) {
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+      }
+
+      try {
+        await _platformImplementation.reset();
+      } on Object {
+        // Preserve the original startup failure when cleanup itself is noisy.
+      }
+      await Future<void>.delayed(_windowsStartRetryDelays[attempt]);
+      configToTry = await _resolvePlatformDefaultContinousInputConfig(configToTry);
+    }
   }
 
   bool _isRetryableWindowsStartError(AudioRecorderException error) {
@@ -908,6 +988,20 @@ final class NativeAudioRecorder {
     }
 
     for (final needle in _windowsTransientStartErrorNeedles) {
+      if (details.contains(needle)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _isRetryableMacosContinousStartError(AudioRecorderException error) {
+    final details = error.details?.toLowerCase();
+    if (details == null) {
+      return false;
+    }
+
+    for (final needle in _macosTransientContinuousStartErrorNeedles) {
       if (details.contains(needle)) {
         return true;
       }
@@ -941,6 +1035,48 @@ final class NativeAudioRecorder {
         ? baseConfig.inputDeviceId
         : _normalizeInputDeviceId(inputDeviceId, parameterName: 'inputDeviceId');
     return _copyAudioRecorderConfig(baseConfig, inputDeviceId: resolvedInputDeviceId);
+  }
+
+  Future<AudioRecorderConfig> _resolveMacosDefaultContinousInputConfig(
+    AudioRecorderConfig config,
+  ) async {
+    return _resolvePlatformDefaultContinousInputConfig(
+      config,
+      supportedPlatforms: const <NativeAudioRecorderPlatform>{NativeAudioRecorderPlatform.macOS},
+    );
+  }
+
+  Future<AudioRecorderConfig> _resolvePlatformDefaultContinousInputConfig(
+    AudioRecorderConfig config, {
+    Set<NativeAudioRecorderPlatform> supportedPlatforms = const <NativeAudioRecorderPlatform>{
+      NativeAudioRecorderPlatform.macOS,
+      NativeAudioRecorderPlatform.windows,
+    },
+  }) async {
+    if (!supportedPlatforms.contains(platform) || config.inputDeviceId != null) {
+      return config;
+    }
+
+    List<InputDevice> devices;
+    try {
+      devices = await listInputDevices();
+    } on Object {
+      return config;
+    }
+    if (devices.isEmpty) {
+      return config;
+    }
+
+    InputDevice? defaultDevice;
+    for (final device in devices) {
+      if (device.isDefault) {
+        defaultDevice = device;
+        break;
+      }
+    }
+
+    final resolvedDevice = defaultDevice ?? devices.first;
+    return _copyAudioRecorderConfig(config, inputDeviceId: resolvedDevice.id);
   }
 
   Duration? _normalizeContinousRecordingDuration(Duration? duration) {
@@ -1361,18 +1497,37 @@ final class NativeAudioRecorder {
       return null;
     }
     try {
-      return AppLifecycleListener(onDetach: _handleAppDetached);
+      return AppLifecycleListener(
+        onDetach: _handleAppDetached,
+        onExitRequested: _handleAppExitRequested,
+      );
     } on Object {
       return null;
     }
   }
 
   void _handleAppDetached() {
-    if (_appDetachCleanupInFlight) {
-      return;
+    unawaited(_ensureAppDetachCleanup());
+  }
+
+  Future<AppExitResponse> _handleAppExitRequested() async {
+    await _ensureAppDetachCleanup();
+    return AppExitResponse.exit;
+  }
+
+  Future<void> _ensureAppDetachCleanup() {
+    final existingCleanup = _appDetachCleanupFuture;
+    if (existingCleanup != null) {
+      return existingCleanup;
     }
-    _appDetachCleanupInFlight = true;
-    unawaited(_cleanupForAppDetach());
+
+    final cleanupFuture = _cleanupForAppDetach();
+    _appDetachCleanupFuture = cleanupFuture;
+    return cleanupFuture.whenComplete(() {
+      if (identical(_appDetachCleanupFuture, cleanupFuture)) {
+        _appDetachCleanupFuture = null;
+      }
+    });
   }
 
   Future<void> _cleanupForAppDetach() async {

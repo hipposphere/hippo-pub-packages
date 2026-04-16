@@ -41,6 +41,23 @@ external ffi.Pointer<ffi.Char> dart_axum_complete_http_request(
 );
 
 @ffi.Native<ffi.Pointer<ffi.Char> Function(ffi.Int64, ffi.Int64, ffi.Pointer<ffi.Char>)>()
+external ffi.Pointer<ffi.Char> dart_axum_start_sse_response(
+  int server_id,
+  int request_id,
+  ffi.Pointer<ffi.Char> response_json_utf8,
+);
+
+@ffi.Native<ffi.Pointer<ffi.Char> Function(ffi.Int64, ffi.Int64, ffi.Pointer<ffi.Char>)>()
+external ffi.Pointer<ffi.Char> dart_axum_sse_send(
+  int server_id,
+  int stream_id,
+  ffi.Pointer<ffi.Char> chunk_utf8,
+);
+
+@ffi.Native<ffi.Pointer<ffi.Char> Function(ffi.Int64, ffi.Int64)>()
+external ffi.Pointer<ffi.Char> dart_axum_sse_close(int server_id, int stream_id);
+
+@ffi.Native<ffi.Pointer<ffi.Char> Function(ffi.Int64, ffi.Int64, ffi.Pointer<ffi.Char>)>()
 external ffi.Pointer<ffi.Char> dart_axum_websocket_send(
   int server_id,
   int socket_id,

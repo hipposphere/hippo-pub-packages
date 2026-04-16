@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'axum_codec.dart';
 import 'axum_http.dart';
 import 'axum_openapi.dart';
+import 'axum_type.dart';
 import 'internal/axum_native_bridge.dart';
 
 typedef AxumNext = Future<AxumResponse> Function();
@@ -14,14 +15,64 @@ typedef AxumHandler = FutureOr<AxumResponse> Function(AxumRequestContext context
 typedef AxumTypedHandler<TRequest, TResponse> =
     FutureOr<TResponse> Function(AxumContext<TRequest> context);
 typedef AxumWebSocketHandler = FutureOr<void> Function(AxumWebSocket socket);
+typedef AxumSseHandler = FutureOr<void> Function(AxumSseConnection connection);
 
-final class AxumApp {
-  AxumApp({this.openApi});
+abstract base class AxumRouteDefinition<TRequest, TResponse> {
+  const AxumRouteDefinition();
 
-  final AxumOpenApi? openApi;
+  AxumMethod get method;
 
+  String get path;
+
+  AxumBodyDecoder<TRequest> get request;
+
+  AxumBodyEncoder<TResponse> get response;
+
+  AxumRouteDocs? get docs => null;
+
+  List<AxumMiddleware> get middleware => const <AxumMiddleware>[];
+
+  List<AxumSchemaComponent> get components => const <AxumSchemaComponent>[];
+}
+
+base class AxumTypedRouteDefinition<TRequest, TResponse>
+    extends AxumRouteDefinition<TRequest, TResponse> {
+  const AxumTypedRouteDefinition({
+    required this.method,
+    required this.path,
+    required this.request,
+    required this.response,
+    this.docs,
+    this.middleware = const <AxumMiddleware>[],
+    this.components = const <AxumSchemaComponent>[],
+  });
+
+  @override
+  final AxumMethod method;
+
+  @override
+  final String path;
+
+  @override
+  final AxumBodyDecoder<TRequest> request;
+
+  @override
+  final AxumBodyEncoder<TResponse> response;
+
+  @override
+  final AxumRouteDocs? docs;
+
+  @override
+  final List<AxumMiddleware> middleware;
+
+  @override
+  final List<AxumSchemaComponent> components;
+}
+
+abstract base class _AxumRouteRegistry {
   final List<AxumMiddleware> _middlewares = <AxumMiddleware>[];
   final List<_AxumRouteBase> _routes = <_AxumRouteBase>[];
+  final List<_AxumSseRoute> _sseRoutes = <_AxumSseRoute>[];
   final List<_AxumWebSocketRoute> _webSocketRoutes = <_AxumWebSocketRoute>[];
 
   void use(AxumMiddleware middleware) {
@@ -34,6 +85,7 @@ final class AxumApp {
     required AxumHandler handler,
     AxumRouteDocs? docs,
     List<AxumMiddleware> middleware = const <AxumMiddleware>[],
+    List<AxumSchemaComponent> components = const <AxumSchemaComponent>[],
   }) {
     _routes.add(
       _AxumRawRoute(
@@ -41,12 +93,13 @@ final class AxumApp {
         path: path,
         docs: docs,
         middleware: List<AxumMiddleware>.unmodifiable(middleware),
+        components: List<AxumSchemaComponent>.unmodifiable(components),
         handler: handler,
       ),
     );
   }
 
-  void routeTyped<TRequest, TResponse>(
+  void _registerTypedRoute<TRequest, TResponse>(
     AxumMethod method,
     String path, {
     required AxumBodyDecoder<TRequest> request,
@@ -54,6 +107,7 @@ final class AxumApp {
     required AxumTypedHandler<TRequest, TResponse> handler,
     AxumRouteDocs? docs,
     List<AxumMiddleware> middleware = const <AxumMiddleware>[],
+    List<AxumSchemaComponent> components = const <AxumSchemaComponent>[],
   }) {
     _routes.add(
       _AxumTypedRoute<TRequest, TResponse>(
@@ -63,6 +117,7 @@ final class AxumApp {
         response: response,
         docs: docs,
         middleware: List<AxumMiddleware>.unmodifiable(middleware),
+        components: List<AxumSchemaComponent>.unmodifiable(components),
         handler: handler,
       ),
     );
@@ -73,8 +128,16 @@ final class AxumApp {
     required AxumHandler handler,
     AxumRouteDocs? docs,
     List<AxumMiddleware> middleware = const <AxumMiddleware>[],
+    List<AxumSchemaComponent> components = const <AxumSchemaComponent>[],
   }) {
-    route(AxumMethod.get, path, handler: handler, docs: docs, middleware: middleware);
+    route(
+      AxumMethod.get,
+      path,
+      handler: handler,
+      docs: docs,
+      middleware: middleware,
+      components: components,
+    );
   }
 
   void post(
@@ -82,8 +145,16 @@ final class AxumApp {
     required AxumHandler handler,
     AxumRouteDocs? docs,
     List<AxumMiddleware> middleware = const <AxumMiddleware>[],
+    List<AxumSchemaComponent> components = const <AxumSchemaComponent>[],
   }) {
-    route(AxumMethod.post, path, handler: handler, docs: docs, middleware: middleware);
+    route(
+      AxumMethod.post,
+      path,
+      handler: handler,
+      docs: docs,
+      middleware: middleware,
+      components: components,
+    );
   }
 
   void put(
@@ -91,8 +162,16 @@ final class AxumApp {
     required AxumHandler handler,
     AxumRouteDocs? docs,
     List<AxumMiddleware> middleware = const <AxumMiddleware>[],
+    List<AxumSchemaComponent> components = const <AxumSchemaComponent>[],
   }) {
-    route(AxumMethod.put, path, handler: handler, docs: docs, middleware: middleware);
+    route(
+      AxumMethod.put,
+      path,
+      handler: handler,
+      docs: docs,
+      middleware: middleware,
+      components: components,
+    );
   }
 
   void patch(
@@ -100,8 +179,16 @@ final class AxumApp {
     required AxumHandler handler,
     AxumRouteDocs? docs,
     List<AxumMiddleware> middleware = const <AxumMiddleware>[],
+    List<AxumSchemaComponent> components = const <AxumSchemaComponent>[],
   }) {
-    route(AxumMethod.patch, path, handler: handler, docs: docs, middleware: middleware);
+    route(
+      AxumMethod.patch,
+      path,
+      handler: handler,
+      docs: docs,
+      middleware: middleware,
+      components: components,
+    );
   }
 
   void delete(
@@ -109,108 +196,80 @@ final class AxumApp {
     required AxumHandler handler,
     AxumRouteDocs? docs,
     List<AxumMiddleware> middleware = const <AxumMiddleware>[],
+    List<AxumSchemaComponent> components = const <AxumSchemaComponent>[],
   }) {
-    route(AxumMethod.delete, path, handler: handler, docs: docs, middleware: middleware);
-  }
-
-  void getTyped<TRequest, TResponse>(
-    String path, {
-    required AxumBodyDecoder<TRequest> request,
-    required AxumBodyEncoder<TResponse> response,
-    required AxumTypedHandler<TRequest, TResponse> handler,
-    AxumRouteDocs? docs,
-    List<AxumMiddleware> middleware = const <AxumMiddleware>[],
-  }) {
-    routeTyped<TRequest, TResponse>(
-      AxumMethod.get,
-      path,
-      request: request,
-      response: response,
-      handler: handler,
-      docs: docs,
-      middleware: middleware,
-    );
-  }
-
-  void postTyped<TRequest, TResponse>(
-    String path, {
-    required AxumBodyDecoder<TRequest> request,
-    required AxumBodyEncoder<TResponse> response,
-    required AxumTypedHandler<TRequest, TResponse> handler,
-    AxumRouteDocs? docs,
-    List<AxumMiddleware> middleware = const <AxumMiddleware>[],
-  }) {
-    routeTyped<TRequest, TResponse>(
-      AxumMethod.post,
-      path,
-      request: request,
-      response: response,
-      handler: handler,
-      docs: docs,
-      middleware: middleware,
-    );
-  }
-
-  void putTyped<TRequest, TResponse>(
-    String path, {
-    required AxumBodyDecoder<TRequest> request,
-    required AxumBodyEncoder<TResponse> response,
-    required AxumTypedHandler<TRequest, TResponse> handler,
-    AxumRouteDocs? docs,
-    List<AxumMiddleware> middleware = const <AxumMiddleware>[],
-  }) {
-    routeTyped<TRequest, TResponse>(
-      AxumMethod.put,
-      path,
-      request: request,
-      response: response,
-      handler: handler,
-      docs: docs,
-      middleware: middleware,
-    );
-  }
-
-  void patchTyped<TRequest, TResponse>(
-    String path, {
-    required AxumBodyDecoder<TRequest> request,
-    required AxumBodyEncoder<TResponse> response,
-    required AxumTypedHandler<TRequest, TResponse> handler,
-    AxumRouteDocs? docs,
-    List<AxumMiddleware> middleware = const <AxumMiddleware>[],
-  }) {
-    routeTyped<TRequest, TResponse>(
-      AxumMethod.patch,
-      path,
-      request: request,
-      response: response,
-      handler: handler,
-      docs: docs,
-      middleware: middleware,
-    );
-  }
-
-  void deleteTyped<TRequest, TResponse>(
-    String path, {
-    required AxumBodyDecoder<TRequest> request,
-    required AxumBodyEncoder<TResponse> response,
-    required AxumTypedHandler<TRequest, TResponse> handler,
-    AxumRouteDocs? docs,
-    List<AxumMiddleware> middleware = const <AxumMiddleware>[],
-  }) {
-    routeTyped<TRequest, TResponse>(
+    route(
       AxumMethod.delete,
       path,
-      request: request,
-      response: response,
       handler: handler,
       docs: docs,
       middleware: middleware,
+      components: components,
+    );
+  }
+
+  void register<TRequest, TResponse>(
+    AxumRouteDefinition<TRequest, TResponse> route, {
+    required AxumTypedHandler<TRequest, TResponse> handler,
+  }) {
+    _registerTypedRoute<TRequest, TResponse>(
+      route.method,
+      route.path,
+      request: route.request,
+      response: route.response,
+      handler: handler,
+      docs: route.docs,
+      middleware: route.middleware,
+      components: route.components,
+    );
+  }
+
+  void mount(String prefix, AxumRouter router) {
+    final normalizedPrefix = _normalizePath(prefix);
+    for (final route in router._routes) {
+      _routes.add(route.withPrefix(normalizedPrefix, middlewarePrefix: router._middlewares));
+    }
+    for (final route in router._sseRoutes) {
+      _sseRoutes.add(route.withPrefix(normalizedPrefix));
+    }
+    for (final route in router._webSocketRoutes) {
+      _webSocketRoutes.add(route.withPrefix(normalizedPrefix));
+    }
+  }
+
+  void sse(
+    String path,
+    AxumSseHandler handler, {
+    AxumRouteDocs? docs,
+    List<AxumSchemaComponent> components = const <AxumSchemaComponent>[],
+  }) {
+    _sseRoutes.add(
+      _AxumSseRoute(
+        path: path,
+        handler: handler,
+        docs: docs,
+        components: List<AxumSchemaComponent>.unmodifiable(components),
+      ),
     );
   }
 
   void ws(String path, AxumWebSocketHandler handler) {
     _webSocketRoutes.add(_AxumWebSocketRoute(path: path, handler: handler));
   }
+}
+
+final class AxumRouter extends _AxumRouteRegistry {
+  AxumRouter({void Function(AxumRouter router)? build}) {
+    if (build != null) {
+      build(this);
+    }
+  }
+}
+
+final class AxumApp extends _AxumRouteRegistry {
+  AxumApp({this.openApi});
+
+  final AxumOpenApi? openApi;
 
   Future<AxumServer> listen({
     String host = '127.0.0.1',
@@ -237,19 +296,14 @@ final class AxumApp {
         const AxumOpenApi(
           info: AxumOpenApiInfo(title: 'dart_axum API', version: '0.1.0'),
         );
-    final paths = <String, Map<String, Object?>>{};
+    final builder = _AxumOpenApiDocumentBuilder(config);
     for (final route in _routes) {
-      final pathItem = paths.putIfAbsent(route.pattern.openApiPath, () => <String, Object?>{});
-      pathItem[route.method.value.toLowerCase()] = route.buildOpenApiOperation();
+      builder.addRoute(route);
     }
-
-    return {
-      'openapi': '3.1.0',
-      'info': config.info.toJson(),
-      if (config.servers.isNotEmpty)
-        'servers': <Object?>[for (final server in config.servers) server.toJson()],
-      'paths': paths,
-    };
+    for (final route in _sseRoutes) {
+      builder.addSseRoute(route);
+    }
+    return builder.build();
   }
 
   String openApiJsonString({bool pretty = true}) {
@@ -273,6 +327,7 @@ final class AxumServer {
 
   final AxumNativeBridge _bridge;
   final AxumApp _app;
+  final Map<int, AxumSseConnection> _sseConnections = <int, AxumSseConnection>{};
   final Map<int, AxumWebSocket> _webSockets = <int, AxumWebSocket>{};
   final StreamController<String> _errors = StreamController<String>.broadcast();
 
@@ -287,6 +342,10 @@ final class AxumServer {
   Stream<String> get errors => _errors.stream;
 
   Future<void> close() async {
+    for (final connection in _sseConnections.values.toList()) {
+      await connection.close();
+    }
+    _sseConnections.clear();
     for (final socket in _webSockets.values.toList()) {
       socket._completeClose(code: 1001, reason: 'Server shutting down');
     }
@@ -329,7 +388,14 @@ final class AxumServer {
     AxumResponse response;
     try {
       final context = _buildRequestContext(event);
-      response = await _maybeHandleBuiltinRoute(context) ?? await _dispatchRoute(context);
+      final builtInResponse = await _maybeHandleBuiltinRoute(context);
+      if (builtInResponse != null) {
+        response = builtInResponse;
+      } else if (await _dispatchSseRoute(context, requestId: requestId)) {
+        return;
+      } else {
+        response = await _dispatchRoute(context);
+      }
     } on AxumHttpException catch (error) {
       response = error.toResponse();
     } on FormatException catch (error) {
@@ -389,6 +455,54 @@ final class AxumServer {
       404,
       message: 'No route matched ${context.method.value} ${context.path}',
     );
+  }
+
+  Future<bool> _dispatchSseRoute(AxumRequestContext context, {required int requestId}) async {
+    if (context.method != AxumMethod.get) {
+      return false;
+    }
+    for (final route in _app._sseRoutes) {
+      final match = route.pattern.match(context.path);
+      if (match == null) {
+        continue;
+      }
+      final connection = AxumSseConnection._(
+        server: this,
+        requestId: requestId,
+        path: context.path,
+        rawQuery: context.rawQuery,
+        queryParameters: context.queryParameters,
+        headers: context.headers,
+        params: match,
+        remoteAddress: context.remoteAddress,
+      );
+      await _bridge.startSseResponse(
+        server: this,
+        requestId: requestId,
+        statusCode: 200,
+        headers: const <String, List<String>>{
+          'content-type': <String>['text/event-stream; charset=utf-8'],
+          'cache-control': <String>['no-cache'],
+          'connection': <String>['keep-alive'],
+          'x-accel-buffering': <String>['no'],
+        },
+      );
+      _sseConnections[requestId] = connection;
+      unawaited(_runSseHandler(route.handler, connection));
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _runSseHandler(AxumSseHandler handler, AxumSseConnection connection) async {
+    try {
+      await handler(connection);
+    } catch (error) {
+      _errors.add('SSE handler failed: $error');
+    } finally {
+      await connection.close();
+      _sseConnections.remove(connection.id);
+    }
   }
 
   void _handleWebSocketOpen(Map<String, Object?> event) {
@@ -542,6 +656,117 @@ final class AxumContext<TBody> extends AxumRequestContext {
   final TBody body;
 }
 
+final class AxumSseEvent {
+  const AxumSseEvent({this.data, this.event, this.id, this.retry, this.comment});
+
+  final String? data;
+  final String? event;
+  final String? id;
+  final int? retry;
+  final String? comment;
+
+  String encode() {
+    final buffer = StringBuffer();
+    if (comment != null) {
+      for (final line in _splitSseLines(comment!)) {
+        buffer.writeln(': $line');
+      }
+    }
+    if (id != null) {
+      buffer.writeln('id: $id');
+    }
+    if (event != null) {
+      buffer.writeln('event: $event');
+    }
+    if (retry != null) {
+      buffer.writeln('retry: $retry');
+    }
+    if (data != null) {
+      for (final line in _splitSseLines(data!)) {
+        buffer.writeln('data: $line');
+      }
+    }
+    buffer.writeln();
+    return buffer.toString();
+  }
+}
+
+final class AxumSseConnection {
+  AxumSseConnection._({
+    required AxumServer server,
+    required int requestId,
+    required this.path,
+    required this.rawQuery,
+    required Map<String, List<String>> queryParameters,
+    required this.headers,
+    required Map<String, String> params,
+    required this.remoteAddress,
+  }) : _server = server,
+       id = requestId,
+       queryParameters = UnmodifiableMapView<String, List<String>>(
+         Map<String, List<String>>.from(queryParameters),
+       ),
+       params = UnmodifiableMapView<String, String>(Map<String, String>.from(params));
+
+  final AxumServer _server;
+
+  final int id;
+  final String path;
+  final String rawQuery;
+  final Map<String, List<String>> queryParameters;
+  final AxumHeaders headers;
+  final Map<String, String> params;
+  final String? remoteAddress;
+
+  final Completer<void> _done = Completer<void>();
+  bool _closed = false;
+
+  Future<void> get done => _done.future;
+
+  bool get isClosed => _closed;
+
+  String? query(String name) {
+    final values = queryParameters[name];
+    if (values == null || values.isEmpty) {
+      return null;
+    }
+    return values.first;
+  }
+
+  Future<void> send(AxumSseEvent event) async {
+    if (_closed) {
+      throw StateError('SSE connection has already been closed.');
+    }
+    await _server._bridge.sendSseChunk(server: _server, streamId: id, chunk: event.encode());
+  }
+
+  Future<void> sendText(String data, {String? event, String? id, int? retry}) {
+    return send(AxumSseEvent(data: data, event: event, id: id, retry: retry));
+  }
+
+  Future<void> sendJson(Object? data, {String? event, String? id, int? retry}) {
+    return sendText(jsonEncode(data), event: event, id: id, retry: retry);
+  }
+
+  Future<void> comment(String value) {
+    return send(AxumSseEvent(comment: value));
+  }
+
+  Future<void> close() async {
+    if (_closed) {
+      return;
+    }
+    _closed = true;
+    try {
+      await _server._bridge.closeSseResponse(server: _server, streamId: id);
+    } finally {
+      if (!_done.isCompleted) {
+        _done.complete();
+      }
+    }
+  }
+}
+
 sealed class AxumWebSocketMessage {
   const AxumWebSocketMessage();
 }
@@ -661,18 +886,23 @@ abstract base class _AxumRouteBase {
     required this.path,
     required this.docs,
     required this.middleware,
-  }) : pattern = _RoutePattern.parse(path);
+    required List<AxumSchemaComponent> components,
+  }) : components = List<AxumSchemaComponent>.unmodifiable(components),
+       pattern = _RoutePattern.parse(path);
 
   final AxumMethod method;
   final String path;
   final AxumRouteDocs? docs;
   final List<AxumMiddleware> middleware;
+  final List<AxumSchemaComponent> components;
   final _RoutePattern pattern;
 
   Future<AxumResponse> handle(
     AxumRequestContext context, {
     required List<AxumMiddleware> globalMiddleware,
   });
+
+  _AxumRouteBase withPrefix(String prefix, {required List<AxumMiddleware> middlewarePrefix});
 
   String? get requestContentType;
 
@@ -682,53 +912,30 @@ abstract base class _AxumRouteBase {
 
   AxumSchema? get responseSchema;
 
-  Map<String, Object?> buildOpenApiOperation() {
+  Iterable<AxumSchemaComponent> get openApiComponents sync* {
+    yield* components;
     final docs = this.docs;
-    final parameters = <Object?>[
-      for (final pathParameter in pattern.pathParameters)
-        <String, Object?>{
-          'name': pathParameter,
-          'in': 'path',
-          'required': true,
-          'schema': const AxumSchema.string().toJson(),
-        },
-      if (docs != null)
-        for (final parameter in docs.parameters) parameter.toJson(),
-    ];
-
-    final responses = <String, Object?>{};
-    if (docs != null && docs.responses.isNotEmpty) {
-      for (final entry in docs.responses.entries) {
-        responses[entry.key.toString()] = entry.value.toJson();
+    if (docs != null) {
+      final requestBody = docs.requestBody;
+      if (requestBody != null) {
+        yield* requestBody.components;
       }
-    } else {
-      responses['200'] = AxumResponseDocs(
-        description: 'Success',
-        schema: responseSchema,
-        contentType: responseContentType ?? 'application/json',
-      ).toJson();
+      yield* docs.components;
+      for (final response in docs.responses.values) {
+        yield* response.components;
+      }
     }
+  }
 
-    final requestBody = requestSchema == null
-        ? null
-        : <String, Object?>{
-            'required': true,
-            'content': <String, Object?>{
-              requestContentType ?? 'application/json': <String, Object?>{
-                'schema': requestSchema!.toJson(),
-              },
-            },
-          };
-
-    return {
-      if (docs?.summary != null) 'summary': docs!.summary,
-      if (docs?.description != null) 'description': docs!.description,
-      if (docs != null && docs.tags.isNotEmpty) 'tags': docs.tags,
-      if (docs?.operationId != null) 'operationId': docs!.operationId,
-      if (parameters.isNotEmpty) 'parameters': parameters,
-      ...?requestBody == null ? null : <String, Object?>{'requestBody': requestBody},
-      'responses': responses,
-    };
+  Map<String, Object?> buildOpenApiOperation() {
+    return _buildOpenApiOperation(
+      pattern: pattern,
+      docs: docs,
+      requestContentType: requestContentType,
+      requestSchema: requestSchema,
+      responseContentType: responseContentType,
+      responseSchema: responseSchema,
+    );
   }
 }
 
@@ -738,6 +945,7 @@ final class _AxumRawRoute extends _AxumRouteBase {
     required super.path,
     required super.docs,
     required super.middleware,
+    required super.components,
     required this.handler,
   });
 
@@ -766,6 +974,18 @@ final class _AxumRawRoute extends _AxumRouteBase {
       terminal: () async => handler(context),
     );
   }
+
+  @override
+  _AxumRawRoute withPrefix(String prefix, {required List<AxumMiddleware> middlewarePrefix}) {
+    return _AxumRawRoute(
+      method: method,
+      path: _joinPaths(prefix, path),
+      docs: docs,
+      middleware: <AxumMiddleware>[...middlewarePrefix, ...middleware],
+      components: components,
+      handler: handler,
+    );
+  }
 }
 
 final class _AxumTypedRoute<TRequest, TResponse> extends _AxumRouteBase {
@@ -774,6 +994,7 @@ final class _AxumTypedRoute<TRequest, TResponse> extends _AxumRouteBase {
     required super.path,
     required super.docs,
     required super.middleware,
+    required super.components,
     required this.request,
     required this.response,
     required this.handler,
@@ -796,6 +1017,17 @@ final class _AxumTypedRoute<TRequest, TResponse> extends _AxumRouteBase {
   AxumSchema? get responseSchema => response.schema;
 
   @override
+  Iterable<AxumSchemaComponent> get openApiComponents sync* {
+    yield* super.openApiComponents;
+    if (request case AxumOpenApiComponentProvider provider) {
+      yield* provider.components;
+    }
+    if (response case AxumOpenApiComponentProvider provider) {
+      yield* provider.components;
+    }
+  }
+
+  @override
   Future<AxumResponse> handle(
     AxumRequestContext context, {
     required List<AxumMiddleware> globalMiddleware,
@@ -811,6 +1043,23 @@ final class _AxumTypedRoute<TRequest, TResponse> extends _AxumRouteBase {
       },
     );
   }
+
+  @override
+  _AxumTypedRoute<TRequest, TResponse> withPrefix(
+    String prefix, {
+    required List<AxumMiddleware> middlewarePrefix,
+  }) {
+    return _AxumTypedRoute<TRequest, TResponse>(
+      method: method,
+      path: _joinPaths(prefix, path),
+      docs: docs,
+      middleware: <AxumMiddleware>[...middlewarePrefix, ...middleware],
+      components: components,
+      request: request,
+      response: response,
+      handler: handler,
+    );
+  }
 }
 
 final class _AxumWebSocketRoute {
@@ -820,6 +1069,170 @@ final class _AxumWebSocketRoute {
   final String path;
   final AxumWebSocketHandler handler;
   final _RoutePattern pattern;
+
+  _AxumWebSocketRoute withPrefix(String prefix) {
+    return _AxumWebSocketRoute(path: _joinPaths(prefix, path), handler: handler);
+  }
+}
+
+final class _AxumSseRoute {
+  _AxumSseRoute({
+    required this.path,
+    required this.handler,
+    required this.docs,
+    required List<AxumSchemaComponent> components,
+  }) : components = List<AxumSchemaComponent>.unmodifiable(components),
+       pattern = _RoutePattern.parse(path);
+
+  final String path;
+  final AxumSseHandler handler;
+  final AxumRouteDocs? docs;
+  final List<AxumSchemaComponent> components;
+  final _RoutePattern pattern;
+
+  Iterable<AxumSchemaComponent> get openApiComponents sync* {
+    yield* components;
+    final docs = this.docs;
+    if (docs != null) {
+      final requestBody = docs.requestBody;
+      if (requestBody != null) {
+        yield* requestBody.components;
+      }
+      yield* docs.components;
+      for (final response in docs.responses.values) {
+        yield* response.components;
+      }
+    }
+  }
+
+  Map<String, Object?> buildOpenApiOperation() {
+    return _buildOpenApiOperation(
+      pattern: pattern,
+      docs: docs,
+      responseContentType: 'text/event-stream; charset=utf-8',
+      responseSchema: const AxumSchema.string(description: 'SSE event stream payload.'),
+    );
+  }
+
+  _AxumSseRoute withPrefix(String prefix) {
+    return _AxumSseRoute(
+      path: _joinPaths(prefix, path),
+      handler: handler,
+      docs: docs,
+      components: components,
+    );
+  }
+}
+
+final class _AxumOpenApiDocumentBuilder {
+  _AxumOpenApiDocumentBuilder(this.config);
+
+  final AxumOpenApi config;
+  final Map<String, Map<String, Object?>> _paths = <String, Map<String, Object?>>{};
+  final Map<String, Map<String, Object?>> _componentSchemas = <String, Map<String, Object?>>{};
+
+  void addRoute(_AxumRouteBase route) {
+    for (final component in route.openApiComponents) {
+      _registerComponent(component);
+    }
+
+    final pathItem = _paths.putIfAbsent(route.pattern.openApiPath, () => <String, Object?>{});
+    pathItem[route.method.value.toLowerCase()] = route.buildOpenApiOperation();
+  }
+
+  void addSseRoute(_AxumSseRoute route) {
+    for (final component in route.openApiComponents) {
+      _registerComponent(component);
+    }
+
+    final pathItem = _paths.putIfAbsent(route.pattern.openApiPath, () => <String, Object?>{});
+    pathItem[AxumMethod.get.value.toLowerCase()] = route.buildOpenApiOperation();
+  }
+
+  Map<String, Object?> build() {
+    return <String, Object?>{
+      'openapi': '3.1.0',
+      'info': config.info.toJson(),
+      if (config.servers.isNotEmpty)
+        'servers': <Object?>[for (final server in config.servers) server.toJson()],
+      'paths': _paths,
+      if (_componentSchemas.isNotEmpty)
+        'components': <String, Object?>{'schemas': _componentSchemas},
+    };
+  }
+
+  void _registerComponent(AxumSchemaComponent component) {
+    for (final dependency in component.dependencies) {
+      _registerComponent(dependency);
+    }
+
+    final existing = _componentSchemas[component.name];
+    final next = component.toJson();
+    if (existing == null) {
+      _componentSchemas[component.name] = next;
+      return;
+    }
+    if (!_jsonEquals(existing, next)) {
+      throw StateError('Conflicting OpenAPI schema component name: ${component.name}');
+    }
+  }
+}
+
+Map<String, Object?> _buildOpenApiOperation({
+  required _RoutePattern pattern,
+  required AxumRouteDocs? docs,
+  String? requestContentType,
+  AxumSchema? requestSchema,
+  String? responseContentType,
+  AxumSchema? responseSchema,
+}) {
+  final parameters = <Object?>[
+    for (final pathParameter in pattern.pathParameters)
+      <String, Object?>{
+        'name': pathParameter,
+        'in': 'path',
+        'required': true,
+        'schema': const AxumSchema.string().toJson(),
+      },
+    if (docs != null)
+      for (final parameter in docs.parameters) parameter.toJson(),
+  ];
+
+  final responses = <String, Object?>{};
+  if (docs != null && docs.responses.isNotEmpty) {
+    for (final entry in docs.responses.entries) {
+      responses[entry.key.toString()] = entry.value.toJson();
+    }
+  } else {
+    responses['200'] = AxumResponseDocs(
+      description: 'Success',
+      schema: responseSchema,
+      contentType: responseContentType ?? 'application/json',
+    ).toJson();
+  }
+
+  final requestBody =
+      docs?.requestBody?.toJson() ??
+      (requestSchema == null
+          ? null
+          : <String, Object?>{
+              'required': true,
+              'content': <String, Object?>{
+                requestContentType ?? 'application/json': <String, Object?>{
+                  'schema': requestSchema.toJson(),
+                },
+              },
+            });
+
+  return <String, Object?>{
+    if (docs?.summary != null) 'summary': docs!.summary,
+    if (docs?.description != null) 'description': docs!.description,
+    if (docs != null && docs.tags.isNotEmpty) 'tags': docs.tags,
+    if (docs?.operationId != null) 'operationId': docs!.operationId,
+    if (parameters.isNotEmpty) 'parameters': parameters,
+    ...?requestBody == null ? null : <String, Object?>{'requestBody': requestBody},
+    'responses': responses,
+  };
 }
 
 final class _RoutePattern {
@@ -991,7 +1404,24 @@ String _normalizePath(String path) {
   return normalized;
 }
 
+List<String> _splitSseLines(String value) {
+  return value.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n');
+}
+
+String _joinPaths(String prefix, String path) {
+  final normalizedPrefix = _normalizePath(prefix);
+  final normalizedPath = _normalizePath(path);
+  if (normalizedPrefix == '/') {
+    return normalizedPath;
+  }
+  if (normalizedPath == '/') {
+    return normalizedPrefix;
+  }
+  return '$normalizedPrefix$normalizedPath';
+}
+
 String _redocHtml(String openApiPath) {
+  final encodedPath = jsonEncode(openApiPath);
   return '''
 <!doctype html>
 <html lang="en">
@@ -1000,13 +1430,124 @@ String _redocHtml(String openApiPath) {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>API Docs</title>
     <style>
-      body { margin: 0; padding: 0; }
+      :root {
+        color-scheme: light;
+        font-family: "SF Pro Text", "Segoe UI", sans-serif;
+      }
+
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: #f8fafc;
+      }
+
+      #redoc-root {
+        min-height: 100vh;
+      }
+
+      .axum-docs-error {
+        box-sizing: border-box;
+        max-width: 720px;
+        margin: 64px auto;
+        padding: 32px;
+        border-radius: 20px;
+        border: 1px solid #cbd5e1;
+        background: white;
+        box-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
+      }
+
+      .axum-docs-error h1 {
+        margin: 0 0 12px;
+        font-size: 28px;
+      }
+
+      .axum-docs-error p {
+        margin: 0;
+        color: #334155;
+        line-height: 1.6;
+      }
+
+      .axum-docs-error a {
+        color: #0f172a;
+      }
     </style>
   </head>
   <body>
-    <redoc spec-url="$openApiPath"></redoc>
-    <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"></script>
+    <div id="redoc-root"></div>
+    <script>
+      window.__axumOpenApiPath = $encodedPath;
+    </script>
+    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+    <script>
+      (function () {
+        const mount = document.getElementById('redoc-root');
+        const specUrl = new URL(window.__axumOpenApiPath, window.location.href).toString();
+
+        const renderError = function (details) {
+          mount.innerHTML = '';
+          const panel = document.createElement('main');
+          panel.className = 'axum-docs-error';
+
+          const title = document.createElement('h1');
+          title.textContent = 'API docs failed to load';
+          panel.appendChild(title);
+
+          const message = document.createElement('p');
+          message.textContent = details;
+          panel.appendChild(message);
+
+          const link = document.createElement('p');
+          const anchor = document.createElement('a');
+          anchor.href = specUrl;
+          anchor.textContent = 'Open the raw OpenAPI document';
+          link.appendChild(anchor);
+          panel.appendChild(link);
+
+          mount.appendChild(panel);
+        };
+
+        if (!window.Redoc || typeof window.Redoc.init !== 'function') {
+          renderError('ReDoc did not load from the configured CDN.');
+          return;
+        }
+
+        window.Redoc.init(specUrl, {}, mount, function (error) {
+          if (error) {
+            renderError(String(error));
+          }
+        });
+      })();
+    </script>
   </body>
 </html>
 ''';
+}
+
+bool _jsonEquals(Object? left, Object? right) {
+  if (left is Map<Object?, Object?> && right is Map<Object?, Object?>) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (final entry in left.entries) {
+      if (!right.containsKey(entry.key)) {
+        return false;
+      }
+      if (!_jsonEquals(entry.value, right[entry.key])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (left is List<Object?> && right is List<Object?>) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index++) {
+      if (!_jsonEquals(left[index], right[index])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return left == right;
 }

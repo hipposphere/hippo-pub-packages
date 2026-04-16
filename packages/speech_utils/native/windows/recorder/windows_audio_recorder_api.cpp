@@ -197,6 +197,16 @@ bool FindCaptureDeviceByHexId(const ma_device_info* capture_infos, ma_uint32 cap
   return false;
 }
 
+const ma_device_info* FindDefaultCaptureDeviceInfo(const ma_device_info* capture_infos,
+                                                   ma_uint32 capture_count) {
+  for (ma_uint32 i = 0; i < capture_count; i++) {
+    if (capture_infos[i].isDefault == MA_TRUE) {
+      return &capture_infos[i];
+    }
+  }
+  return nullptr;
+}
+
 std::string BuildInputDevicesJson(const ma_device_info* capture_infos, ma_uint32 capture_count) {
   rapidjson::StringBuffer buffer;
   rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -1311,6 +1321,24 @@ private:
       }
 
       selected_device_id_ptr = &selected_device_id;
+    }
+    if (effective_device_id.empty() && windows_use_communications_device == 0) {
+      ma_context context{};
+      ma_device_info* capture_infos = nullptr;
+      ma_uint32 capture_count = 0;
+      if (EnumerateCaptureDevices(&context, &capture_infos, &capture_count, error_utf8,
+                                  error_utf8_capacity)) {
+        const ma_device_info* default_device =
+            FindDefaultCaptureDeviceInfo(capture_infos, capture_count);
+        if (default_device != nullptr) {
+          selected_device_id = default_device->id;
+          selected_device_id_ptr = &selected_device_id;
+        }
+        ma_context_uninit(&context);
+      }
+
+      // Default-device discovery is a best-effort fallback only.
+      WriteError("", error_utf8, error_utf8_capacity);
     }
 
     VoiceProcessingSelection voice_processing_selection{};

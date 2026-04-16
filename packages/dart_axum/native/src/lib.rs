@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::Infallible;
 use std::ffi::{CStr, CString, c_char};
 use std::net::SocketAddr;
 use std::ptr;
@@ -6,7 +7,7 @@ use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use axum::Router;
-use axum::body::{Body, to_bytes};
+use axum::body::{Body, Bytes, to_bytes};
 use axum::extract::ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{ConnectInfo, FromRequestParts, Request, State};
 use axum::http::header::{CONNECTION, UPGRADE};
@@ -19,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tokio::runtime::{Builder, Runtime};
 use tokio::sync::{mpsc, oneshot};
+use tokio_stream::wrappers::UnboundedReceiverStream;
 
 type DispatchCallback = extern "C" fn(*mut c_char);
 
@@ -37,7 +39,8 @@ struct ServerRecord {
 struct ServerShared {
     server_id: i64,
     max_body_bytes: usize,
-    pending_requests: Mutex<HashMap<i64, oneshot::Sender<HttpResponsePayload>>>,
+    pending_requests: Mutex<HashMap<i64, oneshot::Sender<PendingHttpResponse>>>,
+    sse_streams: Mutex<HashMap<i64, mpsc::UnboundedSender<Vec<u8>>>>,
     sockets: Mutex<HashMap<i64, mpsc::UnboundedSender<Message>>>,
 }
 
@@ -128,6 +131,30 @@ struct HttpResponsePayload {
     status: u16,
     headers: HashMap<String, Vec<String>>,
     body: Vec<u8>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SseStartPayloadJson {
+    #[serde(default = "default_status_code")]
+    status: u16,
+    #[serde(default)]
+    headers: HashMap<String, Vec<String>>,
+}
+
+fn default_status_code() -> u16 {
+    200
+}
+
+enum PendingHttpResponse {
+    Regular(HttpResponsePayload),
+    Sse(SseResponsePayload),
+}
+
+struct SseResponsePayload {
+    status: u16,
+    headers: HashMap<String, Vec<String>>,
+    receiver: mpsc::UnboundedReceiver<Vec<u8>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -256,7 +283,7 @@ async fn dispatch_http_request(
     };
 
     let request_id = NEXT_REQUEST_ID.fetch_add(1, Ordering::Relaxed);
-    let (sender, receiver) = oneshot::channel::<HttpResponsePayload>();
+    let (sender, receiver) = oneshot::channel::<PendingHttpResponse>();
     {
         let mut guard = match state.pending_requests.lock() {
             Ok(guard) => guard,
@@ -302,6 +329,13 @@ async fn dispatch_http_request(
         }
     };
 
+    match payload {
+        PendingHttpResponse::Regular(payload) => build_http_response(payload),
+        PendingHttpResponse::Sse(payload) => build_sse_response(payload),
+    }
+}
+
+fn build_http_response(payload: HttpResponsePayload) -> Response {
     let status = StatusCode::from_u16(payload.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
     let mut builder = Response::builder().status(status);
     for (name, values) in payload.headers {
@@ -323,6 +357,35 @@ async fn dispatch_http_request(
             status_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to build HTTP response: {error}"),
+            )
+        })
+}
+
+fn build_sse_response(payload: SseResponsePayload) -> Response {
+    let status = StatusCode::from_u16(payload.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    let mut builder = Response::builder().status(status);
+    for (name, values) in payload.headers {
+        let header_name = match HeaderName::from_bytes(name.as_bytes()) {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+        for value in values {
+            let Ok(header_value) = HeaderValue::from_str(&value) else {
+                continue;
+            };
+            builder = builder.header(header_name.clone(), header_value);
+        }
+    }
+
+    let stream = UnboundedReceiverStream::new(payload.receiver)
+        .map(|chunk| Ok::<Bytes, Infallible>(Bytes::from(chunk)));
+
+    builder
+        .body(Body::from_stream(stream))
+        .unwrap_or_else(|error| {
+            status_response(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to build SSE response: {error}"),
             )
         })
 }
@@ -523,6 +586,7 @@ pub extern "C" fn dart_axum_start_server(
         server_id,
         max_body_bytes: config.max_body_bytes,
         pending_requests: Mutex::new(HashMap::new()),
+        sse_streams: Mutex::new(HashMap::new()),
         sockets: Mutex::new(HashMap::new()),
     });
 
@@ -626,11 +690,11 @@ pub extern "C" fn dart_axum_complete_http_request(
     };
 
     if sender
-        .send(HttpResponsePayload {
+        .send(PendingHttpResponse::Regular(HttpResponsePayload {
             status: response.status,
             headers: response.headers,
             body,
-        })
+        }))
         .is_err()
     {
         return error_ptr(format!(
@@ -639,6 +703,126 @@ pub extern "C" fn dart_axum_complete_http_request(
     }
 
     ok_ptr()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn dart_axum_start_sse_response(
+    server_id: i64,
+    request_id: i64,
+    response_json_utf8: *const c_char,
+) -> *mut c_char {
+    let response_json = match c_str_to_string(response_json_utf8, "response_json_utf8") {
+        Ok(value) => value,
+        Err(error) => return error_ptr(error),
+    };
+    let response: SseStartPayloadJson = match serde_json::from_str(&response_json) {
+        Ok(value) => value,
+        Err(error) => return error_ptr(format!("Invalid SSE response JSON: {error}")),
+    };
+
+    let mut guard = match servers().lock() {
+        Ok(guard) => guard,
+        Err(_) => return error_ptr("Server registry mutex was poisoned"),
+    };
+    let Some(record) = guard.get_mut(&server_id) else {
+        return error_ptr(format!("Unknown server id {server_id}"));
+    };
+
+    let sender = match record.shared.pending_requests.lock() {
+        Ok(mut pending) => pending.remove(&request_id),
+        Err(_) => return error_ptr("Pending request map is unavailable"),
+    };
+    let Some(sender) = sender else {
+        return error_ptr(format!(
+            "Unknown pending request {request_id} for server {server_id}"
+        ));
+    };
+
+    let (stream_tx, stream_rx) = mpsc::unbounded_channel::<Vec<u8>>();
+    match record.shared.sse_streams.lock() {
+        Ok(mut sse_streams) => {
+            sse_streams.insert(request_id, stream_tx);
+        }
+        Err(_) => return error_ptr("SSE stream map is unavailable"),
+    }
+
+    if sender
+        .send(PendingHttpResponse::Sse(SseResponsePayload {
+            status: response.status,
+            headers: response.headers,
+            receiver: stream_rx,
+        }))
+        .is_err()
+    {
+        if let Ok(mut sse_streams) = record.shared.sse_streams.lock() {
+            sse_streams.remove(&request_id);
+        }
+        return error_ptr(format!(
+            "Failed to deliver SSE start response for request {request_id} on server {server_id}"
+        ));
+    }
+
+    ok_ptr()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn dart_axum_sse_send(
+    server_id: i64,
+    stream_id: i64,
+    chunk_utf8: *const c_char,
+) -> *mut c_char {
+    let chunk = match c_str_to_string(chunk_utf8, "chunk_utf8") {
+        Ok(value) => value,
+        Err(error) => return error_ptr(error),
+    };
+
+    let sender = match servers().lock() {
+        Ok(guard) => {
+            guard
+                .get(&server_id)
+                .and_then(|record| match record.shared.sse_streams.lock() {
+                    Ok(streams) => streams.get(&stream_id).cloned(),
+                    Err(_) => None,
+                })
+        }
+        Err(_) => return error_ptr("Server registry mutex was poisoned"),
+    };
+    let Some(sender) = sender else {
+        return error_ptr(format!(
+            "Unknown SSE stream {stream_id} for server {server_id}"
+        ));
+    };
+
+    if sender.send(chunk.into_bytes()).is_err() {
+        if let Ok(guard) = servers().lock() {
+            if let Some(record) = guard.get(&server_id) {
+                if let Ok(mut streams) = record.shared.sse_streams.lock() {
+                    streams.remove(&stream_id);
+                }
+            }
+        }
+        return error_ptr(format!(
+            "Failed to enqueue SSE chunk for stream {stream_id} on server {server_id}"
+        ));
+    }
+
+    ok_ptr()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn dart_axum_sse_close(server_id: i64, stream_id: i64) -> *mut c_char {
+    let guard = match servers().lock() {
+        Ok(guard) => guard,
+        Err(_) => return error_ptr("Server registry mutex was poisoned"),
+    };
+    let Some(record) = guard.get(&server_id) else {
+        return error_ptr(format!("Unknown server id {server_id}"));
+    };
+    if let Ok(mut streams) = record.shared.sse_streams.lock() {
+        streams.remove(&stream_id);
+        return ok_ptr();
+    }
+    error_ptr("SSE stream map is unavailable")
 }
 
 #[unsafe(no_mangle)]

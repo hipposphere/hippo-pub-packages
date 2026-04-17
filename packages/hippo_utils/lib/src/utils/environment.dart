@@ -21,6 +21,20 @@ bool get isDesktopPlatform {
   };
 }
 
+bool get isDesktopMacosPlatform {
+  if (kIsWeb) {
+    return false;
+  }
+  return defaultTargetPlatform == .macOS;
+}
+
+bool get isDesktopWindowsPlatform {
+  if (kIsWeb) {
+    return false;
+  }
+  return defaultTargetPlatform == .windows;
+}
+
 bool get isWebOrMobilePlatform {
   if (kIsWeb) {
     return true;

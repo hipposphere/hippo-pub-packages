@@ -49,6 +49,14 @@ class ExampleCatalogPage extends StatelessWidget {
     return PageContainer(
       backAction: null,
       title: 'Hippo Components Examples',
+      actions: [
+        PageHeaderOptionsButton(
+          itemBuilder: (context) => [
+            PullDownMenuItem(onTap: () {}, title: 'Hallo'),
+            PullDownMenuItem(onTap: () {}, title: 'Test'),
+          ],
+        ),
+      ],
       body: CustomScrollView(
         slivers: [
           SliverGap(16),

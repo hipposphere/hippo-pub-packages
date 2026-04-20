@@ -38,7 +38,7 @@ dependencies:
   glow_container: ^1.0.1
   flutter_resizable_container: ^4.2.0
   cupertino_calendar_picker: ^2.2.6
-  toastification: ^3.1.0
+  toastification: ^3.2.0
   webview_flutter: ^4.13.1
   decimal: ^3.2.4
   pinput: ^6.0.2

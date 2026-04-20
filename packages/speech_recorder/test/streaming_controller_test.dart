@@ -38,6 +38,20 @@ void main() {
               audioEncoder: delayedEncoder,
             ),
           ),
+        );
+      },
+    );
+
+    try {
+      final session = await controller.startStreaming(
+        SpeechRecorderStreamingOptions(
+          pauseSplitOptions: const PauseSplitOptions(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            frameDuration: Duration(milliseconds: 20),
+            minSpeechDuration: Duration(milliseconds: 120),
+            minSilenceDuration: Duration(milliseconds: 600),
+          ),
           vadConfig: const SpeechVadConfig.energyOnly(
             energy: EnergyVadConfig(
               primaryRmsThreshold: 0.005,
@@ -45,27 +59,19 @@ void main() {
               minZeroCrossingRate: 0.02,
             ),
           ),
-          streaming: SpeechRecorderStreamingOptions(
-            pauseSplitOptions: const PauseSplitOptions(
-              sampleRateHz: 16000,
-              channelCount: 1,
-              frameDuration: Duration(milliseconds: 20),
-              minSpeechDuration: Duration(milliseconds: 120),
-              minSilenceDuration: Duration(milliseconds: 600),
-            ),
-            onSegmentFinished: emittedSegments.add,
-          ),
-        );
-      },
-    );
-
-    try {
-      final session = await controller.start();
+          onSegmentFinished: emittedSegments.add,
+        ),
+      );
       await Future<void>.delayed(const Duration(milliseconds: 120));
       await controller.stop(session);
 
       expect(delayedEncoder.encodePcm16BytesToAacCallCount, 1);
       expect(emittedSegments, hasLength(1));
+      expect(session.segmentsSubject.value, hasLength(1));
+      expect(
+        session.segmentsSubject.value.single.file.path,
+        emittedSegments.single.file.path,
+      );
 
       final outputFile = File(emittedSegments.single.file.path);
       expect(await outputFile.exists(), isTrue);

@@ -4,7 +4,22 @@ import 'package:speech_recorder/speech_recorder.dart';
 
 class SpeechRecorderContainer extends StatelessWidget {
   final SpeechRecorderController controller;
-  const SpeechRecorderContainer({super.key, required this.controller});
+  final VoidCallback? onStart;
+
+  const SpeechRecorderContainer({
+    super.key,
+    required this.controller,
+    this.onStart,
+  });
+
+  void _start() {
+    final start = onStart;
+    if (start != null) {
+      start();
+      return;
+    }
+    controller.start();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,9 +30,7 @@ class SpeechRecorderContainer extends StatelessWidget {
           return SpeechRecorderRawContainer(
             action: SpeechRecorderActionButton(
               state: SpeechRecorderSessionState.idle,
-              onTap: () {
-                controller.start();
-              },
+              onTap: _start,
             ),
             amplitudeHistory: SizedBox(height: 20),
             details: SizedBox(),

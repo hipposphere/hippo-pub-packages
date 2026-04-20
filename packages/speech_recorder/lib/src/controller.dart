@@ -47,6 +47,18 @@ class SpeechRecorderController {
   bool get canStartSession => !_isInitializing && sessionSubject.value == null;
 
   Future<SpeechRecorderSession> start() async {
+    return _start();
+  }
+
+  Future<SpeechRecorderSession> startStreaming(
+    SpeechRecorderStreamingOptions streamingOptions,
+  ) async {
+    return _start(streamingOptions: streamingOptions);
+  }
+
+  Future<SpeechRecorderSession> _start({
+    SpeechRecorderStreamingOptions? streamingOptions,
+  }) async {
     if (_isInitializing) {
       throw StateError(
         'Cannot start a new session while another session is initializing',
@@ -60,10 +72,13 @@ class SpeechRecorderController {
     try {
       final options = await optionsBuilder();
       validateSpeechRecorderOptions(options);
+      if (streamingOptions != null) {
+        validateSpeechRecorderStreamingOptions(options, streamingOptions);
+      }
 
       final session = SpeechRecorderSession.create(
         options: options,
-        isStreaming: options.streaming != null,
+        streamingOptions: streamingOptions,
       );
 
       await _startSessionCapture(session);
@@ -148,7 +163,7 @@ class SpeechRecorderController {
   }
 
   Future<void> _startSessionCapture(SpeechRecorderSession session) async {
-    final streamingOptions = session.options.streaming;
+    final streamingOptions = session.streamingOptions;
     if (streamingOptions == null) {
       final encoder = session.options.recordConfig.encoding.encoder;
       if (_recorder.platform == NativeAudioRecorderPlatform.android &&
@@ -225,10 +240,7 @@ class SpeechRecorderController {
   }) async {
     final splitOptions = streamingOptions.pauseSplitOptions;
     final recordConfig = session.options.recordConfig;
-    final vadConfig =
-        streamingOptions.vadConfig ??
-        session.options.vadConfig ??
-        const SpeechVadConfig();
+    final vadConfig = streamingOptions.vadConfig ?? const SpeechVadConfig();
 
     final outputDirectory = Directory(
       _defaultSegmentsOutputDirectory(session.options.path),
@@ -298,6 +310,11 @@ class SpeechRecorderController {
             : null,
       ),
     );
+
+    session.segmentsSubject.add([
+      ...session.segmentsSubject.value,
+      segmentData,
+    ]);
 
     for (final callback in session._onSegmentFinishedCallbacks) {
       await callback(segmentData);

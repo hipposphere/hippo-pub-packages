@@ -1,6 +1,7 @@
 import 'package:speech_utils/speech_utils.dart';
 
 import '../models/options.dart';
+import '../models/streaming_options.dart';
 
 void validateSpeechRecorderOptions(SpeechRecorderOptions options) {
   if (options.path.trim().isEmpty) {
@@ -19,18 +20,19 @@ void validateSpeechRecorderOptions(SpeechRecorderOptions options) {
           'AudioEncoder.aacLc/aacHe/aacEld/wav/pcm16bits.',
     );
   }
+}
 
-  final streamingOptions = options.streaming;
-  if (streamingOptions == null) {
-    return;
-  }
-
+void validateSpeechRecorderStreamingOptions(
+  SpeechRecorderOptions options,
+  SpeechRecorderStreamingOptions streamingOptions,
+) {
+  final recordConfig = options.recordConfig;
   streamingOptions.pauseSplitOptions.validate();
   if (recordConfig.sampleRateHz !=
       streamingOptions.pauseSplitOptions.sampleRateHz) {
     throw ArgumentError(
       'recordConfig.sampleRateHz (${recordConfig.sampleRateHz}) must match '
-      'streaming.pauseSplitOptions.sampleRateHz '
+      'streamingOptions.pauseSplitOptions.sampleRateHz '
       '(${streamingOptions.pauseSplitOptions.sampleRateHz}).',
     );
   }
@@ -38,16 +40,17 @@ void validateSpeechRecorderOptions(SpeechRecorderOptions options) {
       streamingOptions.pauseSplitOptions.channelCount) {
     throw ArgumentError(
       'recordConfig.channelCount (${recordConfig.channelCount}) must match '
-      'streaming.pauseSplitOptions.channelCount '
+      'streamingOptions.pauseSplitOptions.channelCount '
       '(${streamingOptions.pauseSplitOptions.channelCount}).',
     );
   }
 
+  final encoder = recordConfig.encoding.encoder;
   if (!encoder.supportsVadSegmentationOutput) {
     throw ArgumentError.value(
       encoder,
       'recordConfig.encoding.encoder',
-      'Streaming mode requires an encoder supported by VAD segmentation output '
+      'startStreaming requires an encoder supported by VAD segmentation output '
           '(AudioEncoder.wav/aacLc/aacHe/aacEld).',
     );
   }

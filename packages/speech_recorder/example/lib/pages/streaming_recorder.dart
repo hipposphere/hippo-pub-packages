@@ -50,18 +50,12 @@ class _Bloc extends BlocBase {
         final outputDirectory = await _prepareOutputDirectory();
         final path =
             '${outputDirectory.path}${Platform.pathSeparator}streaming_recording_$timestamp.m4a';
-        final vadConfig = _buildVadConfig();
         return SpeechRecorderOptions(
           path: path,
           recordConfig: AudioRecorderConfig(
             sampleRateHz: _streamingSplitOptions.sampleRateHz,
             channelCount: _streamingSplitOptions.channelCount,
             encoding: const AudioEncodingConfig(encoder: AudioEncoder.aacLc),
-          ),
-          vadConfig: vadConfig,
-          streaming: SpeechRecorderStreamingOptions(
-            pauseSplitOptions: _streamingSplitOptions,
-            onSegmentFinished: _handleSegmentFinished,
           ),
           amplitudeInterval: Duration(milliseconds: 50),
         );
@@ -72,6 +66,16 @@ class _Bloc extends BlocBase {
   }
 
   static _Bloc of(BuildContext context) => BlocProvider.of<_Bloc>(context);
+
+  Future<SpeechRecorderSession> startStreaming() {
+    return controller.startStreaming(
+      SpeechRecorderStreamingOptions(
+        pauseSplitOptions: _streamingSplitOptions,
+        vadConfig: _buildVadConfig(),
+        onSegmentFinished: _handleSegmentFinished,
+      ),
+    );
+  }
 
   Future<Directory> _prepareOutputDirectory() async {
     final tempDirectory = await getTemporaryDirectory();
@@ -120,7 +124,7 @@ class _Bloc extends BlocBase {
     _activeRecordingId = recordingId;
 
     final vad = _describeVad(
-      session.options.vadConfig ?? const SpeechVadConfig(),
+      session.streamingOptions?.vadConfig ?? const SpeechVadConfig(),
     );
     final recordings = recordingsSubject.value;
     recordingsSubject.add([
@@ -205,7 +209,12 @@ class _Page extends StatelessWidget {
             children: [
               PaddedSectionHeader(text: 'Controller'),
               Gap(8),
-              SpeechRecorderContainer(controller: bloc.controller),
+              SpeechRecorderContainer(
+                controller: bloc.controller,
+                onStart: () {
+                  bloc.startStreaming();
+                },
+              ),
               Gap(12),
               _ConfigCard(bloc: bloc),
               Gap(20),

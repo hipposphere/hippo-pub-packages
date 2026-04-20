@@ -4,18 +4,23 @@ enum SpeechRecorderSessionState { idle, recording, paused, stopped, canceled }
 
 class SpeechRecorderSession {
   final SpeechRecorderOptions options;
-  final bool isStreaming;
+  final SpeechRecorderStreamingOptions? streamingOptions;
   final NativeAudioMetadataReader _audioMetadataReader =
       NativeAudioMetadataReader();
 
-  SpeechRecorderSession({required this.options, required this.isStreaming});
+  SpeechRecorderSession({required this.options, this.streamingOptions});
 
   factory SpeechRecorderSession.create({
     required SpeechRecorderOptions options,
-    required bool isStreaming,
+    SpeechRecorderStreamingOptions? streamingOptions,
   }) {
-    return SpeechRecorderSession(options: options, isStreaming: isStreaming);
+    return SpeechRecorderSession(
+      options: options,
+      streamingOptions: streamingOptions,
+    );
   }
+
+  bool get isStreaming => streamingOptions != null;
 
   final stateSubject = DataSubject<SpeechRecorderSessionState>.seeded(
     SpeechRecorderSessionState.idle,
@@ -24,6 +29,10 @@ class SpeechRecorderSession {
   final stopwatch = Stopwatch();
 
   final amplitudeSubject = DataSubject<List<Amplitude>>.seeded([]);
+
+  final segmentsSubject = DataSubject<List<SpeechRecorderSegmentData>>.seeded(
+    [],
+  );
 
   StreamSubscription<Amplitude>? _amplitudeSubscription;
   StreamSubscription<void>? _streamingSegmentSubscription;

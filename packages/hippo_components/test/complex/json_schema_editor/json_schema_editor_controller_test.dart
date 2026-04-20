@@ -222,6 +222,43 @@ void main() {
       expect((controller.schema as JsonSchemaStringNode).title, 'start');
     });
 
+    test('imports a root schema from JSON text', () {
+      final controller = JsonSchemaEditorController(
+        initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode(title: 'start')),
+      );
+
+      controller.importJsonString('''
+{
+  "type": "object",
+  "title": "Imported schema",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": ["enabled"],
+  "x-token": {
+    "values": ["read", "write"]
+  }
+}
+''');
+
+      final schema = controller.schema as JsonSchemaObjectNode;
+      expect(schema.title, 'Imported schema');
+      expect(schema.required, contains('enabled'));
+      expect(schema.properties['enabled'], isA<JsonSchemaBooleanNode>());
+      expect((schema.properties['enabled'] as JsonSchemaBooleanNode).defaultValue, isTrue);
+      expect(schema.extensions['x-token'], isA<Map>());
+      expect((schema.extensions['x-token'] as Map)['values'], equals(['read', 'write']));
+    });
+
+    test('rejects non-object JSON imports', () {
+      final controller = JsonSchemaEditorController();
+
+      expect(() => controller.importJsonString('[]'), throwsFormatException);
+    });
+
     test('supports boolean root nodes', () {
       final controller = JsonSchemaEditorController(
         initialSchema: JsonSchema.fromNode(

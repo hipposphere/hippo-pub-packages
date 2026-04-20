@@ -434,7 +434,7 @@ Widget _buildNodeEditorSection({
   };
 }
 
-enum _RootSchemaAction { guide, copyJson, resetSchema, clearSchema }
+enum _RootSchemaAction { guide, copyJson, importJson, resetSchema, clearSchema }
 
 class _RootSchemaNodeHeader extends StatelessWidget {
   const _RootSchemaNodeHeader({
@@ -501,6 +501,12 @@ class _RootSchemaActionsMenu extends StatelessWidget {
         );
       case _RootSchemaAction.copyJson:
         await Clipboard.setData(ClipboardData(text: controller.toJsonString(pretty: true)));
+      case _RootSchemaAction.importJson:
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (context) => JsonSchemaEditorImportPage(controller: controller),
+          ),
+        );
       case _RootSchemaAction.resetSchema:
         await _confirmAndRun(
           context: context,
@@ -560,6 +566,16 @@ class _RootSchemaActionsMenu extends StatelessWidget {
           value: _RootSchemaAction.copyJson,
           icon: Icons.content_copy_rounded,
           label: context.lazyTranslate(en: 'Copy JSON', de: 'JSON kopieren', zh: '复制 JSON'),
+        ),
+        _menuItem(
+          context: context,
+          value: _RootSchemaAction.importJson,
+          icon: Icons.file_upload_outlined,
+          label: context.lazyTranslate(
+            en: 'Import from JSON',
+            de: 'Aus JSON importieren',
+            zh: '从 JSON 导入',
+          ),
         ),
         _menuItem(
           context: context,

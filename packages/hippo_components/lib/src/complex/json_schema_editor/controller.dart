@@ -7,6 +7,8 @@
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
+import 'dart:convert';
+
 import 'package:hippo_utils/hippo_utils.dart';
 import 'models/feature_options.dart';
 
@@ -310,6 +312,14 @@ class JsonSchemaEditorController {
     setRoot(const JsonSchemaObjectNode());
   }
 
+  void setJsonSchema(JsonSchema next) {
+    setRoot(next.node);
+  }
+
+  void importJsonString(String source) {
+    setJsonSchema(JsonSchema(_decodeJsonSchemaString(source)));
+  }
+
   JsonSchema toJsonSchema() {
     return JsonSchema.fromNode(schema);
   }
@@ -587,4 +597,36 @@ class JsonSchemaEditorController {
     }
     return trimmed;
   }
+}
+
+Map<String, dynamic> _decodeJsonSchemaString(String source) {
+  final trimmed = source.trim();
+  if (trimmed.isEmpty) {
+    throw const FormatException('JSON schema input is empty.');
+  }
+
+  final decoded = jsonDecode(trimmed);
+  if (decoded is! Map) {
+    throw const FormatException('JSON schema must be a JSON object.');
+  }
+
+  return _normalizeDecodedJsonMap(decoded);
+}
+
+Map<String, dynamic> _normalizeDecodedJsonMap(Map<Object?, Object?> raw) {
+  final normalized = <String, dynamic>{};
+  for (final entry in raw.entries) {
+    normalized[entry.key.toString()] = _normalizeDecodedJsonValue(entry.value);
+  }
+  return normalized;
+}
+
+Object? _normalizeDecodedJsonValue(Object? value) {
+  if (value is Map) {
+    return _normalizeDecodedJsonMap(value);
+  }
+  if (value is List) {
+    return value.map(_normalizeDecodedJsonValue).toList(growable: false);
+  }
+  return value;
 }

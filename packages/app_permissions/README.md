@@ -11,7 +11,7 @@ A Flutter plugin for checking and requesting desktop permissions, with a focus o
 - ✅ Check if Microphone permission is granted (All platforms)
 - ✅ Request Microphone permission (All platforms)
 - ✅ Get detailed permission status (granted, denied, notDetermined, notRequired)
-- ✅ Cross-platform support (macOS, Windows, iOS, Android)
+- ✅ Cross-platform support (macOS, Windows, Linux, iOS, Android)
 - ✅ Simple, consistent API across platforms
 
 ## Platform Support
@@ -20,6 +20,7 @@ A Flutter plugin for checking and requesting desktop permissions, with a focus o
 |----------|---------------|------------------|------------|
 | **macOS** | ✅ Required | ✅ Required | ✅ Required |
 | **Windows**| ⚪ Not Required | ⚪ Not Required | ⚪ Not Required |
+| **Linux** | ⚪ Not Required | ⚪ Not Required | ⚪ Not Required |
 | **iOS** | ⚪ Not Required | ⚪ Not Required | ✅ Required |
 | **Android**| ⚪ Not Required | ⚪ Not Required | ✅ Required |
 
@@ -40,6 +41,10 @@ On macOS, these permissions are required for:
 ### Windows
 
 Windows applications can use keyboard hooks (`SetWindowsHookEx`) and input simulation (`SendInput`) without requiring special permissions, so all permission checks return `true`/`notRequired`.
+
+### Linux
+
+Linux desktop applications do not have a single system permission prompt for Accessibility, Input Monitoring, or Microphone access that this plugin can request. These checks return `true`/`notRequired`, matching the package's desktop no-op behavior on platforms where the OS does not expose a grant flow.
 
 ## Usage
 

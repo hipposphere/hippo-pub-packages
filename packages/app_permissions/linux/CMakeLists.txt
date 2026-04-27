@@ -25,3 +25,7 @@ target_include_directories(${PLUGIN_NAME} INTERFACE
 target_link_libraries(${PLUGIN_NAME} PRIVATE flutter)
 target_link_libraries(${PLUGIN_NAME} PRIVATE PkgConfig::GTK)
 
+set(app_permissions_bundled_libraries
+  ""
+  PARENT_SCOPE
+)

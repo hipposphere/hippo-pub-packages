@@ -1,3 +1,8 @@
+## 0.0.4
+
+*   Add Linux plugin support.
+*   Linux permission checks return `true` and detailed statuses return `notRequired`.
+
 ## 0.0.3
 
 *   Add web support for microphone permissions.

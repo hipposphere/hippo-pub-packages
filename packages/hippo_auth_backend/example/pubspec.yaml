@@ -1,0 +1,20 @@
+name: hippo_auth_backend_example
+description: An example application for the Hippo authentication backend.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ">=3.11.0 < 4.0.0"
+
+dependencies:
+  hippo_auth_backend:
+    path: ../
+  dart_edge_http_server:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.0
+  dart_edge_sql:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.2.0
+  
+

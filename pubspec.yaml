@@ -10,36 +10,8 @@ dev_dependencies:
   melos: ^7.5.1
 
 workspace:
-  - packages/analytics_posthog
-  - packages/dictation_support
-  - packages/dictation_support/example
-  - packages/hid_device_manager
-  - packages/hid_api
-  - packages/hid_api/example
-  - packages/hippo_auth
-  - packages/hippo_auth/example
-  - packages/app_release_client
-  - packages/app_release_client/example
-  - packages/hippo_bluetooth_client
-  - packages/hippo_bluetooth_client_builder
-  - packages/hippo_bluetooth_client/example
-  - packages/hippo_components
-  - packages/hippo_components/example
-  - packages/hippo_ui
-  - packages/hippo_utils
-  - packages/hotkey_api
-  - packages/hotkey_api/example
-  - packages/postgres_base_models
-  - packages/postgres_models_builder
-  - packages/desktop_autopaste
-  - packages/desktop_autopaste/example
-  - packages/hippo_native_deps
-  - packages/app_permissions
-  - packages/app_permissions/example
-  - packages/speech_recorder
-  - packages/speech_recorder/example
-  - packages/speech_utils
-  - packages/speech_utils/example
+  - packages/*
+  - packages/*/*
 
 melos:
   ide:

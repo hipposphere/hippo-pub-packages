@@ -417,6 +417,54 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.1"
+  dart_edge_auth:
+    dependency: transitive
+    description:
+      name: dart_edge_auth
+      sha256: ebf68950cc9d66dcb5286a5608d1a5945bfa09fb64938b682ec3e349acd77fc6
+      url: "https://registry.hippolabs.org/pub/internal-pub/"
+    source: hosted
+    version: "0.3.0"
+  dart_edge_core:
+    dependency: transitive
+    description:
+      name: dart_edge_core
+      sha256: "241fd980aaebdb03d912fc5e5647ee282a5390c2ef95e65e1d648238b98655b9"
+      url: "https://registry.hippolabs.org/pub/internal-pub/"
+    source: hosted
+    version: "0.2.0"
+  dart_edge_http_server:
+    dependency: transitive
+    description:
+      name: dart_edge_http_server
+      sha256: ff20eaead3ae1c6de6844b6a181a767242408d79efa9b65d231312ffe6908f5a
+      url: "https://registry.hippolabs.org/pub/internal-pub/"
+    source: hosted
+    version: "0.3.0"
+  dart_edge_http_server_runtime:
+    dependency: transitive
+    description:
+      name: dart_edge_http_server_runtime
+      sha256: e2eb2e996b45c93d2176738509d599c78a9a1c003370d1caa7a524675d206edd
+      url: "https://registry.hippolabs.org/pub/internal-pub/"
+    source: hosted
+    version: "0.3.0"
+  dart_edge_jaspr:
+    dependency: transitive
+    description:
+      name: dart_edge_jaspr
+      sha256: "0cfba40abf716b1bbb17d3d06f0362aaca6b7235e8ee8aac5f2270fbf2afd3aa"
+      url: "https://registry.hippolabs.org/pub/internal-pub/"
+    source: hosted
+    version: "0.3.0"
+  dart_edge_sql:
+    dependency: transitive
+    description:
+      name: dart_edge_sql
+      sha256: "7837e84017076671e64c5daa1c68f46f38cfaf1b406ceb11c4b1c4051d9ad92f"
+      url: "https://registry.hippolabs.org/pub/internal-pub/"
+    source: hosted
+    version: "0.2.0"
   dart_style:
     dependency: transitive
     description:
@@ -863,6 +911,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.3"
+  hotreloader:
+    dependency: transitive
+    description:
+      name: hotreloader
+      sha256: "66871df468fc24eee81f1a0a7cb98acc104716f9b7376d355437b48d633c4ebf"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.4.0"
   html:
     dependency: transitive
     description:
@@ -948,6 +1004,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.4"
+  jaspr:
+    dependency: transitive
+    description:
+      name: jaspr
+      sha256: "3fc388e9c114b5febe8f4678c34332f27c652882e4ec06c293c0350075af8e76"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.23.0"
   jni:
     dependency: transitive
     description:
@@ -1100,6 +1164,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.17.6"
+  native_toolchain_rust:
+    dependency: transitive
+    description:
+      name: native_toolchain_rust
+      sha256: e53ef1025e2c190333ec61f638513c890c1becf11222e27b115b03bac369c6be
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.3"
   nested:
     dependency: transitive
     description:
@@ -1524,6 +1596,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.2"
+  shelf_gzip:
+    dependency: transitive
+    description:
+      name: shelf_gzip
+      sha256: "4f4b793c0f969f348aece1ab4cc05fceba9fea431c1ce76b1bc0fa369cecfc15"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.1.0"
   shelf_packages_handler:
     dependency: transitive
     description:
@@ -1532,6 +1612,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
+  shelf_proxy:
+    dependency: transitive
+    description:
+      name: shelf_proxy
+      sha256: "0c3a7b2b4c111cae8a6d9077701e0622c6013d38a780373ac359d6d45b3aa10b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.5"
   shelf_static:
     dependency: transitive
     description:
@@ -1777,6 +1865,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.2.0"
+  toml:
+    dependency: transitive
+    description:
+      name: toml
+      sha256: "35a35f782228656a2af31e8c73d1353cc4ef3d683fd68af1111b44631879c05e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.18.0"
   tuple:
     dependency: transitive
     description:
@@ -1801,6 +1897,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.1"
+  universal_web:
+    dependency: transitive
+    description:
+      name: universal_web
+      sha256: "618a9d8659e9429875f69d4da0fb9c0c143d3d4cdab28b4545502088aa50ed62"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1+1"
   url_launcher:
     dependency: transitive
     description:

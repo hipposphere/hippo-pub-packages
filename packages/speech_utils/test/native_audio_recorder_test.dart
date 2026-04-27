@@ -1090,7 +1090,9 @@ void main() {
       );
     });
 
-    test('startFileRecording requires custom AAC encoder on Linux', () {
+    test('startFileRecording accepts Linux AAC recording without custom encoder', () async {
+      late String nativeOutputPath;
+
       final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.linux,
         availabilityFn: () => true,
@@ -1103,7 +1105,9 @@ void main() {
               required sampleRateHz,
               required channelCount,
               required inputDeviceId,
-            }) {},
+            }) {
+              nativeOutputPath = outputPath;
+            },
         startPcmStreamFn:
             ({
               required sampleRateHz,
@@ -1116,15 +1120,16 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      expect(
-        () => recorder.startFileRecording(
-          outputPath: '/tmp/file.m4a',
-          config: const AudioRecorderConfig(
-            encoding: AudioEncodingConfig(encoder: AudioEncoder.aacLc),
-          ),
+      await recorder.startFileRecording(
+        outputPath: '/tmp/file.m4a',
+        config: const AudioRecorderConfig(
+          encoding: AudioEncodingConfig(encoder: AudioEncoder.aacLc),
         ),
-        throwsA(isA<ArgumentError>()),
       );
+
+      expect(nativeOutputPath, isNot('/tmp/file.m4a'));
+      expect(nativeOutputPath, endsWith('${Platform.pathSeparator}capture.wav'));
+      await recorder.cancel();
     });
 
     test('startFileRecording allows Linux AAC recording with custom encoder', () async {

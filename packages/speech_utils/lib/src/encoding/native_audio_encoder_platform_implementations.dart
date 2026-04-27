@@ -1,6 +1,6 @@
 part of 'native_audio_encoder.dart';
 
-enum NativeAudioEncoderPlatform { macOS, windows, android, iOS, unsupported }
+enum NativeAudioEncoderPlatform { macOS, windows, linux, android, iOS, unsupported }
 
 NativeAudioEncoderPlatform _detectNativeAudioEncoderPlatform() {
   if (Platform.isMacOS) {
@@ -8,6 +8,9 @@ NativeAudioEncoderPlatform _detectNativeAudioEncoderPlatform() {
   }
   if (Platform.isWindows) {
     return NativeAudioEncoderPlatform.windows;
+  }
+  if (Platform.isLinux) {
+    return NativeAudioEncoderPlatform.linux;
   }
   if (Platform.isAndroid) {
     return NativeAudioEncoderPlatform.android;
@@ -28,6 +31,7 @@ NativeAudioEncoderPlatformImplementation _resolveNativeAudioEncoderPlatformImple
   return switch (platform) {
     NativeAudioEncoderPlatform.macOS => const _MacosNativeAudioEncoderPlatformImplementation(),
     NativeAudioEncoderPlatform.windows => const _WindowsNativeAudioEncoderPlatformImplementation(),
+    NativeAudioEncoderPlatform.linux => const _LinuxNativeAudioEncoderPlatformImplementation(),
     NativeAudioEncoderPlatform.android => const _AndroidNativeAudioEncoderPlatformImplementation(),
     NativeAudioEncoderPlatform.iOS => const _IosNativeAudioEncoderPlatformImplementation(),
     NativeAudioEncoderPlatform.unsupported =>
@@ -82,6 +86,7 @@ extension on NativeAudioEncoderPlatform {
     return switch (this) {
       NativeAudioEncoderPlatform.macOS => 'macOS',
       NativeAudioEncoderPlatform.windows => 'Windows',
+      NativeAudioEncoderPlatform.linux => 'Linux',
       NativeAudioEncoderPlatform.android => 'Android',
       NativeAudioEncoderPlatform.iOS => 'iOS',
       NativeAudioEncoderPlatform.unsupported => 'unsupported platform',

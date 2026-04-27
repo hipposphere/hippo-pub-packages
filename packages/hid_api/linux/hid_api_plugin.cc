@@ -3,22 +3,30 @@
 #include <flutter_linux/flutter_linux.h>
 #include <gtk/gtk.h>
 #include <hidapi/hidapi.h>
+#include <algorithm>
+#include <sstream>
 #include <map>
 #include <string>
 #include <thread>
 #include <vector>
 #include <mutex>
 #include <atomic>
+#include <cstdint>
+#include <cwchar>
 #include <cstring>
 
 #define HID_API_PLUGIN(obj) \
   (G_TYPE_CHECK_INSTANCE_CAST((obj), hid_api_plugin_get_type(), \
                                HidApiPlugin))
 
+struct DeviceUpdateState;
+
 struct _HidApiPlugin {
   GObject parent_instance;
   FlPluginRegistrar* registrar;
   FlMethodChannel* method_channel;
+  FlEventChannel* device_update_channel;
+  DeviceUpdateState* device_update_state;
 };
 
 G_DEFINE_TYPE(HidApiPlugin, hid_api_plugin, g_object_get_type())
@@ -34,17 +42,139 @@ static std::string wchar_to_utf8(const wchar_t* wstr) {
     return std::string(&mbstr[0]);
 }
 
+static FlValue* create_device_info_map(const hid_device_info* device) {
+    FlValue* map = fl_value_new_map();
+    fl_value_set_string_take(map, "path", fl_value_new_string(device->path ? device->path : ""));
+    fl_value_set_string_take(map, "vendorId", fl_value_new_int(device->vendor_id));
+    fl_value_set_string_take(map, "productId", fl_value_new_int(device->product_id));
+    fl_value_set_string_take(map, "releaseNumber", fl_value_new_int(device->release_number));
+    fl_value_set_string_take(map, "usagePage", fl_value_new_int(device->usage_page));
+    fl_value_set_string_take(map, "usage", fl_value_new_int(device->usage));
+    fl_value_set_string_take(map, "interfaceNumber", fl_value_new_int(device->interface_number));
+
+    std::string manufacturer = wchar_to_utf8(device->manufacturer_string);
+    std::string product = wchar_to_utf8(device->product_string);
+    std::string serial_number = wchar_to_utf8(device->serial_number);
+    fl_value_set_string_take(map, "manufacturer", fl_value_new_string(manufacturer.c_str()));
+    fl_value_set_string_take(map, "product", fl_value_new_string(product.c_str()));
+    fl_value_set_string_take(map, "serialNumber", fl_value_new_string(serial_number.c_str()));
+    return map;
+}
+
+static FlValue* create_device_info_list(int vendor_id = 0, int product_id = 0) {
+    FlValue* result_list = fl_value_new_list();
+    struct hid_device_info* devices = hid_enumerate(vendor_id, product_id);
+
+    for (struct hid_device_info* current = devices; current; current = current->next) {
+        fl_value_append_take(result_list, create_device_info_map(current));
+    }
+
+    hid_free_enumeration(devices);
+    return result_list;
+}
+
+static std::string device_list_signature() {
+    std::vector<std::string> entries;
+    struct hid_device_info* devices = hid_enumerate(0, 0);
+
+    for (struct hid_device_info* current = devices; current; current = current->next) {
+        std::ostringstream entry;
+        entry << (current->path ? current->path : "")
+              << "|" << current->vendor_id
+              << "|" << current->product_id
+              << "|" << current->release_number
+              << "|" << current->usage_page
+              << "|" << current->usage
+              << "|" << current->interface_number
+              << "|" << wchar_to_utf8(current->serial_number);
+        entries.push_back(entry.str());
+    }
+
+    hid_free_enumeration(devices);
+    std::sort(entries.begin(), entries.end());
+
+    std::ostringstream signature;
+    for (const std::string& entry : entries) {
+        signature << entry << "\n";
+    }
+    return signature.str();
+}
+
 // Device state management
 struct DeviceState {
     hid_device* device;
     FlEventChannel* event_channel;
+    FlEventChannel* disconnection_channel;
     std::thread* read_thread;
     std::atomic<bool> reading;
+    std::atomic<bool> disconnected;
     std::string path;
 };
 
 static std::map<std::string, DeviceState*> open_devices;
 static std::mutex devices_mutex;
+
+struct DeviceUpdateState {
+    FlEventChannel* channel;
+    guint poll_source_id;
+    bool listening;
+    std::string last_signature;
+};
+
+static void send_device_update(DeviceUpdateState* state) {
+    if (!state || !state->channel || !state->listening) return;
+
+    g_autoptr(FlValue) devices = create_device_info_list();
+    fl_event_channel_send(state->channel, devices, nullptr, nullptr);
+}
+
+static gboolean device_update_poll_cb(gpointer user_data) {
+    DeviceUpdateState* state = static_cast<DeviceUpdateState*>(user_data);
+    if (!state || !state->listening) {
+        if (state) state->poll_source_id = 0;
+        return G_SOURCE_REMOVE;
+    }
+
+    std::string signature = device_list_signature();
+    if (signature != state->last_signature) {
+        state->last_signature = signature;
+        send_device_update(state);
+    }
+
+    return G_SOURCE_CONTINUE;
+}
+
+static void stop_device_update_stream(DeviceUpdateState* state) {
+    if (!state) return;
+
+    state->listening = false;
+    state->last_signature.clear();
+    if (state->poll_source_id != 0) {
+        g_source_remove(state->poll_source_id);
+        state->poll_source_id = 0;
+    }
+}
+
+static void send_disconnection_event(DeviceState* state) {
+    if (!state || !state->disconnection_channel) return;
+    if (state->disconnected.exchange(true)) return;
+
+    struct DisconnectionData {
+        FlEventChannel* channel;
+    };
+
+    DisconnectionData* data = new DisconnectionData();
+    data->channel = FL_EVENT_CHANNEL(g_object_ref(state->disconnection_channel));
+
+    g_idle_add([](gpointer user_data) -> gboolean {
+        DisconnectionData* data = static_cast<DisconnectionData*>(user_data);
+        g_autoptr(FlValue) event = fl_value_new_null();
+        fl_event_channel_send(data->channel, event, nullptr, nullptr);
+        g_object_unref(data->channel);
+        delete data;
+        return G_SOURCE_REMOVE;
+    }, data);
+}
 
 static void send_report_event(DeviceState* state, const uint8_t* data, size_t length) {
     if (!state->event_channel) return;
@@ -57,7 +187,7 @@ static void send_report_event(DeviceState* state, const uint8_t* data, size_t le
     };
     
     ReportData* rdata = new ReportData();
-    rdata->channel = state->event_channel;
+    rdata->channel = FL_EVENT_CHANNEL(g_object_ref(state->event_channel));
     rdata->length = length;
     rdata->data = new uint8_t[length];
     memcpy(rdata->data, data, length);
@@ -82,6 +212,7 @@ static void send_report_event(DeviceState* state, const uint8_t* data, size_t le
         
         fl_event_channel_send(r->channel, map, nullptr, nullptr);
         
+        g_object_unref(r->channel);
         delete[] r->data;
         delete r;
         return G_SOURCE_REMOVE;
@@ -97,9 +228,8 @@ static void read_thread_func(DeviceState* state) {
         if (res > 0) {
             send_report_event(state, buf, res);
         } else if (res < 0) {
-            // Error
-            // std::cerr << "HID read error" << std::endl;
-            // Optionally send error event
+            send_disconnection_event(state);
+            state->reading = false;
         }
     }
 }
@@ -118,29 +248,7 @@ static FlMethodResponse* enumerate_devices(FlValue* args) {
          if (p && fl_value_get_type(p) == FL_VALUE_TYPE_INT) product_id = fl_value_get_int(p);
     }
     
-    struct hid_device_info* devs = hid_enumerate(vendor_id, product_id);
-    struct hid_device_info* cur_dev = devs;
-    
-    g_autoptr(FlValue) result_list = fl_value_new_list();
-    
-    while (cur_dev) {
-        FlValue* map = fl_value_new_map();
-        fl_value_set_string_take(map, "path", fl_value_new_string(cur_dev->path));
-        fl_value_set_string_take(map, "vendorId", fl_value_new_int(cur_dev->vendor_id));
-        fl_value_set_string_take(map, "productId", fl_value_new_int(cur_dev->product_id));
-        fl_value_set_string_take(map, "releaseNumber", fl_value_new_int(cur_dev->release_number));
-        fl_value_set_string_take(map, "usagePage", fl_value_new_int(cur_dev->usage_page));
-        fl_value_set_string_take(map, "usage", fl_value_new_int(cur_dev->usage));
-        fl_value_set_string_take(map, "interfaceNumber", fl_value_new_int(cur_dev->interface_number));
-        fl_value_set_string_take(map, "manufacturer", fl_value_new_string(wchar_to_utf8(cur_dev->manufacturer_string).c_str()));
-        fl_value_set_string_take(map, "product", fl_value_new_string(wchar_to_utf8(cur_dev->product_string).c_str()));
-        fl_value_set_string_take(map, "serialNumber", fl_value_new_string(wchar_to_utf8(cur_dev->serial_number).c_str()));
-        
-        fl_value_append(result_list, map);
-        cur_dev = cur_dev->next;
-    }
-    
-    hid_free_enumeration(devs);
+    g_autoptr(FlValue) result_list = create_device_info_list(vendor_id, product_id);
     return FL_METHOD_RESPONSE(fl_method_success_response_new(result_list));
 }
 
@@ -173,8 +281,11 @@ static FlMethodResponse* open_device(HidApiPlugin* self, FlValue* args) {
     
     DeviceState* state = new DeviceState();
     state->device = handle;
+    state->event_channel = nullptr;
+    state->disconnection_channel = nullptr;
     state->path = path;
     state->reading = false;
+    state->disconnected = false;
     state->read_thread = nullptr;
     
     // Register event channel
@@ -209,34 +320,35 @@ static FlMethodResponse* open_device(HidApiPlugin* self, FlValue* args) {
 
     fl_event_channel_set_stream_handlers(state->event_channel, listen_handler, cancel_handler, state, nullptr);
 
-    open_devices[path] = state;
-    
-    // Return device info (simplified, Dart usually asks for enumerate again or uses info we just had? 
-    // Dart code: open(path) -> mapToDeviceInfo(result).
-    // So we need to return the device info map.
-    // We can't easily get info from handle, but we can assume we succeeded.
-    // We can perform a quick local enumerate to find it again to fill details?
-    // Or just return minimal info? 
-    // Dart _mapToDeviceInfo expects keys.
-    // Let's loop enumerate to find it. This is inefficient but safe.
-    
+    g_autofree gchar* disconnection_channel_name = g_strdup_printf("hid_api/disconnection/%s", path);
+    g_autoptr(FlStandardMethodCodec) disconnection_codec = fl_standard_method_codec_new();
+    state->disconnection_channel =
+        fl_event_channel_new(fl_plugin_registrar_get_messenger(self->registrar),
+                             disconnection_channel_name,
+                             FL_METHOD_CODEC(disconnection_codec));
+
+    auto disconnection_listen_handler = [](FlEventChannel* channel, FlValue* args, gpointer user_data) -> FlMethodErrorResponse* {
+        return nullptr;
+    };
+
+    auto disconnection_cancel_handler = [](FlEventChannel* channel, FlValue* args, gpointer user_data) -> FlMethodErrorResponse* {
+        return nullptr;
+    };
+
+    fl_event_channel_set_stream_handlers(state->disconnection_channel,
+                                         disconnection_listen_handler,
+                                         disconnection_cancel_handler,
+                                         state,
+                                         nullptr);
+
+    // Return the full device info map expected by the Dart wrapper.
     struct hid_device_info* devs = hid_enumerate(0, 0);
     struct hid_device_info* cur = devs;
     FlValue* result_map = nullptr;
     
     while(cur) {
-        if (std::string(cur->path) == std::string(path)) {
-            result_map = fl_value_new_map();
-            fl_value_set_string_take(result_map, "path", fl_value_new_string(cur->path));
-            fl_value_set_string_take(result_map, "vendorId", fl_value_new_int(cur->vendor_id));
-            fl_value_set_string_take(result_map, "productId", fl_value_new_int(cur->product_id));
-            fl_value_set_string_take(result_map, "releaseNumber", fl_value_new_int(cur->release_number));
-            fl_value_set_string_take(result_map, "usagePage", fl_value_new_int(cur->usage_page));
-            fl_value_set_string_take(result_map, "usage", fl_value_new_int(cur->usage));
-             fl_value_set_string_take(result_map, "interfaceNumber", fl_value_new_int(cur->interface_number));
-            fl_value_set_string_take(result_map, "manufacturer", fl_value_new_string(wchar_to_utf8(cur->manufacturer_string).c_str()));
-            fl_value_set_string_take(result_map, "product", fl_value_new_string(wchar_to_utf8(cur->product_string).c_str()));
-            fl_value_set_string_take(result_map, "serialNumber", fl_value_new_string(wchar_to_utf8(cur->serial_number).c_str()));
+        if (cur->path && std::string(cur->path) == std::string(path)) {
+            result_map = create_device_info_map(cur);
             break;
         }
         cur = cur->next;
@@ -244,13 +356,14 @@ static FlMethodResponse* open_device(HidApiPlugin* self, FlValue* args) {
     hid_free_enumeration(devs);
     
     if (!result_map) {
-         // Fallback if path changed or not found (weird if we opened it)
-         result_map = fl_value_new_map();
-         // Fill dummy or error?
-         // Dart will crash if keys missing.
-         // Let's assume consistent path.
+        g_clear_object(&state->event_channel);
+        g_clear_object(&state->disconnection_channel);
+        hid_close(handle);
+        delete state;
+        return FL_METHOD_RESPONSE(fl_method_error_response_new("DEVICE_NOT_FOUND", "Opened device, but could not enumerate device info", nullptr));
     }
-    
+
+    open_devices[path] = state;
     return FL_METHOD_RESPONSE(fl_method_success_response_new(result_map));
 }
 
@@ -267,17 +380,16 @@ static FlMethodResponse* close_device(FlValue* args) {
          if (it != open_devices.end()) {
              DeviceState* s = it->second;
              s->reading = false;
-             if (s->read_thread && s->read_thread->joinable()) {
-                 s->read_thread->join();
-                 delete s->read_thread;
-             }
-             hid_close(s->device);
-             // fl_event_channel_set_stream_handlers(s->event_channel, nullptr, nullptr, nullptr, nullptr); // Not standard API?
-             // Just unref plugin usage usually cleans up?
-             // We can just delete state. Channel remains but stream handler won't be called.
-             delete s;
-             open_devices.erase(it);
-         }
+	             if (s->read_thread && s->read_thread->joinable()) {
+	                 s->read_thread->join();
+	                 delete s->read_thread;
+	             }
+	             hid_close(s->device);
+	             g_clear_object(&s->event_channel);
+	             g_clear_object(&s->disconnection_channel);
+	             delete s;
+	             open_devices.erase(it);
+	         }
     }
     return FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
 }
@@ -305,7 +417,12 @@ static FlMethodResponse* read_device(FlValue* args) {
     uint8_t buf[4096];
     int res = hid_read_timeout(dev, buf, sizeof(buf), timeout >= 0 ? timeout : 0);
     
-    if (res < 0) return FL_METHOD_RESPONSE(fl_method_error_response_new("READ_FAILED", "Read failed", nullptr));
+    if (res < 0) {
+        std::lock_guard<std::mutex> lock(devices_mutex);
+        auto it = open_devices.find(path ? path : "");
+        if (it != open_devices.end()) send_disconnection_event(it->second);
+        return FL_METHOD_RESPONSE(fl_method_error_response_new("READ_FAILED", "Read failed", nullptr));
+    }
     
     g_autoptr(FlValue) map = fl_value_new_map();
     fl_value_set_string_take(map, "reportId", fl_value_new_int(0));
@@ -380,9 +497,6 @@ static FlMethodResponse* write_device(FlValue* args) {
     return FL_METHOD_RESPONSE(fl_method_success_response_new(fl_value_new_int(res)));
 }
 
-// ... Additional methods: setBlocking, getFeatureReport ...
-// Implementing minimal set for brevity, assuming write/read/open/enumerate covers core usage.
-// setBlocking:
 static FlMethodResponse* set_blocking(FlValue* args) {
     const char* path = nullptr;
     bool blocking = true;
@@ -406,6 +520,56 @@ static FlMethodResponse* set_blocking(FlValue* args) {
     return FL_METHOD_RESPONSE(fl_method_error_response_new("DEVICE_NOT_FOUND", "", nullptr));
 }
 
+static FlMethodResponse* get_feature_report(FlValue* args) {
+    const char* path = nullptr;
+    int report_id = 0;
+    int length = 0;
+
+    if (args && fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
+        FlValue* path_value = fl_value_lookup_string(args, "path");
+        if (path_value && fl_value_get_type(path_value) == FL_VALUE_TYPE_STRING) {
+            path = fl_value_get_string(path_value);
+        }
+
+        FlValue* report_id_value = fl_value_lookup_string(args, "reportId");
+        if (report_id_value && fl_value_get_type(report_id_value) == FL_VALUE_TYPE_INT) {
+            report_id = fl_value_get_int(report_id_value);
+        }
+
+        FlValue* length_value = fl_value_lookup_string(args, "length");
+        if (length_value && fl_value_get_type(length_value) == FL_VALUE_TYPE_INT) {
+            length = fl_value_get_int(length_value);
+        }
+    }
+
+    if (!path || length <= 0) {
+        return FL_METHOD_RESPONSE(fl_method_error_response_new("INVALID_ARGUMENT", "Path and positive length are required", nullptr));
+    }
+
+    hid_device* device = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(devices_mutex);
+        auto it = open_devices.find(path);
+        if (it != open_devices.end()) device = it->second->device;
+    }
+
+    if (!device) {
+        return FL_METHOD_RESPONSE(fl_method_error_response_new("DEVICE_NOT_FOUND", "Device not open", nullptr));
+    }
+
+    std::vector<uint8_t> buffer(static_cast<size_t>(length), 0);
+    buffer[0] = static_cast<uint8_t>(report_id);
+
+    int result = hid_get_feature_report(device, buffer.data(), buffer.size());
+    if (result < 0) {
+        return FL_METHOD_RESPONSE(fl_method_error_response_new("READ_FAILED", "Get feature report failed", nullptr));
+    }
+
+    g_autoptr(FlValue) result_map = fl_value_new_map();
+    fl_value_set_string_take(result_map, "data", fl_value_new_uint8_list(buffer.data(), result));
+    return FL_METHOD_RESPONSE(fl_method_success_response_new(result_map));
+}
+
 static void hid_api_plugin_handle_method_call(
     HidApiPlugin* self,
     FlMethodCall* method_call) {
@@ -420,6 +584,7 @@ static void hid_api_plugin_handle_method_call(
       hid_init();
       response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
   } else if (strcmp(method, "shutdown") == 0) {
+      stop_device_update_stream(self->device_update_state);
       // close all first?
       hid_exit();
       response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
@@ -435,6 +600,8 @@ static void hid_api_plugin_handle_method_call(
       response = write_device(args);
   } else if (strcmp(method, "setBlocking") == 0) {
       response = set_blocking(args);
+  } else if (strcmp(method, "getFeatureReport") == 0) {
+      response = get_feature_report(args);
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }
@@ -443,6 +610,12 @@ static void hid_api_plugin_handle_method_call(
 }
 
 static void hid_api_plugin_dispose(GObject* object) {
+  HidApiPlugin* self = HID_API_PLUGIN(object);
+  stop_device_update_stream(self->device_update_state);
+  delete self->device_update_state;
+  self->device_update_state = nullptr;
+  g_clear_object(&self->device_update_channel);
+
   G_OBJECT_CLASS(hid_api_plugin_parent_class)->dispose(object);
 }
 
@@ -450,7 +623,12 @@ static void hid_api_plugin_class_init(HidApiPluginClass* klass) {
   G_OBJECT_CLASS(klass)->dispose = hid_api_plugin_dispose;
 }
 
-static void hid_api_plugin_init(HidApiPlugin* self) {}
+static void hid_api_plugin_init(HidApiPlugin* self) {
+  self->registrar = nullptr;
+  self->method_channel = nullptr;
+  self->device_update_channel = nullptr;
+  self->device_update_state = nullptr;
+}
 
 static void method_call_cb(FlMethodChannel* channel, FlMethodCall* method_call,
                            gpointer user_data) {
@@ -472,6 +650,43 @@ void hid_api_plugin_register_with_registrar(FlPluginRegistrar* registrar) {
   fl_method_channel_set_method_call_handler(plugin->method_channel, method_call_cb,
                                             g_object_ref(plugin),
                                             g_object_unref);
+
+  plugin->device_update_state = new DeviceUpdateState();
+  plugin->device_update_state->channel = nullptr;
+  plugin->device_update_state->poll_source_id = 0;
+  plugin->device_update_state->listening = false;
+
+  g_autoptr(FlStandardMethodCodec) event_codec = fl_standard_method_codec_new();
+  plugin->device_update_channel =
+      fl_event_channel_new(fl_plugin_registrar_get_messenger(registrar),
+                           "hid_api/device_updates",
+                           FL_METHOD_CODEC(event_codec));
+
+  auto listen_handler = [](FlEventChannel* channel, FlValue* args, gpointer user_data) -> FlMethodErrorResponse* {
+      DeviceUpdateState* state = static_cast<DeviceUpdateState*>(user_data);
+      hid_init();
+      state->channel = channel;
+      state->listening = true;
+      state->last_signature = device_list_signature();
+      send_device_update(state);
+
+      if (state->poll_source_id == 0) {
+          state->poll_source_id = g_timeout_add(1000, device_update_poll_cb, state);
+      }
+      return nullptr;
+  };
+
+  auto cancel_handler = [](FlEventChannel* channel, FlValue* args, gpointer user_data) -> FlMethodErrorResponse* {
+      DeviceUpdateState* state = static_cast<DeviceUpdateState*>(user_data);
+      stop_device_update_stream(state);
+      return nullptr;
+  };
+
+  fl_event_channel_set_stream_handlers(plugin->device_update_channel,
+                                       listen_handler,
+                                       cancel_handler,
+                                       plugin->device_update_state,
+                                       nullptr);
 
   g_object_unref(plugin);
 }

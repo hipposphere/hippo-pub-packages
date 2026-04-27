@@ -135,6 +135,44 @@ void main() {
       expect(await encoder.isAvailable(), isTrue);
     });
 
+    test('delegates linux encode call to platform implementation', () async {
+      late String usedInputPath;
+      late String usedOutputPath;
+      late int usedBitrateBps;
+
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
+        platform: NativeAudioEncoderPlatform.linux,
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {
+          usedInputPath = inputPath;
+          usedOutputPath = outputPath;
+          usedBitrateBps = bitrateBps;
+        },
+      );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
+
+      await encoder.encodeAudioFileToAac(
+        inputPath: 'input.wav',
+        outputPath: 'output.m4a',
+        bitrateKbps: 88,
+      );
+
+      expect(usedInputPath, 'input.wav');
+      expect(usedOutputPath, 'output.m4a');
+      expect(usedBitrateBps, 88000);
+    });
+
+    test('propagates linux availability probe', () async {
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
+        platform: NativeAudioEncoderPlatform.linux,
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
+      );
+      final encoder = NativeAudioEncoder.custom(platformImplementation: implementation);
+
+      expect(await encoder.isAvailable(), isTrue);
+    });
+
     test('delegates android encode call to platform implementation', () async {
       late String usedInputPath;
       late String usedOutputPath;

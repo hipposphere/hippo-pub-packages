@@ -11,6 +11,7 @@ typedef HookBuildStep = Future<void> Function(BuildInput input, BuildOutputBuild
 final _buildSteps = <HookBuildStep>[
   bundleTenVadAsset,
   buildWindowsAudioEncoderAsset,
+  buildLinuxAudioEncoderAsset,
   buildAndroidAudioEncoderAsset,
   buildIosAudioEncoderAsset,
   buildMacosAudioEncoderAsset,

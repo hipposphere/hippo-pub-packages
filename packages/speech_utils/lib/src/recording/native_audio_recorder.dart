@@ -1210,6 +1210,7 @@ final class NativeAudioRecorder {
     }
     if (platform == NativeAudioRecorderPlatform.macOS ||
         platform == NativeAudioRecorderPlatform.windows ||
+        platform == NativeAudioRecorderPlatform.linux ||
         platform == NativeAudioRecorderPlatform.iOS ||
         platform == NativeAudioRecorderPlatform.android) {
       return;
@@ -1217,8 +1218,8 @@ final class NativeAudioRecorder {
     throw ArgumentError.value(
       encoding.audioEncoder,
       parameterName,
-      '$context requires AudioEncodingConfig.audioEncoder on Linux because '
-      'NativeAudioEncoder does not currently provide a Linux AAC backend.',
+      '$context requires AudioEncodingConfig.audioEncoder on this platform because '
+      'NativeAudioEncoder does not currently provide a native AAC backend.',
     );
   }
 

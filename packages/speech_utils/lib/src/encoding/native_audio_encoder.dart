@@ -8,6 +8,7 @@ import 'package:ffi/ffi.dart';
 import 'aac_encoder.dart';
 import '../generated/audio_encoder/android_audio_encoder_bindings.dart' as android_bindings;
 import '../generated/audio_encoder/apple_audio_encoder_bindings.dart' as apple_bindings;
+import '../generated/audio_encoder/linux_audio_encoder_bindings.dart' as linux_bindings;
 import '../generated/audio_encoder/windows_audio_encoder_bindings.dart' as windows_bindings;
 import '../utils/pcm16_audio_utils.dart';
 
@@ -15,17 +16,19 @@ part 'errors/native_audio_encoder_exceptions.dart';
 part 'native_audio_encoder_platform_implementations.dart';
 part 'implementations/native_audio_encoder_platform_implementation_android.dart';
 part 'implementations/native_audio_encoder_platform_implementation_ios.dart';
+part 'implementations/native_audio_encoder_platform_implementation_linux.dart';
 part 'implementations/native_audio_encoder_platform_implementation_macos.dart';
 part 'implementations/native_audio_encoder_platform_implementation_windows.dart';
 
 const _unsupportedNativeAudioEncoderMessage =
     'NativeAudioEncoder is currently supported on macOS (AVFoundation), '
-    'Windows (FFmpeg/libavcodec), Android (NDK MediaCodec), and '
+    'Windows/Linux (FFmpeg/libavcodec), Android (NDK MediaCodec), and '
     'iOS (AVFoundation).';
 
 /// AAC encoder that uses native platform tooling:
 /// - macOS: bundled native AVFoundation bridge via Dart FFI
 /// - Windows: bundled native FFmpeg/libavcodec bridge via Dart FFI
+/// - Linux: bundled native FFmpeg/libavcodec bridge via Dart FFI
 /// - Android: bundled native NDK bridge via Dart FFI (PCM16 WAV input path)
 /// - iOS: bundled native AVFoundation bridge via Dart FFI
 ///

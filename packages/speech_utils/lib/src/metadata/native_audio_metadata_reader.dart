@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 
 import '../generated/audio_encoder/android_audio_encoder_bindings.dart' as android_bindings;
+import '../generated/audio_encoder/linux_audio_encoder_bindings.dart' as linux_bindings;
 import '../generated/metadata/apple_audio_metadata_bindings.dart' as apple_metadata_bindings;
 import '../generated/audio_encoder/windows_audio_encoder_bindings.dart' as windows_bindings;
 import '../models/audio_metadata.dart';
@@ -14,10 +15,10 @@ part 'errors/native_audio_metadata_reader_exceptions.dart';
 typedef NativeAudioMetadataReadFn = AudioMetadata Function(String inputPath);
 typedef NativeAudioMetadataAvailabilityFn = bool Function();
 
-enum NativeAudioMetadataPlatform { macOS, windows, android, iOS, unsupported }
+enum NativeAudioMetadataPlatform { macOS, windows, linux, android, iOS, unsupported }
 
 const _unsupportedNativeAudioMetadataReaderMessage =
-    'NativeAudioMetadataReader is currently supported on macOS, Windows, Android, and iOS.';
+    'NativeAudioMetadataReader is currently supported on macOS, Windows, Linux, Android, and iOS.';
 
 /// Reads media metadata using bundled native platform APIs via FFI.
 final class NativeAudioMetadataReader {
@@ -27,6 +28,8 @@ final class NativeAudioMetadataReader {
     NativeAudioMetadataAvailabilityFn? macosAvailabilityFn,
     NativeAudioMetadataReadFn? windowsReadFn,
     NativeAudioMetadataAvailabilityFn? windowsAvailabilityFn,
+    NativeAudioMetadataReadFn? linuxReadFn,
+    NativeAudioMetadataAvailabilityFn? linuxAvailabilityFn,
     NativeAudioMetadataReadFn? androidReadFn,
     NativeAudioMetadataAvailabilityFn? androidAvailabilityFn,
     NativeAudioMetadataReadFn? iosReadFn,
@@ -36,6 +39,8 @@ final class NativeAudioMetadataReader {
        _macosAvailabilityFn = macosAvailabilityFn ?? _isAppleAudioMetadataAvailableViaFfi,
        _windowsReadFn = windowsReadFn ?? _readAudioMetadataViaWindowsFfi,
        _windowsAvailabilityFn = windowsAvailabilityFn ?? _isWindowsAudioMetadataAvailableViaFfi,
+       _linuxReadFn = linuxReadFn ?? _readAudioMetadataViaLinuxFfi,
+       _linuxAvailabilityFn = linuxAvailabilityFn ?? _isLinuxAudioMetadataAvailableViaFfi,
        _androidReadFn = androidReadFn ?? _readAudioMetadataViaAndroidFfi,
        _androidAvailabilityFn = androidAvailabilityFn ?? _isAndroidAudioMetadataAvailableViaFfi,
        _iosReadFn = iosReadFn ?? _readAudioMetadataViaIosFfi,
@@ -46,6 +51,8 @@ final class NativeAudioMetadataReader {
   final NativeAudioMetadataAvailabilityFn _macosAvailabilityFn;
   final NativeAudioMetadataReadFn _windowsReadFn;
   final NativeAudioMetadataAvailabilityFn _windowsAvailabilityFn;
+  final NativeAudioMetadataReadFn _linuxReadFn;
+  final NativeAudioMetadataAvailabilityFn _linuxAvailabilityFn;
   final NativeAudioMetadataReadFn _androidReadFn;
   final NativeAudioMetadataAvailabilityFn _androidAvailabilityFn;
   final NativeAudioMetadataReadFn _iosReadFn;
@@ -55,6 +62,7 @@ final class NativeAudioMetadataReader {
     return switch (_platform) {
       NativeAudioMetadataPlatform.macOS => _macosAvailabilityFn(),
       NativeAudioMetadataPlatform.windows => _windowsAvailabilityFn(),
+      NativeAudioMetadataPlatform.linux => _linuxAvailabilityFn(),
       NativeAudioMetadataPlatform.android => _androidAvailabilityFn(),
       NativeAudioMetadataPlatform.iOS => _iosAvailabilityFn(),
       NativeAudioMetadataPlatform.unsupported => false,
@@ -70,6 +78,7 @@ final class NativeAudioMetadataReader {
     final metadata = switch (_platform) {
       NativeAudioMetadataPlatform.macOS => _macosReadFn(inputPath),
       NativeAudioMetadataPlatform.windows => _windowsReadFn(inputPath),
+      NativeAudioMetadataPlatform.linux => _linuxReadFn(inputPath),
       NativeAudioMetadataPlatform.android => _androidReadFn(inputPath),
       NativeAudioMetadataPlatform.iOS => _iosReadFn(inputPath),
       NativeAudioMetadataPlatform.unsupported =>
@@ -116,6 +125,9 @@ NativeAudioMetadataPlatform _detectNativeAudioMetadataPlatform() {
   }
   if (Platform.isWindows) {
     return NativeAudioMetadataPlatform.windows;
+  }
+  if (Platform.isLinux) {
+    return NativeAudioMetadataPlatform.linux;
   }
   if (Platform.isAndroid) {
     return NativeAudioMetadataPlatform.android;
@@ -286,6 +298,92 @@ AudioMetadata _readAudioMetadataViaWindowsFfi(String inputPath) {
 
   try {
     final code = windows_bindings.speech_utils_windows_read_audio_metadata(
+      inputPathPtr,
+      outDurationPtr,
+      outSampleRatePtr,
+      outChannelCountPtr,
+      outBitratePtr,
+      outContainerFormatPtr,
+      _metadataTextBufferBytes,
+      outCodecPtr,
+      _metadataTextBufferBytes,
+      outCodecProfilePtr,
+      _metadataTextBufferBytes,
+      errorPtr,
+      _metadataErrorBufferBytes,
+    );
+    final containerFormat = outContainerFormatPtr.cast<Utf8>().toDartString();
+    final codec = outCodecPtr.cast<Utf8>().toDartString();
+    final codecProfile = outCodecProfilePtr.cast<Utf8>().toDartString();
+    final error = errorPtr.cast<Utf8>().toDartString();
+    if (code != 0) {
+      throw AudioMetadataException(
+        'Native audio metadata read failed',
+        errorCode: code,
+        details: error.isEmpty ? null : error,
+      );
+    }
+
+    final durationMicros = outDurationPtr.value;
+    if (durationMicros < 0) {
+      throw AudioMetadataException(
+        'Native audio metadata returned an invalid duration',
+        details: 'durationMicros=$durationMicros',
+      );
+    }
+
+    return _buildAudioMetadata(
+      duration: Duration(microseconds: durationMicros),
+      sampleRateHz: outSampleRatePtr.value,
+      channelCount: outChannelCountPtr.value,
+      bitrateBps: outBitratePtr.value,
+      containerFormat: containerFormat,
+      codec: codec,
+      codecProfile: codecProfile,
+    );
+  } finally {
+    calloc.free(inputPathPtr);
+    calloc.free(outDurationPtr);
+    calloc.free(outSampleRatePtr);
+    calloc.free(outChannelCountPtr);
+    calloc.free(outBitratePtr);
+    calloc.free(outContainerFormatPtr);
+    calloc.free(outCodecPtr);
+    calloc.free(outCodecProfilePtr);
+    calloc.free(errorPtr);
+  }
+}
+
+bool _isLinuxAudioMetadataAvailableViaFfi() {
+  final errorPtr = calloc<ffi.Char>(_metadataErrorBufferBytes);
+  try {
+    try {
+      final code = linux_bindings.speech_utils_linux_audio_metadata_healthcheck(
+        errorPtr,
+        _metadataErrorBufferBytes,
+      );
+      return code == 0;
+    } on Object {
+      return false;
+    }
+  } finally {
+    calloc.free(errorPtr);
+  }
+}
+
+AudioMetadata _readAudioMetadataViaLinuxFfi(String inputPath) {
+  final inputPathPtr = inputPath.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
+  final outDurationPtr = calloc<ffi.Int64>();
+  final outSampleRatePtr = calloc<ffi.Int32>();
+  final outChannelCountPtr = calloc<ffi.Int32>();
+  final outBitratePtr = calloc<ffi.Int32>();
+  final outContainerFormatPtr = calloc<ffi.Char>(_metadataTextBufferBytes);
+  final outCodecPtr = calloc<ffi.Char>(_metadataTextBufferBytes);
+  final outCodecProfilePtr = calloc<ffi.Char>(_metadataTextBufferBytes);
+  final errorPtr = calloc<ffi.Char>(_metadataErrorBufferBytes);
+
+  try {
+    final code = linux_bindings.speech_utils_linux_read_audio_metadata(
       inputPathPtr,
       outDurationPtr,
       outSampleRatePtr,

@@ -43,6 +43,36 @@ void main() {
       expect(duration, const Duration(microseconds: 42000));
     });
 
+    test('reads metadata via Linux bridge', () async {
+      final reader = NativeAudioMetadataReader(
+        platform: NativeAudioMetadataPlatform.linux,
+        linuxAvailabilityFn: () => true,
+        linuxReadFn: (inputPath) {
+          expect(inputPath, 'linux.wav');
+          return const AudioMetadata(
+            duration: Duration(microseconds: 987654),
+            sampleRateHz: 44100,
+            channelCount: 1,
+            bitrateBps: 128000,
+            containerFormat: 'wav',
+            codec: 'pcm_s16le',
+            codecProfile: 's16',
+          );
+        },
+      );
+
+      final metadata = await reader.readAudioMetadata(inputPath: 'linux.wav');
+
+      expect(metadata.duration, const Duration(microseconds: 987654));
+      expect(metadata.sampleRateHz, 44100);
+      expect(metadata.channelCount, 1);
+      expect(metadata.bitrateBps, 128000);
+      expect(metadata.containerFormat, 'wav');
+      expect(metadata.codec, 'pcm_s16le');
+      expect(metadata.codecProfile, 's16');
+      expect(await reader.isAvailable(), isTrue);
+    });
+
     test('maps non-positive optional fields to null', () async {
       final reader = NativeAudioMetadataReader(
         platform: NativeAudioMetadataPlatform.iOS,

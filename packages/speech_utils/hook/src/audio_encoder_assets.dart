@@ -6,14 +6,24 @@ import 'package:native_toolchain_c/native_toolchain_c.dart';
 import 'package:path/path.dart' as p;
 
 import 'hook_helpers.dart';
+import 'linux_ffmpeg_pipeline.dart';
 import 'windows_ffmpeg_pipeline.dart';
 
 const _windowsAudioEncoderAssetName =
     'src/generated/audio_encoder/windows_audio_encoder_bindings.dart';
 const _windowsAudioEncoderLibraryBaseName = 'speech_utils_windows_audio_encoder';
 const _windowsFfmpegRuntimeAssetNamePrefix = 'src/generated/audio_encoder/windows_ffmpeg_runtime';
+const _linuxAudioEncoderAssetName = 'src/generated/audio_encoder/linux_audio_encoder_bindings.dart';
+const _linuxAudioEncoderLibraryBaseName = 'speech_utils_linux_audio_encoder';
+const _linuxFfmpegRuntimeAssetNamePrefix = 'src/generated/audio_encoder/linux_ffmpeg_runtime';
 const _windowsAudioEncoderSources = <String>[
   'native/windows/speech_utils_windows_audio_encoder.cpp',
+  'native/windows/encoding/windows_ffmpeg_common.cpp',
+  'native/windows/encoding/windows_audio_encoder_transcoder.cpp',
+  'native/windows/encoding/windows_audio_metadata.cpp',
+];
+const _linuxAudioEncoderSources = <String>[
+  'native/linux/speech_utils_linux_audio_encoder.cpp',
   'native/windows/encoding/windows_ffmpeg_common.cpp',
   'native/windows/encoding/windows_audio_encoder_transcoder.cpp',
   'native/windows/encoding/windows_audio_metadata.cpp',
@@ -131,6 +141,44 @@ Future<void> buildWindowsAudioEncoderAsset(BuildInput input, BuildOutputBuilder 
   _bundleWindowsFfmpegRuntimeDlls(input: input, output: output, runtimeDlls: runtimeDlls);
 }
 
+Future<void> buildLinuxAudioEncoderAsset(BuildInput input, BuildOutputBuilder output) async {
+  if (!matchesTarget(input, os: OS.linux)) {
+    return;
+  }
+
+  for (final source in _linuxAudioEncoderSources) {
+    requireSourceFile(input, relativePath: source, label: 'Linux audio encoder', output: output);
+  }
+
+  final ffmpegSdk = await loadLinuxFfmpegSdk(input, output: output);
+  final runtimeLibraries = ffmpegSdk.runtimeLibraries;
+  final libraryDirectories = ffmpegSdk.libraryDirectories
+      .map((directory) => directory.path)
+      .toList(growable: false);
+
+  await CBuilder.library(
+    name: _linuxAudioEncoderLibraryBaseName,
+    assetName: _linuxAudioEncoderAssetName,
+    language: Language.cpp,
+    sources: _linuxAudioEncoderSources,
+    includes: [ffmpegSdk.includeDir.path],
+    std: 'c++17',
+    flags: const <String>['-O2', r'-Wl,-rpath,$ORIGIN'],
+    libraries: const <String>['avformat', 'avcodec', 'avutil', 'swresample'],
+    libraryDirectories: libraryDirectories,
+  ).run(input: input, output: output);
+
+  _copyLinuxRuntimeLibrariesNextToAudioEncoderLibrary(
+    input: input,
+    runtimeLibraries: runtimeLibraries,
+  );
+  _bundleLinuxFfmpegRuntimeLibraries(
+    input: input,
+    output: output,
+    runtimeLibraries: runtimeLibraries,
+  );
+}
+
 void _copyWindowsRuntimeDllsNextToAudioEncoderLibrary({
   required BuildInput input,
   required List<File> runtimeDlls,
@@ -178,6 +226,59 @@ void _bundleWindowsFfmpegRuntimeDlls({
       fileUri: bundledLibrary,
     );
   }
+}
+
+void _copyLinuxRuntimeLibrariesNextToAudioEncoderLibrary({
+  required BuildInput input,
+  required List<File> runtimeLibraries,
+}) {
+  final sharedOutputDir = Directory.fromUri(input.outputDirectoryShared);
+  if (!sharedOutputDir.existsSync()) {
+    return;
+  }
+
+  final audioEncoderFileName = input.config.code.targetOS.dylibFileName(
+    _linuxAudioEncoderLibraryBaseName,
+  );
+  final builtAudioEncoderLibraries = sharedOutputDir
+      .listSync(recursive: true, followLinks: false)
+      .whereType<File>()
+      .where((file) => lowercaseFileName(file) == audioEncoderFileName.toLowerCase())
+      .toList(growable: false);
+
+  for (final audioEncoderLibrary in builtAudioEncoderLibraries) {
+    final targetDir = audioEncoderLibrary.parent;
+    for (final sourceLibrary in runtimeLibraries) {
+      final fileName = p.basename(sourceLibrary.path);
+      final destination = File(p.join(targetDir.path, fileName));
+      copyFile(sourceLibrary, destination);
+    }
+  }
+}
+
+void _bundleLinuxFfmpegRuntimeLibraries({
+  required BuildInput input,
+  required BuildOutputBuilder output,
+  required List<File> runtimeLibraries,
+}) {
+  for (final sourceLibrary in runtimeLibraries) {
+    final fileName = p.basename(sourceLibrary.path);
+    final bundledLibrary = input.outputDirectoryShared.resolve('speech_utils/$fileName');
+    final bundledFile = File.fromUri(bundledLibrary);
+    copyFile(sourceLibrary, bundledFile);
+
+    final assetBaseName = _sanitizeAssetBaseName(fileName);
+    addBundledDynamicAsset(
+      input: input,
+      output: output,
+      assetName: '$_linuxFfmpegRuntimeAssetNamePrefix/${assetBaseName}_bindings.dart',
+      fileUri: bundledLibrary,
+    );
+  }
+}
+
+String _sanitizeAssetBaseName(String fileName) {
+  return fileName.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
 }
 
 Future<void> buildAndroidAudioEncoderAsset(BuildInput input, BuildOutputBuilder output) async {

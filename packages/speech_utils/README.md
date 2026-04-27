@@ -152,8 +152,6 @@ supports `AudioEncoder.wav`, `AudioEncoder.pcm16bits`,
 For AAC outputs on Apple platforms (`macOS`/`iOS`), recording writes directly to `.m4a`.
 On iOS this is backed by `AVAudioRecorder` (AAC-LC), while non-Apple platforms keep the
 WAV-then-encode finalization path on `stop()`.
-Linux does not currently bundle a native AAC encoder, so AAC file/VAD output on
-Linux requires a custom `AudioEncodingConfig.audioEncoder`.
 
 Input device discovery/selection:
 
@@ -380,12 +378,14 @@ Notes:
 - AAC encoding (`NativeAudioEncoder`) without `ffmpeg` fallback:
   - macOS: bundled native AVFoundation encoder via Dart FFI
   - Windows: bundled native FFmpeg encoder (`libavcodec`) via Dart FFI
+  - Linux: bundled native FFmpeg encoder (`libavcodec`) via Dart FFI
   - Android: bundled native NDK encoder via Dart FFI (expects PCM16 WAV input
     when calling `encodeAudioFileToAac`)
   - iOS: bundled native AVFoundation encoder via Dart FFI
 - Audio metadata (`NativeAudioMetadataReader`) via bundled native FFI:
   - macOS: AVFoundation
   - Windows: FFmpeg (`libavformat`)
+  - Linux: FFmpeg (`libavformat`)
   - Android: MediaExtractor
   - iOS: AVFoundation
 - Audio recording (`NativeAudioRecorder`) via bundled native FFI:
@@ -394,11 +394,12 @@ Notes:
   - Linux: miniaudio
   - iOS: AVFoundation
 
-Windows FFmpeg build notes:
+Windows/Linux FFmpeg build notes:
 
 - The hook expects a prebuilt SDK in
-  `third_party/ffmpeg/windows/{include,lib,bin}`.
-- Missing FFmpeg SDK now fails Windows AAC/metadata native asset build.
+  `third_party/ffmpeg/windows/{include,lib,bin}` or
+  `third_party/ffmpeg/linux/{include,lib}`.
+- Missing FFmpeg SDK now fails Windows/Linux AAC/metadata native asset build.
 - CI prebuild workflow:
   `.github/workflows/build_windows_ffmpeg_lib.yml` (manual trigger,
   uploads zipped `include/lib/bin` SDK artifact).

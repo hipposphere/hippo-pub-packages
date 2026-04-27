@@ -15,7 +15,7 @@ dependencies:
   hippo_native_deps:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.0
-  hooks: ^1.0.2
+  hooks: ^1.0.3
   native_toolchain_c: ^0.17.6
   objective_c: ^9.3.0
 

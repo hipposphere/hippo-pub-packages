@@ -11,11 +11,11 @@ class HidTimeoutException extends HidException {
 }
 
 class HidDeviceNotFoundException extends HidException {
-  HidDeviceNotFoundException() : super("Device not found");
+  HidDeviceNotFoundException([super.message = "Device not found"]);
 }
 
 class HidPermissionException extends HidException {
-  HidPermissionException() : super("Permission denied");
+  HidPermissionException([super.message = "Permission denied"]);
 }
 
 class HidExclusiveAccessException extends HidException {

@@ -1,0 +1,14 @@
+prefix=/work/packages/speech_utils/third_party/ffmpeg/linux
+exec_prefix=${prefix}
+libdir=/work/packages/speech_utils/third_party/ffmpeg/linux/lib
+includedir=/work/packages/speech_utils/third_party/ffmpeg/linux/include
+
+Name: libswresample
+Description: FFmpeg audio resampling library
+Version: 6.1.100
+Requires: 
+Requires.private: libavutil >= 60.8.100
+Conflicts:
+Libs: -L${libdir}  -lswresample 
+Libs.private: -lm -latomic
+Cflags: -I${includedir}

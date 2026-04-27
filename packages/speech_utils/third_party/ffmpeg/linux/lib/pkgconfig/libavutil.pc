@@ -1,0 +1,14 @@
+prefix=/work/packages/speech_utils/third_party/ffmpeg/linux
+exec_prefix=${prefix}
+libdir=/work/packages/speech_utils/third_party/ffmpeg/linux/lib
+includedir=/work/packages/speech_utils/third_party/ffmpeg/linux/include
+
+Name: libavutil
+Description: FFmpeg utility library
+Version: 60.8.100
+Requires: 
+Requires.private: 
+Conflicts:
+Libs: -L${libdir}  -lavutil 
+Libs.private: -lm -latomic -pthread
+Cflags: -I${includedir}

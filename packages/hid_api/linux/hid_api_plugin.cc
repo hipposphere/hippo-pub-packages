@@ -11,9 +11,11 @@
 #include <vector>
 #include <mutex>
 #include <atomic>
+#include <cerrno>
 #include <cstdint>
 #include <cwchar>
 #include <cstring>
+#include <unistd.h>
 
 #define HID_API_PLUGIN(obj) \
   (G_TYPE_CHECK_INSTANCE_CAST((obj), hid_api_plugin_get_type(), \
@@ -71,6 +73,56 @@ static FlValue* create_device_info_list(int vendor_id = 0, int product_id = 0) {
 
     hid_free_enumeration(devices);
     return result_list;
+}
+
+static FlValue* create_device_info_map_for_path(const char* path) {
+    if (!path) return nullptr;
+
+    struct hid_device_info* devices = hid_enumerate(0, 0);
+    FlValue* result_map = nullptr;
+
+    for (struct hid_device_info* current = devices; current; current = current->next) {
+        if (current->path && std::string(current->path) == std::string(path)) {
+            result_map = create_device_info_map(current);
+            break;
+        }
+    }
+
+    hid_free_enumeration(devices);
+    return result_map;
+}
+
+static FlMethodResponse* create_open_failure_response(const char* path) {
+    errno = 0;
+    if (access(path, F_OK) != 0) {
+        int error_number = errno;
+        std::string message = "HID device path not found: " + std::string(path);
+        if (error_number != 0) {
+            message += " (" + std::string(std::strerror(error_number)) + ")";
+        }
+        return FL_METHOD_RESPONSE(fl_method_error_response_new(
+            "DEVICE_NOT_FOUND",
+            message.c_str(),
+            fl_value_new_int(error_number)));
+    }
+
+    errno = 0;
+    if (access(path, R_OK | W_OK) != 0) {
+        int error_number = errno;
+        std::string message = "Permission denied opening HID device " + std::string(path) +
+            ". Add a udev rule or run with permissions that can read and write this hidraw device.";
+        if (error_number != 0) {
+            message += " (" + std::string(std::strerror(error_number)) + ")";
+        }
+        return FL_METHOD_RESPONSE(fl_method_error_response_new(
+            "PERMISSION_DENIED",
+            message.c_str(),
+            fl_value_new_int(error_number)));
+    }
+
+    std::string message = "Failed to open HID device " + std::string(path) +
+        ". The device may have disappeared or may not allow read/write hidraw access.";
+    return FL_METHOD_RESPONSE(fl_method_error_response_new("OPEN_FAILED", message.c_str(), nullptr));
 }
 
 static std::string device_list_signature() {
@@ -266,17 +318,19 @@ static FlMethodResponse* open_device(HidApiPlugin* self, FlValue* args) {
     
     if (!path) return FL_METHOD_RESPONSE(fl_method_error_response_new("INVALID_ARGUMENT", "Path is required", nullptr));
     (void)exclusive; // hidapi on Linux does not expose an exclusive-open mode here.
-    
+
     std::lock_guard<std::mutex> lock(devices_mutex);
     if (open_devices.find(path) != open_devices.end()) {
-        // Already open, return info? Or error? Dart side assumes it opens.
-        // Let's verify if it's valid, otherwise close and reopen.
-        // For now assume reopen.
+        g_autoptr(FlValue) existing_info = create_device_info_map_for_path(path);
+        if (existing_info) {
+            return FL_METHOD_RESPONSE(fl_method_success_response_new(existing_info));
+        }
+        return FL_METHOD_RESPONSE(fl_method_error_response_new("DEVICE_NOT_FOUND", "Device is open but no longer enumerates", nullptr));
     }
-    
+
     hid_device* handle = hid_open_path(path);
     if (!handle) {
-        return FL_METHOD_RESPONSE(fl_method_error_response_new("OPEN_FAILED", "Failed to open device", nullptr));
+        return create_open_failure_response(path);
     }
     
     DeviceState* state = new DeviceState();
@@ -341,19 +395,7 @@ static FlMethodResponse* open_device(HidApiPlugin* self, FlValue* args) {
                                          state,
                                          nullptr);
 
-    // Return the full device info map expected by the Dart wrapper.
-    struct hid_device_info* devs = hid_enumerate(0, 0);
-    struct hid_device_info* cur = devs;
-    FlValue* result_map = nullptr;
-    
-    while(cur) {
-        if (cur->path && std::string(cur->path) == std::string(path)) {
-            result_map = create_device_info_map(cur);
-            break;
-        }
-        cur = cur->next;
-    }
-    hid_free_enumeration(devs);
+	    FlValue* result_map = create_device_info_map_for_path(path);
     
     if (!result_map) {
         g_clear_object(&state->event_channel);

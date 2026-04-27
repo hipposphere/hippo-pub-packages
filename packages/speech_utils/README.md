@@ -403,8 +403,13 @@ Windows/Linux FFmpeg build notes:
 - CI prebuild workflow:
   `.github/workflows/build_windows_ffmpeg_lib.yml` (manual trigger,
   uploads zipped `include/lib/bin` SDK artifact).
-- Runtime DLLs in `bin/` are bundled automatically as native assets.
-- See `third_party/ffmpeg/windows/README.md` for full details.
+- Build/verify the Linux SDK locally:
+  `packages/speech_utils/tool/build_linux_ffmpeg_sdk.sh`
+  `packages/speech_utils/tool/verify_linux_ffmpeg_bundle.sh`
+- Windows runtime DLLs in `bin/` and Linux runtime `.so` files in `lib/` are
+  bundled automatically as native assets.
+- See `third_party/ffmpeg/windows/README.md` and
+  `third_party/ffmpeg/linux/README.md` for full details.
 
 ## Maintainers
 

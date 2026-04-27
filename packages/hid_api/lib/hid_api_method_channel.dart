@@ -65,9 +65,9 @@ class MethodChannelHidApi extends HidApiPlatform {
       final code = e.code.toUpperCase();
 
       if (code == 'DEVICE_NOT_FOUND' || code == 'NOT_FOUND') {
-        throw HidDeviceNotFoundException();
+        throw HidDeviceNotFoundException(e.message ?? 'Device not found');
       } else if (code == 'PERMISSION_DENIED' || code == 'ACCESS_DENIED') {
-        throw HidPermissionException();
+        throw HidPermissionException(e.message ?? 'Permission denied');
       } else if (code == 'SHARING_VIOLATION' || code == 'EXCLUSIVE_ACCESS') {
         throw HidExclusiveAccessException();
       }

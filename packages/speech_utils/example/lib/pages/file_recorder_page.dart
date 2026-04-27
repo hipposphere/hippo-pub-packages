@@ -88,7 +88,8 @@ class _FileRecordingPageState extends State<FileRecordingPage> {
     _supportsInputSelection = _recorder.supportsInputSelection;
     _supportsContinuousCapture =
         _recorder.platform == NativeAudioRecorderPlatform.macOS ||
-        _recorder.platform == NativeAudioRecorderPlatform.windows;
+        _recorder.platform == NativeAudioRecorderPlatform.windows ||
+        _recorder.platform == NativeAudioRecorderPlatform.linux;
     unawaited(_ensureOutputRoot());
     unawaited(_refreshInputDevices(logResult: false));
     _player.onPlayerComplete.listen((_) {

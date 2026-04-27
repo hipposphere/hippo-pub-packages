@@ -13,11 +13,18 @@ const _windowsAudioRecorderAssetName =
     'src/generated/recorder/windows_audio_recorder_bindings.dart';
 const _windowsAudioRecorderLibraryBaseName = 'speech_utils_windows_audio_recorder';
 const _windowsWebRtcRuntimeAssetNamePrefix = 'src/generated/recorder/windows_webrtc_runtime';
+const _linuxAudioRecorderAssetName = 'src/generated/recorder/linux_audio_recorder_bindings.dart';
+const _linuxAudioRecorderLibraryBaseName = 'speech_utils_linux_audio_recorder';
 const _windowsAudioRecorderSources = <String>[
   'native/windows/speech_utils_windows_audio_recorder.cpp',
   'native/windows/recorder/windows_audio_recorder_api.cpp',
   'native/windows/recorder/windows_webrtc_audio_processing.cpp',
   'native/windows/recorder/miniaudio_implementation.cpp',
+];
+const _linuxAudioRecorderSources = <String>[
+  'native/linux/speech_utils_linux_audio_recorder.cpp',
+  'native/linux/recorder/linux_audio_recorder_api.cpp',
+  'native/linux/recorder/miniaudio_implementation.cpp',
 ];
 const _iosAudioRecorderAssetName = 'src/generated/recorder/ios_audio_recorder_bindings.dart';
 const _iosAudioRecorderLibraryBaseName = 'speech_utils_ios_audio_recorder';
@@ -73,6 +80,27 @@ Future<void> buildWindowsAudioRecorderAsset(BuildInput input, BuildOutputBuilder
 
   _copyWindowsRuntimeDllsNextToRecorderLibrary(input: input, runtimeDlls: webrtcSdk.runtimeDlls);
   _bundleWindowsWebRtcRuntimeDlls(input: input, output: output, runtimeDlls: webrtcSdk.runtimeDlls);
+}
+
+Future<void> buildLinuxAudioRecorderAsset(BuildInput input, BuildOutputBuilder output) async {
+  if (!matchesTarget(input, os: OS.linux)) {
+    return;
+  }
+
+  for (final source in _linuxAudioRecorderSources) {
+    requireSourceFile(input, relativePath: source, label: 'Linux audio recorder', output: output);
+  }
+
+  await CBuilder.library(
+    name: _linuxAudioRecorderLibraryBaseName,
+    assetName: _linuxAudioRecorderAssetName,
+    language: Language.cpp,
+    sources: _linuxAudioRecorderSources,
+    includes: ['native/include', requireRapidjsonIncludeDir(input)],
+    std: 'c++17',
+    flags: const <String>['-O2', '-pthread'],
+    libraries: const <String>['pthread', 'dl', 'm'],
+  ).run(input: input, output: output);
 }
 
 Future<void> buildIosAudioRecorderAsset(BuildInput input, BuildOutputBuilder output) async {

@@ -43,6 +43,7 @@ void main() {
 
       expect(recorderFor(NativeAudioRecorderPlatform.macOS).supportsInputSelection, isTrue);
       expect(recorderFor(NativeAudioRecorderPlatform.windows).supportsInputSelection, isTrue);
+      expect(recorderFor(NativeAudioRecorderPlatform.linux).supportsInputSelection, isTrue);
       expect(recorderFor(NativeAudioRecorderPlatform.iOS).supportsInputSelection, isTrue);
       expect(recorderFor(NativeAudioRecorderPlatform.unsupported).supportsInputSelection, isFalse);
     });
@@ -94,6 +95,10 @@ void main() {
       expect(winCap.supportsNoiseCancellation, isTrue);
       expect(winCap.supportsEchoCancellation, isFalse);
       expect(winCap.supportsVoiceIsolation, isTrue);
+      final linuxCap = await recorderFor(NativeAudioRecorderPlatform.linux).getCapabilities();
+      expect(linuxCap.supportsNoiseCancellation, isTrue);
+      expect(linuxCap.supportsEchoCancellation, isFalse);
+      expect(linuxCap.supportsVoiceIsolation, isTrue);
       await expectNoiseEchoOffVoiceIsolationOn(NativeAudioRecorderPlatform.iOS);
       await expectAllFalse(NativeAudioRecorderPlatform.unsupported);
     });
@@ -1083,6 +1088,91 @@ void main() {
         ),
         throwsA(isA<ArgumentError>()),
       );
+    });
+
+    test('startFileRecording requires custom AAC encoder on Linux', () {
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.linux,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        stopFn: () {},
+        isRecordingFn: () => true,
+      );
+
+      expect(
+        () => recorder.startFileRecording(
+          outputPath: '/tmp/file.m4a',
+          config: const AudioRecorderConfig(
+            encoding: AudioEncodingConfig(encoder: AudioEncoder.aacLc),
+          ),
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('startFileRecording allows Linux AAC recording with custom encoder', () async {
+      final outputDir = await Directory.systemTemp.createTemp('linux-aac-recorder-');
+      final fakeAacEncoder = _FakeAacEncoder();
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.linux,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        stopFn: () {},
+        isRecordingFn: () => true,
+      );
+
+      try {
+        final outputPath = '${outputDir.path}${Platform.pathSeparator}file.m4a';
+        await recorder.startFileRecording(
+          outputPath: outputPath,
+          config: AudioRecorderConfig(
+            encoding: AudioEncodingConfig(
+              encoder: AudioEncoder.aacLc,
+              audioEncoder: fakeAacEncoder,
+            ),
+          ),
+        );
+        await recorder.stop();
+
+        expect(fakeAacEncoder.encodeAudioFileToAacCalls, 1);
+        expect(await File(outputPath).exists(), isTrue);
+      } finally {
+        await outputDir.delete(recursive: true);
+      }
     });
 
     test(

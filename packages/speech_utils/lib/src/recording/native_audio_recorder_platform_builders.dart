@@ -122,6 +122,41 @@ final class _WindowsNativeRecorderRuntimeConfigBuilder extends _NativeRecorderRu
   }
 }
 
+final class _LinuxNativeRecorderRuntimeConfigBuilder extends _NativeRecorderRuntimeConfigBuilder {
+  const _LinuxNativeRecorderRuntimeConfigBuilder();
+
+  @override
+  _NativeRecorderRuntimeConfig build(AudioRecorderConfig config) {
+    final processing = config.processing;
+    final preferredLatency = processing.preferredLatency;
+    final preferredPeriodFrames = preferredLatency == null
+        ? 0
+        : (((preferredLatency.inMicroseconds * config.sampleRateHz) ~/
+                  Duration.microsecondsPerSecond)
+              .clamp(0, 0x7fffffff));
+
+    return _NativeRecorderRuntimeConfig(
+      processingFlags: _buildProcessingFlagsForPlatform(
+        config: config,
+        platform: AudioProcessingPlatform.generic,
+      ),
+      iosSessionModeCode: 0,
+      iosCategoryOptionsFlags: 0,
+      preferredLatencySeconds: _durationSecondsOrZero(preferredLatency),
+      iosPreferredIoBufferDurationSeconds: 0.0,
+      iosPreferredInputGain: -1.0,
+      fileBitrateBps: 0,
+      fileEncoderCode: _fileEncoderAacLc,
+      macosProcessingQueueDurationSeconds: 0.0,
+      windowsPreferredPeriodFrames: preferredPeriodFrames,
+      windowsFlags: 0,
+      windowsCaptureCategoryCode: _encodeWindowsCaptureCategory(null),
+      windowsUseCommunicationsDevice: 0,
+      windowsVoiceProcessingModeCode: _encodeWindowsVoiceProcessingMode(null),
+    );
+  }
+}
+
 int _buildIosCategoryOptionsFlags(IosAudioRecorderConfig? iosConfig) {
   var iosCategoryOptionsFlags = 0;
   if (iosConfig?.allowBluetoothInput ?? false) {
@@ -149,7 +184,7 @@ int _buildProcessingFlagsForPlatform({
   final processing = config.processing;
   var processingFlags = _processingPresetFlags(processing.preset);
 
-  if (platform == AudioProcessingPlatform.windows) {
+  if (platform == AudioProcessingPlatform.windows || platform == AudioProcessingPlatform.generic) {
     if (processing.resolveNoiseSuppressionForPlatform(platform)) {
       processingFlags |= _processingFlagNoiseSuppression;
     }

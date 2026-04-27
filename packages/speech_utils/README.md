@@ -1,6 +1,6 @@
 # speech_utils
 
-`speech_utils` provides three focused capabilities for PCM16 speech workflows:
+`speech_utils` provides four focused capabilities for PCM16 speech workflows:
 
 1. Split PCM16 recordings into snippets when silence is detected.
 2. Encode/compress PCM16 snippets into AAC.
@@ -152,6 +152,8 @@ supports `AudioEncoder.wav`, `AudioEncoder.pcm16bits`,
 For AAC outputs on Apple platforms (`macOS`/`iOS`), recording writes directly to `.m4a`.
 On iOS this is backed by `AVAudioRecorder` (AAC-LC), while non-Apple platforms keep the
 WAV-then-encode finalization path on `stop()`.
+Linux does not currently bundle a native AAC encoder, so AAC file/VAD output on
+Linux requires a custom `AudioEncodingConfig.audioEncoder`.
 
 Input device discovery/selection:
 
@@ -389,6 +391,7 @@ Notes:
 - Audio recording (`NativeAudioRecorder`) via bundled native FFI:
   - macOS: AVFoundation
   - Windows: miniaudio
+  - Linux: miniaudio
   - iOS: AVFoundation
 
 Windows FFmpeg build notes:

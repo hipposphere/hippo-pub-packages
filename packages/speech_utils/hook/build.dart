@@ -16,6 +16,7 @@ final _buildSteps = <HookBuildStep>[
   buildMacosAudioEncoderAsset,
   buildIosAudioMetadataAsset,
   buildWindowsAudioRecorderAsset,
+  buildLinuxAudioRecorderAsset,
   buildIosAudioRecorderAsset,
   buildMacosAudioMetadataAsset,
   buildMacosAudioRecorderAsset,

@@ -126,7 +126,8 @@ class _IntegratedVadCompressionPageState
     _supportsInputSelection = _recorder.supportsInputSelection;
     _supportsContinuousCapture =
         _recorder.platform == NativeAudioRecorderPlatform.macOS ||
-        _recorder.platform == NativeAudioRecorderPlatform.windows;
+        _recorder.platform == NativeAudioRecorderPlatform.windows ||
+        _recorder.platform == NativeAudioRecorderPlatform.linux;
     _player.onPlayerComplete.listen((_) {
       if (!mounted) {
         return;

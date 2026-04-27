@@ -119,7 +119,9 @@ class _Bloc extends BlocBase {
 
   bool get supportsContinuousCapture =>
       controller.audioRecorder.platform == NativeAudioRecorderPlatform.macOS ||
-      controller.audioRecorder.platform == NativeAudioRecorderPlatform.windows;
+      controller.audioRecorder.platform ==
+          NativeAudioRecorderPlatform.windows ||
+      controller.audioRecorder.platform == NativeAudioRecorderPlatform.linux;
 
   void updateSettings(
     _RecorderSettings Function(_RecorderSettings current) map,

@@ -28,6 +28,7 @@ import '../vad/speech_vad_config.dart';
 import 'audio_recorder_config.dart';
 import '../generated/recorder/android_jni_bindings.dart' as android_jni;
 import '../generated/recorder/ios_audio_recorder_bindings.dart' as ios_bindings;
+import '../generated/recorder/linux_audio_recorder_bindings.dart' as linux_bindings;
 import '../generated/recorder/macos_audio_recorder_bindings.dart' as macos_bindings;
 import '../generated/recorder/windows_audio_recorder_bindings.dart' as windows_bindings;
 import 'voice_segment.dart';
@@ -37,11 +38,12 @@ part 'native_audio_recorder_platform_implementations.dart';
 part 'errors/native_audio_recorder_exceptions.dart';
 part 'implementations/native_audio_recorder_platform_implementation_macos.dart';
 part 'implementations/native_audio_recorder_platform_implementation_windows.dart';
+part 'implementations/native_audio_recorder_platform_implementation_linux.dart';
 part 'implementations/native_audio_recorder_platform_implementation_ios.dart';
 part 'implementations/native_audio_recorder_platform_implementation_android.dart';
 part 'implementations/native_audio_recorder_platform_ffi.dart';
 
-enum NativeAudioRecorderPlatform { android, macOS, windows, iOS, unsupported }
+enum NativeAudioRecorderPlatform { android, macOS, windows, linux, iOS, unsupported }
 
 enum NativeAudioRecorderContinousRecordingState { disabled, hibernation, error, active }
 
@@ -102,6 +104,7 @@ enum _RecorderMode { stopped, file, stream }
 /// - Android: AudioRecord (JNI)
 /// - macOS/iOS: AVFoundation
 /// - Windows: miniaudio
+/// - Linux: miniaudio
 final class NativeAudioRecorder {
   /// Uses platform detection to select the default backend.
   NativeAudioRecorder()
@@ -153,7 +156,7 @@ final class NativeAudioRecorder {
 
   static const _defaultReadSampleCapacity = 4096;
   static const _maxReadIterationsPerDrain = 3;
-  static const _windowsStartRetryDelays = <Duration>[
+  static const _miniaudioStartRetryDelays = <Duration>[
     Duration(milliseconds: 75),
     Duration(milliseconds: 150),
   ];
@@ -161,10 +164,12 @@ final class NativeAudioRecorder {
     Duration(milliseconds: 50),
     Duration(milliseconds: 125),
   ];
-  static const _windowsTransientStartErrorNeedles = <String>[
+  static const _miniaudioTransientStartErrorNeedles = <String>[
     'resource unavailable',
     'device or resource busy',
     'already in use',
+    'device unavailable',
+    'temporarily unavailable',
   ];
   static const _macosTransientContinuousStartErrorNeedles = <String>[
     'no audio capture device is available',
@@ -366,6 +371,11 @@ final class NativeAudioRecorder {
             'AudioEncoder.aacHe, and AudioEncoder.aacEld.',
       );
     }
+    _validateAacEncoderAvailabilityForCurrentPlatform(
+      encoding: effectiveConfig.encoding,
+      parameterName: 'config.encoding.audioEncoder',
+      context: 'AAC file recording',
+    );
 
     _resetAmplitudeState();
     _activeOutputPath = outputPath;
@@ -872,7 +882,8 @@ final class NativeAudioRecorder {
   }
 
   Future<void> _runPlatformStartWithRetry(FutureOr<void> Function() startOperation) async {
-    if (platform != NativeAudioRecorderPlatform.windows) {
+    if (platform != NativeAudioRecorderPlatform.windows &&
+        platform != NativeAudioRecorderPlatform.linux) {
       await startOperation();
       return;
     }
@@ -882,7 +893,8 @@ final class NativeAudioRecorder {
         await startOperation();
         return;
       } on AudioRecorderException catch (error, stackTrace) {
-        if (!_isRetryableWindowsStartError(error) || attempt >= _windowsStartRetryDelays.length) {
+        if (!_isRetryableMiniaudioStartError(error) ||
+            attempt >= _miniaudioStartRetryDelays.length) {
           Error.throwWithStackTrace(error, stackTrace);
         }
       }
@@ -892,7 +904,7 @@ final class NativeAudioRecorder {
       } on Object {
         // Preserve the original startup failure when cleanup itself is noisy.
       }
-      await Future<void>.delayed(_windowsStartRetryDelays[attempt]);
+      await Future<void>.delayed(_miniaudioStartRetryDelays[attempt]);
     }
   }
 
@@ -905,8 +917,10 @@ final class NativeAudioRecorder {
       return;
     }
 
-    if (enabled && platform == NativeAudioRecorderPlatform.windows) {
-      await _setWindowsPlatformContinousRecordingWithRetry(config: config);
+    if (enabled &&
+        (platform == NativeAudioRecorderPlatform.windows ||
+            platform == NativeAudioRecorderPlatform.linux)) {
+      await _setMiniaudioPlatformContinousRecordingWithRetry(config: config);
       return;
     }
 
@@ -949,7 +963,7 @@ final class NativeAudioRecorder {
     }
   }
 
-  Future<void> _setWindowsPlatformContinousRecordingWithRetry({
+  Future<void> _setMiniaudioPlatformContinousRecordingWithRetry({
     required AudioRecorderConfig config,
   }) async {
     var configToTry = await _resolvePlatformDefaultContinousInputConfig(config);
@@ -966,7 +980,8 @@ final class NativeAudioRecorder {
           continue;
         }
 
-        if (!_isRetryableWindowsStartError(error) || attempt >= _windowsStartRetryDelays.length) {
+        if (!_isRetryableMiniaudioStartError(error) ||
+            attempt >= _miniaudioStartRetryDelays.length) {
           Error.throwWithStackTrace(error, stackTrace);
         }
       }
@@ -976,18 +991,18 @@ final class NativeAudioRecorder {
       } on Object {
         // Preserve the original startup failure when cleanup itself is noisy.
       }
-      await Future<void>.delayed(_windowsStartRetryDelays[attempt]);
+      await Future<void>.delayed(_miniaudioStartRetryDelays[attempt]);
       configToTry = await _resolvePlatformDefaultContinousInputConfig(configToTry);
     }
   }
 
-  bool _isRetryableWindowsStartError(AudioRecorderException error) {
+  bool _isRetryableMiniaudioStartError(AudioRecorderException error) {
     final details = error.details?.toLowerCase();
     if (details == null || !details.contains('miniaudio capture device')) {
       return false;
     }
 
-    for (final needle in _windowsTransientStartErrorNeedles) {
+    for (final needle in _miniaudioTransientStartErrorNeedles) {
       if (details.contains(needle)) {
         return true;
       }
@@ -1051,6 +1066,7 @@ final class NativeAudioRecorder {
     Set<NativeAudioRecorderPlatform> supportedPlatforms = const <NativeAudioRecorderPlatform>{
       NativeAudioRecorderPlatform.macOS,
       NativeAudioRecorderPlatform.windows,
+      NativeAudioRecorderPlatform.linux,
     },
   }) async {
     if (!supportedPlatforms.contains(platform) || config.inputDeviceId != null) {
@@ -1160,6 +1176,16 @@ final class NativeAudioRecorder {
             'AudioEncoder.aacLc, AudioEncoder.aacHe, and AudioEncoder.aacEld.',
       );
     }
+    _validateAacEncoderAvailabilityForCurrentPlatform(
+      encoding: segmentEncoding,
+      parameterName: 'segmentEncoding.audioEncoder',
+      context: 'AAC VAD segment output',
+    );
+    _validateAacEncoderAvailabilityForCurrentPlatform(
+      encoding: fullRecordingEncoding,
+      parameterName: 'fullRecordingEncoding.audioEncoder',
+      context: 'AAC VAD full-recording output',
+    );
     if (config.sampleRateHz != splitOptions.sampleRateHz) {
       throw ArgumentError(
         'config.sampleRateHz (${config.sampleRateHz}) must match '
@@ -1172,6 +1198,28 @@ final class NativeAudioRecorder {
         'splitOptions.channelCount (${splitOptions.channelCount}).',
       );
     }
+  }
+
+  void _validateAacEncoderAvailabilityForCurrentPlatform({
+    required AudioEncodingConfig encoding,
+    required String parameterName,
+    required String context,
+  }) {
+    if (!encoding.encoder.isAac || encoding.audioEncoder != null) {
+      return;
+    }
+    if (platform == NativeAudioRecorderPlatform.macOS ||
+        platform == NativeAudioRecorderPlatform.windows ||
+        platform == NativeAudioRecorderPlatform.iOS ||
+        platform == NativeAudioRecorderPlatform.android) {
+      return;
+    }
+    throw ArgumentError.value(
+      encoding.audioEncoder,
+      parameterName,
+      '$context requires AudioEncodingConfig.audioEncoder on Linux because '
+      'NativeAudioEncoder does not currently provide a Linux AAC backend.',
+    );
   }
 
   Future<VoiceSegment> _materializeVoiceSegment({
@@ -1489,11 +1537,13 @@ final class NativeAudioRecorder {
 
   bool get _supportsNativeContinousRecordingWarmCapture {
     return platform == NativeAudioRecorderPlatform.macOS ||
-        platform == NativeAudioRecorderPlatform.windows;
+        platform == NativeAudioRecorderPlatform.windows ||
+        platform == NativeAudioRecorderPlatform.linux;
   }
 
   AppLifecycleListener? _createAppLifecycleListenerIfAvailable() {
-    if (platform != NativeAudioRecorderPlatform.windows) {
+    if (platform != NativeAudioRecorderPlatform.windows &&
+        platform != NativeAudioRecorderPlatform.linux) {
       return null;
     }
     try {

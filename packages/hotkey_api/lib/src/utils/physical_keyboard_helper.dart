@@ -11,8 +11,15 @@ class PhysicalKeyboardHelper {
 
   static PhysicalKeyboardKey? fromPlatformKeyCode(int platformKeyCode) {
     if (Platform.isMacOS) {
-      // Convert macOS key code to USB HID usage code
-      return kMacOsToPhysicalKey[platformKeyCode];
+      final usbHidCode = kMacOsToUsbHid[platformKeyCode];
+      if (usbHidCode == null) {
+        // ignore: avoid_print
+        print(
+          'Warning: No USB HID code mapping found for macOS key code: $platformKeyCode',
+        );
+        return null;
+      }
+      return PhysicalKeyboardKey.findKeyByCode(usbHidCode);
     } else if (Platform.isWindows) {
       if (_ignoredWindowsVirtualKeyCodes.contains(platformKeyCode)) {
         return null;
@@ -29,7 +36,15 @@ class PhysicalKeyboardHelper {
       }
       return PhysicalKeyboardKey.findKeyByCode(usbHidCode);
     } else if (Platform.isLinux) {
-      return kLinuxToPhysicalKey[platformKeyCode];
+      final usbHidCode = kLinuxToUsbHid[platformKeyCode];
+      if (usbHidCode == null) {
+        // ignore: avoid_print
+        print(
+          'Warning: No USB HID code mapping found for Linux XKB key code: $platformKeyCode',
+        );
+        return null;
+      }
+      return PhysicalKeyboardKey.findKeyByCode(usbHidCode);
     }
     return PhysicalKeyboardKey.findKeyByCode(platformKeyCode);
   }

@@ -364,6 +364,7 @@ Notes:
 - Native TEN VAD is bundled for:
   - macOS (universal binary: arm64 + x64)
   - Windows x64
+  - Linux x64
   - Android: `arm64-v8a`, `armeabi-v7a`
   - iOS: arm64 (device build)
 - Ensure frame size in `PauseSplitOptions` matches TEN hop size.
@@ -373,8 +374,9 @@ Notes:
 ## Platform notes
 
 - Segmentation: works on any Dart platform.
-- TEN VAD FFI: bundled via `hook/build.dart` for macOS, Windows x64, Android
-  (`arm64-v8a`, `armeabi-v7a`), and iOS arm64 (device build).
+- TEN VAD FFI: bundled via `hook/build.dart` for macOS, Windows x64,
+  Linux x64, Android (`arm64-v8a`, `armeabi-v7a`), and iOS arm64
+  (device build).
 - AAC encoding (`NativeAudioEncoder`) without `ffmpeg` fallback:
   - macOS: bundled native AVFoundation encoder via Dart FFI
   - Windows: bundled native FFmpeg encoder (`libavcodec`) via Dart FFI

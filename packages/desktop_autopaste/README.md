@@ -19,7 +19,9 @@ Desktop auto-paste helpers backed by native FFI code assets.
 
 - Windows: paste + focused context + focused text edits are implemented natively.
 - macOS: clipboard paste is implemented natively; focused context/edit APIs return unsupported.
-- Linux: currently unsupported in the FFI path.
+- Linux: clipboard paste is implemented for X11/XWayland via the X11 clipboard
+  selection and XTEST shortcut injection; focused context/edit APIs return
+  unsupported. Linux builds require the X11 and Xtst development libraries.
 
 ## Experimental Swiftgen (macOS)
 

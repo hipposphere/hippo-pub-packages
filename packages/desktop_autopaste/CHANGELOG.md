@@ -1,3 +1,8 @@
+## 0.2.8
+
+* Add Linux clipboard auto-paste support for X11/XWayland using the X11
+  clipboard selection and XTEST paste shortcut injection.
+
 ## 0.2.7
 
 * Switch Windows paste shortcut injection to scan-code based `SendInput`.

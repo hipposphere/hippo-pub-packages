@@ -1,0 +1,136 @@
+Format: http://dep.debian.net/deps/dep5
+Upstream-Name: libc++
+Source: http://libcxx.llvm.org,http://libcxxabi.llvm.org
+
+Files: *
+Copyright: 2009-2012 by the contributors listed below
+ N: Howard Hinnant
+ E: hhinnant@apple.com
+ D: Architect and primary author of libc++
+ . 
+ N: Marshall Clow
+ E: marshall@idio.com
+ E: mclow@qualcomm.com
+ D: Minor patches and bug fixes.
+ .
+ N: Bjorn Reese
+ E: breese@users.sourceforge.net
+ D: Initial regex prototype
+ . 
+ N: David Chisnall
+ E: theraven at theravensnest dot org
+ D: FreeBSD and Solaris ports, libcxxrt support, some atomics work.
+ .
+ N: Ruben Van Boxem
+ E: vanboxem dot ruben at gmail dot com
+ D: Initial Windows patches.
+ .
+ N: Arvid Picciani
+ E: aep at exys dot org
+ D: Minor patches and musl port.
+ .
+ N: Craig Silverstein
+ E: csilvers@google.com
+ D: Implemented Cityhash as the string hash function on 64-bit machines
+ .
+ N: Google Inc.
+ D: Copyright owner and contributor of the CityHash algorithm
+ .
+ N: Jeffrey Yasskin
+ E: jyasskin@gmail.com
+ E: jyasskin@google.com
+ D: Linux fixes.
+ . 
+ N: Jonathan Sauer
+ D: Minor patches, mostly related to constexpr
+ .
+ N: Richard Smith
+ D: Minor patches.
+ .
+ The list is sorted by surname and formatted to allow easy grepping and
+ beautification by scripts.  The fields are: name (N), email (E), web-address
+ (W), PGP key ID and fingerprint (P), description (D), and snail-mail address
+ (S).
+ .
+License: NCSA or MIT
+
+License: NCSA
+ University of Illinois/NCSA
+ Open Source License
+ . 
+ All rights reserved.
+ .
+ Developed by:
+ .
+    LLVM Team
+ .
+    University of Illinois at Urbana-Champaign
+ .
+    http://llvm.org
+ .
+ Permission is hereby granted, free of charge, to any person obtaining a copy of
+ this software and associated documentation files (the "Software"), to deal with
+ the Software without restriction, including without limitation the rights to
+ use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ of the Software, and to permit persons to whom the Software is furnished to do
+ so, subject to the following conditions:
+ .
+    * Redistributions of source code must retain the above copyright notice,
+      this list of conditions and the following disclaimers.
+ .
+    * Redistributions in binary form must reproduce the above copyright notice,
+      this list of conditions and the following disclaimers in the
+      documentation and/or other materials provided with the distribution.
+ .
+    * Neither the names of the LLVM Team, University of Illinois at
+      Urbana-Champaign, nor the names of its contributors may be used to
+      endorse or promote products derived from this Software without specific
+      prior written permission.
+ . 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ CONTRIBUTORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE
+ SOFTWARE.
+ 
+License: MIT
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+ . 
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+
+Files: debian/* libcxx/bin/clang++-libc++ libcxx/bin/g++-libc++
+Copyright: 2012 Andrej Belym
+           2012 Sylvestre Ledru
+License: GPL-2+
+ This package is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ .
+ This package is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <http://www.gnu.org/licenses/>
+ .
+ On Debian systems, the complete text of the GNU General
+ Public License version 2 can be found in "/usr/share/common-licenses/GPL-2".
+

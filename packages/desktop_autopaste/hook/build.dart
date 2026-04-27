@@ -9,6 +9,7 @@ typedef HookBuildStep =
 final _buildSteps = <HookBuildStep>[
   buildDesktopAutopasteWindowsAsset,
   buildDesktopAutopasteMacosAsset,
+  buildDesktopAutopasteLinuxAsset,
 ];
 
 void main(List<String> args) async {

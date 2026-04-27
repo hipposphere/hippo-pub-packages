@@ -51,7 +51,7 @@ Flutter example app for `speech_utils`.
 - macOS: `NSMicrophoneUsageDescription` configured
 - Windows/Linux/Web folders exist from Flutter scaffold
 
-Note: bundled TEN VAD in `speech_utils` targets macOS, Windows x64, Android (`arm64-v8a`, `armeabi-v7a`), and iOS arm64 (device builds). On unsupported targets the app falls back to `EnergyVadBackend`.
+Note: bundled TEN VAD in `speech_utils` targets macOS, Windows x64, Linux x64, Android (`arm64-v8a`, `armeabi-v7a`), and iOS arm64 (device builds). On unsupported targets the app falls back to `EnergyVadBackend`.
 
 ## Run
 

@@ -44,14 +44,8 @@ final class DesktopAutopasteFfi {
   }
 
   DesktopAutopasteClient _createClient() {
-    if (Platform.isWindows || Platform.isMacOS) {
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       return const NativeFfiDesktopAutopasteClient();
-    }
-
-    if (Platform.isLinux) {
-      return const UnsupportedDesktopAutopasteClient(
-        reason: 'unsupportedOnLinux',
-      );
     }
 
     return const UnsupportedDesktopAutopasteClient(

@@ -54,6 +54,7 @@ final class TenVadFfiBackend extends VadBackend {
       ffi.Abi.macosArm64 ||
       ffi.Abi.macosX64 ||
       ffi.Abi.windowsX64 ||
+      ffi.Abi.linuxX64 ||
       ffi.Abi.androidArm ||
       ffi.Abi.androidArm64 ||
       ffi.Abi.iosArm64 => true,
@@ -153,7 +154,7 @@ final class TenVadFfiBackend extends VadBackend {
     if (!supportsCurrentPlatform) {
       throw UnsupportedError(
         'Bundled TEN VAD is currently configured for macOS, Windows x64, '
-        'Android (arm/arm64), and iOS arm64 targets.',
+        'Linux x64, Android (arm/arm64), and iOS arm64 targets.',
       );
     }
   }

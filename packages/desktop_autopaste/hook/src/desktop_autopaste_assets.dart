@@ -10,6 +10,7 @@ import 'hook_helpers.dart';
 const _assetName = 'src/ffi/generated/desktop_autopaste_bindings.dart';
 const _windowsLibraryBaseName = 'desktop_autopaste_windows';
 const _macosLibraryBaseName = 'desktop_autopaste_macos';
+const _linuxLibraryBaseName = 'desktop_autopaste_linux';
 
 const _windowsSources = <String>[
   'native/windows/desktop_autopaste_windows_ffi.cpp',
@@ -20,6 +21,8 @@ const _windowsSources = <String>[
 const _macosSources = <String>[
   'native/macos/desktop_autopaste_macos_ffi.swift',
 ];
+
+const _linuxSources = <String>['native/linux/desktop_autopaste_linux_ffi.cpp'];
 
 String _macosArchName(BuildInput input) {
   return switch (input.config.code.targetArchitecture) {
@@ -167,4 +170,39 @@ Future<void> buildDesktopAutopasteMacosAsset(
     assetName: _assetName,
     fileUri: outputUri,
   );
+}
+
+Future<void> buildDesktopAutopasteLinuxAsset(
+  BuildInput input,
+  BuildOutputBuilder output,
+) async {
+  if (!matchesTarget(input, os: OS.linux)) {
+    return;
+  }
+
+  for (final source in _linuxSources) {
+    requireSourceFile(
+      input,
+      relativePath: source,
+      label: 'desktop_autopaste linux',
+      output: output,
+    );
+  }
+  requireSourceFile(
+    input,
+    relativePath: 'native/include/desktop_autopaste_ffi.h',
+    label: 'desktop_autopaste ffi header',
+    output: output,
+  );
+
+  await CBuilder.library(
+    name: _linuxLibraryBaseName,
+    assetName: _assetName,
+    language: Language.cpp,
+    sources: _linuxSources,
+    includes: ['native/include'],
+    std: 'c++17',
+    flags: const <String>['-O2', '-pthread'],
+    libraries: const <String>['X11', 'Xtst', 'pthread'],
+  ).run(input: input, output: output);
 }

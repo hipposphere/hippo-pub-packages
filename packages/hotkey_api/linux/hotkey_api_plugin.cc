@@ -23,18 +23,6 @@ struct _HotkeyApiPlugin {
 
 G_DEFINE_TYPE(HotkeyApiPlugin, hotkey_api_plugin, g_object_get_type())
 
-static FlMethodErrorResponse* listen_stream(HotkeyApiPlugin* self,
-                                            FlValue* args) {
-  // Logic to start listening specific keys if needed, 
-  // currently we listen all in the background thread when event channel attaches?
-  return nullptr;
-}
-
-static FlMethodErrorResponse* cancel_stream(HotkeyApiPlugin* self,
-                                            FlValue* args) {
-  return nullptr;
-}
-
 // Struct to pass data to main thread
 struct KeyEventData {
     HotkeyApiPlugin* plugin;

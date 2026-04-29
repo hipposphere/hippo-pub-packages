@@ -1,10 +1,8 @@
-import 'dart:math' as math;
-
 import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_core/dart_edge_core.dart';
 
 import '../../utils/api_error.dart';
-import '../../utils/user_payload.dart';
+import '../../utils/json_payload.dart';
 
 Map<String, Object?> requestBody<TServices>(RequestContext<TServices> ctx) {
   return readJsonObject(ctx.req.bodyOrNull, 'request body');
@@ -74,56 +72,4 @@ int? readIntQuery(Map<String, String> query, String key, {int? min, int? max}) {
     throw FormatException('Invalid query parameter "$key".');
   }
   return value;
-}
-
-Map<String, Object?> listUsersResponse(
-  DartEdgeAuthListUsersResult result, {
-  required int requestedLimit,
-  required int requestedOffset,
-}) {
-  final users = result.users.map(authUserFromUsersRow).toList(growable: false);
-  final limit = result.limit == 0 ? requestedLimit : result.limit;
-  final offset = result.offset;
-  final total = math.max(0, result.total);
-  final totalPages = math.max(1, (total / limit).ceil());
-  final page = math.min(totalPages, (offset / limit).floor() + 1);
-
-  return {
-    'users': users,
-    'total': total,
-    'limit': limit,
-    'offset': offset,
-    'page': page,
-    'page_size': limit,
-    'total_pages': totalPages,
-  };
-}
-
-int? readInt(Object? value) {
-  if (value case final int intValue) {
-    return intValue;
-  }
-  if (value case final num numValue) {
-    return numValue.toInt();
-  }
-  if (value case final String text) {
-    return int.tryParse(text);
-  }
-  return null;
-}
-
-Map<String, Object?> userFromResponse(DartEdgeAuthUserResult response) {
-  return authUserFromUsersRow(response.user);
-}
-
-Future<Map<String, Object?>> findAdminUser(DartEdgeAuthAdminApi admin, String userId) async {
-  final response = await admin.listUsers(limit: 1, filterField: 'id', filterValue: userId);
-  if (response.users case [final user, ...]) {
-    return authUserFromUsersRow(user);
-  }
-  throw const HippoAuthBackendException(
-    500,
-    'AdminUserLookupFailed',
-    'Updated user could not be found.',
-  );
 }

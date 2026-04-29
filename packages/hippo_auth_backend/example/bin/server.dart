@@ -26,6 +26,8 @@ Future<void> main() async {
     openApiDocument: OpenApiDocument(title: 'Hippo Auth Backend Example', version: '0.1.0'),
   );
 
+  app.installSchemaRegistry(JsonSchemaRegistry(schemas: hippoAuthSchemas));
+
   backend.mount(app);
   OpenApiHelpers.mountJson(app, path: '/openapi.json');
   OpenApiHelpers.mountSwaggerUi(app, path: '/docs', specPath: '/openapi.json');

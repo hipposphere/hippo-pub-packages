@@ -1,9 +1,10 @@
 import 'package:dart_edge_auth/dart_edge_auth.dart';
-import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:dart_edge_http_server_runtime/dart_edge_http_server_runtime.dart';
 
 import 'options.dart';
 import 'routes/routes.dart';
 import 'routes/shared/route_context.dart';
+import 'utils/schemas.dart';
 import 'views/views.dart';
 
 final class HippoAuthBackend {
@@ -19,6 +20,7 @@ final class HippoAuthBackend {
   }
 
   void mount<TServices>(Router<TServices> router, {String basePath = ''}) {
+    _installSchemas(router);
     final target = _targetRouter(router, basePath);
     final routeContext = HippoAuthRouteContext(options: options, auth: auth);
 
@@ -51,6 +53,32 @@ final class HippoAuthBackend {
       auth.mount(authRouter);
     }
   }
+}
+
+void _installSchemas<TServices>(Router<TServices> router) {
+  if (router is! DartEdge<TServices>) {
+    return;
+  }
+
+  final schemas = <JsonSchema>[];
+  final seenIds = <String>{};
+
+  void addSchema(JsonSchema schema) {
+    final id = schema.id;
+    if (id != null && !seenIds.add(id)) {
+      return;
+    }
+    schemas.add(schema);
+  }
+
+  for (final schema in router.schemaRegistry?.schemas ?? const <JsonSchema>[]) {
+    addSchema(schema);
+  }
+  for (final schema in hippoAuthSchemas) {
+    addSchema(schema);
+  }
+
+  router.installSchemaRegistry(JsonSchemaRegistry(schemas: schemas));
 }
 
 String _normalizeBasePath(String value) {

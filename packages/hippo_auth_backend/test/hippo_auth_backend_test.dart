@@ -27,7 +27,9 @@ void main() {
     expect(paths.keys, contains('/views/reset-password'));
     expect(paths.keys, contains('/better-auth/sign-up/email'));
 
-    expect(document.keys, isNot(contains('components')));
+    final components = document['components']! as Map<String, Object?>;
+    final schemas = components['schemas']! as Map<String, Object?>;
+    expect(schemas.keys, containsAll(['DartEdgeAuthUser', 'HippoAuthSessionPayload']));
 
     final signUp = _operation(paths, '/v1/user/sign-up-email', 'post');
     expect(signUp['operationId'], 'postV1UserSignUpEmail');

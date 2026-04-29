@@ -29,15 +29,15 @@ jobs:
       - name: Install Melos
         run: dart pub global activate melos
 
-      - name: Bootstrap workspace
-        run: dart pub global run melos bootstrap
-
       - name: Set up pub credentials
         env:
           PUB_TOKEN: ${{ secrets.PUB_CREDENTIALS }}
         run: |
           # Add the actual token value (not an env var reference)
           echo "$PUB_TOKEN" | dart pub token add https://registry.hippolabs.org/pub/internal-pub/
+
+      - name: Bootstrap workspace
+        run: dart pub global run melos bootstrap
 
       - name: Publish packages
         run: |

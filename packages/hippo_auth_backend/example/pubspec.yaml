@@ -12,9 +12,9 @@ dependencies:
     path: ../
   dart_edge_http_server:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.0
+    version: ^0.3.3
   dart_edge_sql:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.2.0
+    version: ^0.3.0
   
 

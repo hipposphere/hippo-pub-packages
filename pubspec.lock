@@ -197,10 +197,10 @@ packages:
     dependency: transitive
     description:
       name: build_runner
-      sha256: "22fdcc3cfeb9d974d7408718c4be15ec5e9b1b350088f3a6c88f154e74dd700d"
+      sha256: "1523ce62448ebac2c15a8ba5fbad8acac169788658a7dd2a1c2d9c2a9318b9a6"
       url: "https://pub.dev"
     source: hosted
-    version: "2.14.1"
+    version: "2.15.0"
   built_collection:
     dependency: transitive
     description:
@@ -421,58 +421,58 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_auth
-      sha256: "56c21cd7861bd0f42d148432f3bd7246ff6af5b517cae9204773c590d261cb5e"
+      sha256: "94e3eec6e2be5127449afe5faaf45824a157d363661adfc090a230b334d6f27a"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.2"
+    version: "0.3.3"
   dart_edge_core:
     dependency: transitive
     description:
       name: dart_edge_core
-      sha256: "5dbfe0010732ada859d95829ad5845121842a5ba0c354aa93e56dbe814c22bc5"
+      sha256: "22a8aacd54ceb8baaadb35d0c9834b6a32f0097b37359e0edc3d4fc4ac955320"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.2.2"
+    version: "0.3.0"
   dart_edge_http_server:
     dependency: transitive
     description:
       name: dart_edge_http_server
-      sha256: dc9baaad285269338505bbfc741038fd6038dc6c9ad87a2ad816a368ada41423
+      sha256: c9d335dce169456b93d9ca91be21d246ff91520b4ba9f330aa52004b955942b7
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.2"
+    version: "0.3.3"
   dart_edge_http_server_codegen:
     dependency: transitive
     description:
       name: dart_edge_http_server_codegen
-      sha256: b70d36f7edae598492c572e2dcc48dba69161052889d61382f2d1bbdc8f9d963
+      sha256: f375b7adc6a7c28201f80b54bd9da093a2875a4ef9edcf088483c5671665d5fa
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.2"
+    version: "0.3.5"
   dart_edge_http_server_runtime:
     dependency: transitive
     description:
       name: dart_edge_http_server_runtime
-      sha256: fec514938def0938c01b1da05ce6368c4a7a7859dc0bb33727aeae5f42bbb0fd
+      sha256: "499efb911d2b1860ee3be96f57a75abf9904f2477bc7e19fcd98292539a24d42"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.2"
+    version: "0.3.3"
   dart_edge_jaspr:
     dependency: transitive
     description:
       name: dart_edge_jaspr
-      sha256: "0cfba40abf716b1bbb17d3d06f0362aaca6b7235e8ee8aac5f2270fbf2afd3aa"
+      sha256: e6ce2103e354ddb177e7a38a7c18fc87dea01012b777036e5e6192a9ddc7d843
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.0"
+    version: "0.3.1"
   dart_edge_sql:
     dependency: transitive
     description:
       name: dart_edge_sql
-      sha256: "7837e84017076671e64c5daa1c68f46f38cfaf1b406ceb11c4b1c4051d9ad92f"
+      sha256: f1fc370d23fd1f60e9a4f0a9f9190458510fe835bc05747ef1b09f4bf3942493
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.2.0"
+    version: "0.3.0"
   dart_style:
     dependency: transitive
     description:
@@ -1056,10 +1056,10 @@ packages:
     dependency: transitive
     description:
       name: json_serializable
-      sha256: fbcf404b03520e6e795f6b9b39badb2b788407dfc0a50cf39158a6ae1ca78925
+      sha256: "2c15e78e1cc6e62aadecf59f81566fd56829713d96a8c4177699e2b2e17f20db"
       url: "https://pub.dev"
     source: hosted
-    version: "6.13.1"
+    version: "6.13.2"
   leak_tracker:
     dependency: transitive
     description:
@@ -1176,10 +1176,10 @@ packages:
     dependency: transitive
     description:
       name: native_toolchain_rust
-      sha256: e53ef1025e2c190333ec61f638513c890c1becf11222e27b115b03bac369c6be
+      sha256: "26d4dcae954328af4ebfa8fc56cca0bf74b9ae8b4a6132de5da2071ac3d237b3"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.3"
+    version: "1.0.4"
   nested:
     dependency: transitive
     description:
@@ -1685,10 +1685,10 @@ packages:
     dependency: transitive
     description:
       name: source_gen
-      sha256: "732792cfd197d2161a65bb029606a46e0a18ff30ef9e141a7a82172b05ea8ecd"
+      sha256: ec37cc0e6694374cbef59ed79685572c870a54ede6fa30a3e420feb3adffea02
       url: "https://pub.dev"
     source: hosted
-    version: "4.2.2"
+    version: "4.2.3"
   source_helper:
     dependency: transitive
     description:

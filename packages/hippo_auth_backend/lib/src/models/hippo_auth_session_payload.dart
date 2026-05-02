@@ -1,6 +1,5 @@
 import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_core/dart_edge_core.dart';
-import 'package:dart_edge_http_server_codegen/dart_edge_http_server_codegen.dart';
 
 part 'hippo_auth_session_payload.g.dart';
 

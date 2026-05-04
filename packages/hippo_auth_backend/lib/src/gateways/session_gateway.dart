@@ -7,15 +7,15 @@ final class SessionGateway {
   final SqlExecutor database;
 
   Future<DartEdgeAuthSession?> findByToken(String token) {
-    return database.builder
-        .selectFrom(DartEdgeAuthSchema.sessions)
+    return database.typed
+        .from(DartEdgeAuthSchema.sessions)
         .selectTable(DartEdgeAuthSchema.sessions)
         .where(DartEdgeAuthSessionsTable.token.equals(token))
-        .executeTakeFirst();
+        .executeFirstOrNull();
   }
 
   Future<void> updateExpiresAt({required String sessionId, required DateTime expiresAt}) async {
-    await database.builder
+    await database.typed
         .updateTable(DartEdgeAuthSchema.sessions)
         .set(<String, Object?>{'expires_at': expiresAt.toUtc().toIso8601String()})
         .where(DartEdgeAuthSessionsTable.id.equals(sessionId))

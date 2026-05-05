@@ -15,7 +15,7 @@ dependencies:
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.2.7
-  chopper: ^8.5.1
+  chopper: ^8.5.2
   json_annotation: ^4.11.0
   collection: ^1.19.1
   http: ^1.6.0
@@ -26,5 +26,5 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   swagger_dart_code_generator: ^4.1.1
   build_runner: ^2.15.0
-  chopper_generator: ^8.6.1
+  chopper_generator: ^8.6.2
   json_serializable: ^6.13.2

@@ -30,7 +30,7 @@ class HippoAuthLoginController {
       await internalHandleSignIn(authToken);
       return SuccessfulLoginResult();
     } else {
-      return FailedLoginResult(_parseLoginError(response.error));
+      return FailedLoginResult(parseLoginError(response.error));
     }
   }
 
@@ -52,7 +52,7 @@ class HippoAuthLoginController {
       await internalHandleSignIn(authToken);
       return SuccessfulLoginResult();
     } else {
-      return FailedLoginResult(_parseLoginError(response.error));
+      return FailedLoginResult(parseLoginError(response.error));
     }
   }
 
@@ -121,21 +121,22 @@ class HippoAuthLoginController {
   Future<void> signOut() async {
     await apiController.removeSession();
   }
+}
 
-  LoginError _parseLoginError(dynamic error) {
-    final apiError = AuthApiError.parse(error);
-    switch (apiError.errorCode) {
-      case 'INVALID_EMAIL':
-        return InvalidCredentialsLoginError();
-      case 'INVALID_EMAIL_OR_PASSWORD':
-        return InvalidCredentialsLoginError();
-      case 'PASSWORD_TOO_SHORT':
-        return PasswordTooShortLoginError();
-      default:
-        return UnknownLoginError(
-          error: apiError.errorCode,
-          message: apiError.message,
-        );
-    }
+LoginError parseLoginError(dynamic error) {
+  final apiError = AuthApiError.parse(error);
+  switch (apiError.errorCode) {
+    case 'INVALID_EMAIL':
+      return InvalidCredentialsLoginError();
+    case 'INVALID_EMAIL_OR_PASSWORD':
+    case 'SignInEmailFailed' when apiError.message == 'Invalid credentials':
+      return InvalidCredentialsLoginError();
+    case 'PASSWORD_TOO_SHORT':
+      return PasswordTooShortLoginError();
+    default:
+      return UnknownLoginError(
+        error: apiError.errorCode,
+        message: apiError.message,
+      );
   }
 }

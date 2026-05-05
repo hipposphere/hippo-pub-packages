@@ -245,18 +245,18 @@ packages:
     dependency: transitive
     description:
       name: chopper
-      sha256: ecd521960cb1efafae03b60259475b36f480e1b63ddfe5ed4e371866a58dcaf3
+      sha256: "4b8b28fecccfb4b70bddcb97d2ebe23d36e8afaa7b7794ce6a6e19d9dafc562e"
       url: "https://pub.dev"
     source: hosted
-    version: "8.5.1"
+    version: "8.5.2"
   chopper_generator:
     dependency: transitive
     description:
       name: chopper_generator
-      sha256: "354d637861fbc44cd02bbf177d46bc6e006b1c874cc4732f242d299501096e1d"
+      sha256: "3a4b34e9844414108ae14bfa29d6c920e8d7d35993a70b2fa40d7e11d3139019"
       url: "https://pub.dev"
     source: hosted
-    version: "8.6.1"
+    version: "8.6.2"
   cli_config:
     dependency: transitive
     description:
@@ -421,58 +421,66 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_auth
-      sha256: "715b68b6703536c8828fe06ced93536275b6929faa4408492852ad63694b8116"
+      sha256: "7134a41847436ffd8d40695b38d94bdfee45970fb9f36c7d216c55df57cba0af"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.5"
+    version: "0.3.9"
   dart_edge_core:
     dependency: transitive
     description:
       name: dart_edge_core
-      sha256: "22a8aacd54ceb8baaadb35d0c9834b6a32f0097b37359e0edc3d4fc4ac955320"
+      sha256: "4ff3230591b53be31f481e549f893ac01513d7547f0e38ae4c06376d7c5dc7b6"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.0"
+    version: "0.3.1"
   dart_edge_http_server:
     dependency: transitive
     description:
       name: dart_edge_http_server
-      sha256: c9d335dce169456b93d9ca91be21d246ff91520b4ba9f330aa52004b955942b7
+      sha256: cfc16c2feea2c2dd09c46f45e5eba115dacc0f489e277ddb27931ecbbd8bda89
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.3"
+    version: "0.3.6"
   dart_edge_http_server_codegen:
     dependency: transitive
     description:
       name: dart_edge_http_server_codegen
-      sha256: f375b7adc6a7c28201f80b54bd9da093a2875a4ef9edcf088483c5671665d5fa
+      sha256: "1496495bcc60c3ce386d4931e161c3168eae6195e2c9eb4f28a39961dc651485"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.5"
+    version: "0.3.7"
   dart_edge_http_server_runtime:
     dependency: transitive
     description:
       name: dart_edge_http_server_runtime
-      sha256: "499efb911d2b1860ee3be96f57a75abf9904f2477bc7e19fcd98292539a24d42"
+      sha256: "8bdb11291e3fe3a6d26f23f8039f3de53601fae50d30df82446369b90b8f51b8"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.3"
+    version: "0.3.7"
   dart_edge_jaspr:
     dependency: transitive
     description:
       name: dart_edge_jaspr
-      sha256: e6ce2103e354ddb177e7a38a7c18fc87dea01012b777036e5e6192a9ddc7d843
+      sha256: eeb98554f90c36fc4a25224553ed4ac8369e4bc5874cb09706a73297fe34b837
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.1"
+    version: "0.3.2"
+  dart_edge_native_assets:
+    dependency: transitive
+    description:
+      name: dart_edge_native_assets
+      sha256: d0fa2e7b7437270cd8d50af351b04193f7b5ceed0433e72bf0fab5bb0452a6a6
+      url: "https://registry.hippolabs.org/pub/internal-pub/"
+    source: hosted
+    version: "0.1.2"
   dart_edge_sql:
     dependency: transitive
     description:
       name: dart_edge_sql
-      sha256: "058fe1a090eb8eeee18591306408fd6d8a40ad7aa62f2fc3a122d46b064ec375"
+      sha256: "81709f1ed2a60e7d8ce798de112efa2d7047500db1921c2499d7c7950048b534"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.3"
+    version: "0.3.8"
   dart_style:
     dependency: transitive
     description:
@@ -1016,10 +1024,10 @@ packages:
     dependency: transitive
     description:
       name: jaspr
-      sha256: "3fc388e9c114b5febe8f4678c34332f27c652882e4ec06c293c0350075af8e76"
+      sha256: "0a27800a0ae8c9f5c606c278d29ce535bfddde00932aa2b56a67c2b0bd86fd80"
       url: "https://pub.dev"
     source: hosted
-    version: "0.23.0"
+    version: "0.23.1"
   jni:
     dependency: transitive
     description:
@@ -1136,10 +1144,10 @@ packages:
     dependency: "direct dev"
     description:
       name: melos
-      sha256: "2f7381d209ab7554203c51481a6a57c7896593b7f06190a06a467aa5bfd693c5"
+      sha256: "91e2cc619f5753446bb606eef745abc3416902d5515e36086027226ac812bd6f"
       url: "https://pub.dev"
     source: hosted
-    version: "7.5.1"
+    version: "7.6.0"
   meta:
     dependency: transitive
     description:
@@ -1384,10 +1392,10 @@ packages:
     dependency: transitive
     description:
       name: posthog_flutter
-      sha256: "6a8a8a69549a7f59605642e0ab07c80e3f7f1fb96374185e36d88ed19241a159"
+      sha256: "55a46ecf63411a6ede4a85e9d31dd251223c375fa85c18b78a134e62e11dcd6b"
       url: "https://pub.dev"
     source: hosted
-    version: "5.24.1"
+    version: "5.24.2"
   process:
     dependency: transitive
     description:

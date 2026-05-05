@@ -1,12 +1,39 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_http_server/dart_edge_http_server.dart';
 import 'package:dart_edge_sql/dart_edge_sql.dart';
 import 'package:hippo_auth_backend/hippo_auth_backend.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('normalizes direct auth API errors to the public error envelope', () {
+    final response = hippoAuthExceptionResponse(
+      DartEdgeAuthApiException(
+        DartEdgeAuthApiResponse(
+          status: HttpStatus.unauthorized,
+          contentType: 'application/json',
+          headers: const <HttpHeader>[],
+          body: jsonEncode({
+            'error': {'code': 'SignInEmailFailed', 'message': 'Invalid credentials'},
+          }),
+        ),
+      ),
+      defaultStatus: HttpStatus.internalServerError,
+      defaultCode: 'SignInEmailFailed',
+      defaultMessage: 'Sign in failed.',
+    );
+
+    expect(response.status, HttpStatus.unauthorized);
+    expect(response.body, {
+      'error': {
+        'code': 'SignInEmailFailed',
+        'message': 'Invalid credentials',
+      },
+    });
+  });
+
   test('mounts hippo auth, view, and optional better-auth routes', () {
     final database = SqliteDatabase.inMemory();
     final backend = _backend(database);
@@ -125,6 +152,18 @@ void main() {
     expect(signinJson['token'], isA<String>());
     final signinUser = signinJson['user']! as Map<String, Object?>;
     expect(signinUser['email'], 'ada@example.com');
+
+    final invalidSignin = await _postJson(client, baseUri.resolve('/v1/user/sign-in-email'), {
+      'email': 'ada@example.com',
+      'password': 'wrong-password',
+    });
+
+    expect(invalidSignin.statusCode, HttpStatus.unauthorized);
+    final invalidSigninJson = await _readJson(invalidSignin);
+    expect(invalidSigninJson['error'], {
+      'code': 'SignInEmailFailed',
+      'message': 'Invalid credentials',
+    });
 
     final updatedExpiresAt = session!.expiresAt.toUtc().add(const Duration(days: 1));
     await sessions.updateExpiresAt(sessionId: session.id, expiresAt: updatedExpiresAt);

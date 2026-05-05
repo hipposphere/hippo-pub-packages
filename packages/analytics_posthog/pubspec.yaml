@@ -15,7 +15,7 @@ dependencies:
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.2.7
-  posthog_flutter: ^5.24.1
+  posthog_flutter: ^5.24.2
 
 dev_dependencies:
   flutter_test:

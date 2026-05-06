@@ -1,7 +1,6 @@
 name: gemini_live_audio
 description: Live Gemini audio integration.
 version: 0.1.0
-publish_to: none
 resolution: workspace
 
 

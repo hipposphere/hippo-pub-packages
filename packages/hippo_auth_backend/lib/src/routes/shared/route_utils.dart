@@ -2,10 +2,9 @@ import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_core/dart_edge_core.dart';
 
 import '../../utils/api_error.dart';
-import '../../utils/json_payload.dart';
 
 Map<String, Object?> requestBody<TServices>(RequestContext<TServices> ctx) {
-  return readJsonObject(ctx.req.bodyOrNull, 'request body');
+  return readJsonObject(ctx.req.bodyOrNull);
 }
 
 bool statusFromResponse(DartEdgeAuthApiResponse response) {
@@ -33,7 +32,7 @@ Map<String, Object?>? readOptionalObject(Map<String, Object?> body, String key) 
   if (value == null) {
     return null;
   }
-  return readJsonObject(value, key);
+  return readJsonObject(value);
 }
 
 String? parseRoleInput(Object? value, String errorCode) {

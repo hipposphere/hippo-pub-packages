@@ -1,6 +1,6 @@
 name: hippo_utils
 description: A new Flutter package project.
-version: 0.2.8
+version: 0.2.9
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -19,7 +19,7 @@ dependencies:
   uuid: ^4.5.3
   web: ^1.1.1
   shared_preferences: ^2.5.5
-  flutter_secure_storage: ^10.0.0
+  flutter_secure_storage: ^10.1.0
   cross_file: ^0.3.5+2
   archive: ^4.0.9
   file_picker: ^11.0.2

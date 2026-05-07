@@ -34,5 +34,5 @@ dev_dependencies:
     version: ^0.3.8
   dart_edge_http_server_codegen:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.15
+    version: ^0.3.10
   test: ^1.30.0

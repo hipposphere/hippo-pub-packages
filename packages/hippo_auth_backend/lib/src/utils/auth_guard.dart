@@ -38,18 +38,25 @@ final class HippoAuthGuard<TServices> implements Guard<TServices> {
   }
 
   Map<String, String> _authHeaders(Map<String, String> requestHeaders) {
-    final headers = <String, String>{
-      for (final entry in requestHeaders.entries) entry.key.toLowerCase(): entry.value,
-    };
-    final token = resolveSessionToken(headers, sessionCookieName);
-    if (token != null && !headers.containsKey('authorization')) {
-      headers['cookie'] = 'better-auth.session-token=$token';
-    }
-    return headers;
+    return authHeadersForBetterAuth(requestHeaders, sessionCookieName);
   }
 
   @override
   String toString() => 'HippoAuthGuard<$TServices>()';
+}
+
+Map<String, String> authHeadersForBetterAuth(
+  Map<String, String> requestHeaders,
+  String sessionCookieName,
+) {
+  final headers = <String, String>{
+    for (final entry in requestHeaders.entries) entry.key.toLowerCase(): entry.value,
+  };
+  final token = resolveSessionToken(headers, sessionCookieName);
+  if (token != null) {
+    headers['cookie'] = _upsertCookie(headers['cookie'], 'better-auth.session-token', token);
+  }
+  return headers;
 }
 
 String? resolveSessionToken(Map<String, String> headers, String sessionCookieName) {
@@ -67,6 +74,42 @@ String? resolveSessionToken(Map<String, String> headers, String sessionCookieNam
   }
 
   return _readCookie(cookie, sessionCookieName) ?? _readCookie(cookie, 'better-auth.session-token');
+}
+
+String _upsertCookie(String? cookieHeader, String name, String value) {
+  final encodedValue = Uri.encodeComponent(value);
+  final cookie = '$name=$encodedValue';
+  if (cookieHeader == null || cookieHeader.trim().isEmpty) {
+    return cookie;
+  }
+
+  final parts = <String>[];
+  var replaced = false;
+  for (final rawPart in cookieHeader.split(';')) {
+    final part = rawPart.trim();
+    if (part.isEmpty) {
+      continue;
+    }
+    final index = part.indexOf('=');
+    if (index < 0) {
+      parts.add(part);
+      continue;
+    }
+    final cookieName = part.substring(0, index).trim();
+    if (cookieName == name) {
+      if (!replaced) {
+        parts.add(cookie);
+        replaced = true;
+      }
+    } else {
+      parts.add(part);
+    }
+  }
+
+  if (!replaced) {
+    parts.add(cookie);
+  }
+  return parts.join('; ');
 }
 
 String? _readCookie(String cookieHeader, String name) {

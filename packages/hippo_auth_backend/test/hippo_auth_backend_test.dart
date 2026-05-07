@@ -27,11 +27,18 @@ void main() {
 
     expect(response.status, HttpStatus.unauthorized);
     expect(response.body, {
-      'error': {
-        'code': 'SignInEmailFailed',
-        'message': 'Invalid credentials',
-      },
+      'error': {'code': 'SignInEmailFailed', 'message': 'Invalid credentials'},
     });
+  });
+
+  test('normalizes bearer tokens into better-auth session cookies', () {
+    final headers = authHeadersForBetterAuth({
+      HttpHeaders.authorizationHeader: 'Bearer session-token',
+      HttpHeaders.cookieHeader: 'theme=dark; better-auth.session-token=stale-token',
+    }, defaultHippoAuthSessionCookieName);
+
+    expect(headers['authorization'], 'Bearer session-token');
+    expect(headers['cookie'], 'theme=dark; better-auth.session-token=session-token');
   });
 
   test('mounts hippo auth, view, and optional better-auth routes', () {

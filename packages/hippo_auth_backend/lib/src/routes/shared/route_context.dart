@@ -34,14 +34,7 @@ final class HippoAuthRouteContext {
   }
 
   Map<String, String> betterAuthHeaders<TServices>(RequestContext<TServices> ctx) {
-    final headers = <String, String>{
-      for (final entry in ctx.req.headersMap.entries) entry.key.toLowerCase(): entry.value,
-    };
-    final token = resolveSessionToken(headers, options.sessionCookieName);
-    if (token != null && !headers.containsKey('authorization')) {
-      headers['cookie'] = 'better-auth.session-token=$token';
-    }
-    return headers;
+    return authHeadersForBetterAuth(ctx.req.headersMap, options.sessionCookieName);
   }
 
   String sessionToken<TServices>(RequestContext<TServices> ctx) {

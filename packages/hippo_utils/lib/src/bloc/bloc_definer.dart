@@ -1,14 +1,16 @@
 /*
 // ---------------------------------------------------------------------------
 // Copyright (c) 2025 HippoSphere UG (haftungsbeschränkt). All rights reserved.
-// Use, copying, modification, or distribution of this software is prohibited 
+// Use, copying, modification, or distribution of this software is prohibited
 // without express written permission from Hipposphere UG.
 //
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
 import 'package:flutter/material.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core/hippo_core.dart';
+
+import 'bloc_provider.dart';
 
 /// A Bloc definer doesn't have a child compared to a usual BlocProvider.
 /// It requires the child to be given when converting it to a BlocProvider using

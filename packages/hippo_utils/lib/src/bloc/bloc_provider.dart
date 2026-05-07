@@ -1,14 +1,14 @@
 /*
 // ---------------------------------------------------------------------------
 // Copyright (c) 2025 HippoSphere UG (haftungsbeschränkt). All rights reserved.
-// Use, copying, modification, or distribution of this software is prohibited 
+// Use, copying, modification, or distribution of this software is prohibited
 // without express written permission from Hipposphere UG.
 //
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
 import 'package:flutter/material.dart';
-import 'bloc_base.dart';
+import 'package:hippo_core/hippo_core.dart';
 
 class BlocProvider<T extends BlocBase> extends InheritedWidget {
   const BlocProvider({super.key, required this.bloc, required super.child});
@@ -25,7 +25,7 @@ class BlocProvider<T extends BlocBase> extends InheritedWidget {
     if (provider == null) {
       throw """A BlocProvider ancestor with Type ${_typeOf<BlocProvider<T>>()} should be given in the widget tree.
 If this is not true this propably means that BlocProvider.of<$T>(context)
-was called while no BlocProvider with Type of $T was created in an 
+was called while no BlocProvider with Type of $T was created in an
 ancestor widget.""";
     }
 

@@ -7,6 +7,8 @@
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
+// core
+export 'package:hippo_core/hippo_core.dart' show BlocBase, DataSubject;
 // bloc
 export 'src/bloc.dart';
 // data_subject

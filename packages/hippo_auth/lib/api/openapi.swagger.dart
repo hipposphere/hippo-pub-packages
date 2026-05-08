@@ -15,7 +15,9 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart' show MultipartFile;
 import 'package:chopper/chopper.dart' as chopper;
+import 'openapi.enums.swagger.dart' as enums;
 import 'openapi.metadata.swagger.dart';
+export 'openapi.enums.swagger.dart';
 export 'openapi.models.swagger.dart';
 
 part 'openapi.swagger.chopper.dart';
@@ -52,6 +54,272 @@ abstract class Openapi extends ChopperService {
   }
 
   ///
+  Future<chopper.Response<V1AdminCreateUserPost$Response>>
+  v1AdminCreateUserPost({required V1AdminCreateUserPost$RequestBody? body}) {
+    generatedMapping.putIfAbsent(
+      V1AdminCreateUserPost$Response,
+      () => V1AdminCreateUserPost$Response.fromJsonFactory,
+    );
+
+    return _v1AdminCreateUserPost(body: body);
+  }
+
+  ///
+  @POST(path: '/v1/admin/create-user', optionalBody: true)
+  Future<chopper.Response<V1AdminCreateUserPost$Response>>
+  _v1AdminCreateUserPost({
+    @Body() required V1AdminCreateUserPost$RequestBody? body,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: 'postV1AdminCreateUser',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
+  Future<chopper.Response<V1AdminCreateOauthClientPost$Response>>
+  v1AdminCreateOauthClientPost({
+    required V1AdminCreateOauthClientPost$RequestBody? body,
+  }) {
+    generatedMapping.putIfAbsent(
+      V1AdminCreateOauthClientPost$Response,
+      () => V1AdminCreateOauthClientPost$Response.fromJsonFactory,
+    );
+
+    return _v1AdminCreateOauthClientPost(body: body);
+  }
+
+  ///
+  @POST(path: '/v1/admin/create-oauth-client', optionalBody: true)
+  Future<chopper.Response<V1AdminCreateOauthClientPost$Response>>
+  _v1AdminCreateOauthClientPost({
+    @Body() required V1AdminCreateOauthClientPost$RequestBody? body,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: 'postV1AdminCreateOauthClient',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
+  Future<chopper.Response<V1AdminDeleteUserPost$Response>>
+  v1AdminDeleteUserPost({required V1AdminDeleteUserPost$RequestBody? body}) {
+    generatedMapping.putIfAbsent(
+      V1AdminDeleteUserPost$Response,
+      () => V1AdminDeleteUserPost$Response.fromJsonFactory,
+    );
+
+    return _v1AdminDeleteUserPost(body: body);
+  }
+
+  ///
+  @POST(path: '/v1/admin/delete-user', optionalBody: true)
+  Future<chopper.Response<V1AdminDeleteUserPost$Response>>
+  _v1AdminDeleteUserPost({
+    @Body() required V1AdminDeleteUserPost$RequestBody? body,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: 'postV1AdminDeleteUser',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
+  Future<chopper.Response<V1AdminDeleteOauthClientPost$Response>>
+  v1AdminDeleteOauthClientPost({
+    required V1AdminDeleteOauthClientPost$RequestBody? body,
+  }) {
+    generatedMapping.putIfAbsent(
+      V1AdminDeleteOauthClientPost$Response,
+      () => V1AdminDeleteOauthClientPost$Response.fromJsonFactory,
+    );
+
+    return _v1AdminDeleteOauthClientPost(body: body);
+  }
+
+  ///
+  @POST(path: '/v1/admin/delete-oauth-client', optionalBody: true)
+  Future<chopper.Response<V1AdminDeleteOauthClientPost$Response>>
+  _v1AdminDeleteOauthClientPost({
+    @Body() required V1AdminDeleteOauthClientPost$RequestBody? body,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: 'postV1AdminDeleteOauthClient',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
+  Future<chopper.Response<V1AdminUpdateUserPost$Response>>
+  v1AdminUpdateUserPost({required V1AdminUpdateUserPost$RequestBody? body}) {
+    generatedMapping.putIfAbsent(
+      V1AdminUpdateUserPost$Response,
+      () => V1AdminUpdateUserPost$Response.fromJsonFactory,
+    );
+
+    return _v1AdminUpdateUserPost(body: body);
+  }
+
+  ///
+  @POST(path: '/v1/admin/update-user', optionalBody: true)
+  Future<chopper.Response<V1AdminUpdateUserPost$Response>>
+  _v1AdminUpdateUserPost({
+    @Body() required V1AdminUpdateUserPost$RequestBody? body,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: 'postV1AdminUpdateUser',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
+  Future<chopper.Response<V1AdminUpdateOauthClientPost$Response>>
+  v1AdminUpdateOauthClientPost({
+    required V1AdminUpdateOauthClientPost$RequestBody? body,
+  }) {
+    generatedMapping.putIfAbsent(
+      V1AdminUpdateOauthClientPost$Response,
+      () => V1AdminUpdateOauthClientPost$Response.fromJsonFactory,
+    );
+
+    return _v1AdminUpdateOauthClientPost(body: body);
+  }
+
+  ///
+  @POST(path: '/v1/admin/update-oauth-client', optionalBody: true)
+  Future<chopper.Response<V1AdminUpdateOauthClientPost$Response>>
+  _v1AdminUpdateOauthClientPost({
+    @Body() required V1AdminUpdateOauthClientPost$RequestBody? body,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: 'postV1AdminUpdateOauthClient',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
+  ///@param limit
+  ///@param offset
+  ///@param search_value
+  ///@param search_field
+  ///@param sort_by
+  ///@param sort_direction
+  Future<chopper.Response<V1AdminListUsersGet$Response>> v1AdminListUsersGet({
+    int? limit,
+    int? offset,
+    String? searchValue,
+    enums.V1AdminListUsersGetSearchField? searchField,
+    enums.V1AdminListUsersGetSortBy? sortBy,
+    enums.V1AdminListUsersGetSortDirection? sortDirection,
+  }) {
+    generatedMapping.putIfAbsent(
+      V1AdminListUsersGet$Response,
+      () => V1AdminListUsersGet$Response.fromJsonFactory,
+    );
+
+    return _v1AdminListUsersGet(
+      limit: limit,
+      offset: offset,
+      searchValue: searchValue,
+      searchField: searchField?.value?.toString(),
+      sortBy: sortBy?.value?.toString(),
+      sortDirection: sortDirection?.value?.toString(),
+    );
+  }
+
+  ///
+  ///@param limit
+  ///@param offset
+  ///@param search_value
+  ///@param search_field
+  ///@param sort_by
+  ///@param sort_direction
+  @GET(path: '/v1/admin/list-users')
+  Future<chopper.Response<V1AdminListUsersGet$Response>> _v1AdminListUsersGet({
+    @Query('limit') int? limit,
+    @Query('offset') int? offset,
+    @Query('search_value') String? searchValue,
+    @Query('search_field') String? searchField,
+    @Query('sort_by') String? sortBy,
+    @Query('sort_direction') String? sortDirection,
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: 'getV1AdminListUsers',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
+  Future<chopper.Response<V1AdminListOauthClientsGet$Response>>
+  v1AdminListOauthClientsGet() {
+    generatedMapping.putIfAbsent(
+      V1AdminListOauthClientsGet$Response,
+      () => V1AdminListOauthClientsGet$Response.fromJsonFactory,
+    );
+
+    return _v1AdminListOauthClientsGet();
+  }
+
+  ///
+  @GET(path: '/v1/admin/list-oauth-clients')
+  Future<chopper.Response<V1AdminListOauthClientsGet$Response>>
+  _v1AdminListOauthClientsGet({
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: 'getV1AdminListOauthClients',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
   Future<chopper.Response<bool>> v1UserConfirmMailPost({
     required V1UserConfirmMailPost$RequestBody? body,
   }) {
@@ -59,14 +327,40 @@ abstract class Openapi extends ChopperService {
   }
 
   ///
-  @POST(path: '/v1/user/confirm_mail', optionalBody: true)
+  @POST(path: '/v1/user/confirm-mail', optionalBody: true)
   Future<chopper.Response<bool>> _v1UserConfirmMailPost({
     @Body() required V1UserConfirmMailPost$RequestBody? body,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary: '',
-      operationId: '',
+      operationId: 'postV1UserConfirmMail',
+      consumes: [],
+      produces: [],
+      security: [],
+      tags: [],
+      deprecated: false,
+    ),
+  });
+
+  ///
+  Future<chopper.Response<V1UserInfoGet$Response>> v1UserInfoGet() {
+    generatedMapping.putIfAbsent(
+      V1UserInfoGet$Response,
+      () => V1UserInfoGet$Response.fromJsonFactory,
+    );
+
+    return _v1UserInfoGet();
+  }
+
+  ///
+  @GET(path: '/v1/user/info')
+  Future<chopper.Response<V1UserInfoGet$Response>> _v1UserInfoGet({
+    @chopper.Tag()
+    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
+      description: '',
+      summary: '',
+      operationId: 'getV1UserInfo',
       consumes: [],
       produces: [],
       security: [],
@@ -92,7 +386,7 @@ abstract class Openapi extends ChopperService {
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary: '',
-      operationId: '',
+      operationId: 'getV1UserGetUser',
       consumes: [],
       produces: [],
       security: [],
@@ -118,7 +412,7 @@ abstract class Openapi extends ChopperService {
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary: '',
-      operationId: '',
+      operationId: 'getV1UserLogout',
       consumes: [],
       produces: [],
       security: [],
@@ -146,7 +440,7 @@ abstract class Openapi extends ChopperService {
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary: '',
-      operationId: '',
+      operationId: 'postV1UserRefreshSession',
       consumes: [],
       produces: [],
       security: [],
@@ -170,7 +464,7 @@ abstract class Openapi extends ChopperService {
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary: '',
-      operationId: '',
+      operationId: 'postV1UserRequestPasswordReset',
       consumes: [],
       produces: [],
       security: [],
@@ -194,7 +488,7 @@ abstract class Openapi extends ChopperService {
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary: '',
-      operationId: '',
+      operationId: 'postV1UserResetPassword',
       consumes: [],
       produces: [],
       security: [],
@@ -223,7 +517,7 @@ abstract class Openapi extends ChopperService {
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary: '',
-      operationId: '',
+      operationId: 'postV1UserSignInEmail',
       consumes: [],
       produces: [],
       security: [],
@@ -252,7 +546,7 @@ abstract class Openapi extends ChopperService {
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary: '',
-      operationId: '',
+      operationId: 'postV1UserSignInSso',
       consumes: [],
       produces: [],
       security: [],
@@ -281,7 +575,7 @@ abstract class Openapi extends ChopperService {
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary: '',
-      operationId: '',
+      operationId: 'postV1UserSignUpEmail',
       consumes: [],
       produces: [],
       security: [],
@@ -291,23 +585,50 @@ abstract class Openapi extends ChopperService {
   });
 
   ///
+  ///@param code
+  ///@param state
+  ///@param error
+  ///@param error_description
+  ///@param session_state
   ///@param providerId
   Future<chopper.Response> v1Oauth2CallbackProviderIdGet({
+    String? code,
+    String? state,
+    String? error,
+    String? errorDescription,
+    String? sessionState,
     required String? providerId,
   }) {
-    return _v1Oauth2CallbackProviderIdGet(providerId: providerId);
+    return _v1Oauth2CallbackProviderIdGet(
+      code: code,
+      state: state,
+      error: error,
+      errorDescription: errorDescription,
+      sessionState: sessionState,
+      providerId: providerId,
+    );
   }
 
   ///
+  ///@param code
+  ///@param state
+  ///@param error
+  ///@param error_description
+  ///@param session_state
   ///@param providerId
   @GET(path: '/v1/oauth2/callback/{providerId}')
   Future<chopper.Response> _v1Oauth2CallbackProviderIdGet({
+    @Query('code') String? code,
+    @Query('state') String? state,
+    @Query('error') String? error,
+    @Query('error_description') String? errorDescription,
+    @Query('session_state') String? sessionState,
     @Path('providerId') required String? providerId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary: '',
-      operationId: '',
+      operationId: 'getV1Oauth2CallbackByProviderId',
       consumes: [],
       produces: [],
       security: [],
@@ -317,65 +638,30 @@ abstract class Openapi extends ChopperService {
   });
 
   ///
+  ///@param callbackURL
   ///@param providerId
   Future<chopper.Response> v1Oauth2SignInProviderIdGet({
+    required String? callbackURL,
     required String? providerId,
   }) {
-    return _v1Oauth2SignInProviderIdGet(providerId: providerId);
+    return _v1Oauth2SignInProviderIdGet(
+      callbackURL: callbackURL,
+      providerId: providerId,
+    );
   }
 
   ///
+  ///@param callbackURL
   ///@param providerId
   @GET(path: '/v1/oauth2/sign-in/{providerId}')
   Future<chopper.Response> _v1Oauth2SignInProviderIdGet({
+    @Query('callbackURL') required String? callbackURL,
     @Path('providerId') required String? providerId,
     @chopper.Tag()
     SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
       description: '',
       summary: '',
-      operationId: '',
-      consumes: [],
-      produces: [],
-      security: [],
-      tags: [],
-      deprecated: false,
-    ),
-  });
-
-  ///
-  Future<chopper.Response> viewsResetPasswordGet() {
-    return _viewsResetPasswordGet();
-  }
-
-  ///
-  @GET(path: '/views/reset-password')
-  Future<chopper.Response> _viewsResetPasswordGet({
-    @chopper.Tag()
-    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
-      description: '',
-      summary: '',
-      operationId: '',
-      consumes: [],
-      produces: [],
-      security: [],
-      tags: [],
-      deprecated: false,
-    ),
-  });
-
-  ///
-  Future<chopper.Response> viewsConfirmMailGet() {
-    return _viewsConfirmMailGet();
-  }
-
-  ///
-  @GET(path: '/views/confirm-mail')
-  Future<chopper.Response> _viewsConfirmMailGet({
-    @chopper.Tag()
-    SwaggerMetaData swaggerMetaData = const SwaggerMetaData(
-      description: '',
-      summary: '',
-      operationId: '',
+      operationId: 'getV1Oauth2SignInByProviderId',
       consumes: [],
       produces: [],
       security: [],

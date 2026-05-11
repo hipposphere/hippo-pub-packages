@@ -162,6 +162,46 @@ class SpeechRecorderController {
     await _recorder.dispose();
   }
 
+  /// Stops the active session, disables warm capture, and releases native
+  /// recorder resources for app shutdown or desktop updater handoff.
+  Future<void> prepareForAppExit() async {
+    Object? firstError;
+    StackTrace? firstStackTrace;
+
+    void rememberError(Object error, StackTrace stackTrace) {
+      firstError ??= error;
+      firstStackTrace ??= stackTrace;
+    }
+
+    try {
+      await _recorder.setContinousRecording(false);
+    } on Object {
+      // The final recorder exit cleanup below is the authoritative release path.
+    }
+
+    final session = sessionSubject.value;
+    if (session != null) {
+      try {
+        await stop(session);
+      } on Object catch (error, stackTrace) {
+        rememberError(error, stackTrace);
+      }
+    }
+
+    try {
+      await _recorder.prepareForAppExit();
+    } on Object catch (error, stackTrace) {
+      rememberError(error, stackTrace);
+    }
+
+    if (firstError != null) {
+      Error.throwWithStackTrace(
+        firstError!,
+        firstStackTrace ?? StackTrace.current,
+      );
+    }
+  }
+
   Future<void> _startSessionCapture(SpeechRecorderSession session) async {
     final streamingOptions = session.streamingOptions;
     if (streamingOptions == null) {

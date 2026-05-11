@@ -819,6 +819,61 @@ final class NativeAudioRecorder {
     await _resumeContinousRecordingWarmCaptureIfNeeded(forceStart: true);
   }
 
+  /// Disables warm capture and releases native recorder resources for app exit.
+  ///
+  /// This is intended for desktop updater flows where the app process must
+  /// fully release microphone/WASAPI resources before the updater waits for
+  /// process shutdown. Active recordings are stopped normally before the final
+  /// native reset.
+  Future<void> prepareForAppExit() async {
+    _ensureSupportedPlatform();
+
+    Object? firstError;
+    StackTrace? firstStackTrace;
+
+    void rememberError(Object error, StackTrace stackTrace) {
+      firstError ??= error;
+      firstStackTrace ??= stackTrace;
+    }
+
+    final releaseConfig = _resolveContinousRecordingConfig();
+    final shouldDisableNativeContinousCapture =
+        _continousRecordingEnabled ||
+        _continousRecordingNativeEnabled ||
+        _mode != _RecorderMode.stopped;
+    _cancelContinousRecordingWarmTimer();
+    _continousRecordingEnabled = false;
+    _continousRecordingNativeEnabled = false;
+    _continousRecordingDuration = null;
+    _continousRecordingError = null;
+
+    if (shouldDisableNativeContinousCapture) {
+      try {
+        await _platformImplementation.setContinousRecording(false, config: releaseConfig);
+      } on Object catch (error, stackTrace) {
+        rememberError(error, stackTrace);
+      }
+    }
+
+    if (_mode != _RecorderMode.stopped) {
+      try {
+        await stop();
+      } on Object catch (error, stackTrace) {
+        rememberError(error, stackTrace);
+      }
+    }
+
+    try {
+      await _cleanupForAppDetach();
+    } on Object catch (error, stackTrace) {
+      rememberError(error, stackTrace);
+    }
+
+    if (firstError != null) {
+      Error.throwWithStackTrace(firstError!, firstStackTrace ?? StackTrace.current);
+    }
+  }
+
   Future<void> dispose() async {
     _appLifecycleListener?.dispose();
     _appLifecycleListener = null;

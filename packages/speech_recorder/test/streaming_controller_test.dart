@@ -83,6 +83,53 @@ void main() {
       }
     }
   });
+
+  test(
+    'prepareForAppExit stops active session and releases recorder resources',
+    () async {
+      final outputDirectory = await Directory.systemTemp.createTemp(
+        'speech_recorder_prepare_exit_',
+      );
+      final events = <String>[];
+      final recorder = NativeAudioRecorder.custom(
+        platformImplementation: _FakeRecorderPlatformImplementation(
+          pcmChunk: Uint8List(0),
+          events: events,
+        ),
+      );
+
+      final controller = SpeechRecorderController(
+        audioRecorder: recorder,
+        optionsBuilder: () async {
+          return SpeechRecorderOptions(
+            path: '${outputDirectory.path}${Platform.pathSeparator}session.wav',
+            recordConfig: const AudioRecorderConfig(),
+          );
+        },
+      );
+
+      try {
+        await recorder.setContinousRecording(true);
+        final session = await controller.start();
+        await controller.prepareForAppExit();
+
+        expect(session.stateSubject.value, SpeechRecorderSessionState.stopped);
+        expect(controller.sessionSubject.value, isNull);
+        expect(events, <String>[
+          'continuous:true',
+          'startFile',
+          'continuous:false',
+          'stop',
+          'reset',
+        ]);
+      } finally {
+        await controller.dispose();
+        if (await outputDirectory.exists()) {
+          await outputDirectory.delete(recursive: true);
+        }
+      }
+    },
+  );
 }
 
 Uint8List _sinePcmChunk({
@@ -152,19 +199,23 @@ final class _DelayedAacEncoder implements AacEncoder {
 
 final class _FakeRecorderPlatformImplementation
     extends NativeAudioRecorderPlatformImplementation {
-  _FakeRecorderPlatformImplementation({required Uint8List pcmChunk})
-    : _pcmChunk = pcmChunk,
-      super(
-        platform: NativeAudioRecorderPlatform.windows,
-        supportsInputSelection: true,
-        capabilities: const NativeAudioRecorderCapabilities(
-          supportsNoiseCancellation: false,
-          supportsEchoCancellation: false,
-          supportsVoiceIsolation: false,
-        ),
-      );
+  _FakeRecorderPlatformImplementation({
+    required Uint8List pcmChunk,
+    List<String>? events,
+  }) : _pcmChunk = pcmChunk,
+       events = events ?? <String>[],
+       super(
+         platform: NativeAudioRecorderPlatform.windows,
+         supportsInputSelection: true,
+         capabilities: const NativeAudioRecorderCapabilities(
+           supportsNoiseCancellation: false,
+           supportsEchoCancellation: false,
+           supportsVoiceIsolation: false,
+         ),
+       );
 
   final Uint8List _pcmChunk;
+  final List<String> events;
   bool _isRecording = false;
   bool _chunkConsumed = false;
 
@@ -185,11 +236,13 @@ final class _FakeRecorderPlatformImplementation
     required String outputPath,
     required AudioRecorderConfig config,
   }) {
+    events.add('startFile');
     _isRecording = true;
   }
 
   @override
   void startStream({required AudioRecorderConfig config}) {
+    events.add('startStream');
     _isRecording = true;
     _chunkConsumed = false;
   }
@@ -205,13 +258,23 @@ final class _FakeRecorderPlatformImplementation
 
   @override
   void stop() {
+    events.add('stop');
     _isRecording = false;
   }
 
   @override
   void reset() {
+    events.add('reset');
     _isRecording = false;
     _chunkConsumed = false;
+  }
+
+  @override
+  void setContinousRecording(
+    bool enabled, {
+    AudioRecorderConfig config = const AudioRecorderConfig(),
+  }) {
+    events.add('continuous:$enabled');
   }
 
   @override

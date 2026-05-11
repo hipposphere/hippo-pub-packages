@@ -16,7 +16,7 @@ dependencies:
   dart_style: ^3.1.7
   meta: ^1.18.0
   path: ^1.9.1
-  postgres: ^3.5.9
+  postgres: ^3.5.11
 
 dev_dependencies:
   lints: ^6.1.0

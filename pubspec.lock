@@ -437,10 +437,10 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_http_server
-      sha256: db9e6eba3ece5ef775371a9f43c55c33749854dc634503b086ec38b8a7dd061b
+      sha256: be56e885bbf699d485a9f309d5542a263b6e806cbc4e462bc4b3bcab3414678a
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.8"
+    version: "0.3.11"
   dart_edge_http_server_runtime:
     dependency: transitive
     description:
@@ -1384,10 +1384,10 @@ packages:
     dependency: transitive
     description:
       name: postgres
-      sha256: fefbbfe749c6130e5096588b9c4459173684c695952cd7636ab19be76f255469
+      sha256: fe4a19a69fad564efa8ced72d58b14e86d12a548f5f0a511b377089bf3b592ed
       url: "https://pub.dev"
     source: hosted
-    version: "3.5.9"
+    version: "3.5.11"
   posthog_flutter:
     dependency: transitive
     description:

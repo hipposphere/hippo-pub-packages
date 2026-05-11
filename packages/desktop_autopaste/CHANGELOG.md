@@ -1,3 +1,9 @@
+## 0.2.9
+
+* Harden Windows clipboard auto-paste against stale clipboard races by
+  verifying the published text before sending the paste shortcut and avoiding
+  restore when another process changed the clipboard after paste injection.
+
 ## 0.2.8
 
 * Add Linux clipboard auto-paste support for X11/XWayland using the X11

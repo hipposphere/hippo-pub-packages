@@ -7,7 +7,7 @@
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
-import '../key_value_store.dart';
+import 'package:hippo_core/hippo_core.dart';
 
 class MockKeyValueStore implements KeyValueStore {
   final Map<String, dynamic> dataMap;

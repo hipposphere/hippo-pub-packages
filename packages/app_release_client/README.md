@@ -4,7 +4,7 @@
 
 - `AppReleaseClientBloc` with `appCastUrlSubject` (resolved appcast URL)
 - Channel loading via public channels APIs (`/api/public/v1/channels`)
-- Persisted selected channel using `hippo_utils` `KeyValueStore`
+- Persisted selected channel using `hippo_core` `KeyValueStore`
 - Persisted known hidden-channel slugs for repeated hidden lookups
 - Default `AppReleaseChannelSelector` widget for channel selection UI
 

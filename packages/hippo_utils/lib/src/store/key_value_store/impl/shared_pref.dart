@@ -8,7 +8,8 @@
 // ---------------------------------------------------------------------------
 */
 import 'package:shared_preferences/shared_preferences.dart';
-import '../key_value_store.dart';
+
+import 'package:hippo_core/hippo_core.dart';
 
 class SharedPreferencesKeyValueStore implements KeyValueStore {
   final SharedPreferencesAsync sharedPreferencesAsync;

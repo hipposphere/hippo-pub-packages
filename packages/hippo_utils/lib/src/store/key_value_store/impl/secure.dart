@@ -8,7 +8,8 @@
 // ---------------------------------------------------------------------------
 */
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../key_value_store.dart';
+
+import 'package:hippo_core/hippo_core.dart';
 
 class SecureKeyValueStore implements KeyValueStore {
   final FlutterSecureStorage secureStorage;

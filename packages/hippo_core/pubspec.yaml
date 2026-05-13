@@ -1,6 +1,6 @@
 name: hippo_core
 description: Core reactive primitives for Hipposphere Dart packages.
-version: 0.1.0
+version: 0.1.1
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace

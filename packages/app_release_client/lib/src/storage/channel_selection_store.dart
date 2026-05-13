@@ -9,7 +9,7 @@
 */
 import 'dart:convert';
 
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core/hippo_core.dart';
 
 const defaultSelectedChannelStoreKey = 'app_release_client.selected_channel';
 const defaultKnownHiddenChannelSlugsStoreKey =

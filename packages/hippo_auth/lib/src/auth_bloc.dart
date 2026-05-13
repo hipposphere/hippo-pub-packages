@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:hippo_auth/hippo_auth.dart';
 import 'package:hippo_auth/src/auth_login_controller.dart';
+import 'package:hippo_core/hippo_core.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 class HippoAuthBloc extends BlocBase {

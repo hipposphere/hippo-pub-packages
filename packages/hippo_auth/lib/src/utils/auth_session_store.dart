@@ -1,5 +1,5 @@
 import 'package:hippo_auth/hippo_auth.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core/hippo_core.dart';
 
 const _defaultAuthSessionKey = 'auth_session';
 

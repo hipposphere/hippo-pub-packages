@@ -1,6 +1,7 @@
 import 'package:chopper/chopper.dart';
 import 'package:hippo_auth/hippo_auth.dart';
 import 'package:hippo_auth/src/utils/auth_session_store.dart';
+import 'package:hippo_core/hippo_core.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 class HippoAuthApiController {

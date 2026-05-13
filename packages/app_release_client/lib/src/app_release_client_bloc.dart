@@ -15,6 +15,7 @@ import 'package:app_release_client/src/models/app_release_target.dart';
 import 'package:app_release_client/src/storage/channel_selection_store.dart';
 import 'package:chopper/chopper.dart';
 import 'package:flutter/widgets.dart';
+import 'package:hippo_core/hippo_core.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 class AppReleaseClientBloc extends BlocBase {

@@ -174,6 +174,15 @@ final downsampler = Pcm24kTo16kDownsampler();
 final pcm16k = downsampler.convert(pcm24kChunk);
 ```
 
+`Pcm16AudioQueue` serializes PCM16 chunks into one ordered playback stream. By
+default it emits fixed 20 ms frames:
+
+```dart
+final queue = Pcm16AudioQueue(sampleRate: 24000, channels: 1);
+session.events.outputAudioStream().listen(queue.add, onDone: queue.close);
+queue.stream.listen(playPcm16);
+```
+
 `Pcm16StereoStreamCombiner` combines any two mono PCM16 streams into one pure
 stereo PCM16 stream. This is detached from `LiveAudioService`, so it can combine
 microphone audio, provider output, websocket audio, or any other PCM16 stream:

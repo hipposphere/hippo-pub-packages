@@ -7,14 +7,14 @@
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:hippo_core/hippo_core.dart';
 
 import 'bloc_provider.dart';
 
-/// A Bloc definer doesn't have a child compared to a usual BlocProvider.
-/// It requires the child to be given when converting it to a BlocProvider using
-/// [toBlocProvider] or with a [MultiBlocProvider].
+/// A bloc definer doesn't have a child compared to a usual [BlocProvider].
+/// It requires the child to be given when converting it to a [BlocProvider]
+/// using [toBlocProvider] or with a [MultiBlocProvider].
 class BlocDefiner<T extends BlocBase> {
   const BlocDefiner({required this.bloc});
 

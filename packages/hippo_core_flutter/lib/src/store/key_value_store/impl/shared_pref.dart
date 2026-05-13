@@ -1,22 +1,21 @@
 /*
 // ---------------------------------------------------------------------------
 // Copyright (c) 2025 HippoSphere UG (haftungsbeschränkt). All rights reserved.
-// Use, copying, modification, or distribution of this software is prohibited 
+// Use, copying, modification, or distribution of this software is prohibited
 // without express written permission from Hipposphere UG.
 //
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
+import 'package:hippo_core/hippo_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:hippo_core/hippo_core.dart';
-
 class SharedPreferencesKeyValueStore implements KeyValueStore {
-  final SharedPreferencesAsync sharedPreferencesAsync;
-  final String? storePrefix;
-
   SharedPreferencesKeyValueStore({this.storePrefix, SharedPreferencesAsync? sharedPreferencesAsync})
     : sharedPreferencesAsync = sharedPreferencesAsync ?? SharedPreferencesAsync();
+
+  final SharedPreferencesAsync sharedPreferencesAsync;
+  final String? storePrefix;
 
   @override
   Future<bool> containsKey(String key) {
@@ -64,14 +63,15 @@ class SharedPreferencesKeyValueStore implements KeyValueStore {
   }
 
   @override
-  Future<void> removeValue(String key) async {
-    await sharedPreferencesAsync.remove(_buildKey(key));
+  Future<void> removeValue(String key) {
+    return sharedPreferencesAsync.remove(_buildKey(key));
   }
 
   String _buildKey(String key) {
-    if (storePrefix == null) {
+    final prefix = storePrefix;
+    if (prefix == null) {
       return key;
     }
-    return '$storePrefix.$key';
+    return '$prefix.$key';
   }
 }

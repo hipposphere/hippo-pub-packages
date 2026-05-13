@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 */
 // core
-export 'package:hippo_core/hippo_core.dart' show BlocBase, DataSubject;
+export 'package:hippo_core/hippo_core.dart' show BlocBase, DataSubject, KeyValueStore;
 // bloc
 export 'src/bloc.dart';
 // data_subject

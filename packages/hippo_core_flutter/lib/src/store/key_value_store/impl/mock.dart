@@ -1,7 +1,7 @@
 /*
 // ---------------------------------------------------------------------------
 // Copyright (c) 2025 HippoSphere UG (haftungsbeschränkt). All rights reserved.
-// Use, copying, modification, or distribution of this software is prohibited 
+// Use, copying, modification, or distribution of this software is prohibited
 // without express written permission from Hipposphere UG.
 //
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
@@ -10,9 +10,10 @@
 import 'package:hippo_core/hippo_core.dart';
 
 class MockKeyValueStore implements KeyValueStore {
-  final Map<String, dynamic> dataMap;
+  MockKeyValueStore({Map<String, Object?>? initialDataMap}) : dataMap = initialDataMap ?? {};
 
-  MockKeyValueStore({Map<String, dynamic>? initialDataMap}) : dataMap = initialDataMap ?? {};
+  final Map<String, Object?> dataMap;
+
   @override
   Future<bool> containsKey(String key) async {
     return dataMap.containsKey(key);

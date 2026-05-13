@@ -7,6 +7,6 @@
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
-export 'package:hippo_core/hippo_core.dart' show BlocBase;
-export 'package:hippo_core_flutter/hippo_core_flutter.dart'
-    show BlocDefiner, BlocProvider, MultiBlocProvider;
+export 'bloc/bloc_definer.dart';
+export 'bloc/bloc_provider.dart';
+export 'bloc/multi_bloc_provider.dart';

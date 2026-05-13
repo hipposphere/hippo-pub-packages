@@ -7,7 +7,7 @@
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:hippo_core/hippo_core.dart';
 
 class BlocProvider<T extends BlocBase> extends InheritedWidget {
@@ -24,7 +24,7 @@ class BlocProvider<T extends BlocBase> extends InheritedWidget {
     final provider = context.getInheritedWidgetOfExactType<BlocProvider<T>>();
     if (provider == null) {
       throw """A BlocProvider ancestor with Type ${_typeOf<BlocProvider<T>>()} should be given in the widget tree.
-If this is not true this propably means that BlocProvider.of<$T>(context)
+If this is not true this probably means that BlocProvider.of<$T>(context)
 was called while no BlocProvider with Type of $T was created in an
 ancestor widget.""";
     }

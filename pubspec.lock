@@ -429,34 +429,34 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_core
-      sha256: bed26a3a05f27fb05ee0e5946b8b3881401a02763721b4dda4c9755a849edd67
+      sha256: "4dd3254fa8012fb5f9b2c7a8e14685c3adcd5d2a37ee740565bba7c186454ddb"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.12"
+    version: "0.3.13"
   dart_edge_http_server:
     dependency: transitive
     description:
       name: dart_edge_http_server
-      sha256: be56e885bbf699d485a9f309d5542a263b6e806cbc4e462bc4b3bcab3414678a
+      sha256: "2b08ec81569287ad251430442ec3fa203bf18fb7bfcaa3f92e7e55244916f9c6"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.11"
+    version: "0.3.13"
   dart_edge_http_server_runtime:
     dependency: transitive
     description:
       name: dart_edge_http_server_runtime
-      sha256: "21255cfebbd14cfb02c0169f92001446105448a254f4e882556df3725ce3fd9a"
+      sha256: f521e60ee46e0bd4d9df5c313a1f8b7efc83b2581a7367ad8714fa5c443f6b00
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.16"
+    version: "0.3.18"
   dart_edge_jaspr:
     dependency: transitive
     description:
       name: dart_edge_jaspr
-      sha256: "78ad58d04ae25dcbc1204cadf2499bd7d765f0dd5ebcc54791941c8f0ffb0f9a"
+      sha256: "59735ac126bf9b02363dff5fe306e8c4cd93c80d893bd8169b60c6e420926cf0"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.4"
+    version: "0.3.5"
   dart_edge_native_assets:
     dependency: transitive
     description:
@@ -470,6 +470,14 @@ packages:
     description:
       name: dart_edge_native_bridge
       sha256: "1d12a081af1c56cc6a6efcad82e86f3ccdebab86440994ecc22d1f0112fba255"
+      url: "https://registry.hippolabs.org/pub/internal-pub/"
+    source: hosted
+    version: "0.1.1"
+  dart_edge_shelf:
+    dependency: transitive
+    description:
+      name: dart_edge_shelf
+      sha256: "49b960c7d69938112702fe6fcaf7fb00d03a8a511da0dd7d418c23dc60364ea7"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
     version: "0.1.1"

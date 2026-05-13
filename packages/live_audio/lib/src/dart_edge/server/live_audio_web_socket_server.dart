@@ -1,23 +1,26 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:dart_edge_core/dart_edge_core.dart';
 
-import '../live_audio_service.dart';
-import '../live_audio_session.dart';
-import '../models/live_audio_socket_message.dart';
-import '../openai/openai_realtime_session.dart';
+import '../../live_audio_service.dart';
+import '../../live_audio_session.dart';
+import '../../models/live_audio_socket_message.dart';
+import '../../openai/openai_realtime_session.dart';
 
 typedef LiveAudioDartEdgeServiceFactory<TServices> =
     FutureOr<LiveAudioService> Function(WebSocketContext<TServices> socket);
 
 typedef LiveAudioDartEdgeEventEncoder = Object? Function(LiveAudioEvent event);
 
+typedef LiveAudioDartEdgeEventFilter = bool Function(LiveAudioEvent event);
+
 final class LiveAudioDartEdgeWebSocketOptions {
   const LiveAudioDartEdgeWebSocketOptions({
     this.sendAudioAsBinary = true,
     this.sendJsonAudio = false,
     this.sendRawEvents = false,
+    this.events = const LiveAudioDartEdgeEventFilterConfig(),
+    this.eventFilter,
     this.closeOnSessionError = true,
     this.closeOnProtocolError = true,
     this.closeCode = 1000,
@@ -27,10 +30,47 @@ final class LiveAudioDartEdgeWebSocketOptions {
   final bool sendAudioAsBinary;
   final bool sendJsonAudio;
   final bool sendRawEvents;
+  final LiveAudioDartEdgeEventFilterConfig events;
+  final LiveAudioDartEdgeEventFilter? eventFilter;
   final bool closeOnSessionError;
   final bool closeOnProtocolError;
   final int closeCode;
   final int errorCloseCode;
+}
+
+final class LiveAudioDartEdgeEventFilterConfig {
+  const LiveAudioDartEdgeEventFilterConfig({
+    this.sessionStarted = true,
+    this.outputChunk = true,
+    this.transcript = true,
+    this.textDelta = true,
+    this.turnComplete = true,
+    this.toolCall = true,
+    this.error = true,
+    this.raw = true,
+  });
+
+  final bool sessionStarted;
+  final bool outputChunk;
+  final bool transcript;
+  final bool textDelta;
+  final bool turnComplete;
+  final bool toolCall;
+  final bool error;
+  final bool raw;
+
+  bool allows(LiveAudioEvent event) {
+    return switch (event) {
+      LiveAudioSessionStarted() => sessionStarted,
+      LiveAudioOutputChunk() => outputChunk,
+      LiveAudioTranscript() => transcript,
+      LiveAudioTextDelta() => textDelta,
+      LiveAudioTurnComplete() => turnComplete,
+      LiveAudioToolCall() => toolCall,
+      LiveAudioError() => error,
+      LiveAudioRawEvent() => raw,
+    };
+  }
 }
 
 final class LiveAudioDartEdgeWebSocketRoute<TServices> extends WebSocketRouteDefinition<TServices> {
@@ -38,10 +78,12 @@ final class LiveAudioDartEdgeWebSocketRoute<TServices> extends WebSocketRouteDef
     required LiveAudioDartEdgeServiceFactory<TServices> service,
     WebSocketOptions options = const WebSocketOptions(),
     LiveAudioDartEdgeWebSocketOptions bridgeOptions = const LiveAudioDartEdgeWebSocketOptions(),
-    LiveAudioDartEdgeEventEncoder eventEncoder = encodeLiveAudioSocketEvent,
+    LiveAudioDartEdgeEventEncoder? eventEncoder,
   }) : _service = service,
        _bridgeOptions = bridgeOptions,
-       _eventEncoder = eventEncoder,
+       _eventEncoder =
+           eventEncoder ??
+           LiveAudioSocketEventCodec(includeRawEvents: bridgeOptions.sendRawEvents).encode,
        _options = options.normalized(defaultOperationId: operationIdDefault);
 
   static const operationIdDefault = 'liveAudio';
@@ -71,9 +113,12 @@ extension LiveAudioDartEdgeRouterExtension<TServices> on Router<TServices> {
     required LiveAudioDartEdgeServiceFactory<TServices> service,
     WebSocketOptions options = const WebSocketOptions(),
     LiveAudioDartEdgeWebSocketOptions bridgeOptions = const LiveAudioDartEdgeWebSocketOptions(),
-    LiveAudioDartEdgeEventEncoder eventEncoder = encodeLiveAudioSocketEvent,
+    LiveAudioDartEdgeEventEncoder? eventEncoder,
     List<Guard<TServices>>? guards,
   }) {
+    final resolvedEventEncoder =
+        eventEncoder ??
+        LiveAudioSocketEventCodec(includeRawEvents: bridgeOptions.sendRawEvents).encode;
     websocket(
       path,
       options: options,
@@ -82,7 +127,7 @@ extension LiveAudioDartEdgeRouterExtension<TServices> on Router<TServices> {
         socket,
         service: service,
         options: bridgeOptions,
-        eventEncoder: eventEncoder,
+        eventEncoder: resolvedEventEncoder,
       ),
     );
   }
@@ -92,12 +137,14 @@ Future<void> handleLiveAudioDartEdgeWebSocket<TServices>(
   WebSocketContext<TServices> socket, {
   required LiveAudioDartEdgeServiceFactory<TServices> service,
   LiveAudioDartEdgeWebSocketOptions options = const LiveAudioDartEdgeWebSocketOptions(),
-  LiveAudioDartEdgeEventEncoder eventEncoder = encodeLiveAudioSocketEvent,
+  LiveAudioDartEdgeEventEncoder? eventEncoder,
 }) async {
   LiveAudioSession? session;
   StreamSubscription<LiveAudioEvent>? liveEvents;
   StreamSubscription<WebSocketMessage>? clientMessages;
   final done = Completer<void>();
+  final resolvedEventEncoder =
+      eventEncoder ?? LiveAudioSocketEventCodec(includeRawEvents: options.sendRawEvents).encode;
 
   Future<void> complete([Object? error, StackTrace? stackTrace]) async {
     if (!done.isCompleted) {
@@ -114,7 +161,7 @@ Future<void> handleLiveAudioDartEdgeWebSocket<TServices>(
 
     liveEvents = session.events.listen(
       (event) {
-        unawaited(_sendLiveAudioEvent(socket, event, options, eventEncoder));
+        unawaited(_sendLiveAudioEvent(socket, event, options, resolvedEventEncoder));
       },
       onError: (Object error, StackTrace stackTrace) {
         unawaited(socket.sendJson({'type': 'error', 'message': error.toString()}));
@@ -145,64 +192,6 @@ Future<void> handleLiveAudioDartEdgeWebSocket<TServices>(
   }
 }
 
-Object? encodeLiveAudioSocketEvent(LiveAudioEvent event) {
-  return switch (event) {
-    LiveAudioSessionStarted(:final sessionId) => {
-      'type': 'session_started',
-      'session_id': ?sessionId,
-      'provider': event.provider.name,
-    },
-    LiveAudioOutputChunk(:final bytes, :final format, :final responseId) => {
-      'type': 'audio',
-      'audio': base64Encode(bytes),
-      'format': ?(format == null ? null : _formatToJson(format)),
-      'response_id': ?responseId,
-      'provider': event.provider.name,
-    },
-    LiveAudioTranscript(
-      :final kind,
-      :final text,
-      :final isDelta,
-      :final itemId,
-      :final responseId,
-    ) =>
-      {
-        'type': 'transcript',
-        'kind': kind.name,
-        'text': text,
-        'is_delta': isDelta,
-        'item_id': ?itemId,
-        'response_id': ?responseId,
-        'provider': event.provider.name,
-      },
-    LiveAudioTextDelta(:final text, :final responseId) => {
-      'type': 'text_delta',
-      'text': text,
-      'response_id': ?responseId,
-      'provider': event.provider.name,
-    },
-    LiveAudioTurnComplete() => {'type': 'turn_complete', 'provider': event.provider.name},
-    LiveAudioToolCall(:final name, :final arguments, :final id) => {
-      'type': 'tool_call',
-      'name': name,
-      'arguments': arguments,
-      'id': ?id,
-      'provider': event.provider.name,
-    },
-    LiveAudioError(:final message, :final code) => {
-      'type': 'error',
-      'message': message,
-      'code': ?code,
-      'provider': event.provider.name,
-    },
-    LiveAudioRawEvent(:final rawEvent) => {
-      'type': 'raw',
-      'event': rawEvent.toString(),
-      'provider': event.provider.name,
-    },
-  };
-}
-
 Future<void> _handleClientMessage<TServices>(
   WebSocketContext<TServices> socket,
   LiveAudioSession session,
@@ -212,7 +201,7 @@ Future<void> _handleClientMessage<TServices>(
   try {
     final socketMessage = message.kind == WebSocketMessageKind.binary
         ? LiveAudioSocketMessage.audioBytes(message.bytes)
-        : LiveAudioSocketMessage.fromJson(jsonDecode(message.text));
+        : LiveAudioSocketMessage.fromJsonText(message.text);
 
     switch (socketMessage.type) {
       case LiveAudioSocketMessageType.audio:
@@ -253,7 +242,7 @@ Future<void> _sendLiveAudioEvent<TServices>(
   LiveAudioDartEdgeWebSocketOptions options,
   LiveAudioDartEdgeEventEncoder eventEncoder,
 ) async {
-  if (event is LiveAudioRawEvent && !options.sendRawEvents) {
+  if (!_shouldSendLiveAudioEvent(event, options)) {
     return;
   }
 
@@ -270,10 +259,19 @@ Future<void> _sendLiveAudioEvent<TServices>(
   }
 }
 
-Object _formatToJson(LiveAudioInputFormat format) {
-  return {
-    'type': format.format.mimeType,
-    'sample_rate': format.sampleRate,
-    'channels': format.channels,
-  };
+bool _shouldSendLiveAudioEvent(LiveAudioEvent event, LiveAudioDartEdgeWebSocketOptions options) {
+  if (event is LiveAudioRawEvent && !options.sendRawEvents) {
+    return false;
+  }
+
+  if (!options.events.allows(event)) {
+    return false;
+  }
+
+  final eventFilter = options.eventFilter;
+  if (eventFilter != null && !eventFilter(event)) {
+    return false;
+  }
+
+  return true;
 }

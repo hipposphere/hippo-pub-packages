@@ -104,6 +104,20 @@ final class GeminiLiveAudioSession implements LiveAudioSession {
     _session.signalAudioStreamEnd();
   }
 
+  Future<void> signalActivityStart() async {
+    if (_closed || !_session.isConnected) {
+      return;
+    }
+    _session.signalActivityStart();
+  }
+
+  Future<void> signalActivityEnd() async {
+    if (_closed || !_session.isConnected) {
+      return;
+    }
+    _session.signalActivityEnd();
+  }
+
   Future<void> sendToolResponse(genai.FunctionResponse response) async {
     if (_closed || !_session.isConnected) {
       return;
@@ -216,15 +230,73 @@ genai.LiveConfig _liveConfig(GeminiLiveAudioConfig config) {
     systemInstruction: config.systemInstruction == null
         ? null
         : genai.Content(parts: [genai.TextPart(config.systemInstruction!)]),
-    tools: config.tools.isEmpty ? null : config.tools,
+    tools: config.tools.isEmpty
+        ? null
+        : [
+            genai.Tool(
+              functionDeclarations: config.tools
+                  .map(
+                    (tool) => genai.FunctionDeclaration(
+                      name: tool.name,
+                      description: tool.description ?? '',
+                      parameters: genai.Schema.fromJson(tool.parametersJson),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ],
     inputAudioTranscription: config.enableInputTranscription
         ? genai.AudioTranscriptionConfig.enabled()
         : null,
     outputAudioTranscription: config.enableOutputTranscription
         ? genai.AudioTranscriptionConfig.enabled()
         : null,
-    realtimeInputConfig: genai.RealtimeInputConfig.withVAD(
-      activityHandling: genai.ActivityHandling.startOfActivityInterrupts,
-    ),
+    realtimeInputConfig: _realtimeInputConfig(config.vad),
   );
 }
+
+genai.RealtimeInputConfig? _realtimeInputConfig(GeminiLiveAudioVadConfig? vad) {
+  if (vad == null) {
+    return null;
+  }
+
+  return genai.RealtimeInputConfig(
+    automaticActivityDetection: vad.manual
+        ? genai.AutomaticActivityDetection.manual()
+        : genai.AutomaticActivityDetection.enabled(
+            startSensitivity: _startSensitivity(vad.startSensitivity),
+            endSensitivity: _endSensitivity(vad.endSensitivity),
+            prefixPaddingMs: vad.prefixPaddingMs,
+            silenceDurationMs: vad.silenceDurationMs,
+          ),
+    activityHandling: _activityHandling(vad.activityHandling),
+    turnCoverage: _turnCoverage(vad.turnCoverage),
+  );
+}
+
+genai.ActivityHandling _activityHandling(GeminiLiveAudioActivityHandling handling) =>
+    switch (handling) {
+      GeminiLiveAudioActivityHandling.startOfActivityInterrupts =>
+        genai.ActivityHandling.startOfActivityInterrupts,
+      GeminiLiveAudioActivityHandling.noInterruption => genai.ActivityHandling.noInterruption,
+    };
+
+genai.TurnCoverage? _turnCoverage(GeminiLiveAudioTurnCoverage? coverage) => switch (coverage) {
+  null => null,
+  GeminiLiveAudioTurnCoverage.onlyActivity => genai.TurnCoverage.turnIncludesOnlyActivity,
+  GeminiLiveAudioTurnCoverage.allInput => genai.TurnCoverage.turnIncludesAllInput,
+};
+
+genai.StartSensitivity? _startSensitivity(GeminiLiveAudioVadSensitivity? sensitivity) =>
+    switch (sensitivity) {
+      null => null,
+      GeminiLiveAudioVadSensitivity.high => genai.StartSensitivity.high,
+      GeminiLiveAudioVadSensitivity.low => genai.StartSensitivity.low,
+    };
+
+genai.EndSensitivity? _endSensitivity(GeminiLiveAudioVadSensitivity? sensitivity) =>
+    switch (sensitivity) {
+      null => null,
+      GeminiLiveAudioVadSensitivity.high => genai.EndSensitivity.high,
+      GeminiLiveAudioVadSensitivity.low => genai.EndSensitivity.low,
+    };

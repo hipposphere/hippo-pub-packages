@@ -20,35 +20,49 @@ void mountHippoAuthViews<TServices>(
   HippoAuthBackendOptions options, {
   String routeBasePath = '',
 }) {
-  router.getJaspr(
+  router.get<RawResponse>(
     '/views/reset-password',
     options: RouteOptions(
       summary: 'Render the hosted reset-password page.',
       success: ResponseSpec.html(),
     ),
-    handler: (ctx) {
-      return buildResetPasswordView(
-        options: options,
-        token: ctx.req.queryParam('token') ?? '',
-        email: ctx.req.queryParam('email') ?? '',
-        routeBasePath: routeBasePath,
+    handler: (ctx) async {
+      return _renderHtml(
+        ctx,
+        buildResetPasswordView(
+          options: options,
+          token: ctx.req.queryParam('token') ?? '',
+          email: ctx.req.queryParam('email') ?? '',
+          routeBasePath: routeBasePath,
+        ),
       );
     },
   );
 
-  router.getJaspr(
+  router.get<RawResponse>(
     '/views/confirm-mail',
     options: RouteOptions(
       summary: 'Render the hosted email-confirmation page.',
       success: ResponseSpec.html(),
     ),
-    handler: (ctx) {
-      return buildConfirmMailView(
-        options: options,
-        token: ctx.req.queryParam('token') ?? '',
-        email: ctx.req.queryParam('email') ?? '',
-        routeBasePath: routeBasePath,
+    handler: (ctx) async {
+      return _renderHtml(
+        ctx,
+        buildConfirmMailView(
+          options: options,
+          token: ctx.req.queryParam('token') ?? '',
+          email: ctx.req.queryParam('email') ?? '',
+          routeBasePath: routeBasePath,
+        ),
       );
     },
   );
+}
+
+Future<RawResponse> _renderHtml<TServices>(
+  RequestContext<TServices> ctx,
+  Component component,
+) async {
+  final html = await JasprRenderer.renderString(component);
+  return ctx.res.html(html);
 }

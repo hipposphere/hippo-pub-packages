@@ -1,4 +1,5 @@
 import '../live_audio_session.dart';
+import '../models/live_audio_tool.dart';
 
 final class OpenAIRealtimeModels {
   const OpenAIRealtimeModels._();
@@ -33,6 +34,7 @@ final class OpenAIRealtimeConfig {
     this.enableInputTranscription = true,
     this.enableServerVad = true,
     this.createResponseFromVad = true,
+    this.tools = const [],
     this.temperature,
     this.extraSession,
     this.baseUrl = 'https://api.openai.com/v1',
@@ -49,6 +51,7 @@ final class OpenAIRealtimeConfig {
   final bool enableInputTranscription;
   final bool enableServerVad;
   final bool createResponseFromVad;
+  final List<LiveAudioTool> tools;
   final double? temperature;
   final Map<String, dynamic>? extraSession;
   final String baseUrl;

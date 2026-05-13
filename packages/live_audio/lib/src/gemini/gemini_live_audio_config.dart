@@ -1,4 +1,4 @@
-import 'package:googleai_dart/googleai_dart.dart' as genai;
+import '../models/live_audio_tool.dart';
 
 final class GeminiLiveAudioModels {
   const GeminiLiveAudioModels._();
@@ -20,6 +20,7 @@ final class GeminiLiveAudioConfig {
     this.systemInstruction,
     this.enableInputTranscription = true,
     this.enableOutputTranscription = true,
+    this.vad = const GeminiLiveAudioVadConfig.automatic(),
     this.tools = const [],
   });
 
@@ -29,5 +30,40 @@ final class GeminiLiveAudioConfig {
   final String? systemInstruction;
   final bool enableInputTranscription;
   final bool enableOutputTranscription;
-  final List<genai.Tool> tools;
+  final GeminiLiveAudioVadConfig? vad;
+  final List<LiveAudioTool> tools;
+}
+
+enum GeminiLiveAudioActivityHandling { startOfActivityInterrupts, noInterruption }
+
+enum GeminiLiveAudioTurnCoverage { onlyActivity, allInput }
+
+enum GeminiLiveAudioVadSensitivity { high, low }
+
+final class GeminiLiveAudioVadConfig {
+  const GeminiLiveAudioVadConfig.automatic({
+    this.activityHandling = GeminiLiveAudioActivityHandling.startOfActivityInterrupts,
+    this.turnCoverage,
+    this.startSensitivity,
+    this.endSensitivity,
+    this.prefixPaddingMs,
+    this.silenceDurationMs,
+  }) : manual = false;
+
+  const GeminiLiveAudioVadConfig.manual({
+    this.activityHandling = GeminiLiveAudioActivityHandling.noInterruption,
+    this.turnCoverage,
+  }) : manual = true,
+       startSensitivity = null,
+       endSensitivity = null,
+       prefixPaddingMs = null,
+       silenceDurationMs = null;
+
+  final bool manual;
+  final GeminiLiveAudioActivityHandling activityHandling;
+  final GeminiLiveAudioTurnCoverage? turnCoverage;
+  final GeminiLiveAudioVadSensitivity? startSensitivity;
+  final GeminiLiveAudioVadSensitivity? endSensitivity;
+  final int? prefixPaddingMs;
+  final int? silenceDurationMs;
 }

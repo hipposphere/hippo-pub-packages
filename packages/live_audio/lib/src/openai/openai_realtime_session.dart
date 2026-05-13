@@ -300,6 +300,8 @@ Map<String, dynamic> _sessionUpdate(OpenAIRealtimeConfig config) {
         if (config.voice != null) 'voice': config.voice,
       },
     },
+    if (config.tools.isNotEmpty)
+      'tools': config.tools.map((tool) => tool.toOpenAIJson()).toList(growable: false),
     if (config.temperature != null) 'temperature': config.temperature,
     ...?config.extraSession,
   };

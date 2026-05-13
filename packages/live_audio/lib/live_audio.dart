@@ -1,4 +1,5 @@
-export 'src/dart_edge/live_audio_web_socket.dart';
+export 'src/dart_edge/client/live_audio_web_socket_client.dart';
+export 'src/dart_edge/server/live_audio_web_socket_server.dart';
 export 'src/gemini/gemini_live_audio_config.dart';
 export 'src/gemini/gemini_live_audio_session.dart';
 export 'src/models/live_audio_socket_message.dart';
@@ -9,4 +10,5 @@ export 'src/models/live_audio_format.dart';
 export 'src/models/live_audio_provider.dart';
 export 'src/openai/openai_realtime_config.dart';
 export 'src/openai/openai_realtime_session.dart';
+export 'src/models/live_audio_tool.dart';
 export 'src/utils/audio.dart';

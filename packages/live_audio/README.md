@@ -62,6 +62,14 @@ import 'package:live_audio/live_audio.dart';
 void mountLiveAudio(Router<AppServices> api) {
   api.liveAudioWebSocket(
     '/live-audio',
+    bridgeOptions: LiveAudioDartEdgeWebSocketOptions(
+      events: LiveAudioDartEdgeEventFilterConfig(
+        sessionStarted: false,
+        textDelta: false,
+        toolCall: false,
+        raw: false,
+      ),
+    ),
     service: (socket) {
       return OpenAIRealtimeService(
         OpenAIRealtimeConfig(
@@ -74,6 +82,24 @@ void mountLiveAudio(Router<AppServices> api) {
     },
   );
 }
+```
+
+All normalized event types are enabled by default. Use
+`LiveAudioDartEdgeEventFilterConfig` to disable whole event groups, or
+`eventFilter` when the decision depends on event contents:
+
+```dart
+bridgeOptions: LiveAudioDartEdgeWebSocketOptions(
+  events: LiveAudioDartEdgeEventFilterConfig(
+    outputChunk: true,
+    transcript: true,
+    turnComplete: false,
+  ),
+  eventFilter: (event) {
+    return event is LiveAudioOutputChunk ||
+        event is LiveAudioTranscript && event.kind == LiveAudioTranscriptKind.input;
+  },
+),
 ```
 
 Client frames:
@@ -89,6 +115,20 @@ Client frames:
 
 By default output audio chunks are sent as binary frames, while transcripts,
 text deltas, tool calls, errors, and lifecycle events are sent as JSON.
+
+On generated Dart Edge clients, wrap the connected socket for typed commands:
+
+```dart
+final socket = LiveAudioDartEdgeWebSocketClient(
+  await client.connectWebSocket(invocation),
+);
+
+await socket.sendAudio(pcm24kChunk);
+await socket.commitAudio();
+
+socket.audioChunks().listen(playAudio);
+socket.jsonEvents().listen(handleLiveAudioEventJson);
+```
 
 OpenAI Realtime uses 24 kHz mono PCM input by default:
 

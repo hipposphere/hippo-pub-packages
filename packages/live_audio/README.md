@@ -133,7 +133,7 @@ socket.jsonEvents().listen(handleLiveAudioEventJson);
 OpenAI Realtime uses 24 kHz mono PCM input by default:
 
 ```dart
-final session = await OpenAIRealtimeService(
+final service = OpenAIRealtimeService(
   OpenAIRealtimeConfig(
     apiKey: apiKey,
     model: OpenAIRealtimeModels.gptRealtime2,
@@ -141,10 +141,16 @@ final session = await OpenAIRealtimeService(
     instructions: 'You are a concise phone assistant.',
     transcriptionLanguage: 'en',
   ),
-).connect();
+);
+final session = await service.connect();
 
-await session.sendAudio(pcm24kChunk);
-await session.commitAudio();
+final outputAudio = session.events.outputAudioStream();
+final callAudio = Pcm16StereoStreamCombiner(
+  leftAudio: microphonePcm24kStream,
+  rightAudio: outputAudio,
+).chunks;
+
+callAudio.listen(recordOrPlayStereoPcm16);
 ```
 
 Customize Gemini through `GeminiLiveAudioConfig`:
@@ -166,6 +172,28 @@ final config = GeminiLiveAudioConfig(
 ```dart
 final downsampler = Pcm24kTo16kDownsampler();
 final pcm16k = downsampler.convert(pcm24kChunk);
+```
+
+`Pcm16StereoStreamCombiner` combines any two mono PCM16 streams into one pure
+stereo PCM16 stream. This is detached from `LiveAudioService`, so it can combine
+microphone audio, provider output, websocket audio, or any other PCM16 stream:
+
+```dart
+final callAudio = Pcm16StereoStreamCombiner(
+  leftAudio: microphonePcm24kStream,
+  rightAudio: session.events.outputAudioStream(),
+).chunks;
+
+callAudio.listen(recordStereoCallPcm16);
+```
+
+`Stream<LiveAudioEvent>.outputAudioStream()` is the lower-level helper for existing
+sessions. By default it returns the assistant output audio as provided by the
+service:
+
+```dart
+final outputAudio = session.events.outputAudioStream();
+outputAudio.listen(playPcm16);
 ```
 
 `audioRateFromMimeType` extracts a numeric sample rate from MIME strings that

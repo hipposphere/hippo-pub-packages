@@ -1,20 +1,23 @@
 /*
 // ---------------------------------------------------------------------------
 // Copyright (c) 2025 HippoSphere UG (haftungsbeschränkt). All rights reserved.
-// Use, copying, modification, or distribution of this software is prohibited 
+// Use, copying, modification, or distribution of this software is prohibited
 // without express written permission from Hipposphere UG.
 //
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
-class Gap extends StatelessWidget {
+import '../common/gap.dart';
+
+class SliverGap extends StatelessWidget {
   final double gap;
-  const Gap(this.gap, {super.key});
+
+  const SliverGap(this.gap, {super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(width: gap, height: gap);
+    return SliverToBoxAdapter(child: Gap(gap));
   }
 }

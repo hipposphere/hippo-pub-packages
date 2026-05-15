@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart' show Gap;
 
 import '../../base/utils/components_context.dart';
-import '../../base/utils/gap.dart';
 import '../../container/page_container/page_container.dart';
 import '../../container/page_container/widgets/page_header.dart';
 import 'controller.dart';

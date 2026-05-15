@@ -53,7 +53,16 @@ export 'base/other/pull_down_options_button.dart';
 export 'base/other/scrollable_view.dart';
 
 // Utils
-export 'base/utils/gap.dart';
+export 'package:hippo_core_flutter/hippo_core_flutter.dart'
+    show
+        Gap,
+        LimitedContainer,
+        LimitedContainerPadded,
+        LimitedSliverPadded,
+        SliverChild,
+        SliverColumn,
+        SliverGap;
+
 export 'base/utils/app.dart';
 export 'base/utils/components_context.dart';
 export 'base/utils/cupertino_blur.dart';
@@ -63,8 +72,6 @@ export 'base/utils/elevated_element.dart';
 export 'base/utils/lottie_viewer.dart';
 export 'base/utils/body_list.dart';
 export 'base/utils/sliver_body_list.dart';
-export 'base/utils/limited_container.dart';
-export 'base/utils/limited_sliver.dart';
 export 'base/utils/key_events_listener.dart';
 export 'base/utils/smart_timeago_text.dart';
 export 'base/utils/toast_builder.dart';
@@ -75,9 +82,6 @@ export 'base/other/hover_content.dart';
 export 'base/other/hover_content2.dart';
 export 'base/other/app_version_text.dart';
 // slivers
-export 'base/slivers/sliver_column.dart';
-export 'base/slivers/sliver_gap.dart';
-export 'base/slivers/sliver_child.dart';
 export 'base/slivers/sliver_expansion.dart';
 export 'base/slivers/sliver_expansion_tile.dart';
 export 'base/slivers/sliver_fill_aligned.dart';

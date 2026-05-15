@@ -47,6 +47,30 @@ void main() {
     expect(find.text('second'), findsOneWidget);
   });
 
+  testWidgets('common and sliver layout widgets render their children', (tester) async {
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: CustomScrollView(
+          slivers: [
+            SliverGap(8),
+            SliverChild(child: Text('single child')),
+            SliverColumn(spacing: 4, children: [Text('column child'), Gap(8)]),
+            LimitedSliverPadded(
+              sliver: SliverToBoxAdapter(
+                child: LimitedContainerPadded(child: Text('limited child')),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.text('single child'), findsOneWidget);
+    expect(find.text('column child'), findsOneWidget);
+    expect(find.text('limited child'), findsOneWidget);
+  });
+
   test('MockKeyValueStore stores and removes values', () async {
     final store = MockKeyValueStore();
 

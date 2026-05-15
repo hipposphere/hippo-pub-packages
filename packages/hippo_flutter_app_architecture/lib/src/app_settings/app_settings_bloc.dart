@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/widgets.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core/hippo_core.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 import 'app_settings.dart';
 
 const _appSettingsKey = 'app_settings';
@@ -8,7 +9,10 @@ const _appSettingsKey = 'app_settings';
 class AppSettingsBloc extends BlocBase {
   final KeyValueStore keyValueStore;
 
-  AppSettingsBloc({required this.keyValueStore, AppSettings? initialAppSettings}) {
+  AppSettingsBloc({
+    required this.keyValueStore,
+    AppSettings? initialAppSettings,
+  }) {
     if (initialAppSettings != null) {
       settingsSubject.add(initialAppSettings);
     }
@@ -47,7 +51,10 @@ class AppSettingsBloc extends BlocBase {
   }
 
   Future<void> _storeAppSettings(AppSettings appSettings) async {
-    await keyValueStore.setString(_appSettingsKey, jsonEncode(appSettings.toData()));
+    await keyValueStore.setString(
+      _appSettingsKey,
+      jsonEncode(appSettings.toData()),
+    );
   }
 
   @override
@@ -55,5 +62,6 @@ class AppSettingsBloc extends BlocBase {
     settingsSubject.close();
   }
 
-  static AppSettingsBloc of(BuildContext context) => BlocProvider.of<AppSettingsBloc>(context);
+  static AppSettingsBloc of(BuildContext context) =>
+      BlocProvider.of<AppSettingsBloc>(context);
 }

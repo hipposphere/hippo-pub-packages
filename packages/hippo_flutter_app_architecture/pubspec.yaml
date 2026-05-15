@@ -12,9 +12,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  hippo_components:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.49
   hippo_core:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.1

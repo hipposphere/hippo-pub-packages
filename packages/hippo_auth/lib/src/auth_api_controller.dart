@@ -9,7 +9,7 @@ class HippoAuthApiController {
   HippoAuthApiController._({
     required Uri baseUrl,
     required this.sessionStore,
-    required this.sessionSubject,
+    required this.stateSubject,
   }) {
     _initController();
     api = Openapi.create(
@@ -30,31 +30,31 @@ class HippoAuthApiController {
     return HippoAuthApiController._(
       baseUrl: baseUrl,
       sessionStore: store,
-      sessionSubject: DataSubject.seeded(LoadingAuthState()),
+      stateSubject: DataSubject.seeded(LoadingAuthState()),
     );
   }
 
   Future<void> _initController() async {
     final savedSession = await sessionStore.readSession();
     if (savedSession != null) {
-      sessionSubject.add(AuthenticatedAuthState(session: savedSession));
+      stateSubject.add(AuthenticatedAuthState(session: savedSession));
     } else {
-      sessionSubject.add(UnauthenticatedAuthState());
+      stateSubject.add(UnauthenticatedAuthState());
     }
   }
 
-  final DataSubject<HippoAuthState> sessionSubject;
+  final DataSubject<HippoAuthState> stateSubject;
   final AuthSessionStore sessionStore;
 
-  AuthSession? get currentSession => sessionSubject.value.session;
+  AuthSession? get currentSession => stateSubject.value.session;
 
   Future<void> setSession(AuthSession session) async {
-    sessionSubject.add(AuthenticatedAuthState(session: session));
+    stateSubject.add(AuthenticatedAuthState(session: session));
     await sessionStore.saveSession(session);
   }
 
   Future<void> removeSession() async {
-    sessionSubject.add(UnauthenticatedAuthState());
+    stateSubject.add(UnauthenticatedAuthState());
 
     await sessionStore.deleteSession();
   }

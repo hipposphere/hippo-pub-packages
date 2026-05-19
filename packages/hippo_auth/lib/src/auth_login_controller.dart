@@ -109,11 +109,11 @@ class HippoAuthLoginController {
   }
 
   Future<void> internalHandleSignIn(AuthSession session) async {
-    apiController.sessionSubject.add(LoadingAuthState());
+    apiController.stateSubject.add(LoadingAuthState());
     try {
       await apiController.setSession(session);
     } catch (e) {
-      apiController.sessionSubject.add(UnauthenticatedAuthState());
+      apiController.stateSubject.add(UnauthenticatedAuthState());
     }
   }
 

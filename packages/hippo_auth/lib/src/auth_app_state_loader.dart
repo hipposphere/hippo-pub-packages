@@ -11,6 +11,6 @@ class AuthAppStateLoader extends AppStateLoader<HippoAuthState> {
 
   @override
   Stream<HippoAuthState> loadAppState() {
-    return authBloc.apiController.sessionSubject.stream;
+    return authBloc.apiController.stateSubject.stream;
   }
 }

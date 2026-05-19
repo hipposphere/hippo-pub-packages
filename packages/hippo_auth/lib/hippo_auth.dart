@@ -8,7 +8,7 @@ export 'src/models/auth_session.dart';
 export 'src/models/login_result.dart';
 export 'src/models/auth_api_error.dart';
 export 'src/models/sso_provider.dart';
-export 'src/models/auth_app_state.dart';
+export 'src/models/auth_state.dart';
 
 export 'src/utils/authorization_interceptor.dart';
 export 'src/utils/oauth2_redirect_server.dart';

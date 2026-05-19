@@ -1,6 +1,5 @@
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:hippo_auth/hippo_auth.dart';
-import 'package:hippo_utils/hippo_utils.dart';
 
 class HippoAuthLoginController {
   final HippoAuthApiController apiController;
@@ -110,11 +109,11 @@ class HippoAuthLoginController {
   }
 
   Future<void> internalHandleSignIn(AuthSession session) async {
-    apiController.sessionSubject.add(null);
+    apiController.sessionSubject.add(LoadingAuthState());
     try {
       await apiController.setSession(session);
     } catch (e) {
-      apiController.sessionSubject.add(SelectedValue(null));
+      apiController.sessionSubject.add(UnauthenticatedAuthState());
     }
   }
 

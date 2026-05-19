@@ -16,15 +16,14 @@ class HippoAuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return HippoAuthBuilder(
       builder: (context, value) {
-        if (value == null) {
-          return loadingBuilder(context);
-        }
-        final session = value.value;
-        if (session == null) {
-          return loginBuilder(context);
-        } else {
-          return childBuilder(context, session);
-        }
+        return switch (value) {
+          LoadingAuthState() || ErrorAuthState() => loadingBuilder(context),
+          UnauthenticatedAuthState() => loginBuilder(context),
+          AuthenticatedAuthState(:final session) => childBuilder(
+            context,
+            session,
+          ),
+        };
       },
     );
   }

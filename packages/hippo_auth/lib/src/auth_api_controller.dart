@@ -2,7 +2,6 @@ import 'package:chopper/chopper.dart';
 import 'package:hippo_auth/hippo_auth.dart';
 import 'package:hippo_auth/src/utils/auth_session_store.dart';
 import 'package:hippo_core/hippo_core.dart';
-import 'package:hippo_utils/hippo_utils.dart';
 
 class HippoAuthApiController {
   late Openapi api;
@@ -31,31 +30,32 @@ class HippoAuthApiController {
     return HippoAuthApiController._(
       baseUrl: baseUrl,
       sessionStore: store,
-      sessionSubject: DataSubject.seeded(null),
+      sessionSubject: DataSubject.seeded(LoadingAuthState()),
     );
   }
 
   Future<void> _initController() async {
     final savedSession = await sessionStore.readSession();
     if (savedSession != null) {
-      sessionSubject.add(SelectedValue<AuthSession?>(savedSession));
+      sessionSubject.add(AuthenticatedAuthState(session: savedSession));
     } else {
-      sessionSubject.add(SelectedValue<AuthSession?>(null));
+      sessionSubject.add(UnauthenticatedAuthState());
     }
   }
 
-  final DataSubject<SelectedValue<AuthSession?>?> sessionSubject;
+  final DataSubject<HippoAuthState> sessionSubject;
   final AuthSessionStore sessionStore;
 
-  AuthSession? get currentSession => sessionSubject.value?.value;
+  AuthSession? get currentSession => sessionSubject.value.session;
 
   Future<void> setSession(AuthSession session) async {
-    sessionSubject.add(SelectedValue<AuthSession?>(session));
+    sessionSubject.add(AuthenticatedAuthState(session: session));
     await sessionStore.saveSession(session);
   }
 
   Future<void> removeSession() async {
-    sessionSubject.add(SelectedValue<AuthSession?>(null));
+    sessionSubject.add(UnauthenticatedAuthState());
+
     await sessionStore.deleteSession();
   }
 

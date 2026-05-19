@@ -27,11 +27,8 @@ class _AppStateBuilderState<T, TData> extends State<AppStateBuilder<T, TData>> {
   StreamSubscription? _streamSubscription;
 
   @override
-  void initState() async {
+  void initState() {
     super.initState();
-
-    _setData(await widget.dataBuilder(widget.appStateBloc.stateSubject.value));
-
     _streamSubscription = widget.appStateBloc.stateSubject.listen((
       appState,
     ) async {

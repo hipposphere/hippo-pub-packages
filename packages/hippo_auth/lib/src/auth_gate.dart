@@ -43,8 +43,10 @@ class _HippoAuthGateState<TAuthenticated, TUnauthenticated>
   StreamSubscription<HippoAuthState>? _subscription;
   int _revision = 0;
 
-  _HippoAuthGateView<TAuthenticated, TUnauthenticated> _view =
-      _LoadingHippoAuthGateView<TAuthenticated, TUnauthenticated>();
+  _HippoAuthGatePhase _phase = _HippoAuthGatePhase.loading;
+  Object? _data;
+  AuthSession? _session;
+  ErrorAuthState? _errorState;
 
   @override
   void initState() {
@@ -82,11 +84,9 @@ class _HippoAuthGateState<TAuthenticated, TUnauthenticated>
 
     switch (state) {
       case LoadingAuthState():
-        _setView(_LoadingHippoAuthGateView<TAuthenticated, TUnauthenticated>());
+        _showLoading();
       case ErrorAuthState():
-        _setView(
-          _ErrorHippoAuthGateView<TAuthenticated, TUnauthenticated>(state),
-        );
+        _showError(state);
       case AuthenticatedAuthState(:final session):
         _resolveAuthenticated(revision, session);
       case UnauthenticatedAuthState():
@@ -95,7 +95,7 @@ class _HippoAuthGateState<TAuthenticated, TUnauthenticated>
   }
 
   Future<void> _resolveAuthenticated(int revision, AuthSession session) async {
-    _setView(_LoadingHippoAuthGateView<TAuthenticated, TUnauthenticated>());
+    _showLoading();
 
     try {
       final data = await Future<TAuthenticated>.sync(
@@ -104,26 +104,17 @@ class _HippoAuthGateState<TAuthenticated, TUnauthenticated>
       if (!_isCurrent(revision)) {
         return;
       }
-      _setView(
-        _AuthenticatedHippoAuthGateView<TAuthenticated, TUnauthenticated>(
-          data: data,
-          session: session,
-        ),
-      );
+      _setResolvedAuthenticated(data, session);
     } catch (error) {
       if (!_isCurrent(revision)) {
         return;
       }
-      _setView(
-        _ErrorHippoAuthGateView<TAuthenticated, TUnauthenticated>(
-          ErrorAuthState(error.toString()),
-        ),
-      );
+      _showError(ErrorAuthState(error.toString()));
     }
   }
 
   Future<void> _resolveUnauthenticated(int revision) async {
-    _setView(_LoadingHippoAuthGateView<TAuthenticated, TUnauthenticated>());
+    _showLoading();
 
     try {
       final data = await Future<TUnauthenticated>.sync(
@@ -132,78 +123,71 @@ class _HippoAuthGateState<TAuthenticated, TUnauthenticated>
       if (!_isCurrent(revision)) {
         return;
       }
-      _setView(
-        _UnauthenticatedHippoAuthGateView<TAuthenticated, TUnauthenticated>(
-          data,
-        ),
-      );
+      _setResolvedUnauthenticated(data);
     } catch (error) {
       if (!_isCurrent(revision)) {
         return;
       }
-      _setView(
-        _ErrorHippoAuthGateView<TAuthenticated, TUnauthenticated>(
-          ErrorAuthState(error.toString()),
-        ),
-      );
+      _showError(ErrorAuthState(error.toString()));
     }
   }
 
   bool _isCurrent(int revision) => mounted && revision == _revision;
 
-  void _setView(_HippoAuthGateView<TAuthenticated, TUnauthenticated> view) {
-    if (!mounted) {
-      _view = view;
-      return;
+  void _showLoading() {
+    _setPhase(_HippoAuthGatePhase.loading);
+  }
+
+  void _showError(ErrorAuthState state) {
+    _setPhase(_HippoAuthGatePhase.error, errorState: state);
+  }
+
+  void _setResolvedAuthenticated(TAuthenticated data, AuthSession session) {
+    _setPhase(_HippoAuthGatePhase.authenticated, data: data, session: session);
+  }
+
+  void _setResolvedUnauthenticated(TUnauthenticated data) {
+    _setPhase(_HippoAuthGatePhase.unauthenticated, data: data);
+  }
+
+  void _setPhase(
+    _HippoAuthGatePhase phase, {
+    Object? data,
+    AuthSession? session,
+    ErrorAuthState? errorState,
+  }) {
+    void update() {
+      _phase = phase;
+      _data = data;
+      _session = session;
+      _errorState = errorState;
     }
-    setState(() {
-      _view = view;
-    });
+
+    if (mounted) {
+      setState(update);
+    } else {
+      update();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return switch (_view) {
-      _LoadingHippoAuthGateView() => widget.loadingBuilder(context),
-      _ErrorHippoAuthGateView(:final state) =>
-        widget.errorBuilder?.call(context, state) ??
+    return switch (_phase) {
+      _HippoAuthGatePhase.loading => widget.loadingBuilder(context),
+      _HippoAuthGatePhase.error =>
+        widget.errorBuilder?.call(context, _errorState!) ??
             widget.loadingBuilder(context),
-      _AuthenticatedHippoAuthGateView(:final data, :final session) =>
-        widget.authenticatedBuilder(context, data, session),
-      _UnauthenticatedHippoAuthGateView(:final data) =>
-        widget.unauthenticatedBuilder(context, data),
+      _HippoAuthGatePhase.authenticated => widget.authenticatedBuilder(
+        context,
+        _data as TAuthenticated,
+        _session!,
+      ),
+      _HippoAuthGatePhase.unauthenticated => widget.unauthenticatedBuilder(
+        context,
+        _data as TUnauthenticated,
+      ),
     };
   }
 }
 
-sealed class _HippoAuthGateView<TAuthenticated, TUnauthenticated> {
-  const _HippoAuthGateView();
-}
-
-final class _LoadingHippoAuthGateView<TAuthenticated, TUnauthenticated>
-    extends _HippoAuthGateView<TAuthenticated, TUnauthenticated> {}
-
-final class _AuthenticatedHippoAuthGateView<TAuthenticated, TUnauthenticated>
-    extends _HippoAuthGateView<TAuthenticated, TUnauthenticated> {
-  const _AuthenticatedHippoAuthGateView({
-    required this.data,
-    required this.session,
-  });
-
-  final TAuthenticated data;
-  final AuthSession session;
-}
-
-final class _UnauthenticatedHippoAuthGateView<TAuthenticated, TUnauthenticated>
-    extends _HippoAuthGateView<TAuthenticated, TUnauthenticated> {
-  const _UnauthenticatedHippoAuthGateView(this.data);
-
-  final TUnauthenticated data;
-}
-
-final class _ErrorHippoAuthGateView<TAuthenticated, TUnauthenticated>
-    extends _HippoAuthGateView<TAuthenticated, TUnauthenticated> {
-  const _ErrorHippoAuthGateView(this.state);
-
-  final ErrorAuthState state;
-}
+enum _HippoAuthGatePhase { loading, authenticated, unauthenticated, error }

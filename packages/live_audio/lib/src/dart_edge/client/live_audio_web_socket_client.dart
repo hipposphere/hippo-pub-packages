@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dart_edge_core/dart_edge_core.dart';
 
 import '../../models/live_audio_socket_message.dart';
+import '../../models/live_audio_tool.dart';
 
 final class LiveAudioDartEdgeWebSocketClient {
   LiveAudioDartEdgeWebSocketClient(this._socket);
@@ -49,6 +50,12 @@ final class LiveAudioDartEdgeWebSocketClient {
 
   Future<void> cancelResponse() {
     return _send(const LiveAudioSocketMessage(type: LiveAudioSocketMessageType.cancelResponse));
+  }
+
+  Future<void> sendToolResponse(LiveAudioToolResponse response) {
+    return _send(
+      LiveAudioSocketMessage(type: LiveAudioSocketMessageType.toolResponse, toolResponse: response),
+    );
   }
 
   Future<void> close([int? code, String? reason]) async {

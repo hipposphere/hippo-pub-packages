@@ -1,3 +1,9 @@
+## 0.1.1
+
+- Adds provider-neutral `LiveAudioSession.sendToolResponse`.
+- Adds normalized `LiveAudioInterrupted` and `LiveAudioThinking` events.
+- Adds Dart Edge socket support for tool response messages and the new events.
+
 ## 0.1.0
 
 - Initial release.

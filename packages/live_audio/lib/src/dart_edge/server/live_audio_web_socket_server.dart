@@ -44,6 +44,8 @@ final class LiveAudioDartEdgeEventFilterConfig {
     this.outputChunk = true,
     this.transcript = true,
     this.textDelta = true,
+    this.thinking = true,
+    this.interrupted = true,
     this.turnComplete = true,
     this.toolCall = true,
     this.error = true,
@@ -54,6 +56,8 @@ final class LiveAudioDartEdgeEventFilterConfig {
   final bool outputChunk;
   final bool transcript;
   final bool textDelta;
+  final bool thinking;
+  final bool interrupted;
   final bool turnComplete;
   final bool toolCall;
   final bool error;
@@ -65,6 +69,8 @@ final class LiveAudioDartEdgeEventFilterConfig {
       LiveAudioOutputChunk() => outputChunk,
       LiveAudioTranscript() => transcript,
       LiveAudioTextDelta() => textDelta,
+      LiveAudioThinking() => thinking,
+      LiveAudioInterrupted() => interrupted,
       LiveAudioTurnComplete() => turnComplete,
       LiveAudioToolCall() => toolCall,
       LiveAudioError() => error,
@@ -223,6 +229,11 @@ Future<void> _handleClientMessage<TServices>(
       case LiveAudioSocketMessageType.cancelResponse:
         if (session is OpenAIRealtimeSession) {
           await session.cancelResponse();
+        }
+      case LiveAudioSocketMessageType.toolResponse:
+        final response = socketMessage.toolResponse;
+        if (response != null) {
+          await session.sendToolResponse(response);
         }
       case LiveAudioSocketMessageType.close:
         await session.close();

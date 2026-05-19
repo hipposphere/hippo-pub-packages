@@ -62,6 +62,16 @@ final class LiveAudioTextDelta extends LiveAudioEvent {
   final String? responseId;
 }
 
+final class LiveAudioThinking extends LiveAudioEvent {
+  const LiveAudioThinking({required super.provider, this.text, super.rawEvent});
+
+  final String? text;
+}
+
+final class LiveAudioInterrupted extends LiveAudioEvent {
+  const LiveAudioInterrupted({required super.provider, super.rawEvent});
+}
+
 final class LiveAudioTurnComplete extends LiveAudioEvent {
   const LiveAudioTurnComplete({required super.provider, super.rawEvent});
 }

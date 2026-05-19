@@ -19,6 +19,16 @@ final class LiveAudioTool {
   Map<String, dynamic> get parametersJson => _jsonObject(parameters);
 }
 
+final class LiveAudioToolResponse {
+  const LiveAudioToolResponse({required this.name, required this.response, this.id});
+
+  final String name;
+  final Map<String, Object?> response;
+  final String? id;
+
+  Map<String, dynamic> get responseJson => _jsonObject(response);
+}
+
 Map<String, dynamic> _jsonObject(Map<String, Object?> value) => {
   for (final entry in value.entries) entry.key: _jsonValue(entry.value),
 };

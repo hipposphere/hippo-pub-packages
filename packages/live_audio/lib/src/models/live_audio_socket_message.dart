@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'live_audio_event.dart';
 import 'live_audio_format.dart';
+import 'live_audio_tool.dart';
 
 enum LiveAudioSocketMessageType {
   audio,
@@ -11,11 +12,18 @@ enum LiveAudioSocketMessageType {
   clearAudio,
   endAudioInput,
   cancelResponse,
+  toolResponse,
   close,
 }
 
 final class LiveAudioSocketMessage {
-  const LiveAudioSocketMessage({required this.type, this.text, this.audio, this.reason});
+  const LiveAudioSocketMessage({
+    required this.type,
+    this.text,
+    this.audio,
+    this.toolResponse,
+    this.reason,
+  });
 
   factory LiveAudioSocketMessage.fromJson(Object? json) {
     if (json is! Map) {
@@ -27,6 +35,7 @@ final class LiveAudioSocketMessage {
       type: type,
       text: json['text'] as String?,
       audio: _readAudio(json['audio']),
+      toolResponse: _readToolResponse(json),
       reason: json['reason'] as String?,
     );
   }
@@ -45,6 +54,7 @@ final class LiveAudioSocketMessage {
   final LiveAudioSocketMessageType type;
   final String? text;
   final Uint8List? audio;
+  final LiveAudioToolResponse? toolResponse;
   final String? reason;
 
   static LiveAudioSocketMessageType _typeFromJson(Object? value) {
@@ -55,6 +65,7 @@ final class LiveAudioSocketMessage {
       'clear_audio' => LiveAudioSocketMessageType.clearAudio,
       'end_audio_input' => LiveAudioSocketMessageType.endAudioInput,
       'cancel_response' => LiveAudioSocketMessageType.cancelResponse,
+      'tool_response' => LiveAudioSocketMessageType.toolResponse,
       'close' => LiveAudioSocketMessageType.close,
       _ => throw FormatException('Unknown live audio socket message type: $value'),
     };
@@ -72,6 +83,26 @@ final class LiveAudioSocketMessage {
     }
     throw FormatException('Expected audio as base64 string or byte list.');
   }
+
+  static LiveAudioToolResponse? _readToolResponse(Map json) {
+    if (json['type'] != 'tool_response') {
+      return null;
+    }
+
+    final name = json['name'];
+    final response = json['response'];
+    if (name is! String || name.isEmpty) {
+      throw FormatException('Expected tool response name.');
+    }
+    if (response is! Map) {
+      throw FormatException('Expected tool response object.');
+    }
+    return LiveAudioToolResponse(
+      id: json['id'] as String?,
+      name: name,
+      response: _stringObjectMap(response),
+    );
+  }
 }
 
 final class LiveAudioSocketMessageCodec {
@@ -82,6 +113,9 @@ final class LiveAudioSocketMessageCodec {
       'type': _typeToJson(message.type),
       'text': ?message.text,
       'audio': ?(message.audio == null ? null : base64Encode(message.audio!)),
+      'id': ?message.toolResponse?.id,
+      'name': ?message.toolResponse?.name,
+      'response': ?message.toolResponse?.responseJson,
       'reason': ?message.reason,
     };
   }
@@ -102,6 +136,7 @@ final class LiveAudioSocketMessageCodec {
       LiveAudioSocketMessageType.clearAudio => 'clear_audio',
       LiveAudioSocketMessageType.endAudioInput => 'end_audio_input',
       LiveAudioSocketMessageType.cancelResponse => 'cancel_response',
+      LiveAudioSocketMessageType.toolResponse => 'tool_response',
       LiveAudioSocketMessageType.close => 'close',
     };
   }
@@ -158,6 +193,12 @@ final class LiveAudioSocketEventCodec {
         'response_id': ?responseId,
         'provider': event.provider.name,
       },
+      LiveAudioThinking(:final text) => {
+        'type': 'thinking',
+        'text': ?text,
+        'provider': event.provider.name,
+      },
+      LiveAudioInterrupted() => {'type': 'interrupted', 'provider': event.provider.name},
       LiveAudioTurnComplete() => {'type': 'turn_complete', 'provider': event.provider.name},
       LiveAudioToolCall(:final name, :final arguments, :final id) => {
         'type': 'tool_call',
@@ -191,4 +232,11 @@ final class LiveAudioSocketEventCodec {
 
 Object? encodeLiveAudioSocketEvent(LiveAudioEvent event) {
   return const LiveAudioSocketEventCodec().encode(event);
+}
+
+Map<String, Object?> _stringObjectMap(Map value) {
+  return <String, Object?>{
+    for (final entry in value.entries)
+      if (entry.key case final String key) key: entry.value,
+  };
 }

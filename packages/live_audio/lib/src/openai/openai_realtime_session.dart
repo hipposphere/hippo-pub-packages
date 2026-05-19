@@ -7,6 +7,7 @@ import 'package:openai_dart/openai_dart_realtime.dart' as realtime;
 
 import '../live_audio_service.dart';
 import '../live_audio_session.dart';
+import '../models/live_audio_tool.dart';
 import 'openai_realtime_config.dart';
 
 final class OpenAIRealtimeService implements LiveAudioService {
@@ -40,6 +41,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
   final openai.RealtimeConnection _connection;
   final _events = StreamController<LiveAudioEvent>.broadcast();
   late final StreamSubscription<realtime.RealtimeEvent> _subscription;
+  var _responseActive = false;
   var _closed = false;
 
   @override
@@ -111,14 +113,20 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
     _connection.cancelResponse();
   }
 
-  Future<void> sendToolResponse({
-    required String callId,
-    required Map<String, dynamic> output,
-  }) async {
+  @override
+  Future<void> sendToolResponse(LiveAudioToolResponse response) async {
     if (_closed) {
       return;
     }
-    _connection.sendFunctionOutput(callId, jsonEncode(output));
+    final callId = response.id;
+    if (callId == null || callId.isEmpty) {
+      throw ArgumentError.value(
+        response.id,
+        'response.id',
+        'OpenAI Realtime tool responses require a call id.',
+      );
+    }
+    _connection.sendFunctionOutput(callId, jsonEncode(response.responseJson));
     _connection.createResponse(modalities: const ['audio']);
   }
 
@@ -206,9 +214,18 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
             ),
           );
         }
+      case realtime.InputAudioBufferSpeechStartedEvent():
+        if (_responseActive) {
+          _events.add(LiveAudioInterrupted(provider: provider, rawEvent: event));
+        }
+      case realtime.ConversationItemTruncatedEvent():
+        _events.add(LiveAudioInterrupted(provider: provider, rawEvent: event));
+      case realtime.ResponseCreatedEvent():
+        _responseActive = true;
       case realtime.ResponseOutputItemDoneEvent(:final item):
         _emitToolCallFromItem(item, event);
       case realtime.ResponseDoneEvent():
+        _responseActive = false;
         _events.add(LiveAudioTurnComplete(provider: provider, rawEvent: event));
       case realtime.ErrorEvent(:final error):
         _events.add(

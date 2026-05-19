@@ -13,7 +13,8 @@ Realtime speech-to-speech sessions, plus PCM utilities for realtime pipelines.
 - Sends text prompts, PCM audio chunks, tool responses, commit, clear, and close
   commands through a common `LiveAudioSession` interface.
 - Emits normalized output audio chunks, input/output transcriptions, text
-  deltas, tool calls, turn completion, errors, and raw provider events.
+  deltas, thinking, interruption, tool calls, turn completion, errors, and raw
+  provider events.
 - Includes a PCM 24 kHz to 16 kHz downsampler for little-endian 16-bit audio.
 
 ## Usage
@@ -40,6 +41,15 @@ Future<void> startGeminiLiveAudio(String apiKey, String initialPrompt) async {
           break;
         case LiveAudioTranscript(:final kind, :final text):
           // Show input or output transcript text.
+          break;
+        case LiveAudioToolCall(:final id, :final name):
+          await session.sendToolResponse(
+            LiveAudioToolResponse(
+              id: id,
+              name: name,
+              response: {'ok': true},
+            ),
+          );
           break;
         case _:
           break;
@@ -111,6 +121,8 @@ Client frames:
 - JSON `{ "type": "clear_audio" }` clears buffered audio.
 - JSON `{ "type": "end_audio_input" }` ends the audio input stream.
 - JSON `{ "type": "cancel_response" }` cancels OpenAI Realtime output.
+- JSON `{ "type": "tool_response", "id": "...", "name": "...", "response": {...} }`
+  sends a provider-neutral tool response.
 - JSON `{ "type": "close" }` closes the provider session and socket.
 
 By default output audio chunks are sent as binary frames, while transcripts,

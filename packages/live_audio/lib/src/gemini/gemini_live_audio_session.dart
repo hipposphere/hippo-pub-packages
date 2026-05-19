@@ -5,6 +5,7 @@ import 'package:googleai_dart/googleai_dart.dart' as genai;
 
 import '../live_audio_service.dart';
 import '../live_audio_session.dart';
+import '../models/live_audio_tool.dart';
 import '../utils/audio.dart';
 import 'gemini_live_audio_config.dart';
 
@@ -118,11 +119,14 @@ final class GeminiLiveAudioSession implements LiveAudioSession {
     _session.signalActivityEnd();
   }
 
-  Future<void> sendToolResponse(genai.FunctionResponse response) async {
+  @override
+  Future<void> sendToolResponse(LiveAudioToolResponse response) async {
     if (_closed || !_session.isConnected) {
       return;
     }
-    _session.sendToolResponse([response]);
+    _session.sendToolResponse([
+      genai.FunctionResponse(id: response.id, name: response.name, response: response.responseJson),
+    ]);
   }
 
   @override
@@ -149,9 +153,14 @@ final class GeminiLiveAudioSession implements LiveAudioSession {
       case genai.BidiGenerateContentServerContent(
         :final modelTurn,
         :final turnComplete,
+        :final interrupted,
         :final inputTranscription,
         :final outputTranscription,
       ):
+        if (interrupted == true) {
+          _events.add(LiveAudioInterrupted(provider: provider, rawEvent: message));
+        }
+
         final inputText = inputTranscription?.text;
         if (inputText != null && inputText.isNotEmpty) {
           _events.add(
@@ -178,6 +187,14 @@ final class GeminiLiveAudioSession implements LiveAudioSession {
 
         for (final part in modelTurn?.parts ?? const <genai.Part>[]) {
           switch (part) {
+            case genai.TextPart(thought: true, :final text):
+              _events.add(
+                LiveAudioThinking(
+                  provider: provider,
+                  text: text.isEmpty ? null : text,
+                  rawEvent: message,
+                ),
+              );
             case genai.TextPart(:final text):
               if (text.isNotEmpty) {
                 _events.add(LiveAudioTextDelta(provider: provider, text: text, rawEvent: message));

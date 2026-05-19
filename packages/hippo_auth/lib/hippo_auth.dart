@@ -2,6 +2,7 @@ export 'api/api.dart';
 
 export 'src/auth_api_controller.dart';
 export 'src/auth_bloc.dart';
+export 'src/auth_gate.dart';
 
 export 'src/models/auth_response.dart';
 export 'src/models/auth_session.dart';

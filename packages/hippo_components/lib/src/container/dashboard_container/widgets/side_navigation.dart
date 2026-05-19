@@ -13,7 +13,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_components/src/container/dashboard_container/widgets/side_navigation/side_navigation_content.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core/hippo_core.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 
 class SideNavigation extends StatefulWidget {
   final DataSubject<bool> sideNavigationExpanded;

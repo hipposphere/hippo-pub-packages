@@ -9,7 +9,7 @@
 */
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 
 import 'types/floating_bottom_dialog_type.dart';

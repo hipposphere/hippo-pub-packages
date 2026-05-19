@@ -14,10 +14,16 @@ dependencies:
     path: ../
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.2.7
+    version: ^0.3.0
   hippo_components:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.44
+    version: ^0.1.50
+  hippo_core:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.0
+  hippo_core_flutter:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.1
 
 
 dev_dependencies:

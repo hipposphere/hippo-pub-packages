@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hippo_auth/src/auth_login_controller.dart';
 import 'package:hippo_components/hippo_components.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core/hippo_core.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 
 enum _ForgotPasswordModalState { enterEmail, loading, result }
 

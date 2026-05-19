@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:hippo_auth/hippo_auth.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 class HippoAuthBuilder extends StatelessWidget {

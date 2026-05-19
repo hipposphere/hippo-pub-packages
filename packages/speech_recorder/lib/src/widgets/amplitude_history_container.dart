@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 import 'package:speech_recorder/speech_recorder.dart';
 
 class SpeechRecorderAmplitudeHistoryContainer extends StatelessWidget {

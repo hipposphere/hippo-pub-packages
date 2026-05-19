@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_validation_panel.dart';
 import 'package:hippo_components/src/complex/json_schema_visualization/json_schema_visualization_panel.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 class JsonSchemaEditorPage extends StatelessWidget {

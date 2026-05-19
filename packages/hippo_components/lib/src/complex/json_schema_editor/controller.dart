@@ -9,6 +9,7 @@
 */
 import 'dart:convert';
 
+import 'package:hippo_core/hippo_core.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 import 'models/feature_options.dart';
 

@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:hippo_components/src/base/buttons/button.dart';
 import 'package:hippo_components/src/base/buttons/text.dart';
 import 'package:hippo_components/src/base/utils/components_context.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 
 import 'onboarding_body.dart';
 import 'onboarding_controller.dart';

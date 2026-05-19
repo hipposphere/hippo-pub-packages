@@ -15,13 +15,19 @@ dependencies:
     path: ../
   hippo_components:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.44
+    version: ^0.1.50
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.2.7
+    version: ^0.3.0
   hotkey_api:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.0
+  hippo_core:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.0
+  hippo_core_flutter:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.1
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

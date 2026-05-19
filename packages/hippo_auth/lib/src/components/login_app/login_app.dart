@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hippo_auth/hippo_auth.dart';
 import 'package:hippo_auth/src/components/login_app/pages/login_overview/page.dart';
 import 'package:hippo_components/hippo_components.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 
 class HippoAuthLoginFlow extends StatelessWidget {
   final Widget? header;

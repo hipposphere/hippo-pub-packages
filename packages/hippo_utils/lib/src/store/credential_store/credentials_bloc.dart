@@ -1,4 +1,6 @@
 import 'package:flutter/widgets.dart';
+import 'package:hippo_core/hippo_core.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 class CredentialsBloc extends BlocBase {

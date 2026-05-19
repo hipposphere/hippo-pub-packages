@@ -1,6 +1,6 @@
 name: hid_device_manager
 description: "Reactive HID device management on top of hid_api."
-version: 0.1.0
+version: 0.1.1
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -17,7 +17,13 @@ dependencies:
     version: ^0.1.2
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.2.4
+    version: ^0.3.0
+  hippo_core:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.0
+  hippo_core_flutter:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.1
 
 dev_dependencies:
   flutter_test:

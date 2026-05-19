@@ -12,13 +12,10 @@ class HidDeviceController {
   Stream<HidReport> deduplicatedInputReports({
     Duration deduplicationInterval = const Duration(milliseconds: 5),
   }) {
-    return managedDevice.deduplicatedInputReports(
-      deduplicationInterval: deduplicationInterval,
-    );
+    return managedDevice.deduplicatedInputReports(deduplicationInterval: deduplicationInterval);
   }
 
-  DataSubject<HidManagedDeviceState> get stateSubject =>
-      managedDevice.stateSubject;
+  DataSubject<HidManagedDeviceState> get stateSubject => managedDevice.stateSubject;
 
   Future<void> onAttached() async {}
 

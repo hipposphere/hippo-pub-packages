@@ -11,7 +11,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hippo_components/hippo_components.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 
 class SimpleAdaptiveCupertinoModal {
   final Color? backgroundColor;

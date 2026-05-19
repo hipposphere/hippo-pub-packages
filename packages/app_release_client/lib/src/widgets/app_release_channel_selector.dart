@@ -10,6 +10,7 @@
 import 'package:app_release_client/src/app_release_client_bloc.dart';
 import 'package:app_release_client/src/models/app_release_channel.dart';
 import 'package:flutter/material.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 class AppReleaseChannelSelector extends StatelessWidget {

@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 */
 import 'package:flutter/material.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core/hippo_core.dart';
 
 import 'onboarding_step.dart';
 

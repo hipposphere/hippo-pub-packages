@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:hid_api/hid_api.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core/hippo_core.dart';
 import 'package:hippo_utils/rxdart.dart';
 
 part 'controllers/hid_device_controller.dart';

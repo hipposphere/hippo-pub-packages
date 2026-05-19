@@ -9,6 +9,8 @@
 */
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
+import 'package:hippo_core/hippo_core.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 class MainDetailContainerController<T> {

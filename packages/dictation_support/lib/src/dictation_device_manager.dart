@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:hid_device_manager/hid_device_manager.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core/hippo_core.dart';
 
 import 'devices/speechmike_gamepad_device.dart';
 import 'devices/speechmike_hid_device.dart';

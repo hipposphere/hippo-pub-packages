@@ -1,6 +1,6 @@
 import 'package:app_release_client/app_release_client.dart';
 import 'package:flutter/material.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 
 void main() {
   runApp(const _ExampleApp());

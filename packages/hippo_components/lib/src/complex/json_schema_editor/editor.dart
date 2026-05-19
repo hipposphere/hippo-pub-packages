@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_property_card.dart';
+import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 import 'package:hippo_utils/hippo_utils.dart';
 
 import 'json_schema_editor_descriptions.dart';

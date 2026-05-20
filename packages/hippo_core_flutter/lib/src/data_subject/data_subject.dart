@@ -154,13 +154,15 @@ class CombinedDataSubjectBuilder<T1, T2> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<dynamic>>(
+    return StreamBuilder<dynamic>(
       stream: Rx.combineLatest2(subject1.stream, subject2.stream, (data1, data2) => [data1, data2]),
-      initialData: [_readSubjectValue(subject1), _readSubjectValue(subject2)],
+      initialData: [subject1.value, subject2.value],
       builder: (context, snapshot) {
         final data = snapshot.data;
-        if (data != null && data[0] != null && data[1] != null) {
-          return builder(context, data[0] as T1, data[1] as T2);
+        if (data != null) {
+          final data1 = data[0] as T1;
+          final data2 = data[1] as T2;
+          return builder(context, data1, data2);
         }
         return emptyBuilder != null ? emptyBuilder!(context) : const SizedBox.shrink();
       },

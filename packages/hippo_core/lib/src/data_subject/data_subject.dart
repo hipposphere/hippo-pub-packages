@@ -46,6 +46,8 @@ class DataSubject<T> {
 
   bool get isClosed => _subject.isClosed;
 
+  bool get hasValue => _subject.hasValue;
+
   StreamSubscription<T> listen(
     void Function(T data) onData, {
     Function? onError,

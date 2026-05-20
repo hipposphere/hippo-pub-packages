@@ -9,4 +9,6 @@
 */
 export 'src/bloc.dart';
 export 'src/data_subject/data_subject.dart';
-export 'src/store/key_value_store/key_value_store.dart';
+export 'src/store/key_value_store.dart';
+export 'src/store/store_controller.dart';
+export 'src/typedefs/typedefs.dart';

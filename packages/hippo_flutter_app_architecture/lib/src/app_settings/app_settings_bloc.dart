@@ -1,65 +1,38 @@
-import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:hippo_core/hippo_core.dart';
 import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 import 'app_settings.dart';
 
-const _appSettingsKey = 'app_settings';
-
 class AppSettingsBloc extends BlocBase {
-  final KeyValueStore keyValueStore;
+  final StoreController<AppSettings> _storeController;
 
   AppSettingsBloc({
-    required this.keyValueStore,
+    required KeyValueStore keyValueStore,
     AppSettings? initialAppSettings,
-  }) {
-    if (initialAppSettings != null) {
-      settingsSubject.add(initialAppSettings);
-    }
-    _initBloc();
-  }
+  }) : _storeController = StoreController<AppSettings>(
+         keyValueStore: keyValueStore,
+         storeKey: 'app_settings',
+         defaultValue: AppSettings.$default,
+         itemDecoder: (data) => AppSettings.fromData(data),
+         itemEncoder: (appSettings) => appSettings.toData(),
+         initialValue: initialAppSettings,
+       );
 
-  final settingsSubject = DataSubject<AppSettings?>.seeded(null);
-
-  void _initBloc() async {
-    final settings = await _getStoredAppSettings();
-    settingsSubject.add(settings);
-  }
+  DataSubject<AppSettings?> get settingsSubject => _storeController.subject;
 
   Future<void> updateAppSettings(AppSettings newSettings) async {
-    settingsSubject.add(newSettings);
-    await _storeAppSettings(newSettings);
+    await _storeController.update(newSettings);
   }
 
   Future<void> updateAppSettingsBuilder(
     AppSettings Function(AppSettings currentSettings) settingsBuilder,
   ) async {
-    final currentSettings = settingsSubject.value;
-    if (currentSettings == null) {
-      return;
-    }
-    final newSettings = settingsBuilder(currentSettings);
-    await updateAppSettings(newSettings);
-  }
-
-  Future<AppSettings> _getStoredAppSettings() async {
-    final data = await keyValueStore.getString(_appSettingsKey);
-    if (data == null) {
-      return AppSettings.$default;
-    }
-    return AppSettings.fromData(jsonDecode(data));
-  }
-
-  Future<void> _storeAppSettings(AppSettings appSettings) async {
-    await keyValueStore.setString(
-      _appSettingsKey,
-      jsonEncode(appSettings.toData()),
-    );
+    await _storeController.updateBuilder(builder: settingsBuilder);
   }
 
   @override
   void dispose() {
-    settingsSubject.close();
+    _storeController.dispose();
   }
 
   static AppSettingsBloc of(BuildContext context) =>

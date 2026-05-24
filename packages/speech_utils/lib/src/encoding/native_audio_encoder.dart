@@ -48,8 +48,7 @@ final class NativeAudioEncoder implements AacEncoder {
     required NativeAudioEncoderPlatformImplementation platformImplementation,
   }) : this._(platformImplementation: platformImplementation);
 
-  NativeAudioEncoder._({required NativeAudioEncoderPlatformImplementation platformImplementation})
-    : _platformImplementation = platformImplementation;
+  NativeAudioEncoder._({required this._platformImplementation});
 
   final NativeAudioEncoderPlatformImplementation _platformImplementation;
 

@@ -164,11 +164,12 @@ final class LiveAudioSocketEventCodec {
         'session_id': ?sessionId,
         'provider': event.provider.name,
       },
-      LiveAudioOutputChunk(:final bytes, :final format, :final responseId) => {
+      LiveAudioOutputChunk(:final bytes, :final format, :final responseId, :final turnId) => {
         'type': 'audio',
         'audio': base64Encode(bytes),
         'format': ?(format == null ? null : _formatToJson(format)),
         'response_id': ?responseId,
+        'turn_id': ?turnId,
         'provider': event.provider.name,
       },
       LiveAudioTranscript(
@@ -177,6 +178,7 @@ final class LiveAudioSocketEventCodec {
         :final isDelta,
         :final itemId,
         :final responseId,
+        :final turnId,
       ) =>
         {
           'type': 'transcript',
@@ -185,21 +187,32 @@ final class LiveAudioSocketEventCodec {
           'is_delta': isDelta,
           'item_id': ?itemId,
           'response_id': ?responseId,
+          'turn_id': ?turnId,
           'provider': event.provider.name,
         },
-      LiveAudioTextDelta(:final text, :final responseId) => {
+      LiveAudioTextDelta(:final text, :final responseId, :final turnId) => {
         'type': 'text_delta',
         'text': text,
         'response_id': ?responseId,
+        'turn_id': ?turnId,
         'provider': event.provider.name,
       },
-      LiveAudioThinking(:final text) => {
+      LiveAudioThinking(:final text, :final turnId) => {
         'type': 'thinking',
         'text': ?text,
+        'turn_id': ?turnId,
         'provider': event.provider.name,
       },
-      LiveAudioInterrupted() => {'type': 'interrupted', 'provider': event.provider.name},
-      LiveAudioTurnComplete() => {'type': 'turn_complete', 'provider': event.provider.name},
+      LiveAudioInterrupted(:final turnId) => {
+        'type': 'interrupted',
+        'turn_id': ?turnId,
+        'provider': event.provider.name,
+      },
+      LiveAudioTurnComplete(:final turnId) => {
+        'type': 'turn_complete',
+        'turn_id': ?turnId,
+        'provider': event.provider.name,
+      },
       LiveAudioToolCall(:final name, :final arguments, :final id) => {
         'type': 'tool_call',
         'name': name,

@@ -45,7 +45,7 @@ class AppReleaseClientBloc extends BlocBase {
     required this.platform,
     required this.arch,
     required this.packageTypes,
-    required String? appId,
+    required this._appId,
     required this.defaultChannelSlug,
     required this.currentVersion,
     required this.publicChannelsOnly,
@@ -53,7 +53,7 @@ class AppReleaseClientBloc extends BlocBase {
     required this.selectedChannelSubject,
     required this.appCastUrlSubject,
     required this.errorSubject,
-  }) : _appId = appId {
+  }) {
     unawaited(initialize());
   }
 

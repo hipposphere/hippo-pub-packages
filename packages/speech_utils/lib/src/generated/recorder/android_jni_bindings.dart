@@ -6500,9 +6500,9 @@ abstract base mixin class $Activity$ScreenCaptureCallback {
 
 final class _$Activity$ScreenCaptureCallback with $Activity$ScreenCaptureCallback {
   _$Activity$ScreenCaptureCallback({
-    required void Function() onScreenCaptured,
+    required this._onScreenCaptured,
     this.onScreenCaptured$async = false,
-  }) : _onScreenCaptured = onScreenCaptured;
+  });
 
   final void Function() _onScreenCaptured;
   final core$_.bool onScreenCaptured$async;
@@ -14774,12 +14774,11 @@ abstract base mixin class $AudioRecord$OnRecordPositionUpdateListener {
 final class _$AudioRecord$OnRecordPositionUpdateListener
     with $AudioRecord$OnRecordPositionUpdateListener {
   _$AudioRecord$OnRecordPositionUpdateListener({
-    required void Function(AudioRecord? audioRecord) onMarkerReached,
+    required this._onMarkerReached,
     this.onMarkerReached$async = false,
-    required void Function(AudioRecord? audioRecord) onPeriodicNotification,
+    required this._onPeriodicNotification,
     this.onPeriodicNotification$async = false,
-  }) : _onMarkerReached = onMarkerReached,
-       _onPeriodicNotification = onPeriodicNotification;
+  });
 
   final void Function(AudioRecord? audioRecord) _onMarkerReached;
   final core$_.bool onMarkerReached$async;
@@ -14964,12 +14963,11 @@ abstract base mixin class $AudioRecord$OnRoutingChangedListener {
 
 final class _$AudioRecord$OnRoutingChangedListener with $AudioRecord$OnRoutingChangedListener {
   _$AudioRecord$OnRoutingChangedListener({
-    required void Function(AudioRecord? audioRecord) onRoutingChanged,
+    required this._onRoutingChanged,
     this.onRoutingChanged$async = false,
-    required void Function(jni$_.JObject? audioRouting) onRoutingChanged$1,
+    required this._onRoutingChanged$1,
     this.onRoutingChanged$1$async = false,
-  }) : _onRoutingChanged = onRoutingChanged,
-       _onRoutingChanged$1 = onRoutingChanged$1;
+  });
 
   final void Function(AudioRecord? audioRecord) _onRoutingChanged;
   final core$_.bool onRoutingChanged$async;
@@ -16385,7 +16383,7 @@ abstract base mixin class $Runnable {
 }
 
 final class _$Runnable with $Runnable {
-  _$Runnable({required void Function() run, this.run$async = false}) : _run = run;
+  _$Runnable({required this._run, this.run$async = false});
 
   final void Function() _run;
   final core$_.bool run$async;

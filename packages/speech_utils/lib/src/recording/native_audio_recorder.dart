@@ -120,8 +120,7 @@ final class NativeAudioRecorder {
     required NativeAudioRecorderPlatformImplementation platformImplementation,
   }) : this._(platformImplementation: platformImplementation);
 
-  NativeAudioRecorder._({required NativeAudioRecorderPlatformImplementation platformImplementation})
-    : _platformImplementation = platformImplementation {
+  NativeAudioRecorder._({required this._platformImplementation}) {
     _appLifecycleListener = _createAppLifecycleListenerIfAvailable();
   }
 
@@ -1845,10 +1844,9 @@ final class _VadCaptureSessionImpl implements VadCaptureSession {
     required this.speechStates,
     required this.levels,
     required this.frameDecisions,
-    required Future<VadCaptureStopResult> Function() stopFn,
-    required Future<void> Function() cancelFn,
-  }) : _stopFn = stopFn,
-       _cancelFn = cancelFn;
+    required this._stopFn,
+    required this._cancelFn,
+  });
 
   final Future<VadCaptureStopResult> Function() _stopFn;
   final Future<void> Function() _cancelFn;

@@ -200,10 +200,9 @@ final class _DelayedAacEncoder implements AacEncoder {
 final class _FakeRecorderPlatformImplementation
     extends NativeAudioRecorderPlatformImplementation {
   _FakeRecorderPlatformImplementation({
-    required Uint8List pcmChunk,
+    required this._pcmChunk,
     List<String>? events,
-  }) : _pcmChunk = pcmChunk,
-       events = events ?? <String>[],
+  }) : events = events ?? <String>[],
        super(
          platform: NativeAudioRecorderPlatform.windows,
          supportsInputSelection: true,

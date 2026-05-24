@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:hippo_core/hippo_core.dart';
-import 'package:hippo_core/src/typedefs/typedefs.dart';
 
 /// A controller for a key-value store that manages a single value of type [T].
 /// Json encoding and decoding is used to store complex data structures as strings in the key-value store.

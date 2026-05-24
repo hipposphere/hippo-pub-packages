@@ -42,6 +42,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
   final _events = StreamController<LiveAudioEvent>.broadcast();
   late final StreamSubscription<realtime.RealtimeEvent> _subscription;
   var _responseActive = false;
+  String? _currentResponseId;
   var _closed = false;
 
   @override
@@ -73,7 +74,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
         {'type': 'input_text', 'text': text.trim()},
       ],
     });
-    _connection.createResponse(modalities: const ['audio']);
+    _connection.createResponse(outputModalities: const ['audio']);
   }
 
   @override
@@ -91,7 +92,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
     }
     _connection.commitAudio();
     if (!_config.enableServerVad || !_config.createResponseFromVad) {
-      _connection.createResponse(modalities: const ['audio']);
+      _connection.createResponse(outputModalities: const ['audio']);
     }
   }
 
@@ -127,7 +128,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
       );
     }
     _connection.sendFunctionOutput(callId, jsonEncode(response.responseJson));
-    _connection.createResponse(modalities: const ['audio']);
+    _connection.createResponse(outputModalities: const ['audio']);
   }
 
   @override
@@ -159,6 +160,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
               bytes: base64Decode(delta),
               format: _config.outputFormat,
               responseId: responseId,
+              turnId: responseId,
               rawEvent: event,
             ),
           );
@@ -187,6 +189,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
           text: delta,
           itemId: itemId,
           responseId: responseId,
+          turnId: responseId,
           kind: LiveAudioTranscriptKind.output,
           isDelta: true,
           rawEvent: event,
@@ -200,6 +203,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
           text: transcript,
           itemId: itemId,
           responseId: responseId,
+          turnId: responseId,
           kind: LiveAudioTranscriptKind.output,
           rawEvent: event,
         );
@@ -210,23 +214,36 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
               provider: provider,
               text: delta,
               responseId: responseId,
+              turnId: responseId,
               rawEvent: event,
             ),
           );
         }
       case realtime.InputAudioBufferSpeechStartedEvent():
         if (_responseActive) {
-          _events.add(LiveAudioInterrupted(provider: provider, rawEvent: event));
+          _events.add(
+            LiveAudioInterrupted(provider: provider, turnId: _currentResponseId, rawEvent: event),
+          );
         }
       case realtime.ConversationItemTruncatedEvent():
-        _events.add(LiveAudioInterrupted(provider: provider, rawEvent: event));
-      case realtime.ResponseCreatedEvent():
+        _events.add(
+          LiveAudioInterrupted(provider: provider, turnId: _currentResponseId, rawEvent: event),
+        );
+      case realtime.ResponseCreatedEvent(:final response):
         _responseActive = true;
+        if (response['id'] case final String responseId when responseId.isNotEmpty) {
+          _currentResponseId = responseId;
+        }
       case realtime.ResponseOutputItemDoneEvent(:final item):
         _emitToolCallFromItem(item, event);
-      case realtime.ResponseDoneEvent():
+      case realtime.ResponseDoneEvent(:final response):
+        final turnId = switch (response['id']) {
+          final String responseId when responseId.isNotEmpty => responseId,
+          _ => _currentResponseId,
+        };
         _responseActive = false;
-        _events.add(LiveAudioTurnComplete(provider: provider, rawEvent: event));
+        _currentResponseId = null;
+        _events.add(LiveAudioTurnComplete(provider: provider, turnId: turnId, rawEvent: event));
       case realtime.ErrorEvent(:final error):
         _events.add(
           LiveAudioError(
@@ -248,6 +265,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
     bool isDelta = false,
     String? itemId,
     String? responseId,
+    String? turnId,
   }) {
     if (text.isEmpty) {
       return;
@@ -260,6 +278,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
         isDelta: isDelta,
         itemId: itemId,
         responseId: responseId,
+        turnId: turnId,
         rawEvent: rawEvent,
       ),
     );

@@ -32,9 +32,7 @@ class OAuth2RedirectServerConfig {
 /// A small loopback HTTP server that waits for an OAuth2 redirect
 /// and captures the `code` and `state` query parameters.
 class OAuth2RedirectServer {
-  OAuth2RedirectServer({
-    OAuth2RedirectServerConfig config = const OAuth2RedirectServerConfig(),
-  }) : _config = config;
+  OAuth2RedirectServer({this._config = const OAuth2RedirectServerConfig()});
 
   HttpServer? _server;
   final Completer<AuthSession> _completer = Completer<AuthSession>();

@@ -1,3 +1,7 @@
+## Unreleased
+
+- Adds normalized `turnId` metadata to live audio output, text, transcript, thinking, interrupted, and turn-complete events.
+
 ## 0.1.1
 
 - Adds provider-neutral `LiveAudioSession.sendToolResponse`.

@@ -26,12 +26,10 @@ class SpeechRecorderController {
 
   SpeechRecorderController({
     required this.optionsBuilder,
-    SpeechRecorderCallback? onSessionStarted,
-    SpeechRecorderCallback? onSessionFinished,
+    this._onSessionStarted,
+    this._onSessionFinished,
     NativeAudioRecorder? audioRecorder,
-  }) : _onSessionStarted = onSessionStarted,
-       _onSessionFinished = onSessionFinished,
-       _recorder = audioRecorder ?? NativeAudioRecorder();
+  }) : _recorder = audioRecorder ?? NativeAudioRecorder();
 
   NativeAudioRecorder get audioRecorder => _recorder;
 

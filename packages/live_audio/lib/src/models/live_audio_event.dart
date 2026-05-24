@@ -24,12 +24,14 @@ final class LiveAudioOutputChunk extends LiveAudioEvent {
     required this.bytes,
     this.format,
     this.responseId,
+    this.turnId,
     super.rawEvent,
   });
 
   final Uint8List bytes;
   final LiveAudioInputFormat? format;
   final String? responseId;
+  final String? turnId;
 }
 
 final class LiveAudioTranscript extends LiveAudioEvent {
@@ -40,6 +42,7 @@ final class LiveAudioTranscript extends LiveAudioEvent {
     this.isDelta = false,
     this.itemId,
     this.responseId,
+    this.turnId,
     super.rawEvent,
   });
 
@@ -48,6 +51,7 @@ final class LiveAudioTranscript extends LiveAudioEvent {
   final bool isDelta;
   final String? itemId;
   final String? responseId;
+  final String? turnId;
 }
 
 final class LiveAudioTextDelta extends LiveAudioEvent {
@@ -55,25 +59,32 @@ final class LiveAudioTextDelta extends LiveAudioEvent {
     required super.provider,
     required this.text,
     this.responseId,
+    this.turnId,
     super.rawEvent,
   });
 
   final String text;
   final String? responseId;
+  final String? turnId;
 }
 
 final class LiveAudioThinking extends LiveAudioEvent {
-  const LiveAudioThinking({required super.provider, this.text, super.rawEvent});
+  const LiveAudioThinking({required super.provider, this.text, this.turnId, super.rawEvent});
 
   final String? text;
+  final String? turnId;
 }
 
 final class LiveAudioInterrupted extends LiveAudioEvent {
-  const LiveAudioInterrupted({required super.provider, super.rawEvent});
+  const LiveAudioInterrupted({required super.provider, this.turnId, super.rawEvent});
+
+  final String? turnId;
 }
 
 final class LiveAudioTurnComplete extends LiveAudioEvent {
-  const LiveAudioTurnComplete({required super.provider, super.rawEvent});
+  const LiveAudioTurnComplete({required super.provider, this.turnId, super.rawEvent});
+
+  final String? turnId;
 }
 
 final class LiveAudioToolCall extends LiveAudioEvent {

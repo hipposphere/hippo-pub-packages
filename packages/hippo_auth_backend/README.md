@@ -15,6 +15,7 @@ final backend = HippoAuthBackend(
     secret: 'replace-with-a-strong-secret-at-least-32-chars',
     baseUrl: 'http://localhost:3000',
     exposeBetterAuthApi: true,
+    manageMigrations: true, // Use application migrations in production.
   ),
 );
 
@@ -65,3 +66,12 @@ Better Auth SQL row models and table descriptors come from `dart_edge_auth`.
 `hippo_auth_backend` re-exports the canonical `DartEdgeAuthSchema`,
 `DartEdgeAuthUser`, `DartEdgeAuthSession`, `DartEdgeAuthUsersTable`, and
 `DartEdgeAuthSessionsTable` types for callers that need direct SQL access.
+
+Auth-managed migrations are disabled by default. Production applications should
+create and evolve the Better Auth tables through their normal migration system.
+Set `manageMigrations: true` only for throwaway/demo databases.
+
+For PostgreSQL deployments that isolate auth tables in a separate schema, pass
+`databaseSchema: 'auth'` and create that schema and its tables yourself.
+`hippo_auth_backend` forwards the schema to `dart_edge_auth`, and backend
+session lookups use the schema-aware SQL table descriptors.

@@ -11,7 +11,7 @@ import '../../options.dart';
 
 final class HippoAuthRouteContext {
   HippoAuthRouteContext({required this.options, required this.auth})
-    : sessions = SessionGateway(options.database);
+    : sessions = SessionGateway(options.database, schema: options.normalizedDatabaseSchema);
 
   final HippoAuthBackendOptions options;
   final DartEdgeAuth auth;

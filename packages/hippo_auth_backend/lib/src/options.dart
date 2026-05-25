@@ -8,6 +8,8 @@ final class HippoAuthBackendOptions {
     required this.database,
     required this.secret,
     required this.baseUrl,
+    this.databaseSchema,
+    this.manageMigrations = false,
     this.appName = 'Hippo Auth',
     this.betterAuthBasePath = '/better-auth',
     this.exposeBetterAuthApi = false,
@@ -27,6 +29,8 @@ final class HippoAuthBackendOptions {
   final SqlPool database;
   final String secret;
   final String baseUrl;
+  final String? databaseSchema;
+  final bool manageMigrations;
   final String appName;
   final String betterAuthBasePath;
   final bool exposeBetterAuthApi;
@@ -47,7 +51,11 @@ final class HippoAuthBackendOptions {
     return DartEdgeAuthConfig(
       secret: secret,
       baseUrl: baseUrl,
-      database: DartEdgeAuthDatabase.fromDatabase(database),
+      database: DartEdgeAuthDatabase.fromDatabase(
+        database,
+        schema: normalizedDatabaseSchema,
+        manageMigrations: manageMigrations,
+      ),
       basePath: betterAuthBasePath,
       appName: appName,
       enableEmailPassword: emailSignInEnabled || emailSignUpEnabled,
@@ -67,7 +75,24 @@ final class HippoAuthBackendOptions {
           : null,
     );
   }
+
+  String? get normalizedDatabaseSchema {
+    final schema = databaseSchema?.trim();
+    if (schema == null || schema.isEmpty) {
+      return null;
+    }
+    if (!_postgresIdentifierPattern.hasMatch(schema)) {
+      throw ArgumentError.value(
+        databaseSchema,
+        'databaseSchema',
+        'Must be an unquoted PostgreSQL identifier.',
+      );
+    }
+    return schema;
+  }
 }
+
+final _postgresIdentifierPattern = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
 
 final class HippoAuthBackendAdminOptions {
   const HippoAuthBackendAdminOptions({

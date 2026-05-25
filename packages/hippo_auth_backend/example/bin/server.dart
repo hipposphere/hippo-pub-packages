@@ -14,6 +14,7 @@ Future<void> main() async {
       baseUrl: 'http://localhost:3000',
       appName: 'Hippo Auth Example',
       exposeBetterAuthApi: true,
+      manageMigrations: true,
       branding: const HippoAuthBackendBranding(
         appName: 'Hippo Auth Example',
         supportEmail: 'support@hippo.local',

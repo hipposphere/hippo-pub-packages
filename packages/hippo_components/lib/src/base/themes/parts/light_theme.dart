@@ -27,7 +27,7 @@ final lightMaterialTheme = ThemeData(
 );
 
 final lightForuiTheme = FThemeData(
-  colors: const FColors(
+  colors: FColors(
     brightness: Brightness.light,
     background: Color(0xFFFFFFFF),
     foreground: Color(0xFF09090B),

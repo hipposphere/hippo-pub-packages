@@ -421,42 +421,42 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_auth
-      sha256: cf3182162aa6f4e3b84304ea9472c0d0356efed327b6e715e592919759eda8ca
+      sha256: ab39a76d36a725b01b396e9f517f4655dc54cad731174adf91793530ee14d5f0
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.12"
+    version: "0.3.15"
   dart_edge_core:
     dependency: transitive
     description:
       name: dart_edge_core
-      sha256: "4dd3254fa8012fb5f9b2c7a8e14685c3adcd5d2a37ee740565bba7c186454ddb"
+      sha256: "881626dfab61c55368f984a8a32359bcbef3386c03574ac281c1f714869572fe"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.13"
+    version: "0.3.17"
   dart_edge_http_server:
     dependency: transitive
     description:
       name: dart_edge_http_server
-      sha256: "2b08ec81569287ad251430442ec3fa203bf18fb7bfcaa3f92e7e55244916f9c6"
+      sha256: e4e1c37706d00b6a1afd2c0f24307039e72b449950651a37486fb8f002ac144c
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.13"
+    version: "0.3.14"
   dart_edge_http_server_runtime:
     dependency: transitive
     description:
       name: dart_edge_http_server_runtime
-      sha256: f521e60ee46e0bd4d9df5c313a1f8b7efc83b2581a7367ad8714fa5c443f6b00
+      sha256: "73c982142723c5d71dd9472226630fc091c1752fac294bb5f8bb7f70391249e8"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.18"
+    version: "0.3.19"
   dart_edge_jaspr:
     dependency: transitive
     description:
       name: dart_edge_jaspr
-      sha256: "59735ac126bf9b02363dff5fe306e8c4cd93c80d893bd8169b60c6e420926cf0"
+      sha256: "7649ab46a5c6720b427f9b7a6956e786b87ae2c1b741ca43cf903ffae454453e"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.5"
+    version: "0.3.6"
   dart_edge_native_assets:
     dependency: transitive
     description:
@@ -485,10 +485,10 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_sql
-      sha256: fbb3ddeb860ebdada76b14e07bf9c69c3d29ed09547f654016c7f0bc82a5e376
+      sha256: "6b554cd595af6226ae1338672a0157b36ba0b2b529dbeffab33793e8a13ee34b"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.18"
+    version: "0.3.21"
   dart_style:
     dependency: transitive
     description:
@@ -854,18 +854,18 @@ packages:
     dependency: transitive
     description:
       name: forui
-      sha256: "099deb57d345aaafd73b4ee3dc150bfe032e1d583a898461183586cbb0153778"
+      sha256: "91488f812d61016385410e403d2f9690408e3f89b3f18e53d1c40c576a73f600"
       url: "https://pub.dev"
     source: hosted
-    version: "0.21.3"
+    version: "0.22.1"
   forui_assets:
     dependency: transitive
     description:
       name: forui_assets
-      sha256: f83517074a11f6458986dbb5d0a0b364cebf6861a4e143acb2d51e6626ecf813
+      sha256: "5d81724c7d6b1bb538a0220fabcbeb5ceb0491ba3e80d5a19d694688e8fd1fbe"
       url: "https://pub.dev"
     source: hosted
-    version: "0.21.0"
+    version: "0.22.0"
   frontend_server_client:
     dependency: transitive
     description:
@@ -899,10 +899,10 @@ packages:
     dependency: transitive
     description:
       name: googleai_dart
-      sha256: fa1925592e52709adb99c57cb45f519b9de39800ba6b728e59e583fae82f40ee
+      sha256: "588c977eee548b3a35ca67b236e5f24643d72eb56f83118a949d716bdea7f575"
       url: "https://pub.dev"
     source: hosted
-    version: "6.3.0"
+    version: "7.0.0"
   gpt_markdown:
     dependency: transitive
     description:
@@ -1204,14 +1204,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
-  nitrogen_types:
-    dependency: transitive
-    description:
-      name: nitrogen_types
-      sha256: "5d4ec453aea14e34607bc6021ff1381192e8fcd8541bf103638baa4d013e668f"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.4.0+1"
   node_preamble:
     dependency: transitive
     description:

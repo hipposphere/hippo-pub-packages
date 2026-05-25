@@ -2,23 +2,43 @@ import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_sql/dart_edge_sql.dart';
 
 final class SessionGateway {
-  const SessionGateway(this.database);
+  SessionGateway(this.database, {String? schema})
+    : _sessions = DartEdgeAuthSchema(databaseSchema: schema).sessions;
 
   final SqlExecutor database;
+  final DartEdgeAuthSessionsTable _sessions;
 
-  Future<DartEdgeAuthSession?> findByToken(String token) {
-    return database.typed
-        .from(DartEdgeAuthSchema.sessions)
-        .selectTable(DartEdgeAuthSchema.sessions)
-        .where(DartEdgeAuthSessionsTable.token.equals(token))
+  Future<DartEdgeAuthSession?> findByToken(String token) async {
+    final session = await database.typed
+        .from(_sessions)
+        .selectTable(_sessions)
+        .where(_sessions.token.equals(token))
         .executeFirstOrNull();
+    if (session == null) {
+      return null;
+    }
+    return _sessionFromRow(session);
   }
 
   Future<void> updateExpiresAt({required String sessionId, required DateTime expiresAt}) async {
     await database.typed
-        .updateTable(DartEdgeAuthSchema.sessions)
-        .set(<String, Object?>{'expires_at': expiresAt.toUtc().toIso8601String()})
-        .where(DartEdgeAuthSessionsTable.id.equals(sessionId))
+        .updateTable(_sessions)
+        .set(DartEdgeAuthSessionUpdate(expiresAt: SqlValue(expiresAt.toUtc().toIso8601String())))
+        .where(_sessions.id.equals(sessionId))
         .execute();
   }
 }
+
+DartEdgeAuthSession _sessionFromRow(DartEdgeAuthSessionRow row) => DartEdgeAuthSession(
+  id: row.id,
+  userId: row.userId,
+  token: row.token,
+  ipAddress: row.ipAddress,
+  userAgent: row.userAgent,
+  expiresAt: DateTime.parse(row.expiresAt),
+  activeOrganizationId: row.activeOrganizationId,
+  impersonatedBy: row.impersonatedBy,
+  active: row.active,
+  createdAt: DateTime.parse(row.createdAt),
+  updatedAt: DateTime.parse(row.updatedAt),
+);

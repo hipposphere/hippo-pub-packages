@@ -2,8 +2,14 @@ export 'package:dart_edge_auth/dart_edge_auth.dart'
     show
         DartEdgeAuthSchema,
         DartEdgeAuthSession,
+        DartEdgeAuthSessionInsert,
+        DartEdgeAuthSessionRow,
         DartEdgeAuthSessionsTable,
+        DartEdgeAuthSessionUpdate,
         DartEdgeAuthUser,
+        DartEdgeAuthUserInsert,
+        DartEdgeAuthUserRow,
+        DartEdgeAuthUserUpdate,
         DartEdgeAuthUsersTable;
 
 export 'src/utils/api_error.dart';

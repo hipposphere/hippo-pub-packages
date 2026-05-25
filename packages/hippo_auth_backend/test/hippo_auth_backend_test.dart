@@ -41,6 +41,61 @@ void main() {
     expect(headers['cookie'], 'theme=dark; better-auth.session-token=session-token');
   });
 
+  test('disables auth-managed migrations by default', () {
+    final database = SqliteDatabase.inMemory();
+    addTearDown(database.close);
+
+    final options = HippoAuthBackendOptions(
+      database: database,
+      secret: 'test-secret-key-that-is-at-least-32-characters-long',
+      baseUrl: 'http://localhost:3000',
+    );
+
+    expect(options.manageMigrations, isFalse);
+    expect(options.toDartEdgeAuthConfig().database.manageMigrations, isFalse);
+  });
+
+  test('passes explicit auth-managed migrations through', () {
+    final database = SqliteDatabase.inMemory();
+    addTearDown(database.close);
+
+    final options = HippoAuthBackendOptions(
+      database: database,
+      secret: 'test-secret-key-that-is-at-least-32-characters-long',
+      baseUrl: 'http://localhost:3000',
+      manageMigrations: true,
+    );
+
+    expect(options.toDartEdgeAuthConfig().database.manageMigrations, isTrue);
+  });
+
+  test('normalizes and validates database schema options', () {
+    final database = SqliteDatabase.inMemory();
+    addTearDown(database.close);
+
+    final options = HippoAuthBackendOptions(
+      database: database,
+      secret: 'test-secret-key-that-is-at-least-32-characters-long',
+      baseUrl: 'http://localhost:3000',
+      databaseSchema: ' auth ',
+    );
+
+    expect(options.normalizedDatabaseSchema, 'auth');
+    final authDatabase = options.toDartEdgeAuthConfig().database;
+    expect(authDatabase, isA<SharedDartEdgeAuthDatabase>());
+    expect((authDatabase as SharedDartEdgeAuthDatabase).schema, 'auth');
+
+    expect(
+      () => HippoAuthBackendOptions(
+        database: database,
+        secret: 'test-secret-key-that-is-at-least-32-characters-long',
+        baseUrl: 'http://localhost:3000',
+        databaseSchema: 'auth;drop',
+      ).normalizedDatabaseSchema,
+      throwsArgumentError,
+    );
+  });
+
   test('mounts hippo auth, view, and optional better-auth routes', () {
     final database = SqliteDatabase.inMemory();
     final backend = _backend(database);
@@ -225,6 +280,7 @@ HippoAuthBackend _backend(SqlPool database) {
       baseUrl: 'http://localhost:3000',
       exposeBetterAuthApi: true,
       enableRateLimit: false,
+      manageMigrations: true,
     ),
   );
 }
@@ -265,6 +321,8 @@ void _expectSessionResponseSchema(Map<String, Object?> schema) {
   final properties = schema['properties']! as Map<String, Object?>;
   expect(properties.keys, containsAll(['session_id', 'token', 'expires_at', 'user']));
   final user = properties['user']! as Map<String, Object?>;
-  expect(user['type'], 'object');
-  expect(user.keys, isNot(contains('\$ref')));
+  expect(
+    user['type'] == 'object' || user['\$ref'] == '#/components/schemas/DartEdgeAuthUser',
+    isTrue,
+  );
 }

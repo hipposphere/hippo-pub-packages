@@ -19,7 +19,7 @@ final class HippoAuthBackendOptions {
     this.enablePasswordManagement = true,
     this.enableAccountManagement = true,
     this.enableEmailVerification = false,
-    this.enableRateLimit = true,
+    this.enableRateLimit = false,
     this.sessionCookieName = defaultHippoAuthSessionCookieName,
     this.ssoProviders = const <HippoAuthSsoProvider>[],
     this.admin = const HippoAuthBackendAdminOptions(),

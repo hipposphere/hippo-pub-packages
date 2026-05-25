@@ -36,9 +36,9 @@ DartEdgeAuthSession _sessionFromRow(DartEdgeAuthSessionRow row) => DartEdgeAuthS
   ipAddress: row.ipAddress,
   userAgent: row.userAgent,
   expiresAt: DateTime.parse(row.expiresAt),
-  activeOrganizationId: row.activeOrganizationId,
+  activeOrganizationId: null,
   impersonatedBy: row.impersonatedBy,
-  active: row.active,
+  active: true,
   createdAt: DateTime.parse(row.createdAt),
   updatedAt: DateTime.parse(row.updatedAt),
 );

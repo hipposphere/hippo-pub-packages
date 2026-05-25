@@ -272,44 +272,57 @@ void main() {
     expect(signupUser['email'], 'grace@example.com');
   });
 
-  test('signs in through compatibility route after direct Better Auth signup on PGlite', () async {
-    final database = PgliteDatabase.temporary().asPostgresPool();
-    final backend = _backend(database, databaseSchema: 'auth');
-    final app = DartEdge<void>(services: () {});
-    backend.mount(app, basePath: '/auth');
-
-    final server = await app.listen(port: 0, workers: 1);
-    final client = HttpClient();
-    addTearDown(() async {
-      client.close(force: true);
-      await server.close();
-      backend.dispose();
-      await database.close();
-    });
-
-    final baseUri = Uri.http('127.0.0.1:${server.port}');
-    final signup = await _postJson(client, baseUri.resolve('/auth/better-auth/sign-up/email'), {
-      'name': 'Katherine Johnson',
-      'email': 'katherine@example.com',
-      'password': 'password123',
-    });
-    final signupBody = await _readBody(signup);
-
-    expect(signup.statusCode, HttpStatus.ok, reason: signupBody);
-
-    final signin = await _postJson(client, baseUri.resolve('/auth/v1/user/sign-in-email'), {
-      'email': 'katherine@example.com',
-      'password': 'password123',
-    });
-    final signinBody = await _readBody(signin);
-
-    expect(signin.statusCode, HttpStatus.ok, reason: signinBody);
-    final signinJson = jsonDecode(signinBody) as Map<String, Object?>;
-    expect(signinJson['session_id'], isA<String>());
-    expect(signinJson['token'], isA<String>());
-    final signinUser = signinJson['user']! as Map<String, Object?>;
-    expect(signinUser['email'], 'katherine@example.com');
+  test('signs in through compatibility route after direct Better Auth signup on SQLite', () async {
+    await _expectDirectBetterAuthSignupThenCompatibilitySignin(database: SqliteDatabase.inMemory());
   });
+
+  test('signs in through compatibility route after direct Better Auth signup on PGlite', () async {
+    await _expectDirectBetterAuthSignupThenCompatibilitySignin(
+      database: PgliteDatabase.temporary().asPostgresPool(),
+      databaseSchema: 'auth',
+    );
+  });
+}
+
+Future<void> _expectDirectBetterAuthSignupThenCompatibilitySignin({
+  required SqlPool database,
+  String? databaseSchema,
+}) async {
+  final backend = _backend(database, databaseSchema: databaseSchema);
+  final app = DartEdge<void>(services: () {});
+  backend.mount(app, basePath: '/auth');
+
+  final server = await app.listen(port: 0, workers: 1);
+  final client = HttpClient();
+  addTearDown(() async {
+    client.close(force: true);
+    await server.close();
+    backend.dispose();
+    await database.close();
+  });
+
+  final baseUri = Uri.http('127.0.0.1:${server.port}');
+  final signup = await _postJson(client, baseUri.resolve('/auth/better-auth/sign-up/email'), {
+    'name': 'Katherine Johnson',
+    'email': 'katherine@example.com',
+    'password': 'password123',
+  });
+  final signupBody = await _readBody(signup);
+
+  expect(signup.statusCode, HttpStatus.ok, reason: signupBody);
+
+  final signin = await _postJson(client, baseUri.resolve('/auth/v1/user/sign-in-email'), {
+    'email': 'katherine@example.com',
+    'password': 'password123',
+  });
+  final signinBody = await _readBody(signin);
+
+  expect(signin.statusCode, HttpStatus.ok, reason: signinBody);
+  final signinJson = jsonDecode(signinBody) as Map<String, Object?>;
+  expect(signinJson['session_id'], isA<String>());
+  expect(signinJson['token'], isA<String>());
+  final signinUser = signinJson['user']! as Map<String, Object?>;
+  expect(signinUser['email'], 'katherine@example.com');
 }
 
 HippoAuthBackend _backend(SqlPool database, {String? databaseSchema}) {

@@ -1,6 +1,6 @@
 name: hippo_auth_backend
 description: A backend for the Hippo authentication system.
-version: 0.1.10
+version: 0.1.11
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -23,7 +23,7 @@ dependencies:
     version: ^0.3.6
   dart_edge_auth:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.18
+    version: ^0.3.19
   jaspr: ^0.23.1
 
 
@@ -32,4 +32,7 @@ dev_dependencies:
   dart_edge_http_server:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.3.14
+  dart_edge_sql_pglite:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.10
   test: ^1.30.0

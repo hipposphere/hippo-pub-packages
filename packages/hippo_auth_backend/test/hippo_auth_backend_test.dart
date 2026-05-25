@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_http_server/dart_edge_http_server.dart';
 import 'package:dart_edge_sql/dart_edge_sql.dart';
+import 'package:dart_edge_sql_pglite/dart_edge_sql_pglite.dart';
 import 'package:hippo_auth_backend/hippo_auth_backend.dart';
 import 'package:test/test.dart';
 
@@ -270,14 +271,54 @@ void main() {
     final signupUser = signupJson['user']! as Map<String, Object?>;
     expect(signupUser['email'], 'grace@example.com');
   });
+
+  test('signs in through compatibility route after direct Better Auth signup on PGlite', () async {
+    final database = PgliteDatabase.temporary().asPostgresPool();
+    final backend = _backend(database, databaseSchema: 'auth');
+    final app = DartEdge<void>(services: () {});
+    backend.mount(app, basePath: '/auth');
+
+    final server = await app.listen(port: 0, workers: 1);
+    final client = HttpClient();
+    addTearDown(() async {
+      client.close(force: true);
+      await server.close();
+      backend.dispose();
+      await database.close();
+    });
+
+    final baseUri = Uri.http('127.0.0.1:${server.port}');
+    final signup = await _postJson(client, baseUri.resolve('/auth/better-auth/sign-up/email'), {
+      'name': 'Katherine Johnson',
+      'email': 'katherine@example.com',
+      'password': 'password123',
+    });
+    final signupBody = await _readBody(signup);
+
+    expect(signup.statusCode, HttpStatus.ok, reason: signupBody);
+
+    final signin = await _postJson(client, baseUri.resolve('/auth/v1/user/sign-in-email'), {
+      'email': 'katherine@example.com',
+      'password': 'password123',
+    });
+    final signinBody = await _readBody(signin);
+
+    expect(signin.statusCode, HttpStatus.ok, reason: signinBody);
+    final signinJson = jsonDecode(signinBody) as Map<String, Object?>;
+    expect(signinJson['session_id'], isA<String>());
+    expect(signinJson['token'], isA<String>());
+    final signinUser = signinJson['user']! as Map<String, Object?>;
+    expect(signinUser['email'], 'katherine@example.com');
+  });
 }
 
-HippoAuthBackend _backend(SqlPool database) {
+HippoAuthBackend _backend(SqlPool database, {String? databaseSchema}) {
   return HippoAuthBackend(
     HippoAuthBackendOptions(
       database: database,
       secret: 'test-secret-key-that-is-at-least-32-characters-long',
       baseUrl: 'http://localhost:3000',
+      databaseSchema: databaseSchema,
       exposeBetterAuthApi: true,
       enableRateLimit: false,
       manageMigrations: true,
@@ -293,8 +334,11 @@ Future<HttpClientResponse> _postJson(HttpClient client, Uri uri, Map<String, Obj
 }
 
 Future<Map<String, Object?>> _readJson(HttpClientResponse response) async {
-  final body = await utf8.decoder.bind(response).join();
-  return jsonDecode(body) as Map<String, Object?>;
+  return jsonDecode(await _readBody(response)) as Map<String, Object?>;
+}
+
+Future<String> _readBody(HttpClientResponse response) async {
+  return utf8.decoder.bind(response).join();
 }
 
 Map<String, Object?> _operation(Map<String, Object?> paths, String path, String method) {

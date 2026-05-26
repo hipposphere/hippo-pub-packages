@@ -421,10 +421,10 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_auth
-      sha256: "40dffd0272d45b4600ca4b2e72a3f72ec4bdcd027cac9502d89a078e0373b437"
+      sha256: "05ee7e13c4d627c96cd33520df6de90638b306f0cad012306d93c4fb1bcdcc9c"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.20"
+    version: "0.3.23"
   dart_edge_core:
     dependency: transitive
     description:
@@ -437,18 +437,18 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_http_server
-      sha256: b727870efde1decb39303c37940a094557de5815077dbae73388e22aa26c294c
+      sha256: de860971e996cfc20906b7268e159b4797064f0e322cfaaa61714bed44f3b739
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.15"
+    version: "0.3.16"
   dart_edge_http_server_runtime:
     dependency: transitive
     description:
       name: dart_edge_http_server_runtime
-      sha256: "94e15f3b5945ec56032165efddaf2724096a913f8ea2a979ca692f65fbc60a3e"
+      sha256: "9a1af29d1aef3be34929abc01849f20dc2530f62abe3e84b4f637451ac394d3b"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.21"
+    version: "0.3.22"
   dart_edge_jaspr:
     dependency: transitive
     description:
@@ -682,10 +682,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_blue_plus
-      sha256: "80eab9325aaa6736eb0f59edb77ff42a98466fe2963d4d4c155c69c509504982"
+      sha256: fa4431a4ec07d752b3310080351c42ad435ff1e0fe2415884fb2de8d5bc6868f
       url: "https://pub.dev"
     source: hosted
-    version: "2.3.2"
+    version: "2.3.3"
   flutter_blue_plus_android:
     dependency: transitive
     description:
@@ -726,6 +726,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.0.0"
+  flutter_blue_plus_winrt:
+    dependency: transitive
+    description:
+      name: flutter_blue_plus_winrt
+      sha256: "0000b2d818e6f79ad07764206fdd8afb69426fd44453c6254c35828fd16aa09f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.20"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -862,10 +870,10 @@ packages:
     dependency: transitive
     description:
       name: forui
-      sha256: "91488f812d61016385410e403d2f9690408e3f89b3f18e53d1c40c576a73f600"
+      sha256: "8d798f9e643885689fb1a6eb91004455617689a43a4c79808800249dbdf57b40"
       url: "https://pub.dev"
     source: hosted
-    version: "0.22.1"
+    version: "0.22.2"
   forui_assets:
     dependency: transitive
     description:

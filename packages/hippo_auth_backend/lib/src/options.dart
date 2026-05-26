@@ -67,6 +67,10 @@ final class HippoAuthBackendOptions {
       enableAccountManagement: enableAccountManagement,
       enableEmailVerification: enableEmailVerification,
       enableRateLimit: enableRateLimit,
+      oauthProviders: ssoProviders
+          .map((provider) => provider.toDartEdgeOAuthProviderConfig())
+          .nonNulls
+          .toList(growable: false),
       admin: admin.enabled
           ? DartEdgeAuthAdminConfig(
               adminRole: adminRoles.first,
@@ -133,15 +137,67 @@ enum HippoAuthSsoProviderType {
 }
 
 final class HippoAuthSsoProvider {
-  const HippoAuthSsoProvider({required this.providerId, required this.providerType});
+  const HippoAuthSsoProvider({
+    required this.providerId,
+    required this.providerType,
+    this.clientId,
+    this.clientSecret,
+    this.authorizationUrl,
+    this.tokenUrl,
+    this.userInfoUrl,
+    this.scopes = const <String>['openid', 'email', 'profile'],
+  });
 
   final String providerId;
   final HippoAuthSsoProviderType providerType;
+  final String? clientId;
+  final String? clientSecret;
+  final String? authorizationUrl;
+  final String? tokenUrl;
+  final String? userInfoUrl;
+  final List<String> scopes;
 
   Map<String, Object?> toJson() => {
     'provider_id': providerId,
     'provider_type': providerType.jsonValue,
   };
+
+  DartEdgeAuthOAuthProviderConfig? toDartEdgeOAuthProviderConfig() {
+    if (providerType != HippoAuthSsoProviderType.genericOAuth) {
+      return null;
+    }
+    final normalizedProviderId = providerId.trim();
+    final normalizedClientId = clientId?.trim();
+    final normalizedClientSecret = clientSecret?.trim();
+    final normalizedAuthorizationUrl = authorizationUrl?.trim();
+    final normalizedTokenUrl = tokenUrl?.trim();
+    final normalizedUserInfoUrl = userInfoUrl?.trim();
+    if (normalizedProviderId.isEmpty ||
+        normalizedClientId == null ||
+        normalizedClientId.isEmpty ||
+        normalizedClientSecret == null ||
+        normalizedClientSecret.isEmpty ||
+        normalizedAuthorizationUrl == null ||
+        normalizedAuthorizationUrl.isEmpty ||
+        normalizedTokenUrl == null ||
+        normalizedTokenUrl.isEmpty ||
+        normalizedUserInfoUrl == null ||
+        normalizedUserInfoUrl.isEmpty) {
+      return null;
+    }
+    return DartEdgeAuthOAuthProviderConfig(
+      providerId: normalizedProviderId,
+      clientId: normalizedClientId,
+      clientSecret: normalizedClientSecret,
+      authorizationUrl: normalizedAuthorizationUrl,
+      tokenUrl: normalizedTokenUrl,
+      userInfoUrl: normalizedUserInfoUrl,
+      scopes: scopes
+          .map((scope) => scope.trim())
+          .where((scope) => scope.isNotEmpty)
+          .toList(growable: false),
+    );
+  }
 }
 
 final class HippoAuthBackendBranding {

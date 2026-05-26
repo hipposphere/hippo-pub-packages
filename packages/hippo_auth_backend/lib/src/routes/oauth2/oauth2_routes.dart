@@ -5,6 +5,6 @@ import 'callback/route.dart';
 import 'sign_in/route.dart';
 
 void mountOAuth2Routes<TServices>(Router<TServices> router, HippoAuthRouteContext context) {
-  router.routeGet('/sign-in/<providerId>', OAuth2SignInRoute<TServices>());
-  router.routeGet('/callback/<providerId>', OAuth2CallbackRoute<TServices>());
+  router.routeGet('/sign-in/<providerId>', OAuth2SignInRoute<TServices>(context));
+  router.routeGet('/callback/<providerId>', OAuth2CallbackRoute<TServices>(context));
 }

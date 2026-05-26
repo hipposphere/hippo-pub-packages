@@ -12,8 +12,18 @@ const signInSsoBodySchema = JsonSchema.object(
 );
 
 const signInSsoResponseSchema = JsonSchema.object(
-  properties: <String, JsonSchema>{'url': JsonSchema.string()},
-  required: <String>['url'],
+  properties: <String, JsonSchema>{
+    'success': JsonSchema.boolean(),
+    'data': JsonSchema.object(
+      properties: <String, JsonSchema>{
+        'providerId': JsonSchema.string(),
+        'redirectUrl': JsonSchema.string(),
+      },
+      required: <String>['providerId', 'redirectUrl'],
+      additionalProperties: false,
+    ),
+  },
+  required: <String>['success', 'data'],
   additionalProperties: false,
 );
 
@@ -32,8 +42,5 @@ final signInSsoRouteOptions = RouteOptions(
   summary: 'Start an SSO sign-in flow.',
   body: RequestBody.json(schema: signInSsoBodySchema, decoder: SignInSsoBody.fromJson),
   success: ResponseSpec.json(schema: signInSsoResponseSchema),
-  errors: const <ErrorResponse>[
-    ErrorResponse(status: 500, code: 'SSOLoginInitiationFailed'),
-    ErrorResponse(status: 501, code: 'SSOLoginUnsupported'),
-  ],
+  errors: const <ErrorResponse>[ErrorResponse(status: 500, code: 'SSOLoginInitiationFailed')],
 );

@@ -6,16 +6,22 @@ import 'package:dart_edge_core/dart_edge_core.dart';
 import '../../utils/api_error.dart';
 import '../../utils/auth_guard.dart';
 import '../../gateways/session_gateway.dart';
+import '../../gateways/verification_gateway.dart';
 import '../../models/hippo_auth_session_payload.dart';
 import '../../options.dart';
 
 final class HippoAuthRouteContext {
   HippoAuthRouteContext({required this.options, required this.auth})
-    : sessions = SessionGateway(options.database, schema: options.normalizedDatabaseSchema);
+    : sessions = SessionGateway(options.database, schema: options.normalizedDatabaseSchema),
+      verifications = VerificationGateway(
+        options.database,
+        schema: options.normalizedDatabaseSchema,
+      );
 
   final HippoAuthBackendOptions options;
   final DartEdgeAuth auth;
   final SessionGateway sessions;
+  final VerificationGateway verifications;
 
   HippoAuthGuard<TServices> adminGuard<TServices>() {
     return HippoAuthGuard<TServices>(

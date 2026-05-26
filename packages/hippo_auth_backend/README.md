@@ -52,9 +52,10 @@ Mounted routes include:
 - `/views/reset-password`
 - `/views/confirm-mail`
 
-OAuth2, SSO, and OAuth client admin routes are registered for client
-compatibility, but return `501` until `dart_edge_auth` exposes the matching
-Better Auth plugins.
+OAuth2 and SSO routes are backed by `dart_edge_auth` OAuth providers. OAuth
+client admin routes are still registered for client compatibility, but return
+`501` until `dart_edge_auth` exposes the matching Better Auth OAuth provider
+management plugin.
 
 Generated OpenAPI docs include stable operation IDs, request body presence,
 response content types, and error status metadata. Hippo route payloads are

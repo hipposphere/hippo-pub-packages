@@ -1,6 +1,5 @@
 import 'package:dart_edge_core/dart_edge_core.dart';
 
-import '../../../utils/api_error.dart';
 import '../../shared/route_context.dart';
 import '../../shared/route_definition.dart';
 import 'schema.dart';
@@ -20,13 +19,14 @@ final class SignInSsoRoute<TServices> extends HippoAuthJsonRoute<TServices> {
   RouteOptions get options => signInSsoRouteOptions;
 
   @override
-  Object? handleJson(RequestContext<TServices> ctx) {
+  Future<Object?> handleJson(RequestContext<TServices> ctx) async {
     final body = ctx.req.body<SignInSsoBody>();
-    return hippoAuthErrorResponse(
-      501,
-      'SSOLoginUnsupported',
-      'SSO sign-in is not supported by dart_edge_auth.',
-      details: {'provider_id': body.providerId},
-    );
+    final result = await context
+        .api(ctx)
+        .signInOAuth(provider: body.providerId, callbackUrl: body.successUrl);
+    return {
+      'success': true,
+      'data': {'providerId': body.providerId, 'redirectUrl': result.url},
+    };
   }
 }

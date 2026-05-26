@@ -72,6 +72,34 @@ void main() {
     expect(options.toDartEdgeAuthConfig().database.manageMigrations, isTrue);
   });
 
+  test('passes generic OAuth SSO providers to dart_edge_auth', () {
+    final database = SqliteDatabase.inMemory();
+    addTearDown(database.close);
+
+    final options = HippoAuthBackendOptions(
+      workerPoolSize: 4,
+      database: database,
+      secret: 'test-secret-key-that-is-at-least-32-characters-long',
+      baseUrl: 'http://localhost:3000',
+      ssoProviders: const [
+        HippoAuthSsoProvider(
+          providerId: 'uka',
+          providerType: HippoAuthSsoProviderType.genericOAuth,
+          clientId: 'client-id',
+          clientSecret: 'client-secret',
+          authorizationUrl: 'https://idp.example.test/oauth/authorize',
+          tokenUrl: 'https://idp.example.test/oauth/token',
+          userInfoUrl: 'https://idp.example.test/oauth/userinfo',
+        ),
+      ],
+    );
+
+    final oauthProviders = options.toDartEdgeAuthConfig().oauthProviders;
+    expect(oauthProviders, hasLength(1));
+    expect(oauthProviders.single.providerId, 'uka');
+    expect(oauthProviders.single.clientId, 'client-id');
+  });
+
   test('normalizes and validates database schema options', () {
     final database = SqliteDatabase.inMemory();
     addTearDown(database.close);

@@ -421,34 +421,34 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_auth
-      sha256: "116331424720458f6462ecc44baf6100e0e5f46e19796485673be7f944dfe010"
+      sha256: "40dffd0272d45b4600ca4b2e72a3f72ec4bdcd027cac9502d89a078e0373b437"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.19"
+    version: "0.3.20"
   dart_edge_core:
     dependency: transitive
     description:
       name: dart_edge_core
-      sha256: "881626dfab61c55368f984a8a32359bcbef3386c03574ac281c1f714869572fe"
+      sha256: "6e95ab86295050d3d5f2a3669476538f1115916f25fb99cfea42a211acfc18e9"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.17"
+    version: "0.3.20"
   dart_edge_http_server:
     dependency: transitive
     description:
       name: dart_edge_http_server
-      sha256: e4e1c37706d00b6a1afd2c0f24307039e72b449950651a37486fb8f002ac144c
+      sha256: b727870efde1decb39303c37940a094557de5815077dbae73388e22aa26c294c
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.14"
+    version: "0.3.15"
   dart_edge_http_server_runtime:
     dependency: transitive
     description:
       name: dart_edge_http_server_runtime
-      sha256: "73c982142723c5d71dd9472226630fc091c1752fac294bb5f8bb7f70391249e8"
+      sha256: "94e15f3b5945ec56032165efddaf2724096a913f8ea2a979ca692f65fbc60a3e"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.19"
+    version: "0.3.21"
   dart_edge_jaspr:
     dependency: transitive
     description:
@@ -485,10 +485,10 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_sql
-      sha256: "6b554cd595af6226ae1338672a0157b36ba0b2b529dbeffab33793e8a13ee34b"
+      sha256: "2e43ac5ae36f75c4d6b17bd3d783550c8744e057b46588e8a0498cb55bfcf460"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.21"
+    version: "0.3.22"
   dart_edge_sql_pglite:
     dependency: transitive
     description:
@@ -780,26 +780,26 @@ packages:
     dependency: transitive
     description:
       name: flutter_secure_storage
-      sha256: "6848263f9744072d0977347c383fb8b57d9780319a6bf5238b5a2866a029de62"
+      sha256: d2a6ac2df7353f5ca47eb159a5407c1dba7ec48ca0e02dc38c9ff4d29447b261
       url: "https://pub.dev"
     source: hosted
-    version: "10.2.0"
+    version: "10.3.0"
   flutter_secure_storage_darwin:
     dependency: transitive
     description:
       name: flutter_secure_storage_darwin
-      sha256: "3af15a3cb2bf5b8b776832bd01776f8018766aece55623176e28b406481fb320"
+      sha256: "82329fa5cdf343773b1b6897dea959105a29f092454259edff92f9f6637e8149"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.0"
+    version: "0.3.2"
   flutter_secure_storage_linux:
     dependency: transitive
     description:
       name: flutter_secure_storage_linux
-      sha256: "2b5c76dce569ab752d55a1cee6a2242bcc11fdba927078fb88c503f150767cda"
+      sha256: a5f35ddab43cf5c8215d2feb4ce1957851f28c5c37e6f04335066a0602087bf5
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.0"
+    version: "3.0.1"
   flutter_secure_storage_platform_interface:
     dependency: transitive
     description:

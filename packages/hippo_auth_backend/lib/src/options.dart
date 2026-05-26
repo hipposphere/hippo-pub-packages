@@ -12,6 +12,7 @@ final class HippoAuthBackendOptions {
     this.manageMigrations = false,
     this.appName = 'Hippo Auth',
     this.betterAuthBasePath = '/better-auth',
+    required this.workerPoolSize,
     this.exposeBetterAuthApi = false,
     this.useNativeBetterAuthRoutes = true,
     this.emailSignInEnabled = true,
@@ -33,6 +34,7 @@ final class HippoAuthBackendOptions {
   final bool manageMigrations;
   final String appName;
   final String betterAuthBasePath;
+  final int workerPoolSize;
   final bool exposeBetterAuthApi;
   final bool useNativeBetterAuthRoutes;
   final bool emailSignInEnabled;
@@ -51,6 +53,7 @@ final class HippoAuthBackendOptions {
     return DartEdgeAuthConfig(
       secret: secret,
       baseUrl: baseUrl,
+      workerPoolSize: workerPoolSize,
       database: DartEdgeAuthDatabase.fromDatabase(
         database,
         schema: normalizedDatabaseSchema,

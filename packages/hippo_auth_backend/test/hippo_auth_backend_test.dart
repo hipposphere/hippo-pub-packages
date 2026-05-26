@@ -47,6 +47,7 @@ void main() {
     addTearDown(database.close);
 
     final options = HippoAuthBackendOptions(
+      workerPoolSize: 4,
       database: database,
       secret: 'test-secret-key-that-is-at-least-32-characters-long',
       baseUrl: 'http://localhost:3000',
@@ -61,6 +62,7 @@ void main() {
     addTearDown(database.close);
 
     final options = HippoAuthBackendOptions(
+      workerPoolSize: 4,
       database: database,
       secret: 'test-secret-key-that-is-at-least-32-characters-long',
       baseUrl: 'http://localhost:3000',
@@ -75,6 +77,7 @@ void main() {
     addTearDown(database.close);
 
     final options = HippoAuthBackendOptions(
+      workerPoolSize: 4,
       database: database,
       secret: 'test-secret-key-that-is-at-least-32-characters-long',
       baseUrl: 'http://localhost:3000',
@@ -88,6 +91,7 @@ void main() {
 
     expect(
       () => HippoAuthBackendOptions(
+        workerPoolSize: 4,
         database: database,
         secret: 'test-secret-key-that-is-at-least-32-characters-long',
         baseUrl: 'http://localhost:3000',
@@ -328,6 +332,7 @@ Future<void> _expectDirectBetterAuthSignupThenCompatibilitySignin({
 HippoAuthBackend _backend(SqlPool database, {String? databaseSchema}) {
   return HippoAuthBackend(
     HippoAuthBackendOptions(
+      workerPoolSize: 4,
       database: database,
       secret: 'test-secret-key-that-is-at-least-32-characters-long',
       baseUrl: 'http://localhost:3000',

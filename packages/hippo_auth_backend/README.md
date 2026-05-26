@@ -11,6 +11,7 @@ with `dart_edge_jaspr`.
 final database = SqliteDatabase.inMemory();
 final backend = HippoAuthBackend(
   HippoAuthBackendOptions(
+      workerPoolSize: 4,
     database: database,
     secret: 'replace-with-a-strong-secret-at-least-32-chars',
     baseUrl: 'http://localhost:3000',

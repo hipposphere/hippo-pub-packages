@@ -9,6 +9,7 @@ Future<void> main() async {
 
   final backend = HippoAuthBackend(
     HippoAuthBackendOptions(
+      workerPoolSize: 4,
       database: database,
       secret: 'example-secret-key-that-is-at-least-32-characters-long',
       baseUrl: 'http://localhost:3000',

@@ -15,7 +15,11 @@ This repository contains commonly used Dart & Flutter packages maintained by **H
 - **`packages/hippo_components`** – Comprehensive Flutter UI component library with modals, charts, themes, sliver utilities, and cross-platform adaptive widgets.
 - **`packages/hippo_utils`** – Cross‑platform utility wrappers and convenience exports for frequently used packages (files, sharing, purchases, URL launching, reactive streams, BLoC helpers, etc.).
 - **`packages/hippo_auth`** – Authentication and authorization utilities for Hipposphere applications.
-- **`packages/hippo_ui`** – Additional UI components and design system extensions.
+- **`packages/hippo_ui`** – Framework-neutral widget preview annotations for Hipposphere UI tooling.
+- **`packages/hippo_ui_flutter`** – Flutter widget preview annotations backed by `hippo_ui` metadata.
+- **`packages/hippo_ui_review`** – Contracts for UI review, inspection, playground, and design QA apps.
+- **`packages/hippo_ui_review_flutter`** – Flutter widgets for UI review, inspection, playground, and design QA apps.
+- **`packages/hippo_ui_codegen`** – Build runner code generators for Hipposphere UI annotations.
 - **`packages/dictation_support`** – Support dictation devices using the hid_api package.
 - **`packages/hid_device_manager`** – Reactive HID device registration, connection policy, and lifecycle management.
 - **`packages/hid_api`** – Human Interface Device (HID) API bindings for native device communication.
@@ -80,9 +84,29 @@ import 'package:hippo_utils/hippo_utils.dart';
 **Features**: User authentication, session management, and security utilities for Hipposphere applications.
 
 ### `hippo_ui`  [→ detailed README](packages/hippo_ui/README.md)
-**Focus**: Extended UI components and design system additions.
+**Focus**: Framework-neutral widget preview annotations.
 
-**Features**: Additional UI components that complement the core `hippo_components` library.
+**Features**: Const-friendly annotations, folder paths, and option metadata for generated catalogs and tooling.
+
+### `hippo_ui_flutter`  [→ detailed README](packages/hippo_ui_flutter/README.md)
+**Focus**: Flutter widget preview annotations.
+
+**Features**: `HippoWidgetPreviewFlutter` extends Flutter's `Preview` while carrying `HippoWidgetPreview` metadata for Hipposphere catalogs and review tooling.
+
+### `hippo_ui_review`  [→ detailed README](packages/hippo_ui_review/README.md)
+**Focus**: Framework-neutral contracts for UI review and inspection apps.
+
+**Features**: Addon contracts, predefined review addons, playground option models, review settings, and example metadata for generated catalogs and design QA surfaces.
+
+### `hippo_ui_review_flutter`  [→ detailed README](packages/hippo_ui_review_flutter/README.md)
+**Focus**: Flutter implementations for UI review and inspection apps.
+
+**Features**: Review scope, review surface, viewport/zoom/theme application, and grid/hitbox overlays backed by `hippo_ui_review`.
+
+### `hippo_ui_codegen`  [→ detailed README](packages/hippo_ui_codegen/README.md)
+**Focus**: Code generation for Hipposphere UI annotations.
+
+**Features**: A `build_runner` builder that reads `HippoWidgetFolder` and `HippoWidgetPreview` annotations and emits generated catalog metadata.
 
 ### `dictation_support`  [→ detailed README](packages/dictation_support/README.md)
 **Focus**: Speech recognition and dictation capabilities.

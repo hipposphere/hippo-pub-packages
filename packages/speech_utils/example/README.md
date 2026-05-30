@@ -84,7 +84,7 @@ This repository includes a desktop integration test at:
 What it validates:
 
 - first non-empty microphone PCM chunk capture latency from `NativeAudioRecorder.startPcmStream(...)`
-- end-to-end `startVadCapture(...)` pipeline with VAD + native AAC segment encoding
+- end-to-end `startSegmentedCapture(...)` pipeline with segmented capture + native AAC segment encoding
 - encoded segment metadata through `NativeAudioMetadataReader`
 
 Run on macOS:

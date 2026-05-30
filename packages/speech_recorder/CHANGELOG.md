@@ -9,9 +9,10 @@
 - Remove streaming-level encoder overrides from
   `SpeechRecorderStreamingOptions`; streaming now uses
   `SpeechRecorderOptions.recordConfig.encoding` as single source of truth.
-- Breaking: streaming sessions now always use
-  `NativeAudioRecorder.startVadCapture(VadCaptureRequest)` (no legacy/manual
-  fallback segmentation path in `speech_recorder`).
+- Breaking: streaming sessions now use
+  `NativeAudioRecorder.startSegmentedCapture(SegmentedAudioCaptureRequest)`.
+- Add manual streaming splits through `AudioSegmentSplitMode.manual` and
+  `SpeechRecorderSession.splitSegment()`.
 - Breaking: remove streaming fallback/full-recording options from
   `SpeechRecorderStreamingOptions`
   (`encodeFullRecordingOnStop`, `emitStopFallbackSegmentIfEmpty`,

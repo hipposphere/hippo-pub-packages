@@ -27,30 +27,29 @@ void validateSpeechRecorderStreamingOptions(
   SpeechRecorderStreamingOptions streamingOptions,
 ) {
   final recordConfig = options.recordConfig;
-  streamingOptions.pauseSplitOptions.validate();
-  if (recordConfig.sampleRateHz !=
-      streamingOptions.pauseSplitOptions.sampleRateHz) {
+  final splitOptions = streamingOptions.resolvePauseSplitOptions(recordConfig);
+  splitOptions.validate();
+  if (recordConfig.sampleRateHz != splitOptions.sampleRateHz) {
     throw ArgumentError(
       'recordConfig.sampleRateHz (${recordConfig.sampleRateHz}) must match '
       'streamingOptions.pauseSplitOptions.sampleRateHz '
-      '(${streamingOptions.pauseSplitOptions.sampleRateHz}).',
+      '(${splitOptions.sampleRateHz}).',
     );
   }
-  if (recordConfig.channelCount !=
-      streamingOptions.pauseSplitOptions.channelCount) {
+  if (recordConfig.channelCount != splitOptions.channelCount) {
     throw ArgumentError(
       'recordConfig.channelCount (${recordConfig.channelCount}) must match '
       'streamingOptions.pauseSplitOptions.channelCount '
-      '(${streamingOptions.pauseSplitOptions.channelCount}).',
+      '(${splitOptions.channelCount}).',
     );
   }
 
   final encoder = recordConfig.encoding.encoder;
-  if (!encoder.supportsVadSegmentationOutput) {
+  if (!encoder.supportsSegmentedCaptureOutput) {
     throw ArgumentError.value(
       encoder,
       'recordConfig.encoding.encoder',
-      'startStreaming requires an encoder supported by VAD segmentation output '
+      'startStreaming requires an encoder supported by segmented capture output '
           '(AudioEncoder.wav/aacLc/aacHe/aacEld).',
     );
   }

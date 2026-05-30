@@ -31,7 +31,7 @@ original PCM buffers.
 - Native audio recorder (`NativeAudioRecorder`) with:
   - start/stop file recording (`.wav` PCM16)
   - start/stop live PCM16 stream recording
-  - live VAD segmentation to file-based `VoiceSegment` outputs (`XFile`)
+  - live segmented capture to file-based `VoiceSegment` outputs (`XFile`)
   - input device listing (`listInputDevices`)
   - input-device routing via `AudioRecorderConfig.inputDeviceId` on platforms that support it
 - No dependency on the legacy `record` package for microphone capture.
@@ -122,7 +122,7 @@ try {
 Recorder API naming:
 - file capture: `startFileRecording(...)`
 - raw PCM stream capture: `startPcmStream(...)`
-- VAD capture session: `startVadCapture(...)`
+- segmented capture session: `startSegmentedCapture(...)`
 
 ```dart
 final recorder = NativeAudioRecorder();
@@ -225,7 +225,7 @@ final pcmStream = await recorder.startPcmStream(
     channelCount: 1,
     framesPerChunk: 1024,
     encoding: AudioEncodingConfig(
-      // Used by higher-level recording helpers such as startVadCapture(...).
+      // Used by higher-level recording helpers such as startSegmentedCapture(...).
       encoder: AudioEncoder.aacLc,
       bitrateBps: 64000,
     ),
@@ -252,12 +252,13 @@ print('latest=${latest.current} dBFS');
 await subscription.cancel();
 ```
 
-Live VAD capture mode:
+Live segmented capture mode:
 
 ```dart
 final recorder = NativeAudioRecorder();
-final capture = await recorder.startVadCapture(
-  VadCaptureRequest(
+final capture = await recorder.startSegmentedCapture(
+  SegmentedAudioCaptureRequest(
+    splitMode: AudioSegmentSplitMode.vad,
     split: const PauseSplitOptions(
       sampleRateHz: 16000,
       channelCount: 1,
@@ -268,7 +269,7 @@ final capture = await recorder.startVadCapture(
       channelCount: 1,
       framesPerChunk: 256,
     ),
-    output: VadCaptureOutputConfig(
+    output: SegmentedAudioCaptureOutputConfig(
       outputDirectory: Directory('/tmp/segments'),
       segmentEncoding: const AudioEncodingConfig(
         encoder: AudioEncoder.aacLc,
@@ -280,7 +281,7 @@ final capture = await recorder.startVadCapture(
       ),
       fullRecordingFileStem: 'recording_full',
     ),
-    telemetry: const VadCaptureTelemetryConfig(
+    telemetry: const SegmentedAudioCaptureTelemetryConfig(
       speechHoldDuration: Duration(milliseconds: 320),
     ),
   ),
@@ -303,6 +304,9 @@ if (result.fullRecording != null) {
   print('full recording: ${result.fullRecording!.file.path}');
 }
 ```
+
+Use `splitMode: AudioSegmentSplitMode.manual` and call `capture.split()` when
+the active segment should be closed manually.
 
 ### VAD config modes
 

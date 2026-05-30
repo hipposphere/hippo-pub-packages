@@ -17,7 +17,7 @@ import '../encoding/aac_encoder.dart';
 import '../encoding/native_audio_encoder.dart';
 import '../models/audio_metadata.dart';
 import '../models/audio_segment_metrics.dart';
-import '../models/vad_capture.dart';
+import '../models/segmented_audio_capture.dart';
 import '../models/pause_split_options.dart';
 import '../models/pcm16_snippet.dart';
 import '../models/voice_activity_metadata.dart';
@@ -150,6 +150,7 @@ final class NativeAudioRecorder {
   AppLifecycleListener? _appLifecycleListener;
   Future<void>? _appDetachCleanupFuture;
   bool _stopping = false;
+  bool _paused = false;
   bool _nativeAmplitudePollInFlight = false;
   bool _streamDrainInFlight = false;
 
@@ -201,6 +202,8 @@ final class NativeAudioRecorder {
       return true;
     }
   }
+
+  bool get isPaused => _paused;
 
   Future<bool> isAvailable() async {
     return _platformImplementation.isAvailable();
@@ -401,6 +404,7 @@ final class NativeAudioRecorder {
       );
       _continousRecordingConfig = effectiveConfig;
       _mode = _RecorderMode.file;
+      _paused = false;
       _cancelContinousRecordingWarmTimer();
       _restartNativeAmplitudePollingIfNeeded();
     } on Object {
@@ -445,6 +449,7 @@ final class NativeAudioRecorder {
 
     _continousRecordingConfig = effectiveConfig;
     _mode = _RecorderMode.stream;
+    _paused = false;
     _streamReadSampleCapacity = readSampleCapacity;
     _streamDrainInFlight = false;
     _cancelContinousRecordingWarmTimer();
@@ -465,8 +470,10 @@ final class NativeAudioRecorder {
     return controller.stream;
   }
 
-  /// Starts live VAD capture and returns a session with dedicated streams.
-  Future<VadCaptureSession> startVadCapture(VadCaptureRequest request) async {
+  /// Starts live segmented capture and returns a session with dedicated streams.
+  Future<SegmentedAudioCaptureSession> startSegmentedCapture(
+    SegmentedAudioCaptureRequest request,
+  ) async {
     _ensureSupportedPlatform();
     _ensureIdle();
     request.validate();
@@ -476,7 +483,7 @@ final class NativeAudioRecorder {
     final telemetry = request.telemetry;
     final effectiveFullRecordingEncoding = output.fullRecordingEncoding ?? output.segmentEncoding;
 
-    _validateVadCaptureConfig(
+    _validateSegmentedCaptureConfig(
       config: request.audio,
       splitOptions: splitOptions,
       segmentEncoding: output.segmentEncoding,
@@ -484,7 +491,10 @@ final class NativeAudioRecorder {
     );
     await output.outputDirectory.create(recursive: true);
 
-    final resolvedBackend = resolveSpeechVadBackend(options: splitOptions, config: request.vad);
+    final splitOnVad = request.splitMode == AudioSegmentSplitMode.vad;
+    final resolvedBackend = splitOnVad
+        ? resolveSpeechVadBackend(options: splitOptions, config: request.vad)
+        : null;
 
     late final Stream<Uint8List> pcmStream;
     try {
@@ -495,7 +505,7 @@ final class NativeAudioRecorder {
       );
       _currentAmplitudeSpeechSegment = null;
     } on Object {
-      resolvedBackend.backend.dispose();
+      resolvedBackend?.backend.dispose();
       rethrow;
     }
 
@@ -512,131 +522,194 @@ final class NativeAudioRecorder {
     final speechStatesController = StreamController<VadSpeechStateSample>.broadcast();
     final levelsController = StreamController<VadLevelSample>.broadcast();
     final frameDecisionsController = StreamController<VadFrameDecision>.broadcast();
-    final doneCompleter = Completer<VadCaptureStopResult>();
+    final doneCompleter = Completer<SegmentedAudioCaptureStopResult>();
+    final operationQueue = _AsyncSerialOperationQueue();
 
-    unawaited(() async {
-      var segmentIndex = 0;
-      var analyzedFrameCount = 0;
-      var speechFrameCount = 0;
-      var speechDetected = false;
-      DateTime? lastSpeechFrameAt;
-      var currentChunkHasSpeech = false;
-      final fullRecordingBytes = output.emitFullRecordingOnStop ? BytesBuilder(copy: false) : null;
+    var capturePaused = false;
+    var segmentIndex = 0;
+    var analyzedFrameCount = 0;
+    var speechFrameCount = 0;
+    var speechDetected = false;
+    DateTime? lastSpeechFrameAt;
+    var currentChunkHasSpeech = false;
+    final fullRecordingBytes = output.emitFullRecordingOnStop ? BytesBuilder(copy: false) : null;
 
-      final splitter = Pcm16StreamPauseSplitter(
-        options: splitOptions,
-        vadBackend: resolvedBackend.backend,
-        onFrameClassified: (isSpeech) {
-          analyzedFrameCount++;
-          if (isSpeech) {
-            speechFrameCount++;
-            currentChunkHasSpeech = true;
-            lastSpeechFrameAt = DateTime.now();
-          }
-          if (!telemetry.emitFrameDecisions) {
-            return;
-          }
-          frameDecisionsController.add(
-            VadFrameDecision(
-              at: DateTime.now(),
-              isSpeechFrame: isSpeech,
-              analyzedFrameCount: analyzedFrameCount,
-              speechFrameCount: speechFrameCount,
-            ),
-          );
-        },
-      );
+    final vadSplitter = splitOnVad
+        ? Pcm16StreamPauseSplitter(
+            options: splitOptions,
+            vadBackend: resolvedBackend!.backend,
+            onFrameClassified: (isSpeech) {
+              analyzedFrameCount++;
+              if (isSpeech) {
+                speechFrameCount++;
+                currentChunkHasSpeech = true;
+                lastSpeechFrameAt = DateTime.now();
+              }
+              if (!telemetry.emitFrameDecisions) {
+                return;
+              }
+              frameDecisionsController.add(
+                VadFrameDecision(
+                  at: DateTime.now(),
+                  isSpeechFrame: isSpeech,
+                  analyzedFrameCount: analyzedFrameCount,
+                  speechFrameCount: speechFrameCount,
+                ),
+              );
+            },
+          )
+        : null;
+    final manualSplitter = splitOnVad ? null : _Pcm16ManualStreamSplitter(options: splitOptions);
 
-      Future<void> emitSnippets(List<Pcm16Snippet> snippets) async {
-        for (final snippet in snippets) {
-          segmentIndex++;
-          try {
-            final segment = await _materializeVoiceSegment(
-              index: segmentIndex,
-              snippet: snippet,
-              outputDirectory: output.outputDirectory,
-              splitOptions: splitOptions,
-              encoding: output.segmentEncoding,
-              bitrateBps: segmentBitrateBps,
-              audioEncoder: resolvedSegmentAudioEncoder,
-              segmentPathBuilder: output.segmentPathBuilder,
-            );
-            segmentsController.add(segment);
-          } on Object catch (error, stackTrace) {
-            segmentsController.addError(error, stackTrace);
-          }
-        }
+    void updateSpeechDetection(DateTime now) {
+      if (!splitOnVad) {
+        _currentAmplitudeSpeechSegment = null;
+        return;
+      }
+      if (currentChunkHasSpeech) {
+        lastSpeechFrameAt = now;
       }
 
+      final nextSpeechDetected =
+          lastSpeechFrameAt != null &&
+          now.difference(lastSpeechFrameAt!) <= telemetry.speechHoldDuration;
+      _currentAmplitudeSpeechSegment = nextSpeechDetected;
+      if (nextSpeechDetected == speechDetected) {
+        return;
+      }
+      speechDetected = nextSpeechDetected;
+      if (telemetry.emitSpeechState) {
+        speechStatesController.add(VadSpeechStateSample(at: now, speechDetected: speechDetected));
+      }
+    }
+
+    Future<void> emitSnippets(List<Pcm16Snippet> snippets) async {
+      for (final snippet in snippets) {
+        segmentIndex++;
+        try {
+          final segment = await _materializeVoiceSegment(
+            index: segmentIndex,
+            snippet: snippet,
+            outputDirectory: output.outputDirectory,
+            splitOptions: splitOptions,
+            encoding: output.segmentEncoding,
+            bitrateBps: segmentBitrateBps,
+            audioEncoder: resolvedSegmentAudioEncoder,
+            segmentPathBuilder: output.segmentPathBuilder,
+          );
+          segmentsController.add(segment);
+        } on Object catch (error, stackTrace) {
+          segmentsController.addError(error, stackTrace);
+        }
+      }
+    }
+
+    Future<void> splitCurrentSegment() async {
+      final snippets = splitOnVad ? vadSplitter!.split() : manualSplitter!.split();
+      await emitSnippets(snippets);
+    }
+
+    Future<void> emitFinalSpeechStateIfNeeded() async {
+      if (!speechDetected) {
+        return;
+      }
+      _currentAmplitudeSpeechSegment = false;
+      if (telemetry.emitSpeechState) {
+        speechStatesController.add(VadSpeechStateSample(at: DateTime.now(), speechDetected: false));
+      }
+      speechDetected = false;
+    }
+
+    Future<void> pauseCapture() {
+      return operationQueue.run(() async {
+        if (capturePaused || doneCompleter.isCompleted) {
+          return;
+        }
+        capturePaused = true;
+        await pause();
+        await emitFinalSpeechStateIfNeeded();
+      });
+    }
+
+    Future<void> resumeCapture() {
+      return operationQueue.run(() async {
+        if (!capturePaused || doneCompleter.isCompleted) {
+          return;
+        }
+        capturePaused = false;
+        await resume();
+      });
+    }
+
+    Future<void> splitManually() {
+      return operationQueue.run(() async {
+        if (doneCompleter.isCompleted) {
+          return;
+        }
+        await splitCurrentSegment();
+      });
+    }
+
+    unawaited(() async {
       try {
         await for (final chunk in pcmStream) {
-          fullRecordingBytes?.add(chunk);
-          currentChunkHasSpeech = false;
-          final snippets = splitter.addChunk(chunk);
-          await emitSnippets(snippets);
+          await operationQueue.run(() async {
+            if (capturePaused) {
+              return;
+            }
 
-          final now = DateTime.now();
-          if (currentChunkHasSpeech) {
-            lastSpeechFrameAt = now;
+            fullRecordingBytes?.add(chunk);
+            currentChunkHasSpeech = false;
+            final snippets = splitOnVad ? vadSplitter!.addChunk(chunk) : const <Pcm16Snippet>[];
+            if (!splitOnVad) {
+              manualSplitter!.addChunk(chunk);
+            }
+            await emitSnippets(snippets);
+
+            final now = DateTime.now();
+            updateSpeechDetection(now);
+
+            if (telemetry.emitLevels) {
+              levelsController.add(
+                VadLevelSample(
+                  at: now,
+                  rms: Pcm16AudioUtils.rms(chunk),
+                  dbfs: Pcm16AudioUtils.dbfs(chunk),
+                  hasSpeechFrame: currentChunkHasSpeech,
+                ),
+              );
+            }
+          });
+        }
+
+        SegmentedAudioRecordingArtifact? fullRecording;
+        await operationQueue.run(() async {
+          if (request.flushOnStop) {
+            final snippets = splitOnVad ? vadSplitter!.flush() : manualSplitter!.flush();
+            await emitSnippets(snippets);
           }
 
-          final nextSpeechDetected =
-              lastSpeechFrameAt != null &&
-              now.difference(lastSpeechFrameAt!) <= telemetry.speechHoldDuration;
-          _currentAmplitudeSpeechSegment = nextSpeechDetected;
-          if (nextSpeechDetected != speechDetected) {
-            speechDetected = nextSpeechDetected;
-            if (telemetry.emitSpeechState) {
-              speechStatesController.add(
-                VadSpeechStateSample(at: now, speechDetected: speechDetected),
+          if (fullRecordingBytes != null) {
+            final fullRecordingPcmBytes = fullRecordingBytes.toBytes();
+            if (fullRecordingPcmBytes.isNotEmpty) {
+              fullRecording = await _materializeFullRecordingArtifact(
+                outputDirectory: output.outputDirectory,
+                pcm16leBytes: fullRecordingPcmBytes,
+                splitOptions: splitOptions,
+                encoding: effectiveFullRecordingEncoding,
+                bitrateBps: fullRecordingBitrateBps,
+                audioEncoder: resolvedFullRecordingAudioEncoder,
+                fileStem: output.fullRecordingFileStem,
               );
             }
           }
 
-          if (telemetry.emitLevels) {
-            levelsController.add(
-              VadLevelSample(
-                at: now,
-                rms: Pcm16AudioUtils.rms(chunk),
-                dbfs: Pcm16AudioUtils.dbfs(chunk),
-                hasSpeechFrame: currentChunkHasSpeech,
-              ),
-            );
-          }
-        }
-
-        if (request.flushOnStop) {
-          await emitSnippets(splitter.flush());
-        }
-
-        VadRecordingArtifact? fullRecording;
-        if (fullRecordingBytes != null) {
-          final fullRecordingPcmBytes = fullRecordingBytes.toBytes();
-          if (fullRecordingPcmBytes.isNotEmpty) {
-            fullRecording = await _materializeFullRecordingArtifact(
-              outputDirectory: output.outputDirectory,
-              pcm16leBytes: fullRecordingPcmBytes,
-              splitOptions: splitOptions,
-              encoding: effectiveFullRecordingEncoding,
-              bitrateBps: fullRecordingBitrateBps,
-              audioEncoder: resolvedFullRecordingAudioEncoder,
-              fileStem: output.fullRecordingFileStem,
-            );
-          }
-        }
-
-        if (speechDetected) {
-          _currentAmplitudeSpeechSegment = false;
-          if (telemetry.emitSpeechState) {
-            speechStatesController.add(
-              VadSpeechStateSample(at: DateTime.now(), speechDetected: false),
-            );
-          }
-        }
+          await emitFinalSpeechStateIfNeeded();
+        });
 
         if (!doneCompleter.isCompleted) {
           doneCompleter.complete(
-            VadCaptureStopResult(
+            SegmentedAudioCaptureStopResult(
               segmentCount: segmentIndex,
               analyzedFrameCount: analyzedFrameCount,
               speechFrameCount: speechFrameCount,
@@ -653,7 +726,8 @@ final class NativeAudioRecorder {
           doneCompleter.completeError(error, stackTrace);
         }
       } finally {
-        resolvedBackend.backend.dispose();
+        capturePaused = false;
+        resolvedBackend?.backend.dispose();
         await segmentsController.close();
         await speechStatesController.close();
         await levelsController.close();
@@ -662,13 +736,17 @@ final class NativeAudioRecorder {
       }
     }());
 
-    return _VadCaptureSessionImpl(
-      backendKind: resolvedBackend.kind,
-      backendLabel: resolvedBackend.label,
+    return _SegmentedAudioCaptureSessionImpl(
+      vadBackendKind: resolvedBackend?.kind ?? ResolvedVadKind.none,
+      vadBackendLabel: resolvedBackend?.label ?? 'Manual split',
       segments: segmentsController.stream,
       speechStates: speechStatesController.stream,
       levels: levelsController.stream,
       frameDecisions: frameDecisionsController.stream,
+      isPausedFn: () => capturePaused,
+      splitFn: splitManually,
+      pauseFn: pauseCapture,
+      resumeFn: resumeCapture,
       stopFn: () async {
         if (!doneCompleter.isCompleted) {
           await stop();
@@ -686,6 +764,42 @@ final class NativeAudioRecorder {
         }
       },
     );
+  }
+
+  /// Pauses live PCM stream emission without ending the native capture session.
+  ///
+  /// While paused, native PCM chunks are drained and discarded so audio recorded
+  /// during the pause is not emitted after [resume]. File recording pause is not
+  /// supported by this low-level recorder because platform backends finalize
+  /// file containers on stop.
+  Future<void> pause() async {
+    if (_mode == _RecorderMode.stopped) {
+      return;
+    }
+    if (_mode == _RecorderMode.file) {
+      throw UnsupportedError(
+        'NativeAudioRecorder.pause() is only supported for PCM stream capture.',
+      );
+    }
+    _paused = true;
+    _currentAmplitudeSpeechSegment = false;
+  }
+
+  /// Resumes live PCM stream emission after [pause].
+  Future<void> resume() async {
+    if (_mode == _RecorderMode.stopped) {
+      return;
+    }
+    if (_mode == _RecorderMode.file) {
+      throw UnsupportedError(
+        'NativeAudioRecorder.resume() is only supported for PCM stream capture.',
+      );
+    }
+    if (!_paused) {
+      return;
+    }
+    _paused = false;
+    _drainNativeStream();
   }
 
   Future<void> stop() async {
@@ -725,6 +839,7 @@ final class NativeAudioRecorder {
     }
 
     _mode = _RecorderMode.stopped;
+    _paused = false;
     _streamReadSampleCapacity = _defaultReadSampleCapacity;
     _lastAmplitudeEmissionAt = null;
     _currentAmplitudeSpeechSegment = null;
@@ -792,6 +907,7 @@ final class NativeAudioRecorder {
     }
 
     _mode = _RecorderMode.stopped;
+    _paused = false;
     _stopping = false;
     _streamReadSampleCapacity = _defaultReadSampleCapacity;
     _lastAmplitudeEmissionAt = null;
@@ -909,6 +1025,9 @@ final class NativeAudioRecorder {
         final chunk = _readPcmStreamChunk(maxSamples: _streamReadSampleCapacity);
         if (chunk.isEmpty) {
           break;
+        }
+        if (_paused) {
+          continue;
         }
         _updateAmplitudeStateFromPcmChunk(chunk);
         controller.add(chunk);
@@ -1208,37 +1327,37 @@ final class NativeAudioRecorder {
     return true;
   }
 
-  void _validateVadCaptureConfig({
+  void _validateSegmentedCaptureConfig({
     required AudioRecorderConfig config,
     required PauseSplitOptions splitOptions,
     required AudioEncodingConfig segmentEncoding,
     required AudioEncodingConfig fullRecordingEncoding,
   }) {
-    if (!segmentEncoding.encoder.supportsVadSegmentationOutput) {
+    if (!segmentEncoding.encoder.supportsSegmentedCaptureOutput) {
       throw ArgumentError.value(
         segmentEncoding.encoder,
         'segmentEncoding.encoder',
-        'startVadCapture() supports AudioEncoder.wav, '
+        'startSegmentedCapture() supports AudioEncoder.wav, '
             'AudioEncoder.aacLc, AudioEncoder.aacHe, and AudioEncoder.aacEld.',
       );
     }
-    if (!fullRecordingEncoding.encoder.supportsVadSegmentationOutput) {
+    if (!fullRecordingEncoding.encoder.supportsSegmentedCaptureOutput) {
       throw ArgumentError.value(
         fullRecordingEncoding.encoder,
         'fullRecordingEncoding.encoder',
-        'startVadCapture() full-recording output supports AudioEncoder.wav, '
+        'startSegmentedCapture() full-recording output supports AudioEncoder.wav, '
             'AudioEncoder.aacLc, AudioEncoder.aacHe, and AudioEncoder.aacEld.',
       );
     }
     _validateAacEncoderAvailabilityForCurrentPlatform(
       encoding: segmentEncoding,
       parameterName: 'segmentEncoding.audioEncoder',
-      context: 'AAC VAD segment output',
+      context: 'AAC segmented capture segment output',
     );
     _validateAacEncoderAvailabilityForCurrentPlatform(
       encoding: fullRecordingEncoding,
       parameterName: 'fullRecordingEncoding.audioEncoder',
-      context: 'AAC VAD full-recording output',
+      context: 'AAC segmented capture full-recording output',
     );
     if (config.sampleRateHz != splitOptions.sampleRateHz) {
       throw ArgumentError(
@@ -1323,7 +1442,7 @@ final class NativeAudioRecorder {
         throw ArgumentError.value(
           encoder,
           'encoding.encoder',
-          'Unsupported encoder for VAD segmentation output.',
+          'Unsupported encoder for segmented capture output.',
         );
     }
 
@@ -1375,7 +1494,7 @@ final class NativeAudioRecorder {
     );
   }
 
-  Future<VadRecordingArtifact> _materializeFullRecordingArtifact({
+  Future<SegmentedAudioRecordingArtifact> _materializeFullRecordingArtifact({
     required Directory outputDirectory,
     required Uint8List pcm16leBytes,
     required PauseSplitOptions splitOptions,
@@ -1428,7 +1547,7 @@ final class NativeAudioRecorder {
     }
 
     final outputByteCount = await outputFile.length();
-    return VadRecordingArtifact(
+    return SegmentedAudioRecordingArtifact(
       file: XFile(outputPath, mimeType: encoder.defaultMimeType),
       fileExtension: extension,
       mimeType: encoder.defaultMimeType,
@@ -1650,6 +1769,7 @@ final class NativeAudioRecorder {
     }
 
     _mode = _RecorderMode.stopped;
+    _paused = false;
     _stopping = false;
     _streamReadSampleCapacity = _defaultReadSampleCapacity;
     _lastAmplitudeEmissionAt = null;
@@ -1836,28 +1956,36 @@ int? _resolvedSegmentBitrateBps({
   };
 }
 
-final class _VadCaptureSessionImpl implements VadCaptureSession {
-  _VadCaptureSessionImpl({
-    required this.backendKind,
-    required this.backendLabel,
+final class _SegmentedAudioCaptureSessionImpl implements SegmentedAudioCaptureSession {
+  _SegmentedAudioCaptureSessionImpl({
+    required this.vadBackendKind,
+    required this.vadBackendLabel,
     required this.segments,
     required this.speechStates,
     required this.levels,
     required this.frameDecisions,
+    required this._isPausedFn,
+    required this._splitFn,
+    required this._pauseFn,
+    required this._resumeFn,
     required this._stopFn,
     required this._cancelFn,
   });
 
-  final Future<VadCaptureStopResult> Function() _stopFn;
+  final bool Function() _isPausedFn;
+  final Future<void> Function() _splitFn;
+  final Future<void> Function() _pauseFn;
+  final Future<void> Function() _resumeFn;
+  final Future<SegmentedAudioCaptureStopResult> Function() _stopFn;
   final Future<void> Function() _cancelFn;
-  Future<VadCaptureStopResult>? _stopFuture;
+  Future<SegmentedAudioCaptureStopResult>? _stopFuture;
   Future<void>? _cancelFuture;
 
   @override
-  final ResolvedVadKind backendKind;
+  final ResolvedVadKind vadBackendKind;
 
   @override
-  final String backendLabel;
+  final String vadBackendLabel;
 
   @override
   final Stream<VoiceSegment> segments;
@@ -1872,12 +2000,119 @@ final class _VadCaptureSessionImpl implements VadCaptureSession {
   final Stream<VadFrameDecision> frameDecisions;
 
   @override
-  Future<VadCaptureStopResult> stop() {
+  bool get isPaused => _isPausedFn();
+
+  @override
+  Future<void> split() {
+    return _splitFn();
+  }
+
+  @override
+  Future<void> pause() {
+    return _pauseFn();
+  }
+
+  @override
+  Future<void> resume() {
+    return _resumeFn();
+  }
+
+  @override
+  Future<SegmentedAudioCaptureStopResult> stop() {
     return _stopFuture ??= _stopFn();
   }
 
   @override
   Future<void> cancel() {
     return _cancelFuture ??= _cancelFn();
+  }
+}
+
+final class _AsyncSerialOperationQueue {
+  Future<void> _tail = Future<void>.value();
+
+  Future<T> run<T>(FutureOr<T> Function() operation) {
+    final completer = Completer<T>();
+    _tail = _tail.catchError((_) {}).then((_) async {
+      try {
+        completer.complete(await operation());
+      } on Object catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      }
+    });
+    return completer.future;
+  }
+}
+
+final class _Pcm16ManualStreamSplitter {
+  _Pcm16ManualStreamSplitter({required this.options}) {
+    options.validate();
+  }
+
+  final PauseSplitOptions options;
+
+  BytesBuilder _bytes = BytesBuilder(copy: false);
+  Uint8List _leftoverBytes = Uint8List(0);
+
+  void addChunk(Uint8List chunk) {
+    if (chunk.isEmpty) {
+      return;
+    }
+
+    final workingBytes = Pcm16AudioUtils.ensureEvenByteOffset(_mergeWithLeftover(chunk));
+    final evenByteLength = workingBytes.lengthInBytes.isOdd
+        ? workingBytes.lengthInBytes - 1
+        : workingBytes.lengthInBytes;
+    if (evenByteLength > 0) {
+      _bytes.add(Uint8List.sublistView(workingBytes, 0, evenByteLength));
+    }
+
+    if (evenByteLength == workingBytes.lengthInBytes) {
+      _leftoverBytes = Uint8List(0);
+      return;
+    }
+
+    _leftoverBytes = Uint8List(1);
+    _leftoverBytes[0] = workingBytes[workingBytes.lengthInBytes - 1];
+  }
+
+  List<Pcm16Snippet> split() {
+    _leftoverBytes = Uint8List(0);
+    return _emit();
+  }
+
+  List<Pcm16Snippet> flush() {
+    _leftoverBytes = Uint8List(0);
+    return _emit();
+  }
+
+  List<Pcm16Snippet> _emit() {
+    if (_bytes.length == 0) {
+      return const [];
+    }
+
+    final bytes = _bytes.takeBytes();
+    _bytes = BytesBuilder(copy: false);
+    return <Pcm16Snippet>[
+      Pcm16Snippet(
+        sourceBuffer: bytes.buffer,
+        sourceByteOffset: bytes.offsetInBytes,
+        startSampleOffset: 0,
+        endSampleOffsetExclusive: bytes.lengthInBytes ~/ 2,
+        sampleRateHz: options.sampleRateHz,
+        channelCount: options.channelCount,
+      ),
+    ];
+  }
+
+  Uint8List _mergeWithLeftover(Uint8List chunk) {
+    if (_leftoverBytes.isEmpty) {
+      return chunk;
+    }
+
+    final merged = Uint8List(_leftoverBytes.length + chunk.length);
+    merged.setRange(0, _leftoverBytes.length, _leftoverBytes);
+    merged.setRange(_leftoverBytes.length, merged.length, chunk);
+    return merged;
   }
 }

@@ -64,6 +64,18 @@ final class Pcm16StreamPauseSplitter {
 
   /// Flushes pending state at end-of-stream and emits a final snippet if needed.
   List<Pcm16Snippet> flush() {
+    return _splitCurrentSegment(clearPreSpeechBuffer: true);
+  }
+
+  /// Forces the active segment to be emitted at the current stream position.
+  ///
+  /// If no speech segment is active, no snippet is emitted and buffered
+  /// pre-speech padding is cleared so the manual boundary is respected.
+  List<Pcm16Snippet> split() {
+    return _splitCurrentSegment(clearPreSpeechBuffer: true);
+  }
+
+  List<Pcm16Snippet> _splitCurrentSegment({required bool clearPreSpeechBuffer}) {
     final emitted = <Pcm16Snippet>[];
     final trailingBytes = _leftoverBytes;
     _leftoverBytes = Uint8List(0);
@@ -75,7 +87,9 @@ final class Pcm16StreamPauseSplitter {
       }
     }
 
-    _preSpeechFrameQueue.clear();
+    if (clearPreSpeechBuffer) {
+      _preSpeechFrameQueue.clear();
+    }
     return emitted;
   }
 

@@ -82,7 +82,7 @@ final class SpeechVadConfig {
 }
 
 /// Resolved backend kind.
-enum ResolvedVadKind { ten, energy }
+enum ResolvedVadKind { none, ten, energy }
 
 /// Resolved VAD backend plus metadata describing the selection outcome.
 final class ResolvedVadBackend {

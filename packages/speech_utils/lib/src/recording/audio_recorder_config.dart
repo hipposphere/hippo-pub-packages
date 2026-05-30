@@ -25,7 +25,7 @@ extension AudioEncoderCapabilities on AudioEncoder {
     };
   }
 
-  bool get supportsVadSegmentationOutput {
+  bool get supportsSegmentedCaptureOutput {
     return switch (this) {
       AudioEncoder.wav || AudioEncoder.aacLc || AudioEncoder.aacHe || AudioEncoder.aacEld => true,
       AudioEncoder.pcm16bits || AudioEncoder.flac || AudioEncoder.opus => false,

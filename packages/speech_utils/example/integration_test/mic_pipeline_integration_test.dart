@@ -69,7 +69,7 @@ void main() {
   );
 
   testWidgets(
-    'records microphone through VAD segmentation and native AAC encoding',
+    'records microphone through segmented capture and native AAC encoding',
     (tester) async {
       final recorder = NativeAudioRecorder();
       final encoder = NativeAudioEncoder();
@@ -94,8 +94,8 @@ void main() {
         outputDirectory = await Directory.systemTemp.createTemp(
           'speech_utils_mic_pipeline_it_',
         );
-        final capture = await recorder.startVadCapture(
-          VadCaptureRequest(
+        final capture = await recorder.startSegmentedCapture(
+          SegmentedAudioCaptureRequest(
             split: const PauseSplitOptions(
               sampleRateHz: 16000,
               channelCount: 1,
@@ -110,7 +110,7 @@ void main() {
               channelCount: 1,
               framesPerChunk: 256,
             ),
-            output: VadCaptureOutputConfig(
+            output: SegmentedAudioCaptureOutputConfig(
               outputDirectory: outputDirectory,
               segmentEncoding: AudioEncodingConfig(
                 encoder: AudioEncoder.aacLc,
@@ -133,7 +133,7 @@ void main() {
         final firstSegmentFuture = capture.segments.first.timeout(
           const Duration(seconds: 15),
           onTimeout: () => throw TimeoutException(
-            'No VAD segment emitted within timeout. Check mic routing/permission.',
+            'No segmented capture segment emitted within timeout. Check mic routing/permission.',
           ),
         );
 
@@ -161,7 +161,7 @@ void main() {
         expect(
           metadata.codec?.toLowerCase(),
           contains('aac'),
-          reason: 'Encoded VAD segment must be AAC.',
+          reason: 'Encoded segmented capture segment must be AAC.',
         );
         if (Platform.isWindows) {
           expect(

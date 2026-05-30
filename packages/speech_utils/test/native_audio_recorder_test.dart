@@ -972,6 +972,70 @@ void main() {
       expect(usedInputDeviceId, isNull);
     });
 
+    test('startPcmStream pause discards chunks until resume', () async {
+      late final NativeAudioRecorder recorder;
+      var emittedFirstChunk = false;
+      var emittedPausedChunk = false;
+      var emittedResumedChunk = false;
+
+      recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) {
+          if (!emittedFirstChunk) {
+            emittedFirstChunk = true;
+            return Uint8List.fromList(<int>[1, 2]);
+          }
+          if (recorder.isPaused && !emittedPausedChunk) {
+            emittedPausedChunk = true;
+            return Uint8List.fromList(<int>[3, 4]);
+          }
+          if (!recorder.isPaused && emittedPausedChunk && !emittedResumedChunk) {
+            emittedResumedChunk = true;
+            return Uint8List.fromList(<int>[5, 6]);
+          }
+          return Uint8List(0);
+        },
+        stopFn: () {},
+        isRecordingFn: () => true,
+      );
+
+      final stream = await recorder.startPcmStream(pollInterval: const Duration(milliseconds: 5));
+      final iterator = StreamIterator(stream);
+
+      expect(await iterator.moveNext().timeout(const Duration(seconds: 1)), isTrue);
+      expect(iterator.current, Uint8List.fromList(<int>[1, 2]));
+
+      await recorder.pause();
+      expect(recorder.isPaused, isTrue);
+      await _waitUntil(() => emittedPausedChunk);
+
+      await recorder.resume();
+      expect(recorder.isPaused, isFalse);
+      expect(await iterator.moveNext().timeout(const Duration(seconds: 1)), isTrue);
+      expect(iterator.current, Uint8List.fromList(<int>[5, 6]));
+
+      await iterator.cancel();
+      await recorder.stop();
+    });
+
     test('retries transient Windows stream start failures', () async {
       var startAttempts = 0;
       var stopCalls = 0;
@@ -1772,7 +1836,7 @@ void main() {
       await recorder.stop();
     });
 
-    test('startVadCapture exposes speech state on amplitude snapshots', () async {
+    test('startSegmentedCapture exposes speech state on amplitude snapshots', () async {
       final outputDir = await Directory.systemTemp.createTemp('vad-capture-amplitude-state-');
       final speechChunk = Uint8List.view(
         _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 200)).buffer,
@@ -1816,8 +1880,8 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      final capture = await recorder.startVadCapture(
-        VadCaptureRequest(
+      final capture = await recorder.startSegmentedCapture(
+        SegmentedAudioCaptureRequest(
           split: const PauseSplitOptions(
             sampleRateHz: 16000,
             channelCount: 1,
@@ -1827,9 +1891,9 @@ void main() {
           ),
           audio: const AudioRecorderConfig(sampleRateHz: 16000, channelCount: 1),
           vad: const SpeechVadConfig.energyOnly(),
-          telemetry: const VadCaptureTelemetryConfig(speechHoldDuration: Duration.zero),
+          telemetry: const SegmentedAudioCaptureTelemetryConfig(speechHoldDuration: Duration.zero),
           pollInterval: const Duration(milliseconds: 5),
-          output: VadCaptureOutputConfig(outputDirectory: outputDir),
+          output: SegmentedAudioCaptureOutputConfig(outputDirectory: outputDir),
         ),
       );
 
@@ -1874,7 +1938,7 @@ void main() {
       await outputDir.delete(recursive: true);
     });
 
-    test('startVadCapture rejects unsupported segment encoders', () async {
+    test('startSegmentedCapture rejects unsupported segment encoders', () async {
       final outputDir = await Directory.systemTemp.createTemp('vad-capture-unsupported-');
       final recorder = recorderFixture(
         platform: NativeAudioRecorderPlatform.windows,
@@ -1902,12 +1966,12 @@ void main() {
       );
 
       expect(
-        () => recorder.startVadCapture(
-          VadCaptureRequest(
+        () => recorder.startSegmentedCapture(
+          SegmentedAudioCaptureRequest(
             split: const PauseSplitOptions(sampleRateHz: 16000, channelCount: 1),
             audio: const AudioRecorderConfig(sampleRateHz: 16000, channelCount: 1),
             vad: const SpeechVadConfig.energyOnly(),
-            output: VadCaptureOutputConfig(
+            output: SegmentedAudioCaptureOutputConfig(
               outputDirectory: outputDir,
               segmentEncoding: const AudioEncodingConfig(encoder: AudioEncoder.opus),
             ),
@@ -1919,7 +1983,7 @@ void main() {
       await outputDir.delete(recursive: true);
     });
 
-    test('startVadCapture flushes trailing speech when enabled', () async {
+    test('startSegmentedCapture flushes trailing speech when enabled', () async {
       final outputDir = await Directory.systemTemp.createTemp('vad-capture-flush-');
       final pcmBytes = Uint8List.view(
         _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 450)).buffer,
@@ -1957,8 +2021,8 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      final capture = await recorder.startVadCapture(
-        VadCaptureRequest(
+      final capture = await recorder.startSegmentedCapture(
+        SegmentedAudioCaptureRequest(
           split: const PauseSplitOptions(
             sampleRateHz: 16000,
             channelCount: 1,
@@ -1970,7 +2034,7 @@ void main() {
           vad: const SpeechVadConfig.energyOnly(),
           flushOnStop: true,
           pollInterval: const Duration(milliseconds: 5),
-          output: VadCaptureOutputConfig(outputDirectory: outputDir),
+          output: SegmentedAudioCaptureOutputConfig(outputDirectory: outputDir),
         ),
       );
 
@@ -1988,7 +2052,94 @@ void main() {
       await outputDir.delete(recursive: true);
     });
 
-    test('startVadCapture can skip trailing flush', () async {
+    test('startSegmentedCapture can manually split without automatic VAD', () async {
+      final outputDir = await Directory.systemTemp.createTemp('manual-capture-split-');
+      final firstChunk = Uint8List.view(
+        _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 180)).buffer,
+      );
+      final secondChunk = Uint8List.view(
+        _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 160)).buffer,
+      );
+
+      var emittedFirstChunk = false;
+      var allowSecondChunk = false;
+      var emittedSecondChunk = false;
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) {
+          if (!emittedFirstChunk) {
+            emittedFirstChunk = true;
+            return firstChunk;
+          }
+          if (allowSecondChunk && !emittedSecondChunk) {
+            emittedSecondChunk = true;
+            return secondChunk;
+          }
+          return Uint8List(0);
+        },
+        stopFn: () {},
+        isRecordingFn: () => true,
+      );
+
+      final capture = await recorder.startSegmentedCapture(
+        SegmentedAudioCaptureRequest(
+          split: const PauseSplitOptions(sampleRateHz: 16000, channelCount: 1),
+          audio: const AudioRecorderConfig(sampleRateHz: 16000, channelCount: 1),
+          splitMode: AudioSegmentSplitMode.manual,
+          flushOnStop: true,
+          pollInterval: const Duration(milliseconds: 5),
+          output: SegmentedAudioCaptureOutputConfig(outputDirectory: outputDir),
+        ),
+      );
+
+      expect(capture.vadBackendKind, ResolvedVadKind.none);
+      expect(capture.vadBackendLabel, 'Manual split');
+
+      final segments = <VoiceSegment>[];
+      final done = Completer<void>();
+      final subscription = capture.segments.listen(segments.add, onDone: done.complete);
+
+      await _waitUntil(() => emittedFirstChunk);
+      await capture.split();
+      await _waitUntil(() => segments.length == 1);
+
+      allowSecondChunk = true;
+      await _waitUntil(() => emittedSecondChunk);
+      final stopResult = await capture.stop();
+      await done.future.timeout(const Duration(seconds: 1));
+      await subscription.cancel();
+
+      expect(stopResult.segmentCount, 2);
+      expect(stopResult.analyzedFrameCount, 0);
+      expect(stopResult.speechFrameCount, 0);
+      expect(segments, hasLength(2));
+      expect(segments.first.voiceActivity.speechProbability, isNull);
+      expect(segments.last.voiceActivity.speechProbability, isNull);
+      expect(File(segments.first.file.path).existsSync(), isTrue);
+      expect(File(segments.last.file.path).existsSync(), isTrue);
+
+      await outputDir.delete(recursive: true);
+    });
+
+    test('startSegmentedCapture can skip trailing flush', () async {
       final outputDir = await Directory.systemTemp.createTemp('vad-capture-no-flush-');
       final pcmBytes = Uint8List.view(
         _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 450)).buffer,
@@ -2026,8 +2177,8 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      final capture = await recorder.startVadCapture(
-        VadCaptureRequest(
+      final capture = await recorder.startSegmentedCapture(
+        SegmentedAudioCaptureRequest(
           split: const PauseSplitOptions(
             sampleRateHz: 16000,
             channelCount: 1,
@@ -2039,7 +2190,7 @@ void main() {
           vad: const SpeechVadConfig.energyOnly(),
           flushOnStop: false,
           pollInterval: const Duration(milliseconds: 5),
-          output: VadCaptureOutputConfig(outputDirectory: outputDir),
+          output: SegmentedAudioCaptureOutputConfig(outputDirectory: outputDir),
         ),
       );
 
@@ -2053,7 +2204,7 @@ void main() {
       await outputDir.delete(recursive: true);
     });
 
-    test('startVadCapture uses configured AAC encoder for segments', () async {
+    test('startSegmentedCapture uses configured AAC encoder for segments', () async {
       final outputDir = await Directory.systemTemp.createTemp('vad-capture-segments-aac-');
       final pcmBytes = Uint8List.view(
         _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 450)).buffer,
@@ -2092,8 +2243,8 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      final capture = await recorder.startVadCapture(
-        VadCaptureRequest(
+      final capture = await recorder.startSegmentedCapture(
+        SegmentedAudioCaptureRequest(
           split: const PauseSplitOptions(
             sampleRateHz: 16000,
             channelCount: 1,
@@ -2109,7 +2260,7 @@ void main() {
           vad: const SpeechVadConfig.energyOnly(),
           flushOnStop: true,
           pollInterval: const Duration(milliseconds: 5),
-          output: VadCaptureOutputConfig(
+          output: SegmentedAudioCaptureOutputConfig(
             outputDirectory: outputDir,
             segmentEncoding: AudioEncodingConfig(
               encoder: AudioEncoder.aacHe,
@@ -2134,7 +2285,7 @@ void main() {
       await outputDir.delete(recursive: true);
     });
 
-    test('startVadCapture can emit full recording artifact on stop', () async {
+    test('startSegmentedCapture can emit full recording artifact on stop', () async {
       final outputDir = await Directory.systemTemp.createTemp('vad-capture-full-recording-');
       final pcmBytes = Uint8List.view(
         _sineWave(sampleRateHz: 16000, duration: const Duration(milliseconds: 350)).buffer,
@@ -2172,8 +2323,8 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      final capture = await recorder.startVadCapture(
-        VadCaptureRequest(
+      final capture = await recorder.startSegmentedCapture(
+        SegmentedAudioCaptureRequest(
           split: const PauseSplitOptions(
             sampleRateHz: 16000,
             channelCount: 1,
@@ -2189,7 +2340,7 @@ void main() {
           vad: const SpeechVadConfig.energyOnly(),
           flushOnStop: true,
           pollInterval: const Duration(milliseconds: 5),
-          output: VadCaptureOutputConfig(
+          output: SegmentedAudioCaptureOutputConfig(
             outputDirectory: outputDir,
             emitFullRecordingOnStop: true,
             fullRecordingFileStem: 'recording_final',
@@ -2210,7 +2361,7 @@ void main() {
       await outputDir.delete(recursive: true);
     });
 
-    test('startVadCapture emits error and continues on segment encode failure', () async {
+    test('startSegmentedCapture emits error and continues on segment encode failure', () async {
       final outputDir = await Directory.systemTemp.createTemp('vad-capture-continue-');
       final pcmBytes = Uint8List.view(
         _concatInt16([
@@ -2253,8 +2404,8 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      final capture = await recorder.startVadCapture(
-        VadCaptureRequest(
+      final capture = await recorder.startSegmentedCapture(
+        SegmentedAudioCaptureRequest(
           split: const PauseSplitOptions(
             sampleRateHz: 16000,
             channelCount: 1,
@@ -2266,7 +2417,7 @@ void main() {
           vad: const SpeechVadConfig.energyOnly(),
           flushOnStop: true,
           pollInterval: const Duration(milliseconds: 5),
-          output: VadCaptureOutputConfig(
+          output: SegmentedAudioCaptureOutputConfig(
             outputDirectory: outputDir,
             segmentEncoding: AudioEncodingConfig(
               encoder: AudioEncoder.aacLc,
@@ -2300,6 +2451,19 @@ void main() {
       await outputDir.delete(recursive: true);
     });
   });
+}
+
+Future<void> _waitUntil(
+  bool Function() predicate, {
+  Duration timeout = const Duration(seconds: 1),
+}) async {
+  final stopwatch = Stopwatch()..start();
+  while (!predicate()) {
+    if (stopwatch.elapsed >= timeout) {
+      throw TimeoutException('Condition was not met before timeout.', timeout);
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
 }
 
 class _FakeAacEncoder implements AacEncoder {

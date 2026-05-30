@@ -8,7 +8,7 @@ export 'src/models/audio_segment_metrics.dart';
 export 'src/models/pause_split_options.dart';
 export 'src/models/input_device.dart';
 export 'src/models/pcm16_snippet.dart';
-export 'src/models/vad_capture.dart';
+export 'src/models/segmented_audio_capture.dart';
 export 'src/models/voice_activity_metadata.dart';
 export 'src/recording/audio_recorder_config.dart';
 export 'src/recording/native_audio_recorder.dart';

@@ -6,14 +6,16 @@
   - `start(...)` -> `startFileRecording(...)`
   - `startStream(...)` -> `startPcmStream(...)`
   - remove `startWithVadSegmentation(...)`, `startVadSegments(...)`, and
-    `startVadPipeline(...)` in favor of `startVadCapture(VadCaptureRequest)`.
+    `startVadPipeline(...)` in favor of `startSegmentedCapture(SegmentedAudioCaptureRequest)`.
 - Breaking: consolidate Dart models under `lib/src/models/` and generated
   FFI bindings under `lib/src/generated/`.
-- Add `NativeAudioRecorder.startVadCapture(VadCaptureRequest)` with:
+- Add `NativeAudioRecorder.startSegmentedCapture(SegmentedAudioCaptureRequest)` with:
   - `segments` stream (`VoiceSegment`)
   - `speechStates` stream
   - `levels` stream
   - `frameDecisions` stream (optional)
+  - `AudioSegmentSplitMode.vad` and `.manual`
+  - `split()`, `pause()`, and `resume()` session controls
   - `stop()` result including optional full-recording artifact
 - Add reusable metadata models:
   - `AudioMetadata`

@@ -84,6 +84,109 @@ void main() {
     }
   });
 
+  test('streaming can manually split without VAD options', () async {
+    final outputDirectory = await Directory.systemTemp.createTemp(
+      'speech_recorder_manual_split_',
+    );
+    final emittedSegments = <SpeechRecorderSegmentData>[];
+    final recorder = NativeAudioRecorder.custom(
+      platformImplementation: _FakeRecorderPlatformImplementation(
+        pcmChunk: _sinePcmChunk(
+          sampleRateHz: 16000,
+          duration: const Duration(milliseconds: 220),
+        ),
+      ),
+    );
+
+    final controller = SpeechRecorderController(
+      audioRecorder: recorder,
+      optionsBuilder: () async {
+        return SpeechRecorderOptions(
+          path: '${outputDirectory.path}${Platform.pathSeparator}session.wav',
+          recordConfig: const AudioRecorderConfig(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            encoding: AudioEncodingConfig(encoder: AudioEncoder.wav),
+          ),
+        );
+      },
+    );
+
+    try {
+      final session = await controller.startStreaming(
+        SpeechRecorderStreamingOptions(
+          splitMode: AudioSegmentSplitMode.manual,
+          onSegmentFinished: emittedSegments.add,
+        ),
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      await session.splitSegment();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await controller.stop(session);
+
+      expect(emittedSegments, hasLength(1));
+      expect(session.segmentsSubject.value, hasLength(1));
+      expect(
+        session.segmentsSubject.value.single.metrics.speechProbability,
+        isNull,
+      );
+      expect(session.segmentsSubject.value.single.sampleRateHz, 16000);
+    } finally {
+      await controller.dispose();
+      if (await outputDirectory.exists()) {
+        await outputDirectory.delete(recursive: true);
+      }
+    }
+  });
+
+  test('streaming pause keeps the native stream session open', () async {
+    final outputDirectory = await Directory.systemTemp.createTemp(
+      'speech_recorder_streaming_pause_',
+    );
+    final events = <String>[];
+    final recorder = NativeAudioRecorder.custom(
+      platformImplementation: _FakeRecorderPlatformImplementation(
+        pcmChunk: Uint8List(0),
+        events: events,
+      ),
+    );
+
+    final controller = SpeechRecorderController(
+      audioRecorder: recorder,
+      optionsBuilder: () async {
+        return SpeechRecorderOptions(
+          path: '${outputDirectory.path}${Platform.pathSeparator}session.wav',
+          recordConfig: const AudioRecorderConfig(
+            sampleRateHz: 16000,
+            channelCount: 1,
+          ),
+        );
+      },
+    );
+
+    try {
+      final session = await controller.startStreaming(
+        const SpeechRecorderStreamingOptions(
+          splitMode: AudioSegmentSplitMode.manual,
+        ),
+      );
+
+      await controller.pause(session);
+      expect(session.stateSubject.value, SpeechRecorderSessionState.paused);
+      await controller.resume(session);
+      expect(session.stateSubject.value, SpeechRecorderSessionState.recording);
+      await controller.stop(session);
+
+      expect(events, <String>['startStream', 'stop']);
+    } finally {
+      await controller.dispose();
+      if (await outputDirectory.exists()) {
+        await outputDirectory.delete(recursive: true);
+      }
+    }
+  });
+
   test(
     'prepareForAppExit stops active session and releases recorder resources',
     () async {

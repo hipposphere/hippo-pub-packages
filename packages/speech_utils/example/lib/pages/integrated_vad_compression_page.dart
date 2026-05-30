@@ -55,7 +55,7 @@ class _IntegratedVadCompressionPageState
   Directory? _outputRoot;
   Directory? _liveOutputDir;
 
-  VadCaptureSession? _liveCaptureSession;
+  SegmentedAudioCaptureSession? _liveCaptureSession;
   StreamSubscription<VoiceSegment>? _liveSegmentSubscription;
   StreamSubscription<VadSpeechStateSample>? _liveSpeechStateSubscription;
   StreamSubscription<VadLevelSample>? _liveLevelSubscription;
@@ -660,19 +660,19 @@ class _IntegratedVadCompressionPageState
     }
 
     final vadConfig = _buildSpeechVadConfig(preferTenVad: _preferTenVadForLive);
-    late final VadCaptureSession capture;
+    late final SegmentedAudioCaptureSession capture;
     try {
-      capture = await _recorder.startVadCapture(
-        VadCaptureRequest(
+      capture = await _recorder.startSegmentedCapture(
+        SegmentedAudioCaptureRequest(
           split: _splitOptions,
           audio: _buildLiveRecorderConfig(
             includeInputDeviceId: !_continousCaptureEnabled,
           ),
           vad: vadConfig,
-          telemetry: const VadCaptureTelemetryConfig(
+          telemetry: const SegmentedAudioCaptureTelemetryConfig(
             speechHoldDuration: _speechHoldDuration,
           ),
-          output: VadCaptureOutputConfig(
+          output: SegmentedAudioCaptureOutputConfig(
             outputDirectory: liveDir,
             segmentEncoding: const AudioEncodingConfig(
               encoder: AudioEncoder.wav,
@@ -697,8 +697,8 @@ class _IntegratedVadCompressionPageState
     final activeInputLabel = _selectedInputLabel;
     _appendLog(
       _continousCaptureEnabled
-          ? 'Live stream started (${capture.backendLabel}) using warm capture route "$activeInputLabel".'
-          : 'Live stream started (${capture.backendLabel}) using "$activeInputLabel".',
+          ? 'Live stream started (${capture.vadBackendLabel}) using warm capture route "$activeInputLabel".'
+          : 'Live stream started (${capture.vadBackendLabel}) using "$activeInputLabel".',
     );
     if (_preferTenVadForLive) {
       _appendLog(
@@ -706,7 +706,7 @@ class _IntegratedVadCompressionPageState
         'threshold=${_tenVadThreshold.toStringAsFixed(2)}',
       );
     }
-    if (!capture.backendLabel.startsWith('TEN VAD')) {
+    if (!capture.vadBackendLabel.startsWith('TEN VAD')) {
       _appendLog(
         'Energy thresholds: primary=${_energyPrimaryRmsThreshold.toStringAsFixed(4)}, '
         'secondary=${_energySecondaryRmsThreshold.toStringAsFixed(4)}, '
@@ -790,7 +790,7 @@ class _IntegratedVadCompressionPageState
     setState(() {
       _isLiveStreaming = true;
       _speechDetected = false;
-      _activeVadLabel = capture.backendLabel;
+      _activeVadLabel = capture.vadBackendLabel;
       _liveSnippetCount = 0;
       _liveChunkCount = 0;
       _recordingDuration = Duration.zero;
@@ -937,7 +937,7 @@ class _IntegratedVadCompressionPageState
 
     final capture = _liveCaptureSession;
     _liveCaptureSession = null;
-    VadCaptureStopResult? stopResult;
+    SegmentedAudioCaptureStopResult? stopResult;
     try {
       if (capture != null) {
         stopResult = await capture.stop();
@@ -986,7 +986,7 @@ class _IntegratedVadCompressionPageState
   }
 
   Future<void> _finalizeWholeRecordingArtifacts({
-    required VadRecordingArtifact? fullRecording,
+    required SegmentedAudioRecordingArtifact? fullRecording,
   }) async {
     final sessionDir = _liveOutputDir;
 

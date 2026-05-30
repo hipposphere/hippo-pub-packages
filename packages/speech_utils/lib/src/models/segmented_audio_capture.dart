@@ -10,8 +10,8 @@ import 'audio_metadata.dart';
 import 'audio_segment_metrics.dart';
 import 'pause_split_options.dart';
 
-final class VadCaptureTelemetryConfig {
-  const VadCaptureTelemetryConfig({
+final class SegmentedAudioCaptureTelemetryConfig {
+  const SegmentedAudioCaptureTelemetryConfig({
     this.speechHoldDuration = Duration.zero,
     this.emitSpeechState = true,
     this.emitLevels = true,
@@ -30,8 +30,8 @@ final class VadCaptureTelemetryConfig {
   }
 }
 
-final class VadCaptureOutputConfig {
-  const VadCaptureOutputConfig({
+final class SegmentedAudioCaptureOutputConfig {
+  const SegmentedAudioCaptureOutputConfig({
     required this.outputDirectory,
     this.segmentEncoding = const AudioEncodingConfig(encoder: AudioEncoder.wav),
     this.fullRecordingEncoding,
@@ -60,23 +60,33 @@ final class VadCaptureOutputConfig {
   }
 }
 
-final class VadCaptureRequest {
-  const VadCaptureRequest({
+enum AudioSegmentSplitMode {
+  /// Automatically split segments when VAD detects a silence boundary.
+  vad,
+
+  /// Split only when [SegmentedAudioCaptureSession.split] is called.
+  manual,
+}
+
+final class SegmentedAudioCaptureRequest {
+  const SegmentedAudioCaptureRequest({
     required this.split,
     required this.output,
     this.audio = const AudioRecorderConfig(),
     this.vad = const SpeechVadConfig(),
-    this.telemetry = const VadCaptureTelemetryConfig(),
+    this.telemetry = const SegmentedAudioCaptureTelemetryConfig(),
+    this.splitMode = AudioSegmentSplitMode.vad,
     this.flushOnStop = true,
     this.pollInterval = const Duration(milliseconds: 20),
     this.readSampleCapacity = 4096,
   });
 
   final PauseSplitOptions split;
-  final VadCaptureOutputConfig output;
+  final SegmentedAudioCaptureOutputConfig output;
   final AudioRecorderConfig audio;
   final SpeechVadConfig vad;
-  final VadCaptureTelemetryConfig telemetry;
+  final SegmentedAudioCaptureTelemetryConfig telemetry;
+  final AudioSegmentSplitMode splitMode;
   final bool flushOnStop;
   final Duration pollInterval;
   final int readSampleCapacity;
@@ -130,8 +140,8 @@ final class VadLevelSample {
   final bool hasSpeechFrame;
 }
 
-final class VadRecordingArtifact {
-  const VadRecordingArtifact({
+final class SegmentedAudioRecordingArtifact {
+  const SegmentedAudioRecordingArtifact({
     required this.file,
     required this.fileExtension,
     required this.mimeType,
@@ -146,8 +156,8 @@ final class VadRecordingArtifact {
   final AudioSegmentMetrics metrics;
 }
 
-final class VadCaptureStopResult {
-  const VadCaptureStopResult({
+final class SegmentedAudioCaptureStopResult {
+  const SegmentedAudioCaptureStopResult({
     required this.segmentCount,
     required this.analyzedFrameCount,
     required this.speechFrameCount,
@@ -157,16 +167,20 @@ final class VadCaptureStopResult {
   final int segmentCount;
   final int analyzedFrameCount;
   final int speechFrameCount;
-  final VadRecordingArtifact? fullRecording;
+  final SegmentedAudioRecordingArtifact? fullRecording;
 }
 
-abstract interface class VadCaptureSession {
-  ResolvedVadKind get backendKind;
-  String get backendLabel;
+abstract interface class SegmentedAudioCaptureSession {
+  ResolvedVadKind get vadBackendKind;
+  String get vadBackendLabel;
   Stream<VoiceSegment> get segments;
   Stream<VadSpeechStateSample> get speechStates;
   Stream<VadLevelSample> get levels;
   Stream<VadFrameDecision> get frameDecisions;
-  Future<VadCaptureStopResult> stop();
+  bool get isPaused;
+  Future<void> split();
+  Future<void> pause();
+  Future<void> resume();
+  Future<SegmentedAudioCaptureStopResult> stop();
   Future<void> cancel();
 }

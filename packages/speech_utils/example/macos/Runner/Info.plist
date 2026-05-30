@@ -27,7 +27,7 @@
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app records microphone audio for live VAD segmentation demos.</string>
+	<string>This app records microphone audio for live segmented capture demos.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

@@ -96,8 +96,12 @@ class SpeechRecorderController {
       return;
     }
 
-    await _stopNativeRecorderIfRunning();
-    await _drainStreamingSegmentation(session);
+    if (session.isStreaming) {
+      await session._segmentedCaptureSession?.pause();
+    } else {
+      await _stopNativeRecorderIfRunning();
+      await _drainStreamingSegmentation(session);
+    }
     await _stopAmplitudeListening(session);
 
     session._setState(SpeechRecorderSessionState.paused);
@@ -109,10 +113,35 @@ class SpeechRecorderController {
       return;
     }
 
-    await _startSessionCapture(session);
+    if (session.isStreaming) {
+      await session._segmentedCaptureSession?.resume();
+      await _startAmplitudeListening(
+        session: session,
+        interval: session.options.amplitudeInterval,
+      );
+    } else {
+      await _startSessionCapture(session);
+    }
 
     session._setState(SpeechRecorderSessionState.recording);
     session.stopwatch.start();
+  }
+
+  Future<void> splitSegment(SpeechRecorderSession session) async {
+    if (!session.isStreaming) {
+      throw StateError(
+        'Manual segment splitting is only available for streaming sessions.',
+      );
+    }
+    if (session.stateSubject.value == SpeechRecorderSessionState.stopped ||
+        session.stateSubject.value == SpeechRecorderSessionState.canceled) {
+      throw StateError('Cannot split a stopped streaming session.');
+    }
+    final segmentedCaptureSession = session._segmentedCaptureSession;
+    if (segmentedCaptureSession == null) {
+      throw StateError('Streaming capture is not active.');
+    }
+    await segmentedCaptureSession.split();
   }
 
   Future<void> stop(SpeechRecorderSession session) async {
@@ -276,20 +305,23 @@ class SpeechRecorderController {
     required SpeechRecorderSession session,
     required SpeechRecorderStreamingOptions streamingOptions,
   }) async {
-    final splitOptions = streamingOptions.pauseSplitOptions;
     final recordConfig = session.options.recordConfig;
+    final splitOptions = streamingOptions.resolvePauseSplitOptions(
+      recordConfig,
+    );
     final vadConfig = streamingOptions.vadConfig ?? const SpeechVadConfig();
 
     final outputDirectory = Directory(
       _defaultSegmentsOutputDirectory(session.options.path),
     );
-    final vadCapture = await _recorder.startVadCapture(
-      VadCaptureRequest(
+    final segmentedCapture = await _recorder.startSegmentedCapture(
+      SegmentedAudioCaptureRequest(
         split: splitOptions,
         audio: recordConfig,
         vad: vadConfig,
+        splitMode: streamingOptions.splitMode,
         flushOnStop: true,
-        output: VadCaptureOutputConfig(
+        output: SegmentedAudioCaptureOutputConfig(
           outputDirectory: outputDirectory,
           segmentEncoding: recordConfig.encoding,
           segmentPathBuilder: (segmentIndex, fileExtension) {
@@ -302,9 +334,9 @@ class SpeechRecorderController {
         ),
       ),
     );
-    session._vadCaptureSession = vadCapture;
+    session._segmentedCaptureSession = segmentedCapture;
 
-    session._streamingSegmentSubscription = vadCapture.segments
+    session._streamingSegmentSubscription = segmentedCapture.segments
         .asyncMap((segment) async {
           await _handleNativeStreamingSegment(
             session: session,
@@ -325,18 +357,17 @@ class SpeechRecorderController {
     required SpeechRecorderStreamingOptions streamingOptions,
     required VoiceSegment segment,
   }) async {
+    final splitOptions = streamingOptions.resolvePauseSplitOptions(
+      session.options.recordConfig,
+    );
     final segmentData = SpeechRecorderSegmentData(
       index: segment.index,
       file: segment.file,
       duration: segment.metadata.duration,
       fileExtension: segment.fileExtension,
       mimeType: segment.mimeType,
-      sampleRateHz:
-          segment.metadata.sampleRateHz ??
-          streamingOptions.pauseSplitOptions.sampleRateHz,
-      channelCount:
-          segment.metadata.channelCount ??
-          streamingOptions.pauseSplitOptions.channelCount,
+      sampleRateHz: segment.metadata.sampleRateHz ?? splitOptions.sampleRateHz,
+      channelCount: segment.metadata.channelCount ?? splitOptions.channelCount,
       bitrateBps: segment.metadata.bitrateBps,
       containerFormat: segment.metadata.containerFormat,
       codec: segment.metadata.codec,
@@ -362,15 +393,17 @@ class SpeechRecorderController {
   Future<void> _drainStreamingSegmentation(
     SpeechRecorderSession session,
   ) async {
-    final vadCaptureSession = session._vadCaptureSession;
+    final segmentedCaptureSession = session._segmentedCaptureSession;
     final subscription = session._streamingSegmentSubscription;
-    if (vadCaptureSession == null && subscription == null) {
+    if (segmentedCaptureSession == null && subscription == null) {
       return;
     }
 
     try {
-      if (vadCaptureSession != null) {
-        await vadCaptureSession.stop().timeout(_streamingSegmentDrainTimeout);
+      if (segmentedCaptureSession != null) {
+        await segmentedCaptureSession.stop().timeout(
+          _streamingSegmentDrainTimeout,
+        );
       }
       if (subscription != null) {
         await subscription.asFuture<void>().timeout(
@@ -386,8 +419,11 @@ class SpeechRecorderController {
           session._streamingSegmentSubscription = null;
         }
       }
-      if (identical(session._vadCaptureSession, vadCaptureSession)) {
-        session._vadCaptureSession = null;
+      if (identical(
+        session._segmentedCaptureSession,
+        segmentedCaptureSession,
+      )) {
+        session._segmentedCaptureSession = null;
       }
     }
   }
@@ -395,12 +431,12 @@ class SpeechRecorderController {
   Future<void> _cancelStreamingSegmentation(
     SpeechRecorderSession session,
   ) async {
-    final vadCaptureSession = session._vadCaptureSession;
-    session._vadCaptureSession = null;
+    final segmentedCaptureSession = session._segmentedCaptureSession;
+    session._segmentedCaptureSession = null;
     final subscription = session._streamingSegmentSubscription;
     session._streamingSegmentSubscription = null;
     await subscription?.cancel();
-    await vadCaptureSession?.cancel();
+    await segmentedCaptureSession?.cancel();
   }
 
   String _defaultSegmentsOutputDirectory(String sessionPath) {

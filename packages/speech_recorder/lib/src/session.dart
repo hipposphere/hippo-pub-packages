@@ -36,7 +36,7 @@ class SpeechRecorderSession {
 
   StreamSubscription<Amplitude>? _amplitudeSubscription;
   StreamSubscription<void>? _streamingSegmentSubscription;
-  VadCaptureSession? _vadCaptureSession;
+  SegmentedAudioCaptureSession? _segmentedCaptureSession;
 
   void _setState(SpeechRecorderSessionState state) {
     stateSubject.add(state);
@@ -104,6 +104,19 @@ class SpeechRecorderSession {
       return;
     }
     _onSegmentFinishedCallbacks.add(callback);
+  }
+
+  Future<void> splitSegment() async {
+    if (!isStreaming) {
+      throw StateError(
+        'Manual segment splitting is only available for streaming sessions.',
+      );
+    }
+    final captureSession = _segmentedCaptureSession;
+    if (captureSession == null) {
+      throw StateError('Streaming capture is not active.');
+    }
+    await captureSession.split();
   }
 }
 

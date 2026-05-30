@@ -585,6 +585,30 @@ int32_t PasteViaX11Clipboard(const std::string& text,
   return kOk;
 }
 
+int32_t PasteCurrentX11Clipboard(int32_t pre_paste_delay_ms,
+                                 PasteShortcut shortcut,
+                                 std::string* error_message) {
+  ScopedDisplay display(XOpenDisplay(nullptr));
+  if (display.get() == nullptr) {
+    *error_message =
+        "Linux clipboard paste requires an X11 DISPLAY with the XTEST extension";
+    return kUnsupported;
+  }
+
+  const int delay_ms = NormalizeDelayMs(pre_paste_delay_ms);
+  if (delay_ms > 0) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+  }
+
+  if (!SendPasteShortcut(display.get(), shortcut)) {
+    *error_message =
+        "Failed to send paste shortcut through the XTEST extension";
+    return kError;
+  }
+
+  return kOk;
+}
+
 }  // namespace
 
 extern "C" DESKTOP_AUTOPASTE_FFI_EXPORT int32_t
@@ -604,6 +628,21 @@ desktop_autopaste_paste_into_cursor_via_clipboard(
                                             pre_paste_delay_ms,
                                             ParsePasteShortcut(paste_shortcut),
                                             &error_message);
+  WriteUtf8(error_utf8, error_utf8_capacity, error_message);
+  return code;
+}
+
+extern "C" DESKTOP_AUTOPASTE_FFI_EXPORT int32_t
+desktop_autopaste_paste_from_clipboard(
+    int32_t pre_paste_delay_ms,
+    int32_t paste_shortcut,
+    char* error_utf8,
+    uint32_t error_utf8_capacity) {
+  std::string error_message;
+  const int32_t code = PasteCurrentX11Clipboard(
+      pre_paste_delay_ms,
+      ParsePasteShortcut(paste_shortcut),
+      &error_message);
   WriteUtf8(error_utf8, error_utf8_capacity, error_message);
   return code;
 }

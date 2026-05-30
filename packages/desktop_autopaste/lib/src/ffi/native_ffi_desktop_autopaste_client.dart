@@ -66,6 +66,29 @@ final class NativeFfiDesktopAutopasteClient implements DesktopAutopasteClient {
   }
 
   @override
+  Future<bool> pasteFromClipboard({
+    required Duration prePasteDelay,
+    required DesktopAutopastePasteShortcut pasteShortcut,
+  }) async {
+    final errorPtr = calloc<ffi.Char>(_errorBufferBytes);
+
+    try {
+      final prePasteDelayMs = prePasteDelay.isNegative
+          ? 0
+          : prePasteDelay.inMilliseconds;
+      final code = bindings.desktop_autopaste_paste_from_clipboard(
+        prePasteDelayMs,
+        pasteShortcut.index,
+        errorPtr,
+        _errorBufferBytes,
+      );
+      return code == 0;
+    } finally {
+      calloc.free(errorPtr);
+    }
+  }
+
+  @override
   Future<FocusedTextFieldContext> getFocusedTextFieldContext({
     int? maxCharsBefore,
     int? maxCharsAfter,

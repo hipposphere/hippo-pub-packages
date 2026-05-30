@@ -27,6 +27,16 @@ external int desktop_autopaste_paste_into_cursor_via_clipboard(
 );
 
 @ffi.Native<
+  ffi.Int32 Function(ffi.Int32, ffi.Int32, ffi.Pointer<ffi.Char>, ffi.Uint32)
+>()
+external int desktop_autopaste_paste_from_clipboard(
+  int pre_paste_delay_ms,
+  int paste_shortcut,
+  ffi.Pointer<ffi.Char> error_utf8,
+  int error_utf8_capacity,
+);
+
+@ffi.Native<
   ffi.Int32 Function(
     ffi.Int32,
     ffi.Int32,

@@ -16,6 +16,7 @@ ffi-native:
 functions:
   include:
     - desktop_autopaste_paste_into_cursor_via_clipboard
+    - desktop_autopaste_paste_from_clipboard
     - desktop_autopaste_get_focused_text_field_context_json
     - desktop_autopaste_edit_focused_text_field
 

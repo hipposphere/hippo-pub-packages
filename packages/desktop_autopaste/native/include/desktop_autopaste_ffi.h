@@ -26,6 +26,12 @@ DESKTOP_AUTOPASTE_FFI_EXPORT int32_t desktop_autopaste_paste_into_cursor_via_cli
     char* error_utf8,
     uint32_t error_utf8_capacity);
 
+DESKTOP_AUTOPASTE_FFI_EXPORT int32_t desktop_autopaste_paste_from_clipboard(
+    int32_t pre_paste_delay_ms,
+    int32_t paste_shortcut,
+    char* error_utf8,
+    uint32_t error_utf8_capacity);
+
 DESKTOP_AUTOPASTE_FFI_EXPORT int32_t desktop_autopaste_get_focused_text_field_context_json(
     int32_t max_chars_before,
     int32_t max_chars_after,

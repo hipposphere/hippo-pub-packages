@@ -1,3 +1,8 @@
+## 0.2.10
+
+* Add `pasteFromClipboard`, which sends the configured paste shortcut for the
+  current clipboard contents without replacing/restoring clipboard data.
+
 ## 0.2.9
 
 * Harden Windows clipboard auto-paste against stale clipboard races by

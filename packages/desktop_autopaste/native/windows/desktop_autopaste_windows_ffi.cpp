@@ -157,6 +157,24 @@ extern "C" DESKTOP_AUTOPASTE_FFI_EXPORT int32_t
 }
 
 extern "C" DESKTOP_AUTOPASTE_FFI_EXPORT int32_t
+    desktop_autopaste_paste_from_clipboard(
+        int32_t pre_paste_delay_ms,
+        int32_t paste_shortcut,
+        char* error_utf8,
+        uint32_t error_utf8_capacity) {
+  const bool ok = desktop_autopaste::PasteFromClipboard(
+      ParseClipboardPasteShortcut(paste_shortcut),
+      pre_paste_delay_ms);
+  if (!ok) {
+    WriteUtf8(error_utf8, error_utf8_capacity, "Clipboard paste failed");
+    return 1;
+  }
+
+  WriteUtf8(error_utf8, error_utf8_capacity, "");
+  return 0;
+}
+
+extern "C" DESKTOP_AUTOPASTE_FFI_EXPORT int32_t
     desktop_autopaste_get_focused_text_field_context_json(
         int32_t max_chars_before,
         int32_t max_chars_after,

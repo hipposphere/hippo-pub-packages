@@ -22,6 +22,10 @@ bool AutoPasteTextViaClipboardWithShortcut(
     ClipboardPasteShortcut shortcut,
     int pre_paste_delay_ms);
 
+bool PasteFromClipboard(
+    ClipboardPasteShortcut shortcut,
+    int pre_paste_delay_ms);
+
 }  // namespace desktop_autopaste
 
 #endif  // FLUTTER_PLUGIN_AUTOPASTE_TEXT_H_

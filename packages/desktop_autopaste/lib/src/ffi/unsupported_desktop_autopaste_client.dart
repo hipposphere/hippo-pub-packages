@@ -17,6 +17,12 @@ final class UnsupportedDesktopAutopasteClient
   }) async => false;
 
   @override
+  Future<bool> pasteFromClipboard({
+    required Duration prePasteDelay,
+    required DesktopAutopastePasteShortcut pasteShortcut,
+  }) async => false;
+
+  @override
   Future<FocusedTextFieldContext> getFocusedTextFieldContext({
     int? maxCharsBefore,
     int? maxCharsAfter,

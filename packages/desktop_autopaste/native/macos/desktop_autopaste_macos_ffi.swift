@@ -107,6 +107,25 @@ func desktopAutopasteMacosPasteIntoCursorViaClipboard(_ text: String) -> Bool {
   }
 }
 
+func desktopAutopasteMacosPasteFromClipboardResult(prePasteDelayMs: Int32) -> PasteResult {
+  let runPaste: () -> PasteResult = {
+    let delayMs = max(0, prePasteDelayMs)
+    if delayMs > 0 {
+      Thread.sleep(forTimeInterval: Double(delayMs) / 1000.0)
+    }
+
+    guard emulateCommandV() else {
+      return .error(code: 1, message: "Failed to emulate Command+V")
+    }
+    return .ok
+  }
+
+  if Thread.isMainThread {
+    return runPaste()
+  }
+  return DispatchQueue.main.sync(execute: runPaste)
+}
+
 @objcMembers
 public final class DesktopAutopasteMacosBridge: NSObject {
   public static func pasteIntoCursorViaClipboard(_ text: String) -> Bool {
@@ -134,6 +153,28 @@ public func desktop_autopaste_paste_into_cursor_via_clipboard(
     return 2
   }
   let result = desktopAutopasteMacosPasteIntoCursorViaClipboardResult(text)
+
+  switch result {
+  case .ok:
+    writeUtf8(errorUtf8, errorUtf8Capacity, "")
+    return 0
+  case let .error(code, message):
+    writeUtf8(errorUtf8, errorUtf8Capacity, message)
+    return code
+  }
+}
+
+@_cdecl("desktop_autopaste_paste_from_clipboard")
+public func desktop_autopaste_paste_from_clipboard(
+  _ prePasteDelayMs: Int32,
+  _ pasteShortcut: Int32,
+  _ errorUtf8: UnsafeMutablePointer<CChar>?,
+  _ errorUtf8Capacity: UInt32
+) -> Int32 {
+  _ = pasteShortcut
+  let result = desktopAutopasteMacosPasteFromClipboardResult(
+    prePasteDelayMs: prePasteDelayMs
+  )
 
   switch result {
   case .ok:

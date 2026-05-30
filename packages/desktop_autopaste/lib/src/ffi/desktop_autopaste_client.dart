@@ -9,6 +9,11 @@ abstract interface class DesktopAutopasteClient {
     required DesktopAutopastePasteShortcut pasteShortcut,
   });
 
+  Future<bool> pasteFromClipboard({
+    required Duration prePasteDelay,
+    required DesktopAutopastePasteShortcut pasteShortcut,
+  });
+
   Future<FocusedTextFieldContext> getFocusedTextFieldContext({
     int? maxCharsBefore,
     int? maxCharsAfter,

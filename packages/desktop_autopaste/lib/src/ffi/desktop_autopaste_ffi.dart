@@ -27,6 +27,17 @@ final class DesktopAutopasteFfi {
     );
   }
 
+  Future<bool> pasteFromClipboard({
+    Duration prePasteDelay = Duration.zero,
+    DesktopAutopastePasteShortcut pasteShortcut =
+        DesktopAutopastePasteShortcut.ctrlV,
+  }) {
+    return _client.pasteFromClipboard(
+      prePasteDelay: prePasteDelay,
+      pasteShortcut: pasteShortcut,
+    );
+  }
+
   Future<FocusedTextFieldContext> getFocusedTextFieldContext({
     int? maxCharsBefore = 120,
     int? maxCharsAfter = 120,

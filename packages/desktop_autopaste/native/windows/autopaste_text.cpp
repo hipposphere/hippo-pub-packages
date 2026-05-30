@@ -613,6 +613,24 @@ bool AutoPasteTextViaClipboard(const std::wstring& text,
                                                pre_paste_delay_ms);
 }
 
+bool PasteFromClipboard(ClipboardPasteShortcut shortcut,
+                        int pre_paste_delay_ms) {
+  const int effective_pre_paste_delay_ms =
+      NormalizePrePasteDelayMs(pre_paste_delay_ms);
+  if (effective_pre_paste_delay_ms > 0) {
+    ::Sleep(effective_pre_paste_delay_ms);
+  }
+
+  const HWND target_hwnd = GetFocusedWindowHandle();
+  if (!SendPasteShortcut(shortcut)) {
+    return false;
+  }
+
+  WaitForWindowProcessInputIdle(target_hwnd);
+  PumpPendingMessages();
+  return true;
+}
+
 bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
                                            ClipboardPasteShortcut shortcut,
                                            int pre_paste_delay_ms) {

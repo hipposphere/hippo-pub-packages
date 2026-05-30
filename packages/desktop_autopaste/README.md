@@ -6,6 +6,9 @@ Desktop auto-paste helpers backed by native FFI code assets.
 
 - `pasteIntoCursorViaClipboard(text, prePasteDelay: ..., pasteShortcut: ...)`
   (`prePasteDelay` is optional and defaults to `0ms`)
+- `pasteFromClipboard(prePasteDelay: ..., pasteShortcut: ...)`
+  sends the paste shortcut for the current clipboard contents without changing
+  clipboard data
 - `getFocusedTextFieldContext(maxCharsBefore, maxCharsAfter, enableScreenReader)`
 - `editFocusedTextField(operations)`
 

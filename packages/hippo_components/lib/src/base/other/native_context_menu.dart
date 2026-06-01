@@ -1,28 +1,49 @@
 /*
 // ---------------------------------------------------------------------------
 // Copyright (c) 2025 HippoSphere UG (haftungsbeschränkt). All rights reserved.
-// Use, copying, modification, or distribution of this software is prohibited 
+// Use, copying, modification, or distribution of this software is prohibited
 // without express written permission from Hipposphere UG.
 //
 // SPDX-License-Identifier: LicenseRef-Hipposphere-Proprietary
 // ---------------------------------------------------------------------------
 */
 import 'package:flutter/widgets.dart';
-import 'package:super_context_menu/super_context_menu.dart';
-export 'package:super_context_menu/super_context_menu.dart'
-    show MenuProvider, Menu, MenuAction, MenuActionState, MenuImage;
 
-/// A widget that wraps a child widget with a native context menu.
-/// The context menu will be shown on Mobile when the user long presses on the child widget.
-/// The context menu will be shown on Desktop when the user right clicks on the child widget.
-/// The context menu is built using the [menuProvider].
+import 'native_context_menu_model.dart';
+import 'native_context_menu_web.dart'
+    if (dart.library.io) 'native_context_menu_native.dart'
+    as platform;
+
+export 'native_context_menu_model.dart';
+
+/// Wraps [child] with a platform context menu.
+///
+/// Native builds use `nativeapi` menus. Web builds use Flutter's menu widgets
+/// and disable the browser context menu while the app is running.
 class NativeContextMenu extends StatelessWidget {
   final Widget child;
   final MenuProvider menuProvider;
-  const NativeContextMenu({super.key, required this.child, required this.menuProvider});
+  final HitTestBehavior hitTestBehavior;
+  final bool enabled;
+
+  const NativeContextMenu({
+    super.key,
+    required this.child,
+    required this.menuProvider,
+    this.hitTestBehavior = HitTestBehavior.deferToChild,
+    this.enabled = true,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ContextMenuWidget(menuProvider: menuProvider, child: child);
+    if (!enabled) {
+      return child;
+    }
+
+    return platform.PlatformNativeContextMenu(
+      menuProvider: menuProvider,
+      hitTestBehavior: hitTestBehavior,
+      child: child,
+    );
   }
 }

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dart_edge_auth/dart_edge_auth.dart';
-import 'package:dart_edge_http_server/dart_edge_http_server.dart';
+import 'package:dart_edge_http_server/dart_edge_http_server.dart' hide SqlPool;
 import 'package:dart_edge_sql/dart_edge_sql.dart';
 import 'package:dart_edge_sql_pglite/dart_edge_sql_pglite.dart';
 import 'package:hippo_auth_backend/hippo_auth_backend.dart';

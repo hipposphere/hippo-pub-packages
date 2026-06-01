@@ -8,13 +8,12 @@ list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_windows
   flutter_secure_storage_windows
   hid_api
-  irondash_engine_context
   share_plus
-  super_native_extensions
   url_launcher_windows
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  cnativeapi
   jni
 )
 

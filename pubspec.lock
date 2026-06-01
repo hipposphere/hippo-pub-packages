@@ -289,6 +289,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.2"
+  cnativeapi:
+    dependency: transitive
+    description:
+      name: cnativeapi
+      sha256: "2217a6adc6153b86c2dcb5b2cfbf6c9714ecf78562f095d3e5ea0a8968eff21b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.3"
   code_assets:
     dependency: transitive
     description:
@@ -1028,22 +1036,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.5"
-  irondash_engine_context:
-    dependency: transitive
-    description:
-      name: irondash_engine_context
-      sha256: "2bb0bc13dfda9f5aaef8dde06ecc5feb1379f5bb387d59716d799554f3f305d7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.5.5"
-  irondash_message_channel:
-    dependency: transitive
-    description:
-      name: irondash_message_channel
-      sha256: b4101669776509c76133b8917ab8cfc704d3ad92a8c450b92934dd8884a2f060
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.7.0"
   isoweek:
     dependency: transitive
     description:
@@ -1220,6 +1212,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.4"
+  nativeapi:
+    dependency: transitive
+    description:
+      name: nativeapi
+      sha256: "3270fa9de65fa183bd622766a667e9e079814d135d5167d5da049ad547233721"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.3"
   nested:
     dependency: transitive
     description:
@@ -1372,14 +1372,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.2"
-  pixel_snap:
-    dependency: transitive
-    description:
-      name: pixel_snap
-      sha256: "677410ea37b07cd37ecb6d5e6c0d8d7615a7cf3bd92ba406fd1ac57e937d1fb0"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.5"
   platform:
     dependency: transitive
     description:
@@ -1801,22 +1793,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.0"
-  super_context_menu:
-    dependency: transitive
-    description:
-      name: super_context_menu
-      sha256: "44570d342bea2381c57520f181016207c0ffde401f05f641e6dfec495fa728fe"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.9.1"
-  super_native_extensions:
-    dependency: transitive
-    description:
-      name: super_native_extensions
-      sha256: b9611dcb68f1047d6f3ef11af25e4e68a21b1a705bbcc3eb8cb4e9f5c3148569
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.9.1"
   super_sliver_list:
     dependency: transitive
     description:

@@ -11,10 +11,11 @@ with `dart_edge_jaspr`.
 final database = SqliteDatabase.inMemory();
 final backend = HippoAuthBackend(
   HippoAuthBackendOptions(
-      workerPoolSize: 4,
+    workerPoolSize: 4,
     database: database,
     secret: 'replace-with-a-strong-secret-at-least-32-chars',
     baseUrl: 'http://localhost:3000',
+    trustedOrigins: const ['http://127.0.0.1:12345'],
     exposeBetterAuthApi: true,
     manageMigrations: true, // Use application migrations in production.
   ),
@@ -56,6 +57,12 @@ OAuth2 and SSO routes are backed by `dart_edge_auth` OAuth providers. OAuth
 client admin routes are still registered for client compatibility, but return
 `501` until `dart_edge_auth` exposes the matching Better Auth OAuth provider
 management plugin.
+
+OAuth callback URLs passed through `/v1/oauth2/sign-in/...` must satisfy Better
+Auth origin validation. For desktop/browser flows that redirect to a loopback
+callback URL, add the exact callback origin through `trustedOrigins`. Custom URL
+schemes such as `dicto://...` are not HTTP(S) origins and should be handled
+outside Better Auth's callback URL validation.
 
 Generated OpenAPI docs include stable operation IDs, request body presence,
 response content types, and error status metadata. Hippo route payloads are

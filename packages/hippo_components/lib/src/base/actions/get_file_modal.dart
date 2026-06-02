@@ -25,13 +25,7 @@ class GetSingleFileModal {
         bytes: await selectedFile.readAsBytes(),
       );
     }
-    final pickedFiles =
-        (await FilePicker.pickFiles(
-          type: FileType.any,
-          allowMultiple: false,
-          withData: true,
-        ))?.files ??
-        [];
+    final pickedFiles = (await FilePicker.pickFiles(type: FileType.any))?.files ?? [];
     final pickedFile = pickedFiles.firstOrNull;
     return pickedFile;
   }
@@ -39,11 +33,7 @@ class GetSingleFileModal {
 
 class GetMultipleFilesModal {
   Future<List<PlatformFile>?> open(BuildContext context) async {
-    final pickedFiles = (await FilePicker.pickFiles(
-      type: FileType.any,
-      allowMultiple: true,
-      withData: true,
-    ))?.files;
+    final pickedFiles = (await FilePicker.pickFiles(type: FileType.any))?.files;
     return pickedFiles;
   }
 }

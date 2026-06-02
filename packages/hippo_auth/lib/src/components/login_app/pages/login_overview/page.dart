@@ -40,7 +40,7 @@ class LoginOverviewPageBody extends StatelessWidget {
                   authBloc.loginController.oauth2SignIn(
                     provider: provider.id,
                     callbackUrl: provider.callbackUrl.toString(),
-                    callbackUrlScheme: 'https',
+                    callbackUrlScheme: provider.callbackUrl.scheme,
                   );
                 },
               ),

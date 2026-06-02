@@ -8,6 +8,7 @@ final class HippoAuthBackendOptions {
     required this.database,
     required this.secret,
     required this.baseUrl,
+    this.trustedOrigins = const <String>[],
     this.databaseSchema,
     this.manageMigrations = false,
     this.appName = 'Hippo Auth',
@@ -30,6 +31,7 @@ final class HippoAuthBackendOptions {
   final SqlPool database;
   final String secret;
   final String baseUrl;
+  final List<String> trustedOrigins;
   final String? databaseSchema;
   final bool manageMigrations;
   final String appName;
@@ -53,6 +55,7 @@ final class HippoAuthBackendOptions {
     return DartEdgeAuthConfig(
       secret: secret,
       baseUrl: baseUrl,
+      trustedOrigins: trustedOrigins,
       workerPoolSize: workerPoolSize,
       database: DartEdgeAuthDatabase.fromDatabase(
         database,

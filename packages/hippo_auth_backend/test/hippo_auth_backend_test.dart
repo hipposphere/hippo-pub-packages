@@ -81,17 +81,11 @@ void main() {
       database: database,
       secret: 'test-secret-key-that-is-at-least-32-characters-long',
       baseUrl: 'http://localhost:3000',
-      trustedOrigins: const [
-        'http://127.0.0.1:12345',
-        'https://app.example.test',
-      ],
+      trustedOrigins: const ['http://127.0.0.1:12345', 'https://app.example.test'],
     );
 
     final config = options.toDartEdgeAuthConfig();
-    expect(config.trustedOrigins, [
-      'http://127.0.0.1:12345',
-      'https://app.example.test',
-    ]);
+    expect(config.trustedOrigins, ['http://127.0.0.1:12345', 'https://app.example.test']);
   });
 
   test('passes generic OAuth SSO providers to dart_edge_auth', () {

@@ -23,6 +23,7 @@ final class HippoAuthBackendOptions {
     this.enableEmailVerification = false,
     this.enableRateLimit = false,
     this.sessionCookieName = defaultHippoAuthSessionCookieName,
+    this.allowLoopbackOAuthCallbackUrls = true,
     this.ssoProviders = const <HippoAuthSsoProvider>[],
     this.admin = const HippoAuthBackendAdminOptions(),
     this.branding = const HippoAuthBackendBranding(),
@@ -46,6 +47,7 @@ final class HippoAuthBackendOptions {
   final bool enableEmailVerification;
   final bool enableRateLimit;
   final String sessionCookieName;
+  final bool allowLoopbackOAuthCallbackUrls;
   final List<HippoAuthSsoProvider> ssoProviders;
   final HippoAuthBackendAdminOptions admin;
   final HippoAuthBackendBranding branding;
@@ -148,6 +150,7 @@ final class HippoAuthSsoProvider {
     this.authorizationUrl,
     this.tokenUrl,
     this.userInfoUrl,
+    this.redirectUrl,
     this.scopes = const <String>['openid', 'email', 'profile'],
   });
 
@@ -158,6 +161,7 @@ final class HippoAuthSsoProvider {
   final String? authorizationUrl;
   final String? tokenUrl;
   final String? userInfoUrl;
+  final String? redirectUrl;
   final List<String> scopes;
 
   Map<String, Object?> toJson() => {
@@ -178,14 +182,10 @@ final class HippoAuthSsoProvider {
     if (normalizedProviderId.isEmpty ||
         normalizedClientId == null ||
         normalizedClientId.isEmpty ||
-        normalizedClientSecret == null ||
-        normalizedClientSecret.isEmpty ||
         normalizedAuthorizationUrl == null ||
         normalizedAuthorizationUrl.isEmpty ||
         normalizedTokenUrl == null ||
-        normalizedTokenUrl.isEmpty ||
-        normalizedUserInfoUrl == null ||
-        normalizedUserInfoUrl.isEmpty) {
+        normalizedTokenUrl.isEmpty) {
       return null;
     }
     return DartEdgeAuthOAuthProviderConfig(
@@ -194,7 +194,9 @@ final class HippoAuthSsoProvider {
       clientSecret: normalizedClientSecret,
       authorizationUrl: normalizedAuthorizationUrl,
       tokenUrl: normalizedTokenUrl,
-      userInfoUrl: normalizedUserInfoUrl,
+      userInfoUrl: normalizedUserInfoUrl == null || normalizedUserInfoUrl.isEmpty
+          ? null
+          : normalizedUserInfoUrl,
       scopes: scopes
           .map((scope) => scope.trim())
           .where((scope) => scope.isNotEmpty)

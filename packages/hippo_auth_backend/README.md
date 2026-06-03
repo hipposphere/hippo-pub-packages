@@ -15,7 +15,7 @@ final backend = HippoAuthBackend(
     database: database,
     secret: 'replace-with-a-strong-secret-at-least-32-chars',
     baseUrl: 'http://localhost:3000',
-    trustedOrigins: const ['http://127.0.0.1:12345'],
+    trustedOrigins: const ['https://app.example.com'],
     exposeBetterAuthApi: true,
     manageMigrations: true, // Use application migrations in production.
   ),
@@ -58,11 +58,20 @@ client admin routes are still registered for client compatibility, but return
 `501` until `dart_edge_auth` exposes the matching Better Auth OAuth provider
 management plugin.
 
-OAuth callback URLs passed through `/v1/oauth2/sign-in/...` must satisfy Better
-Auth origin validation. For desktop/browser flows that redirect to a loopback
-callback URL, add the exact callback origin through `trustedOrigins`. Custom URL
-schemes such as `dicto://...` are not HTTP(S) origins and should be handled
-outside Better Auth's callback URL validation.
+`callbackURL` on `/v1/oauth2/sign-in/<provider>` is the final application return
+URL. `hippo_auth_backend` starts the provider OAuth flow with the backend
+callback URL instead, stores the app callback by OAuth state, and redirects to
+the app callback after the backend callback creates a session. The provider
+redirect URL defaults to `<baseUrl>/v1/oauth2/callback/<provider>` and can be
+overridden per provider with `HippoAuthSsoProvider.redirectUrl` for proxied or
+subpath deployments.
+
+The final app `callbackURL` must be an absolute HTTP(S) URL on the auth origin,
+on a configured `trustedOrigins` origin, or on a loopback host when
+`allowLoopbackOAuthCallbackUrls` is enabled. Loopback ports such as
+`http://127.0.0.1:55357/callback` do not need to be added to Better Auth trusted
+origins. Configure the OAuth provider, such as Azure Entra ID, with the backend
+callback URL, not the loopback app callback URL.
 
 Generated OpenAPI docs include stable operation IDs, request body presence,
 response content types, and error status metadata. Hippo route payloads are

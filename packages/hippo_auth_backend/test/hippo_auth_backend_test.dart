@@ -6,6 +6,8 @@ import 'package:dart_edge_http_server/dart_edge_http_server.dart' hide SqlPool;
 import 'package:dart_edge_sql/dart_edge_sql.dart';
 import 'package:dart_edge_sql_pglite/dart_edge_sql_pglite.dart';
 import 'package:hippo_auth_backend/hippo_auth_backend.dart';
+import 'package:hippo_auth_backend/src/gateways/verification_gateway.dart';
+import 'package:hippo_auth_backend/src/utils/auth_response_token.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -40,6 +42,22 @@ void main() {
 
     expect(headers['authorization'], 'Bearer session-token');
     expect(headers['cookie'], 'theme=dark; better-auth.session-token=session-token');
+  });
+
+  test('reads OAuth session tokens from Better Auth callback cookies', () {
+    final response = DartEdgeAuthApiResponse(
+      status: HttpStatus.ok,
+      contentType: 'application/json',
+      headers: const [
+        HttpHeader(
+          'set-cookie',
+          'better-auth.session-token=session%2Ftoken; Path=/; HttpOnly; SameSite=Lax',
+        ),
+      ],
+      body: '{}',
+    );
+
+    expect(sessionTokenFromAuthResponse(response), 'session/token');
   });
 
   test('disables auth-managed migrations by default', () {
@@ -114,6 +132,69 @@ void main() {
     expect(oauthProviders, hasLength(1));
     expect(oauthProviders.single.providerId, 'uka');
     expect(oauthProviders.single.clientId, 'client-id');
+  });
+
+  test(
+    'passes generic OAuth SSO providers without client secrets or user info endpoints to dart_edge_auth',
+    () {
+      final database = SqliteDatabase.inMemory();
+      addTearDown(database.close);
+
+      final options = HippoAuthBackendOptions(
+        workerPoolSize: 4,
+        database: database,
+        secret: 'test-secret-key-that-is-at-least-32-characters-long',
+        baseUrl: 'http://localhost:3000',
+        ssoProviders: const [
+          HippoAuthSsoProvider(
+            providerId: 'uka',
+            providerType: HippoAuthSsoProviderType.genericOAuth,
+            clientId: 'client-id',
+            authorizationUrl: 'https://idp.example.test/oauth/authorize',
+            tokenUrl: 'https://idp.example.test/oauth/token',
+          ),
+        ],
+      );
+
+      final oauthProviders = options.toDartEdgeAuthConfig().oauthProviders;
+      expect(oauthProviders, hasLength(1));
+      expect(oauthProviders.single.clientSecret, isNull);
+      expect(oauthProviders.single.userInfoUrl, isNull);
+    },
+  );
+
+  test('stores OAuth relay callback URLs by state', () async {
+    final database = SqliteDatabase.inMemory();
+    final backend = _backend(database);
+    final app = DartEdge<void>(services: () {});
+    backend.mount(app);
+
+    final server = await app.listen(port: 0, workers: 1);
+    final client = HttpClient();
+    addTearDown(() async {
+      client.close(force: true);
+      await server.close();
+      backend.dispose();
+      await database.close();
+    });
+
+    final baseUri = Uri.http('127.0.0.1:${server.port}');
+    final signup = await _postJson(client, baseUri.resolve('/v1/user/sign-up-email'), {
+      'name': 'Relay User',
+      'email': 'relay@example.com',
+      'password': 'password123',
+    });
+    expect(signup.statusCode, HttpStatus.ok, reason: await _readBody(signup));
+
+    final verifications = VerificationGateway(database);
+    const callbackUrl = 'http://127.0.0.1:55357/callback';
+    await verifications.storeOAuthRelayCallbackUrl(state: 'state-1', callbackUrl: callbackUrl);
+
+    expect(await verifications.oauthRelayCallbackUrl('state-1'), callbackUrl);
+    expect(await verifications.oauthCallbackUrl('state-1'), isNull);
+
+    await verifications.deleteOAuthRelayCallbackUrl('state-1');
+    expect(await verifications.oauthRelayCallbackUrl('state-1'), isNull);
   });
 
   test('normalizes and validates database schema options', () {

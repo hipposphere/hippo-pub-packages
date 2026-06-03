@@ -1,9 +1,8 @@
-import 'dart:convert';
-
 import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_core/dart_edge_core.dart';
 
 import '../../../utils/api_error.dart';
+import '../../../utils/auth_response_token.dart';
 import '../../shared/route_context.dart';
 import '../../shared/route_definition.dart';
 import 'schema.dart';
@@ -51,20 +50,52 @@ final class OAuth2CallbackRoute<TServices> extends HippoAuthJsonRoute<TServices>
       );
     }
 
-    final redirectLocation = await context.verifications.oauthCallbackUrl(state);
-    final authResponse = await context
-        .api(ctx)
-        .oauthCallback(
-          provider: providerId,
-          code: code,
-          state: state,
-          headers: context.betterAuthHeaders(ctx),
-        );
-    if (!authResponse.isSuccess) {
-      throw DartEdgeAuthApiException(authResponse);
+    final relayRedirectLocation = await context.verifications.oauthRelayCallbackUrl(state);
+    final redirectLocation =
+        relayRedirectLocation ?? await context.verifications.oauthCallbackUrl(state);
+    if (redirectLocation == null || redirectLocation.isEmpty) {
+      return hippoAuthErrorResponse(
+        400,
+        'OAuth2CallbackUnknownState',
+        'OAuth2 callback state is unknown or expired.',
+        details: {'provider_id': providerId},
+      );
     }
 
-    final token = _token(authResponse);
+    final DartEdgeAuthApiResponse authResponse;
+    try {
+      authResponse = await context
+          .api(ctx)
+          .oauthCallback(
+            provider: providerId,
+            code: code,
+            state: state,
+            headers: context.betterAuthHeaders(ctx),
+          );
+    } catch (error) {
+      return hippoAuthErrorResponse(
+        500,
+        'OAuth2CallbackExchangeFailed',
+        'OAuth2 callback exchange failed.',
+        details: {'provider_id': providerId, 'error': error.toString()},
+      );
+    }
+    if (!authResponse.isSuccess) {
+      return hippoAuthExceptionResponse(
+        DartEdgeAuthApiException(authResponse),
+        defaultStatus: authResponse.status,
+        defaultCode: 'OAuth2CallbackExchangeFailed',
+        defaultMessage: 'OAuth2 callback exchange failed.',
+        details: {
+          'provider_id': providerId,
+          'auth_status': authResponse.status,
+          'auth_content_type': authResponse.contentType,
+          if (authResponse.body.isNotEmpty) 'auth_body': _truncated(authResponse.body),
+        },
+      );
+    }
+
+    final token = sessionTokenFromAuthResponse(authResponse);
     if (token == null || token.isEmpty) {
       return hippoAuthErrorResponse(
         401,
@@ -84,37 +115,25 @@ final class OAuth2CallbackRoute<TServices> extends HippoAuthJsonRoute<TServices>
       );
     }
 
-    if (redirectLocation == null || redirectLocation.isEmpty) {
-      return hippoAuthErrorResponse(
-        500,
-        'OAuth2CallbackMissingRedirect',
-        'OAuth2 callback did not return a redirect location.',
-        details: {'provider_id': providerId},
-      );
-    }
-
     final redirectUrl = _sessionRedirectUrl(
       redirectLocation,
       token: token,
       sessionId: session.id,
       expiresAt: session.expiresAt,
     );
+    if (relayRedirectLocation != null) {
+      await context.verifications.deleteOAuthRelayCallbackUrl(state);
+    }
     return RawResponse.text(status: 302, headers: [HttpHeader('location', redirectUrl)]);
   }
 }
 
-String? _token(DartEdgeAuthApiResponse response) {
-  final jsonBody = response.jsonBody;
-  if (jsonBody case {'token': final String token}) {
-    return token;
+String _truncated(String value) {
+  const maxLength = 2000;
+  if (value.length <= maxLength) {
+    return value;
   }
-  if (response.body.isNotEmpty) {
-    final parsed = jsonDecode(response.body);
-    if (parsed case {'token': final String token}) {
-      return token;
-    }
-  }
-  return response.header('set-auth-token');
+  return '${value.substring(0, maxLength)}...';
 }
 
 String _sessionRedirectUrl(

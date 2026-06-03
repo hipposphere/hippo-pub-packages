@@ -14,4 +14,4 @@ dependencies:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.3.17
   googleai_dart: ^7.0.0
-  openai_dart: ^6.0.0
+  openai_dart: ^6.1.0

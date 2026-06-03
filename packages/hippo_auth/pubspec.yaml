@@ -10,7 +10,7 @@ environment:
   flutter: ">=3.44.0"
 
 dependencies:
-  flutter_web_auth_2: ^5.0.2
+  flutter_web_auth_2: ^5.0.3
   flutter:
     sdk: flutter
   hippo_core:

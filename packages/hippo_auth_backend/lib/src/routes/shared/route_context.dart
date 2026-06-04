@@ -5,6 +5,7 @@ import 'package:dart_edge_core/dart_edge_core.dart';
 
 import '../../utils/api_error.dart';
 import '../../utils/auth_guard.dart';
+import '../../utils/session_cookie_names.dart';
 import '../../gateways/session_gateway.dart';
 import '../../gateways/verification_gateway.dart';
 import '../../models/hippo_auth_session_payload.dart';
@@ -152,7 +153,7 @@ final class HippoAuthRouteContext {
         if (_isForwardedHeader(header.name)) header,
     ];
 
-    if (options.sessionCookieName != 'better-auth.session-token') {
+    if (!isBetterAuthSessionCookieName(options.sessionCookieName)) {
       headers.add(HttpHeader('set-cookie', _customSessionCookie(session.token, session.expiresAt)));
     }
 

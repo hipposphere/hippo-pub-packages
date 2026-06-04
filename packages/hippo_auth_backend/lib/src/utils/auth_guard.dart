@@ -2,6 +2,7 @@ import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_core/dart_edge_core.dart';
 
 import 'api_error.dart';
+import 'session_cookie_names.dart';
 
 final class HippoAuthGuard<TServices> implements Guard<TServices> {
   HippoAuthGuard({required this.auth, required this.sessionCookieName, this.allowedRoles});
@@ -54,7 +55,7 @@ Map<String, String> authHeadersForBetterAuth(
   };
   final token = resolveSessionToken(headers, sessionCookieName);
   if (token != null) {
-    headers['cookie'] = _upsertCookie(headers['cookie'], 'better-auth.session-token', token);
+    headers['cookie'] = _upsertCookie(headers['cookie'], betterAuthSessionCookieName, token);
   }
   return headers;
 }
@@ -64,7 +65,7 @@ String? resolveSessionToken(Map<String, String> headers, String sessionCookieNam
   if (authorization != null) {
     final parts = authorization.trim().split(RegExp(r'\s+'));
     if (parts.length == 2 && parts.first.toLowerCase() == 'bearer') {
-      return parts.last;
+      return _decodeCookieValue(parts.last);
     }
   }
 
@@ -73,11 +74,17 @@ String? resolveSessionToken(Map<String, String> headers, String sessionCookieNam
     return null;
   }
 
-  return _readCookie(cookie, sessionCookieName) ?? _readCookie(cookie, 'better-auth.session-token');
+  for (final name in betterAuthSessionCookieAliases(sessionCookieName)) {
+    final token = _readCookie(cookie, name);
+    if (token != null) {
+      return token;
+    }
+  }
+  return null;
 }
 
 String _upsertCookie(String? cookieHeader, String name, String value) {
-  final encodedValue = Uri.encodeComponent(value);
+  final encodedValue = Uri.encodeComponent(_decodeCookieValue(value));
   final cookie = '$name=$encodedValue';
   if (cookieHeader == null || cookieHeader.trim().isEmpty) {
     return cookie;
@@ -120,10 +127,18 @@ String? _readCookie(String cookieHeader, String name) {
     }
     final cookieName = part.substring(0, index).trim();
     if (cookieName == name) {
-      return Uri.decodeComponent(part.substring(index + 1).trim());
+      return _decodeCookieValue(part.substring(index + 1).trim());
     }
   }
   return null;
+}
+
+String _decodeCookieValue(String value) {
+  try {
+    return Uri.decodeComponent(value);
+  } on FormatException {
+    return value;
+  }
 }
 
 bool _hasAnyRole(Object? rawRole, List<String> allowedRoles) {

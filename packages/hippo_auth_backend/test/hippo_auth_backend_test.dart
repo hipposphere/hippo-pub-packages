@@ -41,7 +41,31 @@ void main() {
     }, defaultHippoAuthSessionCookieName);
 
     expect(headers['authorization'], 'Bearer session-token');
-    expect(headers['cookie'], 'theme=dark; better-auth.session-token=session-token');
+    expect(
+      headers['cookie'],
+      'theme=dark; better-auth.session-token=stale-token; '
+      'better-auth.session_token=session-token',
+    );
+  });
+
+  test('resolves signed Node Better Auth bearer and cookie tokens', () {
+    final signedToken = Uri.encodeComponent('session-token.signature=');
+    final bearerHeaders = authHeadersForBetterAuth({
+      HttpHeaders.authorizationHeader: 'Bearer $signedToken',
+    }, defaultHippoAuthSessionCookieName);
+
+    expect(bearerHeaders['authorization'], 'Bearer $signedToken');
+    expect(bearerHeaders['cookie'], 'better-auth.session_token=$signedToken');
+
+    final cookieHeaders = authHeadersForBetterAuth({
+      HttpHeaders.cookieHeader: '__Secure-better-auth.session_token=$signedToken',
+    }, defaultHippoAuthSessionCookieName);
+
+    expect(
+      cookieHeaders['cookie'],
+      '__Secure-better-auth.session_token=$signedToken; '
+      'better-auth.session_token=$signedToken',
+    );
   });
 
   test('reads OAuth session tokens from Better Auth callback cookies', () {
@@ -51,13 +75,29 @@ void main() {
       headers: const [
         HttpHeader(
           'set-cookie',
-          'better-auth.session-token=session%2Ftoken; Path=/; HttpOnly; SameSite=Lax',
+          'better-auth.session_token=session%2Ftoken.signature%3D; Path=/; HttpOnly; SameSite=Lax',
         ),
       ],
       body: '{}',
     );
 
-    expect(sessionTokenFromAuthResponse(response), 'session/token');
+    expect(sessionTokenFromAuthResponse(response), 'session/token.signature=');
+  });
+
+  test('reads OAuth session tokens from secure Better Auth callback cookies', () {
+    final response = DartEdgeAuthApiResponse(
+      status: HttpStatus.ok,
+      contentType: 'application/json',
+      headers: const [
+        HttpHeader(
+          'set-cookie',
+          '__Secure-better-auth.session_token=session%2Ftoken.signature%3D; Path=/; HttpOnly; SameSite=Lax',
+        ),
+      ],
+      body: '{}',
+    );
+
+    expect(sessionTokenFromAuthResponse(response), 'session/token.signature=');
   });
 
   test('disables auth-managed migrations by default', () {

@@ -11,7 +11,7 @@ import 'ble_types.dart';
 class FlutterBluePlusGattClient implements BleGattClient {
   /// Creates a new client.
   FlutterBluePlusGattClient({
-    this.license = License.free,
+    this.license = License.nonprofit,
     this.defaultOperationTimeout = const Duration(seconds: 15),
   });
 

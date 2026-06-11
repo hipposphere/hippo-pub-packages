@@ -1,6 +1,6 @@
 name: hippo_bluetooth_client
 description: Lean BLE client package for scanning, connecting, auth, and typed protocol channels.
-version: 0.1.1
+version: 0.1.2
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -12,7 +12,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_blue_plus: ^2.3.5
+  flutter_blue_plus: ^2.3.8
   crypto: ^3.0.7
 
 dev_dependencies:

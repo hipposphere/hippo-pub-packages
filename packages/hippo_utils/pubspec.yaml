@@ -1,6 +1,6 @@
 name: hippo_utils
 description: A new Flutter package project.
-version: 0.3.1
+version: 0.3.2
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -16,10 +16,10 @@ dependencies:
     sdk: flutter
   hippo_core:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.1
+    version: ^0.1.4
   hippo_core_flutter:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.0
+    version: ^0.1.4
   rxdart: ^0.28.0
   url_launcher: ^6.3.2
   uuid: ^4.5.3
@@ -33,7 +33,7 @@ dependencies:
   mime: ^2.0.0
   intl: ^0.20.2
   isoweek: ^1.1.4
-  audioplayers: ^6.7.0
+  audioplayers: ^6.7.1
   audioplayers_web: ^5.2.1
   file_selector: ^1.1.0
   share_plus: ^13.1.0
@@ -43,8 +43,6 @@ dependencies:
   path: ^1.9.1
   http: ^1.6.0
 
-dependency_overrides: 
-  device_info_plus: ^13.1.0
 
 dev_dependencies:
   flutter_test:

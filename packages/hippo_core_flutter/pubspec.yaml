@@ -1,6 +1,6 @@
 name: hippo_core_flutter
 description: Flutter bindings and storage implementations for hippo_core primitives.
-version: 0.1.3
+version: 0.1.4
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -15,7 +15,7 @@ dependencies:
   flutter_secure_storage: ^10.3.0
   hippo_core:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.3
+    version: ^0.1.4
   rxdart: ^0.28.0
   shared_preferences: ^2.5.5
 

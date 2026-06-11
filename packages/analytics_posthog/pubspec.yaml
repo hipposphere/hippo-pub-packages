@@ -1,6 +1,6 @@
 name: analytics_posthog
 description: PostHog analytics provider for hippo_utils.
-version: 0.2.1
+version: 0.2.2
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -14,8 +14,8 @@ dependencies:
     sdk: flutter
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.0
-  posthog_flutter: ^5.25.2
+    version: ^0.3.2
+  posthog_flutter: ^5.26.0
 
 dev_dependencies:
   flutter_test:

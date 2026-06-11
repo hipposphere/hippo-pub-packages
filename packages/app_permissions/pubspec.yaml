@@ -1,6 +1,6 @@
 name: app_permissions
 description: "A Flutter plugin for checking and requesting permissions (Accessibility, Input Monitoring, Microphone) on macOS, Windows, Linux, iOS, and Android."
-version: 0.0.4
+version: 0.0.5
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
 

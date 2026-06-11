@@ -1,6 +1,6 @@
 name: hotkey_api
 description: "A new Flutter plugin project."
-version: 0.1.8
+version: 0.1.9
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -15,16 +15,16 @@ dependencies:
   plugin_platform_interface: ^2.1.8
   hippo_core:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.0
+    version: ^0.1.4
   hippo_core_flutter:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.1
+    version: ^0.1.4
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.0
+    version: ^0.3.2
   hippo_components:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.50
+    version: ^0.1.53
 
 dev_dependencies:
   flutter_test:

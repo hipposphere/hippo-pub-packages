@@ -1,8 +1,11 @@
-## Unreleased
+## 0.2.15
 
 - Raise the minimum `speech_utils` dependency to `0.2.5` so Android builds
   always resolve a plugin-enabled/native-asset-enabled `speech_utils`
   release.
+- Update `cross_file` to `^0.3.5+3`.
+- Raise the minimum `hippo_utils`, `hippo_components`, and `speech_utils`
+  dependency constraints for publishing.
 - Breaking: replace `RecordConfig` with `AudioRecorderConfig`.
 - Move encoding options to `AudioRecorderConfig.encoding`
   (`AudioEncodingConfig`).

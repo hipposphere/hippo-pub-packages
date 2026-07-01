@@ -1,3 +1,7 @@
+## 0.1.3
+
+- Update `flutter_blue_plus` to `^2.3.10`.
+
 ## 0.1.0
 
 - Initial release.

@@ -1,3 +1,7 @@
+## 0.1.21
+
+* Update Dart Edge auth, SQL, and HTTP server runtime package constraints.
+
 ## 0.1.17
 
 * Relay OAuth SSO callbacks through the backend callback route so native

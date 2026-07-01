@@ -1,5 +1,6 @@
-## Unreleased
+## 0.2.18
 
+- Update `cross_file` to `^0.3.5+3` and `native_toolchain_c` to `^0.19.2`.
 - Breaking: remove `RecordConfig` and move recorder encoding options into
   `AudioRecorderConfig.encoding` (`AudioEncodingConfig`).
 - Breaking: rename `NativeAudioRecorder` entrypoints for consistency:

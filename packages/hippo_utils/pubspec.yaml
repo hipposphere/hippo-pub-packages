@@ -1,6 +1,6 @@
 name: hippo_utils
 description: A new Flutter package project.
-version: 0.3.2
+version: 0.3.3
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -26,20 +26,20 @@ dependencies:
   web: ^1.1.1
   shared_preferences: ^2.5.5
   flutter_secure_storage: ^10.3.1
-  cross_file: ^0.3.5+2
+  cross_file: ^0.3.5+3
   archive: ^4.0.9
-  file_picker: ^12.0.0-beta.5
+  file_picker: ^12.0.0-beta.7
   filesize: ^2.0.1
   mime: ^2.0.0
   intl: ^0.20.2
   isoweek: ^1.1.4
-  audioplayers: ^6.7.1
-  audioplayers_web: ^5.2.1
+  audioplayers: ^6.8.1
+  audioplayers_web: ^5.3.0
   file_selector: ^1.1.0
-  share_plus: ^13.1.0
+  share_plus: ^13.2.0
   content_resolver: ^0.3.6
-  package_info_plus: ^10.1.0
-  app_links: ^7.1.1
+  package_info_plus: ^10.2.0
+  app_links: ^7.2.0
   path: ^1.9.1
   http: ^1.6.0
 

@@ -1,3 +1,7 @@
+## 0.2.12
+
+* Update `native_toolchain_c` to `^0.19.2`.
+
 ## 0.2.10
 
 * Add `pasteFromClipboard`, which sends the configured paste shortcut for the

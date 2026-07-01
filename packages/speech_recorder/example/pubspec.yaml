@@ -16,17 +16,17 @@ dependencies:
     path: ../../speech_utils
   hippo_components:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.53
+    version: ^0.1.54
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.2
+    version: ^0.3.3
   hippo_core:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.4
   hippo_core_flutter:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.4
-  path_provider: ^2.1.5
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

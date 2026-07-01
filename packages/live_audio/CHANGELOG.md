@@ -1,6 +1,7 @@
-## Unreleased
+## 0.1.4
 
 - Adds normalized `turnId` metadata to live audio output, text, transcript, thinking, interrupted, and turn-complete events.
+- Update `openai_dart` to `^7.0.0`.
 
 ## 0.1.1
 

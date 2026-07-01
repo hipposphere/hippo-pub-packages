@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Update `dart_style` to `^3.1.9`.
+
 ## 0.1.2
 
 - Switched JSON channel codec name to `json` in CLI/options/generated code.

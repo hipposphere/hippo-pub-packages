@@ -381,10 +381,10 @@ packages:
     dependency: transitive
     description:
       name: cross_file
-      sha256: d687bec93342bf6a764a116d15c8694ebeff10e633dc28a39dd3144f7195024e
+      sha256: "92c9c43c383bfa1c32079d3bc492d55d6d4318044b7b47edaff8971cbb555c51"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.5+3"
+    version: "0.3.5+4"
   crypto:
     dependency: transitive
     description:
@@ -1400,10 +1400,10 @@ packages:
     dependency: transitive
     description:
       name: posthog_flutter
-      sha256: "9037f9292e591510b6de55c462dfa53a017429c602bd17204472805c36e4267a"
+      sha256: c519532012911c5ff8d650908563eb4ef1c68178253c2a041eca45c8d5711781
       url: "https://pub.dev"
     source: hosted
-    version: "5.28.0"
+    version: "5.30.0"
   process:
     dependency: transitive
     description:

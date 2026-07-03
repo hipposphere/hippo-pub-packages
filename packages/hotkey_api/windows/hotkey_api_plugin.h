@@ -5,10 +5,25 @@
 #include <flutter/method_channel.h>
 #include <flutter/plugin_registrar_windows.h>
 
+#include <array>
+#include <atomic>
+#include <cstddef>
 #include <memory>
-#include <set>
+#include <mutex>
 
 namespace hotkey_api {
+
+enum class QueuedHotkeyEventType {
+  kDown,
+  kUp,
+  kRepeat,
+};
+
+struct QueuedHotkeyEvent {
+  int vk_code = 0;
+  DWORD flags = 0;
+  QueuedHotkeyEventType type = QueuedHotkeyEventType::kDown;
+};
 
 class HotkeyApiPlugin : public flutter::Plugin {
  public:
@@ -39,11 +54,33 @@ class HotkeyApiPlugin : public flutter::Plugin {
   OnCancel(const flutter::EncodableValue *arguments);
 
   static LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
-  
+  static LRESULT CALLBACK MessageWindowProc(HWND hwnd,
+                                            UINT message,
+                                            WPARAM wparam,
+                                            LPARAM lparam);
+
+  void EnsureMessageWindow();
+  void DestroyMessageWindow();
+  void QueueKeyboardEvent(const KBDLLHOOKSTRUCT &event, WPARAM wparam);
+  void DispatchQueuedEvents();
+  void ClearQueuedEventsLocked();
+  void EnqueueEventLocked(const QueuedHotkeyEvent &event);
+
   // Static instance pointer for the callback
   static HotkeyApiPlugin* instance_;
 
-  std::set<int> pressed_keys_;
+  static constexpr std::size_t kMaxQueuedEvents = 256;
+  static constexpr std::size_t kPressedKeyStateSize = 256;
+
+  std::array<bool, kPressedKeyStateSize> pressed_keys_ = {};
+  std::array<QueuedHotkeyEvent, kMaxQueuedEvents> queued_events_;
+  std::size_t queue_head_ = 0;
+  std::size_t queue_size_ = 0;
+  bool dispatch_scheduled_ = false;
+
+  std::mutex state_mutex_;
+  std::atomic_bool is_listening_{false};
+  HWND message_window_ = nullptr;
 };
 
 }  // namespace hotkey_api

@@ -134,7 +134,7 @@ class AdaptiveCupertinoModal {
               maxWidth: 800,
               maxHeight: 750,
               alignment: Alignment.center,
-              child: ClipRRect(
+              child: _DesktopCupertinoModalFrame(
                 borderRadius: BorderRadius.circular(16),
                 child: builder(context, true, null),
               ),
@@ -142,6 +142,48 @@ class AdaptiveCupertinoModal {
           ),
         );
       },
+    );
+  }
+}
+
+class _DesktopCupertinoModalFrame extends StatelessWidget {
+  final BorderRadius borderRadius;
+  final Widget child;
+
+  const _DesktopCupertinoModalFrame({required this.borderRadius, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = CupertinoTheme.of(context).brightness ?? Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: borderRadius,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.65 : 0.20),
+            blurRadius: isDark ? 36 : 28,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        clipBehavior: Clip.antiAlias,
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            borderRadius: borderRadius,
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.14)
+                  : Colors.black.withValues(alpha: 0.06),
+            ),
+          ),
+          child: child,
+        ),
+      ),
     );
   }
 }

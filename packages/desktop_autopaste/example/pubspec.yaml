@@ -23,11 +23,11 @@ dependencies:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.9
   hippo_core:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.4
+    hosted: https://pub.hippolabs.org
+    version: ^0.1.5
   hippo_core_flutter:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.4
+    hosted: https://pub.hippolabs.org
+    version: ^0.1.5
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

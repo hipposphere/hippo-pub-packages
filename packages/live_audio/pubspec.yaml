@@ -1,6 +1,6 @@
 name: live_audio
 description: Abstracted live audio service integrations.
-version: 0.1.4
+version: 0.1.5
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -12,6 +12,6 @@ environment:
 dependencies:
   dart_edge_core:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.25
-  googleai_dart: ^8.0.0
-  openai_dart: ^7.0.0
+    version: ^0.3.27
+  googleai_dart: ^9.0.0
+  openai_dart: ^7.0.1

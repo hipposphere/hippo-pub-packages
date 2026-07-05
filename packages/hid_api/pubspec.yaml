@@ -1,6 +1,6 @@
 name: hid_api
 description: "A new Flutter plugin project."
-version: 0.1.4
+version: 0.1.5
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -28,4 +28,3 @@ flutter:
         pluginClass: HidApiPlugin
       windows:
         pluginClass: HidApiPluginCApi
-

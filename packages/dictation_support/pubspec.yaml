@@ -1,6 +1,6 @@
 name: dictation_support
 description: "Support dictation devices using the hid_api package."
-version: 0.1.12
+version: 0.1.13
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -25,8 +25,8 @@ dependencies:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.3.2
   hippo_core:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.4
+    hosted: https://pub.hippolabs.org
+    version: ^0.1.5
 
 dev_dependencies:
   flutter_test:

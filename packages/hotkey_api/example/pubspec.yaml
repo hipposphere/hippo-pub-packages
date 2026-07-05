@@ -12,11 +12,11 @@ dependencies:
   hotkey_api:
     path: ../
   hippo_core:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.4
+    hosted: https://pub.hippolabs.org
+    version: ^0.1.5
   hippo_core_flutter:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.4
+    hosted: https://pub.hippolabs.org
+    version: ^0.1.5
   hippo_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.3.2

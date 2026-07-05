@@ -1,6 +1,6 @@
 name: hippo_auth
 description: Flutter package for Hippo authentication
-version: 0.1.17
+version: 0.1.18
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -30,7 +30,7 @@ dependencies:
     hosted: https://pub.hippolabs.org
     version: ^0.1.5
   hippo_flutter_app_architecture:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    hosted: https://pub.hippolabs.org
     version: ^0.1.4
 
 dev_dependencies:

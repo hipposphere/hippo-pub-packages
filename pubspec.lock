@@ -967,6 +967,14 @@ packages:
       url: "https://pub.hippolabs.org"
     source: hosted
     version: "0.1.5"
+  hippo_flutter_app_architecture:
+    dependency: transitive
+    description:
+      name: hippo_flutter_app_architecture
+      sha256: "55efcc740d701b3357abcafd0c7327aef35ffbf1ce629317fa219b702fffbd2a"
+      url: "https://pub.hippolabs.org"
+    source: hosted
+    version: "0.1.4"
   hooks:
     dependency: transitive
     description:

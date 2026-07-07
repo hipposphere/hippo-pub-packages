@@ -52,7 +52,7 @@ class PageContainer extends StatelessWidget {
         child: Builder(
           builder: (context) {
             return Padding(
-              padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+              padding: EdgeInsets.only(top: _safeTopPadding(context)),
               child: body,
             );
           },
@@ -60,6 +60,11 @@ class PageContainer extends StatelessWidget {
       ),
     );
   }
+}
+
+double _safeTopPadding(BuildContext context) {
+  final topPadding = MediaQuery.paddingOf(context).top;
+  return topPadding < 0 ? 0 : topPadding;
 }
 
 class PageContainerLargeTitle extends StatelessWidget {
@@ -95,7 +100,7 @@ class PageContainerLargeTitle extends StatelessWidget {
   }
 }
 
-class TabbedPageContainer extends StatelessWidget {
+class TabbedPageContainer extends StatefulWidget {
   final String title;
   final PageHeaderBackAction? backAction;
   final List<Widget> actions;
@@ -121,6 +126,57 @@ class TabbedPageContainer extends StatelessWidget {
   });
 
   @override
+  State<TabbedPageContainer> createState() => _TabbedPageContainerState();
+}
+
+class _TabbedPageContainerState extends State<TabbedPageContainer>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = _createTabController(widget.initialTabIndex);
+    _tabController.addListener(_handleTabChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant TabbedPageContainer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tabs.length != widget.tabs.length) {
+      final nextIndex = _tabController.index.clamp(0, _lastValidTabIndex);
+      _tabController
+        ..removeListener(_handleTabChanged)
+        ..dispose();
+      _tabController = _createTabController(nextIndex)..addListener(_handleTabChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController
+      ..removeListener(_handleTabChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  TabController _createTabController(int initialIndex) {
+    return TabController(
+      length: widget.tabs.length,
+      initialIndex: initialIndex.clamp(0, _lastValidTabIndex),
+      vsync: this,
+    );
+  }
+
+  int get _lastValidTabIndex => widget.tabs.isEmpty ? 0 : widget.tabs.length - 1;
+
+  void _handleTabChanged() {
+    if (_tabController.indexIsChanging) {
+      widget.onTabChanged?.call(_tabController.index);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final systemPadding = MediaQuery.paddingOf(context);
     return Material(
@@ -128,54 +184,43 @@ class TabbedPageContainer extends StatelessWidget {
       child: ClipRRect(
         clipBehavior: Clip.antiAlias,
         child: CupertinoPageScaffold(
-          backgroundColor: backgroundColor,
-          child: DefaultTabController(
-            initialIndex: initialTabIndex,
-            length: tabs.length,
-            child: Builder(
-              builder: (context) {
-                if (onTabChanged != null) {
-                  final controller = DefaultTabController.of(context);
-                  controller.addListener(() {
-                    if (controller.indexIsChanging) {
-                      onTabChanged!(controller.index);
-                    }
-                  });
-                }
-                return Stack(
-                  children: [
-                    Positioned(
-                      top: 90 + systemPadding.top,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: TabBarView(clipBehavior: Clip.none, children: tabViews),
+          backgroundColor: widget.backgroundColor,
+          child: Stack(
+            children: [
+              Positioned(
+                top: 90 + systemPadding.top,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: TabBarView(
+                  controller: _tabController,
+                  clipBehavior: Clip.none,
+                  children: widget.tabViews,
+                ),
+              ),
+              Column(
+                children: [
+                  PageHeaderDragRegion(
+                    onPanStart: widget.onHeaderPanStart,
+                    child: PageHeader(
+                      title: widget.title,
+                      backAction: widget.backAction,
+                      actions: widget.actions,
+                      transitionBetweenRoutes: widget.transitionBetweenRoutes,
+                      border: null,
                     ),
-                    Column(
-                      children: [
-                        PageHeaderDragRegion(
-                          onPanStart: onHeaderPanStart,
-                          child: PageHeader(
-                            title: title,
-                            backAction: backAction,
-                            actions: actions,
-                            transitionBetweenRoutes: transitionBetweenRoutes,
-                            border: null,
-                          ),
-                        ),
-                        CupertinoBlurContainer(
-                          child: TabBar(
-                            tabs: tabs,
-                            isScrollable: true,
-                            tabAlignment: TabAlignment.startOffset,
-                          ),
-                        ),
-                      ],
+                  ),
+                  CupertinoBlurContainer(
+                    child: TabBar(
+                      controller: _tabController,
+                      tabs: widget.tabs,
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.startOffset,
                     ),
-                  ],
-                );
-              },
-            ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

@@ -11,10 +11,10 @@ environment:
 dependencies:
   dart_edge_core:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.27
+    version: ^0.3.29
   dart_edge_sql:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.25
+    version: ^0.3.27
   dart_edge_http_server_runtime:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.3.25

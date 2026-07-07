@@ -445,10 +445,10 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_core
-      sha256: d342e7770e94f280d78046c3f480407d5b893606448014b49fee11c4216ad6f4
+      sha256: "9e32c76ee3edef41f52a085f1f1f004f95004de78ecfbc166efc6ba5f5a16d05"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.27"
+    version: "0.3.29"
   dart_edge_http_server:
     dependency: transitive
     description:
@@ -501,10 +501,10 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_sql
-      sha256: "6aa189d9633979e0882b7df7db666c52f3e2b0429be63d1caa43ce04c955682f"
+      sha256: c930e7caeaa9bcbbaf7d7941da926ce230907936f2d587462f43b52eed076d8c
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.26"
+    version: "0.3.27"
   dart_edge_sql_pglite:
     dependency: transitive
     description:
@@ -963,18 +963,18 @@ packages:
     dependency: transitive
     description:
       name: hippo_core_flutter
-      sha256: "3188c6707016332ef180d87388f721a8a1295715d8c9bf1fd63dbfa5d40ad6ab"
+      sha256: "6691d8c6ae0748645582b2c47cd6d7cb067a34ed96953c65080f77d83e9904a6"
       url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.5"
+    version: "0.1.6"
   hippo_flutter_app_architecture:
     dependency: transitive
     description:
       name: hippo_flutter_app_architecture
-      sha256: "55efcc740d701b3357abcafd0c7327aef35ffbf1ce629317fa219b702fffbd2a"
+      sha256: "45ed88a17c0f4f6e4df2f5ad4301e03a41b6a27fd253cfd76117a6d5fef47de3"
       url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.4"
+    version: "0.1.6"
   hooks:
     dependency: transitive
     description:
@@ -2211,4 +2211,4 @@ packages:
     version: "2.2.4"
 sdks:
   dart: ">=3.12.0 <4.0.0"
-  flutter: ">=3.44.2"
+  flutter: ">=3.44.0"

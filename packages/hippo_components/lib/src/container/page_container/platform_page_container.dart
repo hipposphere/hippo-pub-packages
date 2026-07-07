@@ -69,7 +69,7 @@ class PlatformPageContainer extends StatelessWidget {
               child: Builder(
                 builder: (context) {
                   return Padding(
-                    padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+                    padding: EdgeInsets.only(top: _safeTopPadding(context)),
                     child: body,
                   );
                 },
@@ -80,6 +80,11 @@ class PlatformPageContainer extends StatelessWidget {
       ),
     );
   }
+}
+
+double _safeTopPadding(BuildContext context) {
+  final topPadding = MediaQuery.paddingOf(context).top;
+  return topPadding < 0 ? 0 : topPadding;
 }
 
 class _DesktopTopBar extends StatelessWidget {

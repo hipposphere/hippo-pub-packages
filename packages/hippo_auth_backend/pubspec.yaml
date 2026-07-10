@@ -23,12 +23,12 @@ dependencies:
     version: ^0.3.7
   dart_edge_auth:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.33
+    version: ^0.3.36
   jaspr: ^0.23.1
 
 
 dev_dependencies:
-  build_runner: ^2.15.0
+  build_runner: ^2.15.1
   dart_edge_http_server:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.3.17

@@ -3,6 +3,7 @@ import 'package:hippo_components/hippo_components.dart';
 import 'package:speech_utils_example/pages/file_recorder_page.dart';
 import 'package:speech_utils_example/pages/integrated_vad_compression_page.dart';
 import 'package:speech_utils_example/pages/simple_recording_page.dart';
+import 'package:speech_utils_example/pages/wake_word_action_page.dart';
 import 'package:speech_utils_example/widgets/theme_controls.dart';
 
 void main() {
@@ -120,6 +121,23 @@ class _SpeechUtilsHomePage extends StatelessWidget {
                 MaterialPageRoute<void>(
                   builder: (_) => IntegratedVadCompressionPage(
                     detectAacOnStartup: true,
+                    themeMode: themeMode,
+                    onThemeModeChanged: onThemeModeChanged,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _ExamplePageCard(
+            title: 'Wake Word Action Capture',
+            description:
+                'Offline sherpa-onnx wake-word detection with live post-wake command audio and finalized action clips.',
+            icon: Icons.hearing,
+            onOpen: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => WakeWordActionPage(
                     themeMode: themeMode,
                     onThemeModeChanged: onThemeModeChanged,
                   ),

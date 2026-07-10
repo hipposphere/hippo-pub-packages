@@ -39,7 +39,7 @@ dependencies:
   share_plus: ^13.2.0
   content_resolver: ^0.3.6
   package_info_plus: ^10.2.0
-  app_links: ^7.2.0
+  app_links: ^7.2.1
   path: ^1.9.1
   http: ^1.6.0
 

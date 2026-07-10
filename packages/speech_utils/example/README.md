@@ -7,6 +7,7 @@ Flutter example app for `speech_utils`.
 - Multi-page demo shell:
   - **Integrated VAD + Compression**
   - **Simple Recorder + Waveform**
+  - **Wake Word Action Capture**
   - app-wide theme controls (system/light/dark via `hippo_components` app theme)
 - Live microphone streaming with native FFI recorder:
   - `NativeAudioRecorder.startPcmStream(...)`
@@ -35,6 +36,12 @@ Flutter example app for `speech_utils`.
   - TEN preset selector (Sensitive/Balanced/Strict)
   - TEN threshold slider (when TEN live mode is enabled)
   - Energy VAD threshold sliders (primary/secondary RMS, zero-crossing rate)
+- Offline wake-word action capture:
+  - sherpa-onnx keyword spotting backend
+  - tokenized keyword buffer/file input
+  - live post-wake command audio stream
+  - finalized command PCM after configurable end silence
+  - wake-word audio discard and post-wake discard tuning
 - Synthetic API checks for all helpers:
   - `splitPcm16OnSilence`
   - `splitPcm16StreamOnSilence`
@@ -64,6 +71,7 @@ Use:
 
 - Open **Integrated VAD + Compression** for segmentation/compression and synthetic checks.
 - Open **Simple Recorder + Waveform** for focused loudness/waveform recording with manual speech threshold.
+- Open **Wake Word Action Capture** to try offline wake-word detection with sherpa-onnx.
 - Recording uses the native recorder backend.
 - Use the `Input device` dropdown (plus refresh) to inspect/select capture routes.
 - If waveform is flat, check `Chunks`, `RMS`, and `dBFS` in the status card:
@@ -74,6 +82,29 @@ Use:
 - `Audio processing` controls to tune noise cancellation / voice isolation behavior for each recorder mode.
 - `VAD tuning` sliders to adjust live speech detection sensitivity.
 - `Run Synthetic API Checks` to test all package functions.
+
+### Wake Word Action Capture
+
+The wake-word page uses `SherpaOnnxWakeWordDetector`. You need local sherpa KWS model files:
+
+- `tokens.txt`
+- `encoder.onnx`
+- `decoder.onnx`
+- `joiner.onnx`
+- tokenized keyword lines, generated with sherpa's `text2token` workflow
+
+You can paste paths into the page, or prefill them:
+
+```bash
+flutter run \
+  --dart-define=SPEECH_UTILS_KWS_TOKENS=/path/to/tokens.txt \
+  --dart-define=SPEECH_UTILS_KWS_ENCODER=/path/to/encoder.onnx \
+  --dart-define=SPEECH_UTILS_KWS_DECODER=/path/to/decoder.onnx \
+  --dart-define=SPEECH_UTILS_KWS_JOINER=/path/to/joiner.onnx \
+  --dart-define=SPEECH_UTILS_KWS_LABEL="hey dicto"
+```
+
+The default keyword buffer is illustrative. Replace it with tokenized lines for your selected model and wake phrase.
 
 ## Integration Test: Mic Latency + VAD/AAC Pipeline
 

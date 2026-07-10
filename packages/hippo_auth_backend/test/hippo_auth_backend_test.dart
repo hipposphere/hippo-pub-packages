@@ -288,7 +288,7 @@ void main() {
 
     final components = document['components']! as Map<String, Object?>;
     final schemas = components['schemas']! as Map<String, Object?>;
-    expect(schemas.keys, containsAll(['DartEdgeAuthUser', 'HippoAuthSessionPayload']));
+    expect(schemas.keys, containsAll(['AuthUserRow', 'HippoAuthSessionPayload']));
 
     final signUp = _operation(paths, '/v1/user/sign-up-email', 'post');
     expect(signUp['operationId'], 'postV1UserSignUpEmail');
@@ -548,8 +548,5 @@ void _expectSessionResponseSchema(Map<String, Object?> schema) {
   final properties = schema['properties']! as Map<String, Object?>;
   expect(properties.keys, containsAll(['session_id', 'token', 'expires_at', 'user']));
   final user = properties['user']! as Map<String, Object?>;
-  expect(
-    user['type'] == 'object' || user['\$ref'] == '#/components/schemas/DartEdgeAuthUser',
-    isTrue,
-  );
+  expect(user['type'] == 'object' || user['\$ref'] == '#/components/schemas/AuthUserRow', isTrue);
 }

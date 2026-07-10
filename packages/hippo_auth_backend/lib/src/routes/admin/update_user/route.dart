@@ -1,5 +1,6 @@
 import 'package:dart_edge_core/dart_edge_core.dart';
 
+import '../../../models/auth_user.dart';
 import '../../../utils/api_error.dart';
 import '../../shared/route_context.dart';
 import '../../shared/route_definition.dart';
@@ -44,6 +45,6 @@ final class AdminUpdateUserRoute<TServices> extends HippoAuthJsonRoute<TServices
 
     final admin = context.adminApi(ctx);
     final response = await admin.setRole(userId: userId, role: role);
-    return AdminUpdateUserResponse(user: response.user);
+    return AdminUpdateUserResponse(user: hippobaseAuthUser(response.user));
   }
 }

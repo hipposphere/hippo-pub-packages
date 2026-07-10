@@ -80,10 +80,12 @@ schemas automatically.
 
 ## SQL Models
 
-Better Auth SQL row models and table descriptors come from `dart_edge_auth`.
-`hippo_auth_backend` re-exports the canonical `DartEdgeAuthSchema`,
-`DartEdgeAuthUser`, `DartEdgeAuthSession`, `DartEdgeAuthUsersTable`, and
-`DartEdgeAuthSessionsTable` types for callers that need direct SQL access.
+Better Auth user row models and table descriptors come from
+`hippobase_auth_models`, so shared user contracts do not depend on the auth
+server implementation. `hippo_auth_backend` re-exports `AuthUserId`,
+`AuthUserRow`, `AuthUserInsert`, `AuthUserUpdate`, and `AuthUsersTable`.
+Session persistence and the Better Auth runtime remain provided by
+`dart_edge_auth`.
 
 Auth-managed migrations are disabled by default. Production applications should
 create and evolve the Better Auth tables through their normal migration system.

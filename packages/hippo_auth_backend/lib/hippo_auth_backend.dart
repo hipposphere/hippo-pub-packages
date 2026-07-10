@@ -5,12 +5,10 @@ export 'package:dart_edge_auth/dart_edge_auth.dart'
         DartEdgeAuthSessionInsert,
         DartEdgeAuthSessionRow,
         DartEdgeAuthSessionsTable,
-        DartEdgeAuthSessionUpdate,
-        DartEdgeAuthUser,
-        DartEdgeAuthUserInsert,
-        DartEdgeAuthUserRow,
-        DartEdgeAuthUserUpdate,
-        DartEdgeAuthUsersTable;
+        DartEdgeAuthSessionUpdate;
+
+export 'package:hippobase_auth_models/hippobase_auth_models.dart'
+    show AuthUserId, AuthUserInsert, AuthUserRow, AuthUsersTable, AuthUserUpdate;
 
 export 'src/utils/api_error.dart';
 export 'src/utils/auth_guard.dart';

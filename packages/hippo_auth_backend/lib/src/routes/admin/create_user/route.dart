@@ -1,5 +1,6 @@
 import 'package:dart_edge_core/dart_edge_core.dart';
 
+import '../../../models/auth_user.dart';
 import '../../shared/route_context.dart';
 import '../../shared/route_definition.dart';
 import '../../shared/route_utils.dart';
@@ -29,6 +30,6 @@ final class AdminCreateUserRoute<TServices> extends HippoAuthJsonRoute<TServices
           role: role,
           data: data == null || data.isEmpty ? null : data,
         );
-    return AdminCreateUserResponse(user: response.user);
+    return AdminCreateUserResponse(user: hippobaseAuthUser(response.user));
   }
 }

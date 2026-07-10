@@ -1,6 +1,7 @@
 import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_core/dart_edge_core.dart';
 
+import '../../../models/auth_user.dart';
 import '../../shared/route_context.dart';
 import '../../shared/route_definition.dart';
 import 'schema.dart';
@@ -17,6 +18,6 @@ final class GetUserRoute<TServices> extends HippoAuthJsonRoute<TServices> {
   @override
   Object? handleJson(RequestContext<TServices> ctx) {
     final identity = ctx.requireAuthIdentity;
-    return GetUserResponse(user: identity.user);
+    return GetUserResponse(user: hippobaseAuthUser(identity.user));
   }
 }

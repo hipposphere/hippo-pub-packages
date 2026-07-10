@@ -1,5 +1,5 @@
-import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:hippobase_auth_models/hippobase_auth_models.dart';
 
 part 'schema.g.dart';
 
@@ -17,7 +17,7 @@ const adminListUsersQuerySchema = JsonSchema.object(
 
 const adminListUsersResponseSchema = JsonSchema.object(
   properties: <String, JsonSchema>{
-    'users': JsonSchema.array(items: JsonSchema.ref('#/components/schemas/DartEdgeAuthUser')),
+    'users': JsonSchema.array(items: AuthUserRow.schemaRef),
     'total': JsonSchema.integer(),
     'limit': JsonSchema.integer(),
     'offset': JsonSchema.integer(),
@@ -31,7 +31,7 @@ const adminListUsersResponseSchema = JsonSchema.object(
 
 const adminListUsersRouteResponseSchema = JsonSchema.object(
   properties: <String, JsonSchema>{
-    'users': JsonSchema.array(items: DartEdgeAuthUser.jsonSchema),
+    'users': JsonSchema.array(items: AuthUserRow.jsonSchema),
     'total': JsonSchema.integer(),
     'limit': JsonSchema.integer(),
     'offset': JsonSchema.integer(),
@@ -45,7 +45,7 @@ const adminListUsersRouteResponseSchema = JsonSchema.object(
 
 const adminListUsersRouteSchemas = JsonSchemaRegistry(
   schemas: <JsonSchema>[
-    DartEdgeAuthUser.jsonSchema,
+    AuthUserRow.jsonSchema,
     adminListUsersQuerySchema,
     adminListUsersResponseSchema,
   ],
@@ -57,7 +57,7 @@ typedef AdminListUsersQuery = _$AdminListUsersQuery;
 @FromSchema(
   adminListUsersResponseSchema,
   registry: adminListUsersRouteSchemas,
-  refs: [SchemaRefModel(DartEdgeAuthUser)],
+  refs: [SchemaRefModel(AuthUserRow)],
 )
 typedef AdminListUsersResponse = _$AdminListUsersResponse;
 

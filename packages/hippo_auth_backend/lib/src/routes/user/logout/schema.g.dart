@@ -21,7 +21,7 @@ final class _$LogoutResponse implements JsonEncodable {
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
 
-  final DartEdgeAuthUser user;
+  final AuthUserRow user;
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{"user": user.toJson()};
@@ -29,7 +29,7 @@ final class _$LogoutResponse implements JsonEncodable {
   static LogoutResponse fromJson(Object? value) {
     final json = value! as Map<String, Object?>;
     return LogoutResponse(
-      user: DartEdgeAuthUser.fromJson(
+      user: AuthUserRow.fromJson(
         Map<String, Object?>.from(json["user"]! as Map),
       ),
     );

@@ -1,5 +1,5 @@
-import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:hippobase_auth_models/hippobase_auth_models.dart';
 
 part 'hippo_auth_session_payload.g.dart';
 
@@ -10,7 +10,7 @@ const hippoAuthSessionPayloadSchema = JsonSchema.object(
     'session_id': JsonSchema.string(),
     'token': JsonSchema.string(),
     'expires_at': JsonSchema.string(format: 'date-time'),
-    'user': DartEdgeAuthUser.schemaRef,
+    'user': AuthUserRow.schemaRef,
   },
   required: ['session_id', 'token', 'expires_at', 'user'],
   additionalProperties: false,
@@ -18,7 +18,7 @@ const hippoAuthSessionPayloadSchema = JsonSchema.object(
 
 @FromSchema(
   hippoAuthSessionPayloadSchema,
-  registry: JsonSchemaRegistry(schemas: [DartEdgeAuthUser.jsonSchema]),
-  refs: [SchemaRefModel(DartEdgeAuthUser)],
+  registry: JsonSchemaRegistry(schemas: [AuthUserRow.jsonSchema]),
+  refs: [SchemaRefModel(AuthUserRow)],
 )
 typedef HippoAuthSessionPayload = _$HippoAuthSessionPayload;

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:hippobase_auth_models/hippobase_auth_models.dart';
 
 import '../../utils/api_error.dart';
 import '../../utils/auth_guard.dart';
@@ -9,6 +10,7 @@ import '../../utils/session_cookie_names.dart';
 import '../../gateways/session_gateway.dart';
 import '../../gateways/verification_gateway.dart';
 import '../../models/hippo_auth_session_payload.dart';
+import '../../models/auth_user.dart';
 import '../../options.dart';
 
 final class HippoAuthRouteContext {
@@ -136,7 +138,7 @@ final class HippoAuthRouteContext {
     return session;
   }
 
-  DartEdgeAuthUser _sessionUser(DartEdgeAuthUser? user) {
+  AuthUserRow _sessionUser(DartEdgeAuthUser? user) {
     if (user == null) {
       throw const HippoAuthBackendException(
         401,
@@ -144,7 +146,7 @@ final class HippoAuthRouteContext {
         'Auth session result did not contain a usable user.',
       );
     }
-    return user;
+    return hippobaseAuthUser(user);
   }
 
   List<HttpHeader> _responseHeaders(DartEdgeAuthApiResponse response, DartEdgeAuthSession session) {

@@ -32,7 +32,7 @@ final class _$HippoAuthSessionPayload implements JsonEncodable {
 
   final String expiresAt;
 
-  final DartEdgeAuthUser user;
+  final AuthUserRow user;
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
@@ -48,7 +48,7 @@ final class _$HippoAuthSessionPayload implements JsonEncodable {
       sessionId: json["session_id"]! as String,
       token: json["token"]! as String,
       expiresAt: json["expires_at"]! as String,
-      user: DartEdgeAuthUser.fromJson(
+      user: AuthUserRow.fromJson(
         Map<String, Object?>.from(json["user"]! as Map),
       ),
     );

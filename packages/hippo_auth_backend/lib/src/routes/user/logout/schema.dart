@@ -1,29 +1,25 @@
-import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:hippobase_auth_models/hippobase_auth_models.dart';
 
 part 'schema.g.dart';
 
 const logoutResponseSchema = JsonSchema.object(
-  properties: <String, JsonSchema>{'user': JsonSchema.ref('#/components/schemas/DartEdgeAuthUser')},
+  properties: <String, JsonSchema>{'user': AuthUserRow.schemaRef},
   required: <String>['user'],
   additionalProperties: false,
 );
 
 const logoutRouteResponseSchema = JsonSchema.object(
-  properties: <String, JsonSchema>{'user': DartEdgeAuthUser.jsonSchema},
+  properties: <String, JsonSchema>{'user': AuthUserRow.jsonSchema},
   required: <String>['user'],
   additionalProperties: false,
 );
 
 const logoutRouteSchemas = JsonSchemaRegistry(
-  schemas: <JsonSchema>[DartEdgeAuthUser.jsonSchema, logoutResponseSchema],
+  schemas: <JsonSchema>[AuthUserRow.jsonSchema, logoutResponseSchema],
 );
 
-@FromSchema(
-  logoutResponseSchema,
-  registry: logoutRouteSchemas,
-  refs: [SchemaRefModel(DartEdgeAuthUser)],
-)
+@FromSchema(logoutResponseSchema, registry: logoutRouteSchemas, refs: [SchemaRefModel(AuthUserRow)])
 typedef LogoutResponse = _$LogoutResponse;
 
 final logoutRouteOptions = RouteOptions(

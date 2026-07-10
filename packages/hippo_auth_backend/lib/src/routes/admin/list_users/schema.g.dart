@@ -84,7 +84,7 @@ final class _$AdminListUsersResponse implements JsonEncodable {
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
 
-  final List<DartEdgeAuthUser> users;
+  final List<AuthUserRow> users;
 
   final int total;
 
@@ -114,7 +114,7 @@ final class _$AdminListUsersResponse implements JsonEncodable {
     return AdminListUsersResponse(
       users: (json["users"]! as List<Object?>)
           .map(
-            (item) => DartEdgeAuthUser.fromJson(
+            (item) => AuthUserRow.fromJson(
               Map<String, Object?>.from(item! as Map),
             ),
           )

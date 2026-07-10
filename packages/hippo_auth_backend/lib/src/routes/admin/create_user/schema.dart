@@ -1,5 +1,5 @@
-import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:hippobase_auth_models/hippobase_auth_models.dart';
 
 part 'schema.g.dart';
 
@@ -16,20 +16,20 @@ const adminCreateUserBodySchema = JsonSchema.object(
 );
 
 const adminCreateUserResponseSchema = JsonSchema.object(
-  properties: <String, JsonSchema>{'user': JsonSchema.ref('#/components/schemas/DartEdgeAuthUser')},
+  properties: <String, JsonSchema>{'user': AuthUserRow.schemaRef},
   required: <String>['user'],
   additionalProperties: false,
 );
 
 const adminCreateUserRouteResponseSchema = JsonSchema.object(
-  properties: <String, JsonSchema>{'user': DartEdgeAuthUser.jsonSchema},
+  properties: <String, JsonSchema>{'user': AuthUserRow.jsonSchema},
   required: <String>['user'],
   additionalProperties: false,
 );
 
 const adminCreateUserRouteSchemas = JsonSchemaRegistry(
   schemas: <JsonSchema>[
-    DartEdgeAuthUser.jsonSchema,
+    AuthUserRow.jsonSchema,
     adminCreateUserBodySchema,
     adminCreateUserResponseSchema,
   ],
@@ -41,7 +41,7 @@ typedef AdminCreateUserBody = _$AdminCreateUserBody;
 @FromSchema(
   adminCreateUserResponseSchema,
   registry: adminCreateUserRouteSchemas,
-  refs: [SchemaRefModel(DartEdgeAuthUser)],
+  refs: [SchemaRefModel(AuthUserRow)],
 )
 typedef AdminCreateUserResponse = _$AdminCreateUserResponse;
 

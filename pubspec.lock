@@ -975,6 +975,14 @@ packages:
       url: "https://pub.hippolabs.org"
     source: hosted
     version: "0.1.6"
+  hippobase_auth_models:
+    dependency: transitive
+    description:
+      name: hippobase_auth_models
+      sha256: e4fee5cc20fa5d9cec0ac27c65a16d7711166be774ccc3f0fd6ab017232fd7bc
+      url: "https://pub.hippolabs.org"
+    source: hosted
+    version: "0.1.5"
   hooks:
     dependency: transitive
     description:

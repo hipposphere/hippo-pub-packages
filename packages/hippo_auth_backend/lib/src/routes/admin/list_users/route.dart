@@ -1,6 +1,7 @@
 import 'package:dart_edge_core/dart_edge_core.dart';
 import 'dart:math' as math;
 
+import '../../../models/auth_user.dart';
 import '../../shared/route_context.dart';
 import '../../shared/route_definition.dart';
 import '../../shared/route_utils.dart';
@@ -36,7 +37,7 @@ final class AdminListUsersRoute<TServices> extends HippoAuthJsonRoute<TServices>
     final total = math.max(0, response.total);
     final totalPages = math.max(1, (total / resolvedLimit).ceil());
     return AdminListUsersResponse(
-      users: response.users,
+      users: response.users.map(hippobaseAuthUser).toList(growable: false),
       total: total,
       limit: resolvedLimit,
       offset: resolvedOffset,

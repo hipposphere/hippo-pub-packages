@@ -509,10 +509,10 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_sql_pglite
-      sha256: "8bb26ec366b08cf780685ee51a404c1e0cea044e1afd48a4a2f1a09915577c29"
+      sha256: b2125b0937813d0563c0549f421c2bb95c7df3615e63bbcbacba9d09dc381140
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.1.12"
+    version: "0.1.13"
   dart_sentencepiece_tokenizer:
     dependency: transitive
     description:

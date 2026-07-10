@@ -1,9 +1,12 @@
 import 'dart:typed_data';
 
+import 'package:flutter_test/flutter_test.dart' show TestWidgetsFlutterBinding;
 import 'package:speech_utils/speech_utils.dart';
 import 'package:test/test.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('SherpaOnnxWakeWordDetectorConfig', () {
     test('accepts a valid keyword buffer configuration', () {
       const config = SherpaOnnxWakeWordDetectorConfig(
@@ -30,6 +33,21 @@ void main() {
   });
 
   group('SherpaOnnxWakeWordDetector', () {
+    test('creates from plain English keywords with the bundled model', () async {
+      final detector = await SherpaOnnxWakeWordDetector.create(
+        keywords: const <String>['hey siri'],
+      );
+
+      detector.dispose();
+    });
+
+    test('rejects an empty plain-text keyword list', () async {
+      await expectLater(
+        SherpaOnnxWakeWordDetector.create(keywords: const <String>[]),
+        throwsArgumentError,
+      );
+    });
+
     test('converts PCM16 chunks and filters configured keyword labels', () {
       final adapter = _FakeSherpaAdapter(detections: <String>['@hey_dicto', '@other']);
       final detector = SherpaOnnxWakeWordDetector.custom(adapter: adapter);

@@ -20,8 +20,6 @@ class WakeWordActionPage extends StatefulWidget {
 }
 
 class _WakeWordActionPageState extends State<WakeWordActionPage> {
-  static const _defaultKeywordBuffer = '▁HE Y ▁D IC TO :1.5 #0.35 @hey_dicto\n';
-
   final NativeAudioRecorder _recorder = NativeAudioRecorder();
   final List<String> _logs = <String>[];
   final List<_CommandSummary> _commands = <_CommandSummary>[];
@@ -36,31 +34,12 @@ class _WakeWordActionPageState extends State<WakeWordActionPage> {
   final List<StreamSubscription<Uint8List>> _liveCommandSubscriptions =
       <StreamSubscription<Uint8List>>[];
 
-  final TextEditingController _tokensController = TextEditingController(
-    text: const String.fromEnvironment('SPEECH_UTILS_KWS_TOKENS'),
-  );
-  final TextEditingController _encoderController = TextEditingController(
-    text: const String.fromEnvironment('SPEECH_UTILS_KWS_ENCODER'),
-  );
-  final TextEditingController _decoderController = TextEditingController(
-    text: const String.fromEnvironment('SPEECH_UTILS_KWS_DECODER'),
-  );
-  final TextEditingController _joinerController = TextEditingController(
-    text: const String.fromEnvironment('SPEECH_UTILS_KWS_JOINER'),
-  );
   final TextEditingController _keywordLabelController = TextEditingController(
     text: const String.fromEnvironment(
       'SPEECH_UTILS_KWS_LABEL',
       defaultValue: 'hey dicto',
     ),
   );
-  final TextEditingController _keywordBufferController = TextEditingController(
-    text: const String.fromEnvironment(
-      'SPEECH_UTILS_KWS_KEYWORDS_BUFFER',
-      defaultValue: _defaultKeywordBuffer,
-    ),
-  );
-
   bool _isListening = false;
   bool _isStarting = false;
   String _stateLabel = 'Stopped';
@@ -81,12 +60,7 @@ class _WakeWordActionPageState extends State<WakeWordActionPage> {
   @override
   void dispose() {
     unawaited(_stopListening());
-    _tokensController.dispose();
-    _encoderController.dispose();
-    _decoderController.dispose();
-    _joinerController.dispose();
     _keywordLabelController.dispose();
-    _keywordBufferController.dispose();
     unawaited(_recorder.dispose());
     super.dispose();
   }
@@ -106,16 +80,10 @@ class _WakeWordActionPageState extends State<WakeWordActionPage> {
     });
 
     try {
-      final detector = SherpaOnnxWakeWordDetector(
-        SherpaOnnxWakeWordDetectorConfig(
-          tokensPath: _tokensController.text.trim(),
-          encoderPath: _encoderController.text.trim(),
-          decoderPath: _decoderController.text.trim(),
-          joinerPath: _joinerController.text.trim(),
-          keywordsBuffer: _keywordBufferController.text.trimRight(),
-          keywordsScore: _keywordsScore,
-          keywordsThreshold: _keywordsThreshold,
-        ),
+      final detector = await SherpaOnnxWakeWordDetector.create(
+        keywords: <String>[_keywordLabelController.text.trim()],
+        keywordsScore: _keywordsScore,
+        keywordsThreshold: _keywordsThreshold,
       );
 
       final session = await _recorder.startVoiceActionCapture(
@@ -378,15 +346,8 @@ class _WakeWordActionPageState extends State<WakeWordActionPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Sherpa KWS model',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Wake word', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
-            _PathField(controller: _tokensController, label: 'tokens.txt'),
-            _PathField(controller: _encoderController, label: 'encoder.onnx'),
-            _PathField(controller: _decoderController, label: 'decoder.onnx'),
-            _PathField(controller: _joinerController, label: 'joiner.onnx'),
             TextField(
               controller: _keywordLabelController,
               enabled: !_isListening && !_isStarting,
@@ -396,15 +357,9 @@ class _WakeWordActionPageState extends State<WakeWordActionPage> {
               ),
             ),
             const SizedBox(height: 10),
-            TextField(
-              controller: _keywordBufferController,
-              enabled: !_isListening && !_isStarting,
-              minLines: 3,
-              maxLines: 6,
-              decoration: const InputDecoration(
-                labelText: 'Tokenized keywords buffer',
-                border: OutlineInputBorder(),
-              ),
+            const Text(
+              'Uses the bundled English sherpa-onnx wake-word model. Model files '
+              'and keyword tokenization are managed automatically.',
             ),
           ],
         ),
@@ -526,31 +481,6 @@ class _WakeWordActionPageState extends State<WakeWordActionPage> {
                 child: Text(log, style: Theme.of(context).textTheme.bodySmall),
               ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PathField extends StatelessWidget {
-  const _PathField({required this.controller, required this.label});
-
-  final TextEditingController controller;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final page = context.findAncestorStateOfType<_WakeWordActionPageState>();
-    final enabled =
-        !(page?._isListening ?? false) && !(page?._isStarting ?? false);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: TextField(
-        controller: controller,
-        enabled: enabled,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
         ),
       ),
     );

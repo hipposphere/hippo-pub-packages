@@ -1,12 +1,17 @@
 import 'dart:convert';
 import 'dart:ffi' as ffi;
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:dart_sentencepiece_tokenizer/dart_sentencepiece_tokenizer.dart';
 import 'package:ffi/ffi.dart';
+import 'package:flutter/services.dart';
 
 import '../generated/wake_word/sherpa_onnx_bindings.dart' as sherpa;
 import '../models/voice_action_capture.dart';
 import '../utils/pcm16_audio_utils.dart';
+
+enum SherpaOnnxWakeWordModelPreset { english }
 
 final class SherpaOnnxWakeWordDetectorConfig {
   const SherpaOnnxWakeWordDetectorConfig({
@@ -107,6 +112,36 @@ final class SherpaOnnxWakeWordDetector implements WakeWordDetector {
 
   SherpaOnnxWakeWordDetector._({required this._adapter});
 
+  static Future<SherpaOnnxWakeWordDetector> create({
+    required Iterable<String> keywords,
+    SherpaOnnxWakeWordModelPreset preset = SherpaOnnxWakeWordModelPreset.english,
+    double keywordsScore = 1.5,
+    double keywordsThreshold = 0.35,
+    int numThreads = 1,
+    bool debug = false,
+  }) async {
+    final normalizedKeywords = _validatePlainTextKeywords(keywords);
+    final model = await _SherpaOnnxPresetModel.load(preset);
+    final keywordsBuffer = model.encodeKeywords(
+      normalizedKeywords,
+      score: keywordsScore,
+      threshold: keywordsThreshold,
+    );
+    return SherpaOnnxWakeWordDetector(
+      SherpaOnnxWakeWordDetectorConfig(
+        tokensPath: model.tokensPath,
+        encoderPath: model.encoderPath,
+        decoderPath: model.decoderPath,
+        joinerPath: model.joinerPath,
+        keywordsBuffer: keywordsBuffer,
+        keywordsScore: keywordsScore,
+        keywordsThreshold: keywordsThreshold,
+        numThreads: numThreads,
+        debug: debug,
+      ),
+    );
+  }
+
   final SherpaOnnxKeywordSpotterAdapter _adapter;
   bool _disposed = false;
 
@@ -167,6 +202,103 @@ final class SherpaOnnxWakeWordDetector implements WakeWordDetector {
     }
     _disposed = true;
     _adapter.dispose();
+  }
+}
+
+List<String> _validatePlainTextKeywords(Iterable<String> keywords) {
+  final normalized = keywords
+      .map((keyword) => keyword.trim().replaceAll(RegExp(r'\s+'), ' '))
+      .where((keyword) => keyword.isNotEmpty)
+      .toSet()
+      .toList(growable: false);
+  if (normalized.isEmpty) {
+    throw ArgumentError.value(keywords, 'keywords', 'Must contain at least one keyword.');
+  }
+  return normalized;
+}
+
+final class _SherpaOnnxPresetModel {
+  const _SherpaOnnxPresetModel({
+    required this.tokensPath,
+    required this.encoderPath,
+    required this.decoderPath,
+    required this.joinerPath,
+    required this.tokenizer,
+  });
+
+  static const _assetDirectory = 'packages/speech_utils/assets/wake_word/sherpa_kws_en';
+  static const _cacheVersion = 'gigaspeech_3_3m_2024_01_01_int8_v1';
+  static const _tokens = 'tokens.txt';
+  static const _bpeModel = 'bpe.model';
+  static const _encoder = 'encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx';
+  static const _decoder = 'decoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx';
+  static const _joiner = 'joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx';
+  static Future<_SherpaOnnxPresetModel>? _english;
+
+  final String tokensPath;
+  final String encoderPath;
+  final String decoderPath;
+  final String joinerPath;
+  final SentencePieceTokenizer tokenizer;
+
+  static Future<_SherpaOnnxPresetModel> load(SherpaOnnxWakeWordModelPreset preset) {
+    return switch (preset) {
+      SherpaOnnxWakeWordModelPreset.english => _english ??= _loadEnglish(),
+    };
+  }
+
+  static Future<_SherpaOnnxPresetModel> _loadEnglish() async {
+    final cacheDirectory = Directory(
+      '${Directory.systemTemp.path}${Platform.pathSeparator}speech_utils'
+      '${Platform.pathSeparator}wake_word${Platform.pathSeparator}$_cacheVersion',
+    );
+    await cacheDirectory.create(recursive: true);
+
+    final assetBytes = <String, Uint8List>{};
+    for (final name in const [_tokens, _bpeModel, _encoder, _decoder, _joiner]) {
+      final data = await rootBundle.load('$_assetDirectory/$name');
+      final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+      assetBytes[name] = bytes;
+      final output = File('${cacheDirectory.path}${Platform.pathSeparator}$name');
+      if (!await output.exists() || await output.length() != bytes.length) {
+        final temporary = File('${output.path}.tmp');
+        await temporary.writeAsBytes(bytes, flush: true);
+        if (await output.exists()) {
+          await output.delete();
+        }
+        await temporary.rename(output.path);
+      }
+    }
+
+    String path(String name) => '${cacheDirectory.path}${Platform.pathSeparator}$name';
+    return _SherpaOnnxPresetModel(
+      tokensPath: path(_tokens),
+      encoderPath: path(_encoder),
+      decoderPath: path(_decoder),
+      joinerPath: path(_joiner),
+      tokenizer: SentencePieceTokenizer.fromBytes(assetBytes[_bpeModel]!),
+    );
+  }
+
+  String encodeKeywords(
+    Iterable<String> keywords, {
+    required double score,
+    required double threshold,
+  }) {
+    return keywords
+        .map((keyword) {
+          final pieces = tokenizer.tokenize(keyword.toUpperCase());
+          if (pieces.isEmpty || pieces.contains('<unk>')) {
+            throw ArgumentError.value(
+              keyword,
+              'keywords',
+              'The English wake-word model cannot tokenize this phrase.',
+            );
+          }
+          final marker = keyword.replaceAll(' ', '_');
+          return '${pieces.join(' ')} :$score #$threshold @$marker';
+        })
+        .join('\n');
   }
 }
 

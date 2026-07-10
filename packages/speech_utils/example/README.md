@@ -85,26 +85,14 @@ Use:
 
 ### Wake Word Action Capture
 
-The wake-word page uses `SherpaOnnxWakeWordDetector`. You need local sherpa KWS model files:
-
-- `tokens.txt`
-- `encoder.onnx`
-- `decoder.onnx`
-- `joiner.onnx`
-- tokenized keyword lines, generated with sherpa's `text2token` workflow
-
-You can paste paths into the page, or prefill them:
+The wake-word page uses the package-managed English sherpa-onnx model. Enter a
+plain-text wake phrase; model extraction and SentencePiece tokenization happen
+automatically. You can optionally prefill the phrase:
 
 ```bash
 flutter run \
-  --dart-define=SPEECH_UTILS_KWS_TOKENS=/path/to/tokens.txt \
-  --dart-define=SPEECH_UTILS_KWS_ENCODER=/path/to/encoder.onnx \
-  --dart-define=SPEECH_UTILS_KWS_DECODER=/path/to/decoder.onnx \
-  --dart-define=SPEECH_UTILS_KWS_JOINER=/path/to/joiner.onnx \
   --dart-define=SPEECH_UTILS_KWS_LABEL="hey dicto"
 ```
-
-The default keyword buffer is illustrative. Replace it with tokenized lines for your selected model and wake phrase.
 
 ## Integration Test: Mic Latency + VAD/AAC Pipeline
 

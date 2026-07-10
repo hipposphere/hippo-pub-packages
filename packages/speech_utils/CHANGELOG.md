@@ -95,3 +95,8 @@
 - Add TEN VAD FFI backend with bundled macOS/Windows native assets.
 - Add hook/code-assets build integration and generated `ffigen` bindings.
 - Add AAC encoding helpers backed by `ffmpeg`.
+## Unreleased
+
+- Added package-managed English sherpa-onnx keyword spotting through
+  `SherpaOnnxWakeWordDetector.create`, including automatic model extraction and
+  plain-text SentencePiece keyword tokenization.

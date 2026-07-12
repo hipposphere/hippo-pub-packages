@@ -177,11 +177,11 @@ LRESULT CALLBACK HotkeyApiPlugin::KeyboardProc(int nCode, WPARAM wParam,
       instance_->is_listening_.load(std::memory_order_acquire)) {
     KBDLLHOOKSTRUCT* pkbhs = (KBDLLHOOKSTRUCT*)lParam;
     if (pkbhs) {
-      if (IsKeyDownMessage(wParam)) {
-        if (pkbhs->flags & LLKHF_INJECTED) {
-          // Skip injected events to avoid duplicates
-          return CallNextHookEx(nullptr, nCode, wParam, lParam);
-        }
+      if (pkbhs->flags & LLKHF_INJECTED) {
+        // Ignore the complete injected sequence. Tracking an injected key-up
+        // without its ignored key-down corrupts pressed-key state and can
+        // release an active physical hotkey prematurely.
+        return CallNextHookEx(nullptr, nCode, wParam, lParam);
       }
 
       if (IsKeyDownMessage(wParam) || IsKeyUpMessage(wParam)) {

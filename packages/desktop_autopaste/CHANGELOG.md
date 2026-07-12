@@ -1,3 +1,11 @@
+## 0.2.14
+
+* Neutralize active Windows modifiers before injecting a paste shortcut so
+  stuck Office/Copilot or programmable-device chords cannot hijack keyboard
+  input.
+* Send best-effort key-up cleanup after an incomplete Windows `SendInput`
+  sequence.
+
 ## 0.2.12
 
 * Update `native_toolchain_c` to `^0.19.2`.

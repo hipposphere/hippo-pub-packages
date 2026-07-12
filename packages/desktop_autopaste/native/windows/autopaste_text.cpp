@@ -3,10 +3,13 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <cwctype>
 #include <limits>
+#include <mutex>
 #include <string>
+#include <vector>
 
 namespace desktop_autopaste {
 
@@ -25,6 +28,19 @@ constexpr int kClipboardVerificationRetryDelayMs = 20;
 constexpr int kPostPasteRestoreDelayMs = 500;
 constexpr DWORD kPostPasteInputIdleTimeoutMs = 1000;
 constexpr UINT kMessageTimeoutMs = 300;
+
+constexpr std::array<UINT, 8> kModifierVirtualKeys = {
+    VK_LWIN,
+    VK_RWIN,
+    VK_LCONTROL,
+    VK_RCONTROL,
+    VK_LMENU,
+    VK_RMENU,
+    VK_LSHIFT,
+    VK_RSHIFT,
+};
+
+std::mutex g_paste_shortcut_mutex;
 
 struct ProcessTopLevelWindowSearchContext {
   DWORD process_id = 0;
@@ -469,45 +485,83 @@ void RestoreClipboardUnicodeTextIfStillExpected(
   ::GlobalFree(previous_text_copy);
 }
 
-bool SendPasteShortcut(ClipboardPasteShortcut shortcut) {
-  auto make_scan_code_input = [](UINT vk, bool key_up) {
-    INPUT input = {};
-    input.type = INPUT_KEYBOARD;
-    input.ki.wVk = 0;
-    input.ki.wScan = static_cast<WORD>(::MapVirtualKeyExW(
-        vk,
-        MAPVK_VK_TO_VSC_EX,
-        ::GetKeyboardLayout(0)));
-    input.ki.dwFlags = KEYEVENTF_SCANCODE;
-    if ((input.ki.wScan & 0xFF00) != 0) {
-      input.ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
-    }
-    input.ki.wScan = static_cast<WORD>(input.ki.wScan & 0xFF);
-    if (key_up) {
-      input.ki.dwFlags |= KEYEVENTF_KEYUP;
-    }
-    return input;
-  };
+INPUT MakeScanCodeInput(UINT virtual_key, bool key_up) {
+  INPUT input = {};
+  input.type = INPUT_KEYBOARD;
+  input.ki.wVk = 0;
+  input.ki.wScan = static_cast<WORD>(::MapVirtualKeyExW(
+      virtual_key,
+      MAPVK_VK_TO_VSC_EX,
+      ::GetKeyboardLayout(0)));
+  input.ki.dwFlags = KEYEVENTF_SCANCODE;
+  if ((input.ki.wScan & 0xFF00) != 0) {
+    input.ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+  }
+  input.ki.wScan = static_cast<WORD>(input.ki.wScan & 0xFF);
+  if (key_up) {
+    input.ki.dwFlags |= KEYEVENTF_KEYUP;
+  }
+  return input;
+}
 
-  INPUT inputs[4] = {};
-  constexpr UINT expected_sent = 4;
+void ReleaseShortcutKeysAfterFailedInjection() {
+  std::vector<INPUT> cleanup_inputs;
+  cleanup_inputs.reserve(kModifierVirtualKeys.size() + 2);
+  cleanup_inputs.push_back(MakeScanCodeInput('V', true));
+  cleanup_inputs.push_back(MakeScanCodeInput(VK_INSERT, true));
+  for (const UINT modifier : kModifierVirtualKeys) {
+    cleanup_inputs.push_back(MakeScanCodeInput(modifier, true));
+  }
+
+  ::SendInput(
+      static_cast<UINT>(cleanup_inputs.size()),
+      cleanup_inputs.data(),
+      sizeof(INPUT));
+}
+
+bool SendPasteShortcut(ClipboardPasteShortcut shortcut) {
+  std::lock_guard<std::mutex> lock(g_paste_shortcut_mutex);
+
+  std::vector<INPUT> inputs;
+  inputs.reserve(kModifierVirtualKeys.size() + 4);
+
+  // SendInput does not reset existing keyboard state. In particular, an
+  // Office/Copilot key or a programmable HID can leave Ctrl+Alt+Shift+Win
+  // logically pressed and turn normal letters into application-launch
+  // shortcuts. Neutralize only modifiers that Windows currently reports as
+  // down before sending the paste chord.
+  for (const UINT modifier : kModifierVirtualKeys) {
+    if ((::GetAsyncKeyState(static_cast<int>(modifier)) & 0x8000) != 0) {
+      inputs.push_back(MakeScanCodeInput(modifier, true));
+    }
+  }
 
   switch (shortcut) {
     case ClipboardPasteShortcut::kCtrlV:
-      inputs[0] = make_scan_code_input(VK_LCONTROL, false);
-      inputs[1] = make_scan_code_input('V', false);
-      inputs[2] = make_scan_code_input('V', true);
-      inputs[3] = make_scan_code_input(VK_LCONTROL, true);
+      inputs.push_back(MakeScanCodeInput(VK_LCONTROL, false));
+      inputs.push_back(MakeScanCodeInput('V', false));
+      inputs.push_back(MakeScanCodeInput('V', true));
+      inputs.push_back(MakeScanCodeInput(VK_LCONTROL, true));
       break;
     case ClipboardPasteShortcut::kShiftInsert:
-      inputs[0] = make_scan_code_input(VK_LSHIFT, false);
-      inputs[1] = make_scan_code_input(VK_INSERT, false);
-      inputs[2] = make_scan_code_input(VK_INSERT, true);
-      inputs[3] = make_scan_code_input(VK_LSHIFT, true);
+      inputs.push_back(MakeScanCodeInput(VK_LSHIFT, false));
+      inputs.push_back(MakeScanCodeInput(VK_INSERT, false));
+      inputs.push_back(MakeScanCodeInput(VK_INSERT, true));
+      inputs.push_back(MakeScanCodeInput(VK_LSHIFT, true));
       break;
   }
 
-  return ::SendInput(expected_sent, inputs, sizeof(INPUT)) == expected_sent;
+  const UINT expected_sent = static_cast<UINT>(inputs.size());
+  const UINT sent = ::SendInput(expected_sent, inputs.data(), sizeof(INPUT));
+  if (sent == expected_sent) {
+    return true;
+  }
+
+  // A partial SendInput result can otherwise leave the shortcut key or one of
+  // its modifiers down indefinitely. Best-effort key-up events are safe even
+  // when the original events were not inserted.
+  ReleaseShortcutKeysAfterFailedInjection();
+  return false;
 }
 
 void PumpPendingMessages() {

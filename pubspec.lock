@@ -501,18 +501,18 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_sql
-      sha256: "6b15ce2f554ad865863257363686a93877a703d5b32443bbf8a60447e25ca895"
+      sha256: d646faed2d4dd9ee0c5ec803555defcb85aa1cfd07e67fe1e49f0958372691cc
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.30"
+    version: "0.3.31"
   dart_edge_sql_pglite:
     dependency: transitive
     description:
       name: dart_edge_sql_pglite
-      sha256: b2125b0937813d0563c0549f421c2bb95c7df3615e63bbcbacba9d09dc381140
+      sha256: "122fd82b2a1f32d84183c6d87c553d842e569319159f7fd331a320b1312d74e4"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.1.13"
+    version: "0.1.14"
   dart_sentencepiece_tokenizer:
     dependency: transitive
     description:

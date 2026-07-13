@@ -78,14 +78,29 @@ class DisconnectionStreamHandler : public flutter::StreamHandler<flutter::Encoda
 
 class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValue> {
  public:
-  ReportStreamHandler(HANDLE device) : device_(device), running_(false) {}
-  virtual ~ReportStreamHandler() { Stop(); }
+  ReportStreamHandler(HANDLE device)
+      : device_(device),
+        stop_event_(CreateEvent(nullptr, TRUE, FALSE, nullptr)),
+        running_(false) {}
+  virtual ~ReportStreamHandler() {
+    Stop();
+    if (stop_event_ != nullptr) {
+      CloseHandle(stop_event_);
+    }
+  }
 
   std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(
       const flutter::EncodableValue* arguments,
       std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override {
     Stop();
     events_ = std::move(events);
+    if (stop_event_ == nullptr) {
+      return std::make_unique<flutter::StreamHandlerError<flutter::EncodableValue>>(
+          "READ_SETUP_FAILED",
+          "Failed to create HID reader stop event",
+          nullptr);
+    }
+    ResetEvent(stop_event_);
     running_ = true;
     thread_ = std::thread(&ReportStreamHandler::ReadLoop, this);
     return nullptr;
@@ -104,6 +119,9 @@ class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValu
 
   void Stop() {
     running_ = false;
+    if (stop_event_ != nullptr) {
+      SetEvent(stop_event_);
+    }
     // CancelIo only affects I/O issued by the calling thread. CancelIoEx is
     // required here because shutdown runs on Flutter's platform thread while
     // the read was issued by ReadLoop.
@@ -132,19 +150,22 @@ class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValu
         
         if (!readResult) {
             if (lastError == ERROR_IO_PENDING) {
-                // Wait for the async operation to complete
-                DWORD waitResult = WaitForSingleObject(ol.hEvent, 100);
-                if (waitResult == WAIT_TIMEOUT) {
-                    // Do not reuse OVERLAPPED until cancellation has completed.
+                // Keep this read pending until a report arrives. Cancelling and
+                // reissuing it on a polling timeout leaves a gap in which a
+                // short button report can be lost. The dedicated stop event
+                // also closes the race where Stop() runs just before ReadFile.
+                HANDLE wait_handles[] = {ol.hEvent, stop_event_};
+                DWORD waitResult = WaitForMultipleObjects(
+                    2, wait_handles, FALSE, INFINITE);
+
+                if (waitResult == WAIT_OBJECT_0 + 1 || !running_) {
                     CancelIoEx(device_, &ol);
                     GetOverlappedResult(device_, &ol, &bytesRead, TRUE);
-                    if (!running_) break;
-                    continue;
+                    break;
                 }
                 if (waitResult != WAIT_OBJECT_0) {
                     CancelIoEx(device_, &ol);
                     GetOverlappedResult(device_, &ol, &bytesRead, TRUE);
-                    if (!running_) break;
                     continue;
                 }
                 // Get the result of the completed async operation
@@ -193,6 +214,7 @@ class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValu
   }
 
   HANDLE device_;
+  HANDLE stop_event_;
   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> events_;
   DisconnectionStreamHandler* disconnection_handler_ = nullptr;
   std::thread thread_;

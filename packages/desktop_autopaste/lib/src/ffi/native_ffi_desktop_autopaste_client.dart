@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 import 'package:objective_c/objective_c.dart' as objc;
@@ -32,25 +33,18 @@ final class NativeFfiDesktopAutopasteClient implements DesktopAutopasteClient {
       }
     }
 
-    final textPtr = text.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
-    final errorPtr = calloc<ffi.Char>(_errorBufferBytes);
-
-    try {
-      final prePasteDelayMs = prePasteDelay.isNegative
-          ? 0
-          : prePasteDelay.inMilliseconds;
-      final code = bindings.desktop_autopaste_paste_into_cursor_via_clipboard(
-        textPtr,
-        prePasteDelayMs,
-        pasteShortcut.index,
-        errorPtr,
-        _errorBufferBytes,
-      );
-      return code == 0;
-    } finally {
-      calloc.free(textPtr);
-      calloc.free(errorPtr);
+    final request = _NativePasteRequest(
+      text: text,
+      prePasteDelayMs: _normalizeDelay(prePasteDelay),
+      pasteShortcut: pasteShortcut.index,
+    );
+    if (Platform.isWindows) {
+      // The Windows implementation owns and pumps a delayed-rendering window
+      // until the target consumes the clipboard or the safety timeout expires.
+      // Keep that wait off Flutter's UI isolate.
+      return Isolate.run(() => _pasteIntoCursorViaClipboardNative(request));
     }
+    return _pasteIntoCursorViaClipboardNative(request);
   }
 
   bool? _tryPasteViaMacosSwiftgen(String text) {
@@ -70,22 +64,14 @@ final class NativeFfiDesktopAutopasteClient implements DesktopAutopasteClient {
     required Duration prePasteDelay,
     required DesktopAutopastePasteShortcut pasteShortcut,
   }) async {
-    final errorPtr = calloc<ffi.Char>(_errorBufferBytes);
-
-    try {
-      final prePasteDelayMs = prePasteDelay.isNegative
-          ? 0
-          : prePasteDelay.inMilliseconds;
-      final code = bindings.desktop_autopaste_paste_from_clipboard(
-        prePasteDelayMs,
-        pasteShortcut.index,
-        errorPtr,
-        _errorBufferBytes,
-      );
-      return code == 0;
-    } finally {
-      calloc.free(errorPtr);
+    final request = _NativePasteFromClipboardRequest(
+      prePasteDelayMs: _normalizeDelay(prePasteDelay),
+      pasteShortcut: pasteShortcut.index,
+    );
+    if (Platform.isWindows) {
+      return Isolate.run(() => _pasteFromClipboardNative(request));
     }
+    return _pasteFromClipboardNative(request);
   }
 
   @override
@@ -190,5 +176,65 @@ final class NativeFfiDesktopAutopasteClient implements DesktopAutopasteClient {
       calloc.free(opPtr);
       calloc.free(errorPtr);
     }
+  }
+}
+
+final class _NativePasteRequest {
+  const _NativePasteRequest({
+    required this.text,
+    required this.prePasteDelayMs,
+    required this.pasteShortcut,
+  });
+
+  final String text;
+  final int prePasteDelayMs;
+  final int pasteShortcut;
+}
+
+final class _NativePasteFromClipboardRequest {
+  const _NativePasteFromClipboardRequest({
+    required this.prePasteDelayMs,
+    required this.pasteShortcut,
+  });
+
+  final int prePasteDelayMs;
+  final int pasteShortcut;
+}
+
+int _normalizeDelay(Duration delay) =>
+    delay.isNegative ? 0 : delay.inMilliseconds;
+
+bool _pasteIntoCursorViaClipboardNative(_NativePasteRequest request) {
+  final textPtr = request.text.toNativeUtf8(allocator: calloc).cast<ffi.Char>();
+  final errorPtr = calloc<ffi.Char>(_errorBufferBytes);
+
+  try {
+    final code = bindings.desktop_autopaste_paste_into_cursor_via_clipboard(
+      textPtr,
+      request.prePasteDelayMs,
+      request.pasteShortcut,
+      errorPtr,
+      _errorBufferBytes,
+    );
+    return code == 0;
+  } finally {
+    calloc.free(textPtr);
+    calloc.free(errorPtr);
+  }
+}
+
+bool _pasteFromClipboardNative(_NativePasteFromClipboardRequest request) {
+  final errorPtr = calloc<ffi.Char>(_errorBufferBytes);
+
+  try {
+    final code = bindings.desktop_autopaste_paste_from_clipboard(
+      request.prePasteDelayMs,
+      request.pasteShortcut,
+      errorPtr,
+      _errorBufferBytes,
+    );
+    return code == 0;
+  } finally {
+    calloc.free(errorPtr);
   }
 }

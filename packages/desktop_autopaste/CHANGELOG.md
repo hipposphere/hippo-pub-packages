@@ -1,3 +1,12 @@
+## Unreleased
+
+* Publish temporary Windows text through delayed clipboard rendering and
+  restore the original clipboard only after the target requests Unicode text.
+  This prevents Citrix and other remote sessions from receiving a prematurely
+  restored, stale clipboard entry.
+* Run Windows paste transactions outside Flutter's UI isolate and serialize
+  both managed and current-clipboard paste operations.
+
 ## 0.2.14
 
 * Neutralize active Windows modifiers before injecting a paste shortcut so

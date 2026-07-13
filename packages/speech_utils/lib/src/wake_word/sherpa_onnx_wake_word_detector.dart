@@ -98,7 +98,11 @@ final class SherpaOnnxWakeWordDetectorConfig {
 }
 
 abstract interface class SherpaOnnxKeywordSpotterAdapter {
-  List<String> acceptSamples(Float32List samples, {required int sampleRateHz});
+  List<String> acceptSamples(
+    Float32List samples, {
+    required int sampleRateHz,
+    required double sensitivity,
+  });
   void reset();
   void dispose();
 }
@@ -115,11 +119,12 @@ final class SherpaOnnxWakeWordDetector implements WakeWordDetector {
   static Future<SherpaOnnxWakeWordDetector> create({
     required Iterable<String> keywords,
     SherpaOnnxWakeWordModelPreset preset = SherpaOnnxWakeWordModelPreset.english,
-    double keywordsScore = 1.5,
-    double keywordsThreshold = 0.35,
+    double sensitivity = 0.6,
     int numThreads = 1,
     bool debug = false,
   }) async {
+    final keywordsScore = keywordScoreForSensitivity(sensitivity);
+    final keywordsThreshold = keywordThresholdForSensitivity(sensitivity);
     final normalizedKeywords = _validatePlainTextKeywords(keywords);
     final model = await _SherpaOnnxPresetModel.load(preset);
     final keywordsBuffer = model.encodeKeywords(
@@ -140,6 +145,26 @@ final class SherpaOnnxWakeWordDetector implements WakeWordDetector {
         debug: debug,
       ),
     );
+  }
+
+  /// Converts the public high-is-sensitive scale into sherpa's inverse
+  /// keyword-threshold scale.
+  static double keywordThresholdForSensitivity(double sensitivity) {
+    _validateSensitivity(sensitivity);
+    final strictness = (1 - sensitivity) / 0.4;
+    return (0.01 + 0.34 * strictness * strictness).clamp(0.01, 0.8);
+  }
+
+  /// Converts sensitivity into sherpa's keyword-path boosting score.
+  static double keywordScoreForSensitivity(double sensitivity) {
+    _validateSensitivity(sensitivity);
+    return (0.5 + sensitivity * sensitivity / 0.36).clamp(0.5, 3.0);
+  }
+
+  static void _validateSensitivity(double sensitivity) {
+    if (sensitivity < 0 || sensitivity > 1) {
+      throw ArgumentError.value(sensitivity, 'sensitivity', 'Must be in [0, 1]');
+    }
   }
 
   final SherpaOnnxKeywordSpotterAdapter _adapter;
@@ -167,7 +192,11 @@ final class SherpaOnnxWakeWordDetector implements WakeWordDetector {
     }
 
     final samples = _pcm16leToFloat32(pcm16leBytes);
-    final detectedKeywords = _adapter.acceptSamples(samples, sampleRateHz: sampleRateHz);
+    final detectedKeywords = _adapter.acceptSamples(
+      samples,
+      sampleRateHz: sampleRateHz,
+      sensitivity: config.sensitivity,
+    );
     if (detectedKeywords.isEmpty) {
       return const <WakeWordEvent>[];
     }
@@ -303,7 +332,20 @@ final class _SherpaOnnxPresetModel {
 }
 
 final class _NativeSherpaOnnxKeywordSpotterAdapter implements SherpaOnnxKeywordSpotterAdapter {
-  _NativeSherpaOnnxKeywordSpotterAdapter(SherpaOnnxWakeWordDetectorConfig config) {
+  _NativeSherpaOnnxKeywordSpotterAdapter(this._baseConfig) {
+    _create(_baseConfig);
+    _activeScore = _baseConfig.keywordsScore;
+    _activeThreshold = _baseConfig.keywordsThreshold;
+  }
+
+  final SherpaOnnxWakeWordDetectorConfig _baseConfig;
+  late ffi.Pointer<sherpa.SherpaOnnxKeywordSpotter> _spotter;
+  late ffi.Pointer<sherpa.SherpaOnnxOnlineStream> _stream;
+  late double _activeScore;
+  late double _activeThreshold;
+  bool _disposed = false;
+
+  void _create(SherpaOnnxWakeWordDetectorConfig config) {
     config.validate();
     final nativeConfig = calloc<sherpa.SherpaOnnxKeywordSpotterConfig>();
     final strings = <ffi.Pointer<Utf8>>[];
@@ -363,15 +405,17 @@ final class _NativeSherpaOnnxKeywordSpotterAdapter implements SherpaOnnxKeywordS
     }
   }
 
-  late final ffi.Pointer<sherpa.SherpaOnnxKeywordSpotter> _spotter;
-  late final ffi.Pointer<sherpa.SherpaOnnxOnlineStream> _stream;
-  bool _disposed = false;
-
   @override
-  List<String> acceptSamples(Float32List samples, {required int sampleRateHz}) {
+  List<String> acceptSamples(
+    Float32List samples, {
+    required int sampleRateHz,
+    required double sensitivity,
+  }) {
     if (_disposed || samples.isEmpty) {
       return const <String>[];
     }
+
+    _applySensitivity(sensitivity);
 
     final nativeSamples = calloc<ffi.Float>(samples.length);
     nativeSamples.asTypedList(samples.length).setAll(0, samples);
@@ -401,6 +445,47 @@ final class _NativeSherpaOnnxKeywordSpotterAdapter implements SherpaOnnxKeywordS
     return keywords;
   }
 
+  void _applySensitivity(double sensitivity) {
+    final score = SherpaOnnxWakeWordDetector.keywordScoreForSensitivity(sensitivity);
+    final threshold = SherpaOnnxWakeWordDetector.keywordThresholdForSensitivity(sensitivity);
+    if ((score - _activeScore).abs() < 0.000001 &&
+        (threshold - _activeThreshold).abs() < 0.000001) {
+      return;
+    }
+
+    sherpa.SherpaOnnxDestroyOnlineStream(_stream);
+    sherpa.SherpaOnnxDestroyKeywordSpotter(_spotter);
+    var keywordsFile = _baseConfig.keywordsFile;
+    var keywordsBuffer = _baseConfig.keywordsBuffer;
+    if (keywordsFile.trim().isNotEmpty) {
+      keywordsBuffer = File(keywordsFile).readAsStringSync();
+      keywordsFile = '';
+    }
+
+    _create(
+      SherpaOnnxWakeWordDetectorConfig(
+        tokensPath: _baseConfig.tokensPath,
+        encoderPath: _baseConfig.encoderPath,
+        decoderPath: _baseConfig.decoderPath,
+        joinerPath: _baseConfig.joinerPath,
+        keywordsFile: keywordsFile,
+        keywordsBuffer: _replaceKeywordTuning(keywordsBuffer, score: score, threshold: threshold),
+        sampleRateHz: _baseConfig.sampleRateHz,
+        featureDim: _baseConfig.featureDim,
+        maxActivePaths: _baseConfig.maxActivePaths,
+        numTrailingBlanks: _baseConfig.numTrailingBlanks,
+        keywordsScore: score,
+        keywordsThreshold: threshold,
+        numThreads: _baseConfig.numThreads,
+        provider: _baseConfig.provider,
+        modelType: _baseConfig.modelType,
+        debug: _baseConfig.debug,
+      ),
+    );
+    _activeScore = score;
+    _activeThreshold = threshold;
+  }
+
   @override
   void reset() {
     if (_disposed) {
@@ -418,6 +503,19 @@ final class _NativeSherpaOnnxKeywordSpotterAdapter implements SherpaOnnxKeywordS
     sherpa.SherpaOnnxDestroyOnlineStream(_stream);
     sherpa.SherpaOnnxDestroyKeywordSpotter(_spotter);
   }
+}
+
+String _replaceKeywordTuning(
+  String keywordsBuffer, {
+  required double score,
+  required double threshold,
+}) {
+  if (keywordsBuffer.isEmpty) {
+    return keywordsBuffer;
+  }
+  return keywordsBuffer
+      .replaceAll(RegExp(r':[^\s]+'), ':$score')
+      .replaceAll(RegExp(r'#[^\s]+'), '#$threshold');
 }
 
 Float32List _pcm16leToFloat32(Uint8List pcm16leBytes) {

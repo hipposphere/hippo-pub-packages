@@ -1299,13 +1299,19 @@ final class NativeAudioRecorder {
     _continousRecordingNativeEnabled = false;
     _continousRecordingDuration = null;
     _continousRecordingError = null;
-    await reset();
-    _nativeAmplitudeTimer?.cancel();
-    _nativeAmplitudeTimer = null;
-    final amplitudeController = _amplitudeController;
-    _amplitudeController = null;
-    if (amplitudeController != null && !amplitudeController.isClosed) {
-      await amplitudeController.close();
+    try {
+      await reset();
+      _nativeAmplitudeTimer?.cancel();
+      _nativeAmplitudeTimer = null;
+      final amplitudeController = _amplitudeController;
+      _amplitudeController = null;
+      if (amplitudeController != null && !amplitudeController.isClosed) {
+        await amplitudeController.close();
+      }
+    } finally {
+      if (_useControlWorker) {
+        await NativeWorkerExecutor.shutdownAll();
+      }
     }
   }
 
@@ -2167,6 +2173,9 @@ final class NativeAudioRecorder {
     await _cleanupTempRecordingDirectory(_activeTempDirectory);
     _clearActiveRecordingOutputTracking();
     _resetAmplitudeState();
+    if (_useControlWorker) {
+      await NativeWorkerExecutor.shutdownAll();
+    }
   }
 
   void _cancelContinousRecordingWarmTimer() {

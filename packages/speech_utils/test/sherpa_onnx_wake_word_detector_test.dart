@@ -63,10 +63,24 @@ void main() {
       expect(events, hasLength(1));
       expect(events.single.keyword, 'hey dicto');
       expect(adapter.lastSampleRateHz, 16000);
+      expect(adapter.lastSensitivity, 0.6);
       expect(adapter.lastSamples, hasLength(3));
       expect(adapter.lastSamples[0], -1.0);
       expect(adapter.lastSamples[1], 0.0);
       expect(adapter.lastSamples[2], closeTo(0.9999, 0.0001));
+    });
+
+    test('maps higher sensitivity to a lower threshold and higher boost', () {
+      expect(SherpaOnnxWakeWordDetector.keywordThresholdForSensitivity(0), 0.8);
+      expect(SherpaOnnxWakeWordDetector.keywordThresholdForSensitivity(0.6), closeTo(0.35, 1e-9));
+      expect(
+        SherpaOnnxWakeWordDetector.keywordThresholdForSensitivity(0.9),
+        closeTo(0.03125, 1e-9),
+      );
+      expect(SherpaOnnxWakeWordDetector.keywordThresholdForSensitivity(1), 0.01);
+      expect(SherpaOnnxWakeWordDetector.keywordScoreForSensitivity(0.6), closeTo(1.5, 1e-9));
+      expect(SherpaOnnxWakeWordDetector.keywordScoreForSensitivity(0.9), closeTo(2.75, 1e-9));
+      expect(SherpaOnnxWakeWordDetector.keywordScoreForSensitivity(1), 3);
     });
 
     test('rejects non-mono PCM', () {
@@ -103,13 +117,19 @@ final class _FakeSherpaAdapter implements SherpaOnnxKeywordSpotterAdapter {
   final List<String> detections;
   Float32List lastSamples = Float32List(0);
   int? lastSampleRateHz;
+  double? lastSensitivity;
   int resetCount = 0;
   int disposeCount = 0;
 
   @override
-  List<String> acceptSamples(Float32List samples, {required int sampleRateHz}) {
+  List<String> acceptSamples(
+    Float32List samples, {
+    required int sampleRateHz,
+    required double sensitivity,
+  }) {
     lastSamples = samples;
     lastSampleRateHz = sampleRateHz;
+    lastSensitivity = sensitivity;
     return detections;
   }
 

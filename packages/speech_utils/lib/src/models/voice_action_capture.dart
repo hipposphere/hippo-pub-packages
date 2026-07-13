@@ -8,6 +8,8 @@ final class WakeWordDetectionConfig {
   const WakeWordDetectionConfig({required this.keywords, this.sensitivity = 0.6});
 
   final List<String> keywords;
+
+  /// Detection sensitivity in the range 0 (strict) to 1 (most permissive).
   final double sensitivity;
 
   void validate() {

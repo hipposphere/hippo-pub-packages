@@ -12,6 +12,7 @@ void main() {
       entrypoint: _testNativeWorkerMain,
       debugName: 'speech_utils worker test',
     );
+    addTearDown(executor.shutdown);
 
     var timerFired = false;
     final timerFuture = Future<void>.delayed(const Duration(milliseconds: 25), () {
@@ -29,6 +30,7 @@ void main() {
       entrypoint: _testNativeWorkerMain,
       debugName: 'speech_utils FIFO worker test',
     );
+    addTearDown(executor.shutdown);
 
     final completed = <int>[];
     final futures = <Future<void>>[
@@ -46,9 +48,22 @@ void main() {
       entrypoint: _testNativeWorkerMain,
       debugName: 'speech_utils restart worker test',
     );
+    addTearDown(executor.shutdown);
 
     await expectLater(executor.execute<int>(<String, Object?>{'exit': true}), throwsStateError);
     expect(await executor.execute<int>(<String, Object?>{'delayMs': 0, 'value': 11}), 11);
+  });
+
+  test('shutdown releases the worker and execute starts a fresh one', () async {
+    final executor = NativeWorkerExecutor(
+      entrypoint: _testNativeWorkerMain,
+      debugName: 'speech_utils shutdown worker test',
+    );
+    addTearDown(executor.shutdown);
+
+    expect(await executor.execute<int>(<String, Object?>{'delayMs': 0, 'value': 1}), 1);
+    await executor.shutdown();
+    expect(await executor.execute<int>(<String, Object?>{'delayMs': 0, 'value': 2}), 2);
   });
 
   test('default desktop codec and metadata workers call bundled native assets', () async {
@@ -83,7 +98,7 @@ void main() {
     final recorder = NativeAudioRecorder();
     expect(await recorder.hasPermission(), isA<bool>());
     await recorder.setContinousRecording(false);
-    await recorder.reset();
+    await recorder.dispose();
   });
 }
 

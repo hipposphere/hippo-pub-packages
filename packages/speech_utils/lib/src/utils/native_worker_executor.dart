@@ -7,13 +7,21 @@ typedef NativeWorkerHandler = FutureOr<Object?> Function(Object? request);
 /// A lazily started, long-lived isolate that executes native commands in FIFO
 /// order without blocking Flutter's UI isolate.
 final class NativeWorkerExecutor {
-  NativeWorkerExecutor({required NativeWorkerEntrypoint entrypoint, required String debugName})
-    : this._(entrypoint, debugName);
+  factory NativeWorkerExecutor({
+    required NativeWorkerEntrypoint entrypoint,
+    required String debugName,
+  }) {
+    return NativeWorkerExecutor._(entrypoint, debugName);
+  }
 
-  NativeWorkerExecutor._(this._entrypoint, this._debugName);
+  NativeWorkerExecutor._(this._entrypoint, this._debugName) {
+    _instances.add(this);
+  }
 
   final NativeWorkerEntrypoint _entrypoint;
   final String _debugName;
+
+  static final Set<NativeWorkerExecutor> _instances = <NativeWorkerExecutor>{};
 
   final Map<int, Completer<Object?>> _pending = <int, Completer<Object?>>{};
   Future<SendPort>? _startFuture;
@@ -23,8 +31,13 @@ final class NativeWorkerExecutor {
   ReceivePort? _errorPort;
   ReceivePort? _exitPort;
   Isolate? _isolate;
+  Future<void>? _shutdownFuture;
 
   Future<T> execute<T>(Object? request) async {
+    final shutdownFuture = _shutdownFuture;
+    if (shutdownFuture != null) {
+      await shutdownFuture;
+    }
     final commandPort = await (_startFuture ??= _start());
     final requestId = _nextRequestId++;
     final completer = Completer<Object?>();
@@ -36,6 +49,48 @@ final class NativeWorkerExecutor {
       Error.throwWithStackTrace(error, stackTrace);
     }
     return (await completer.future) as T;
+  }
+
+  /// Stops the current worker after its queued commands finish.
+  ///
+  /// A later [execute] call starts a fresh worker, so shared executors can be
+  /// released during desktop app shutdown and reused by a subsequent session.
+  Future<void> shutdown() {
+    return _shutdownFuture ??= _shutdown().whenComplete(() {
+      _shutdownFuture = null;
+    });
+  }
+
+  /// Stops every native worker created in this isolate.
+  static Future<void> shutdownAll() async {
+    await Future.wait(_instances.toList(growable: false).map((executor) => executor.shutdown()));
+  }
+
+  Future<void> _shutdown() async {
+    final startFuture = _startFuture;
+    if (startFuture != null) {
+      try {
+        await startFuture;
+      } on Object {
+        // Startup failure already tears down the worker and completes callers.
+      }
+    }
+
+    final pending = _pending.values.map((completer) => completer.future).toList(growable: false);
+    if (pending.isNotEmpty) {
+      await Future.wait(pending.map((future) => future.then<void>((_) {}, onError: (_, _) {})));
+    }
+
+    _generation++;
+    _startFuture = null;
+    _replyPort?.close();
+    _errorPort?.close();
+    _exitPort?.close();
+    _replyPort = null;
+    _errorPort = null;
+    _exitPort = null;
+    _isolate?.kill(priority: Isolate.immediate);
+    _isolate = null;
   }
 
   Future<SendPort> _start() async {

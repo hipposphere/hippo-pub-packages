@@ -46,8 +46,7 @@ class _WakeWordActionPageState extends State<WakeWordActionPage> {
   int _wakeWordCount = 0;
   int _liveCommandBytes = 0;
   int _completedCommandBytes = 0;
-  double _keywordsScore = 1.5;
-  double _keywordsThreshold = 0.35;
+  double _sensitivity = 0.8;
   Duration _endSilenceDuration = const Duration(milliseconds: 1000);
   Duration _postWakeDelay = const Duration(milliseconds: 150);
 
@@ -82,8 +81,7 @@ class _WakeWordActionPageState extends State<WakeWordActionPage> {
     try {
       final detector = await SherpaOnnxWakeWordDetector.create(
         keywords: <String>[_keywordLabelController.text.trim()],
-        keywordsScore: _keywordsScore,
-        keywordsThreshold: _keywordsThreshold,
+        sensitivity: _sensitivity,
       );
 
       final session = await _recorder.startVoiceActionCapture(
@@ -91,6 +89,7 @@ class _WakeWordActionPageState extends State<WakeWordActionPage> {
           detector: detector,
           wakeWords: WakeWordDetectionConfig(
             keywords: <String>[_keywordLabelController.text.trim()],
+            sensitivity: _sensitivity,
           ),
           audio: const AudioRecorderConfig(
             sampleRateHz: 16000,
@@ -380,22 +379,13 @@ class _WakeWordActionPageState extends State<WakeWordActionPage> {
             ),
             const SizedBox(height: 8),
             _SliderRow(
-              label: 'Keyword score',
-              value: _keywordsScore,
-              min: 0.5,
-              max: 4,
-              divisions: 35,
+              label: 'Sensitivity',
+              value: _sensitivity,
+              min: 0,
+              max: 1,
+              divisions: 20,
               enabled: !_isListening && !_isStarting,
-              onChanged: (value) => setState(() => _keywordsScore = value),
-            ),
-            _SliderRow(
-              label: 'Keyword threshold',
-              value: _keywordsThreshold,
-              min: 0.05,
-              max: 0.95,
-              divisions: 18,
-              enabled: !_isListening && !_isStarting,
-              onChanged: (value) => setState(() => _keywordsThreshold = value),
+              onChanged: (value) => setState(() => _sensitivity = value),
             ),
             _SliderRow(
               label: 'Post-wake discard',

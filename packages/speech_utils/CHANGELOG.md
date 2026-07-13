@@ -97,6 +97,12 @@
 - Add AAC encoding helpers backed by `ffmpeg`.
 ## Unreleased
 
+- Fixed `WakeWordDetectionConfig.sensitivity` so sherpa-onnx keyword spotting
+  lowers its trigger threshold and raises its keyword boost at higher values.
+- Breaking: replace `SherpaOnnxWakeWordDetector.create(keywordsThreshold: ...)`
+  and `keywordsScore` with the higher-is-more-permissive `sensitivity` option.
+- Fixed desktop native worker teardown so Windows app exit releases recorder,
+  encoder, and metadata isolates instead of leaving the process running.
 - Added package-managed English sherpa-onnx keyword spotting through
   `SherpaOnnxWakeWordDetector.create`, including automatic model extraction and
   plain-text SentencePiece keyword tokenization.

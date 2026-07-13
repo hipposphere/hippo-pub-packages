@@ -15,6 +15,8 @@
 
 namespace hid_api {
 
+class ReportStreamHandler;
+
 class HidApiPlugin : public flutter::Plugin {
  public:
   static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
@@ -35,6 +37,9 @@ class HidApiPlugin : public flutter::Plugin {
   flutter::EncodableList GetDeviceList();
 
  private:
+  void CloseDevice(const std::string& path);
+  void ShutdownDevices();
+
   flutter::BinaryMessenger* messenger_;
   std::map<std::string, HANDLE> open_devices_;
   std::map<std::string, PHIDP_PREPARSED_DATA> preparsed_data_;
@@ -42,6 +47,7 @@ class HidApiPlugin : public flutter::Plugin {
   std::map<std::string, HIDP_CAPS> device_caps_;
   std::map<std::string, std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>>> event_channels_;
   std::map<std::string, std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>>> disconnection_channels_;
+  std::map<std::string, ReportStreamHandler*> report_handlers_;
   std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> device_update_channel_;
 };
 

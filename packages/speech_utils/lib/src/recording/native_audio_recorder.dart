@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui';
@@ -25,6 +26,7 @@ import '../models/voice_action_capture.dart';
 import '../models/input_device.dart';
 import '../splitting/pcm16_stream_pause_splitter.dart';
 import '../utils/pcm16_audio_utils.dart';
+import '../utils/native_worker_executor.dart';
 import '../vad/speech_vad_config.dart';
 import 'audio_recorder_config.dart';
 import '../generated/recorder/android_jni_bindings.dart' as android_jni;
@@ -36,6 +38,7 @@ import 'voice_segment.dart';
 
 part 'native_audio_recorder_platform_builders.dart';
 part 'native_audio_recorder_platform_implementations.dart';
+part 'native_audio_recorder_worker.dart';
 part 'errors/native_audio_recorder_exceptions.dart';
 part 'implementations/native_audio_recorder_platform_implementation_macos.dart';
 part 'implementations/native_audio_recorder_platform_implementation_windows.dart';
@@ -114,18 +117,22 @@ final class NativeAudioRecorder {
           platform: _detectNativeAudioRecorderPlatform(),
           platformImplementation: null,
         ),
+        useWorker: true,
       );
 
   /// Uses a custom platform backend.
   NativeAudioRecorder.custom({
     required NativeAudioRecorderPlatformImplementation platformImplementation,
-  }) : this._(platformImplementation: platformImplementation);
+  }) : this._(platformImplementation: platformImplementation, useWorker: false);
 
-  NativeAudioRecorder._({required this._platformImplementation}) {
+  NativeAudioRecorder._({required this._platformImplementation, required bool useWorker})
+    : _useControlWorker =
+          useWorker && _supportsRecorderControlWorker(_platformImplementation.platform) {
     _appLifecycleListener = _createAppLifecycleListenerIfAvailable();
   }
 
   final NativeAudioRecorderPlatformImplementation _platformImplementation;
+  final bool _useControlWorker;
 
   _RecorderMode _mode = _RecorderMode.stopped;
   Timer? _streamTimer;
@@ -212,11 +219,27 @@ final class NativeAudioRecorder {
 
   Future<bool> hasPermission() async {
     _ensureSupportedPlatform();
+    if (_useControlWorker) {
+      return _nativeAudioRecorderControlWorker.execute<bool>(
+        _NativeAudioRecorderWorkerRequest.simple(
+          operation: _NativeAudioRecorderWorkerOperation.hasPermission,
+          platform: platform,
+        ),
+      );
+    }
     return _platformImplementation.hasPermission();
   }
 
   Future<bool> requestPermission() async {
     _ensureSupportedPlatform();
+    if (_useControlWorker) {
+      return _nativeAudioRecorderControlWorker.execute<bool>(
+        _NativeAudioRecorderWorkerRequest.simple(
+          operation: _NativeAudioRecorderWorkerOperation.requestPermission,
+          platform: platform,
+        ),
+      );
+    }
     return await _platformImplementation.requestPermission();
   }
 
@@ -241,6 +264,14 @@ final class NativeAudioRecorder {
 
   Future<List<InputDevice>> listInputDevices() async {
     _ensureSupportedPlatform();
+    if (_useControlWorker) {
+      return _nativeAudioRecorderControlWorker.execute<List<InputDevice>>(
+        _NativeAudioRecorderWorkerRequest.simple(
+          operation: _NativeAudioRecorderWorkerOperation.listInputDevices,
+          platform: platform,
+        ),
+      );
+    }
     return _platformImplementation.listInputDevices();
   }
 
@@ -398,10 +429,7 @@ final class NativeAudioRecorder {
 
     try {
       await _runPlatformStartWithRetry(
-        () => _platformImplementation.startFile(
-          outputPath: nativeOutputPath,
-          config: effectiveConfig,
-        ),
+        () => _startPlatformFile(outputPath: nativeOutputPath, config: effectiveConfig),
       );
       _continousRecordingConfig = effectiveConfig;
       _mode = _RecorderMode.file;
@@ -444,9 +472,7 @@ final class NativeAudioRecorder {
     _nativeAmplitudeTimer?.cancel();
     _nativeAmplitudeTimer = null;
 
-    await _runPlatformStartWithRetry(
-      () => _platformImplementation.startStream(config: effectiveConfig),
-    );
+    await _runPlatformStartWithRetry(() => _startPlatformStream(config: effectiveConfig));
 
     _continousRecordingConfig = effectiveConfig;
     _mode = _RecorderMode.stream;
@@ -1097,7 +1123,7 @@ final class NativeAudioRecorder {
     Object? stopError;
     StackTrace? stopStackTrace;
     try {
-      await _platformImplementation.stop();
+      await _stopPlatformRecorder();
     } on Object catch (error, stackTrace) {
       stopError = error;
       stopStackTrace = stackTrace;
@@ -1176,7 +1202,7 @@ final class NativeAudioRecorder {
     Object? resetError;
     StackTrace? resetStackTrace;
     try {
-      await _platformImplementation.reset();
+      await _resetPlatformRecorder();
     } on Object catch (error, stackTrace) {
       resetError = error;
       resetStackTrace = stackTrace;
@@ -1240,7 +1266,7 @@ final class NativeAudioRecorder {
 
     if (shouldDisableNativeContinousCapture) {
       try {
-        await _platformImplementation.setContinousRecording(false, config: releaseConfig);
+        await _setPlatformContinousRecordingDirect(false, config: releaseConfig);
       } on Object catch (error, stackTrace) {
         rememberError(error, stackTrace);
       }
@@ -1320,6 +1346,82 @@ final class NativeAudioRecorder {
     return _platformImplementation.readStream(maxSamples: maxSamples);
   }
 
+  Future<void> _startPlatformFile({
+    required String outputPath,
+    required AudioRecorderConfig config,
+  }) async {
+    if (_useControlWorker) {
+      await _nativeAudioRecorderControlWorker.execute<void>(
+        _NativeAudioRecorderWorkerRequest.withConfig(
+          operation: _NativeAudioRecorderWorkerOperation.startFile,
+          platform: platform,
+          config: config,
+          outputPath: outputPath,
+        ),
+      );
+      return;
+    }
+    await _platformImplementation.startFile(outputPath: outputPath, config: config);
+  }
+
+  Future<void> _startPlatformStream({required AudioRecorderConfig config}) async {
+    if (_useControlWorker) {
+      await _nativeAudioRecorderControlWorker.execute<void>(
+        _NativeAudioRecorderWorkerRequest.withConfig(
+          operation: _NativeAudioRecorderWorkerOperation.startStream,
+          platform: platform,
+          config: config,
+        ),
+      );
+      return;
+    }
+    await _platformImplementation.startStream(config: config);
+  }
+
+  Future<void> _stopPlatformRecorder() async {
+    if (_useControlWorker) {
+      await _nativeAudioRecorderControlWorker.execute<void>(
+        _NativeAudioRecorderWorkerRequest.simple(
+          operation: _NativeAudioRecorderWorkerOperation.stop,
+          platform: platform,
+        ),
+      );
+      return;
+    }
+    await _platformImplementation.stop();
+  }
+
+  Future<void> _resetPlatformRecorder() async {
+    if (_useControlWorker) {
+      await _nativeAudioRecorderControlWorker.execute<void>(
+        _NativeAudioRecorderWorkerRequest.simple(
+          operation: _NativeAudioRecorderWorkerOperation.reset,
+          platform: platform,
+        ),
+      );
+      return;
+    }
+    await _platformImplementation.reset();
+  }
+
+  Future<void> _setPlatformContinousRecordingDirect(
+    bool enabled, {
+    required AudioRecorderConfig config,
+  }) async {
+    if (_useControlWorker) {
+      await _nativeAudioRecorderControlWorker.execute<void>(
+        _NativeAudioRecorderWorkerRequest.withConfig(
+          operation: _NativeAudioRecorderWorkerOperation.setContinousRecording,
+          platform: platform,
+          config: config,
+          enabled: enabled,
+        ),
+      );
+      return;
+    }
+    await _platformImplementation.setContinousRecording(enabled, config: config);
+  }
+
   void _ensureSupportedPlatform() {
     _platformImplementation.ensureSupported();
   }
@@ -1349,7 +1451,7 @@ final class NativeAudioRecorder {
       }
 
       try {
-        await _platformImplementation.reset();
+        await _resetPlatformRecorder();
       } on Object {
         // Preserve the original startup failure when cleanup itself is noisy.
       }
@@ -1373,7 +1475,7 @@ final class NativeAudioRecorder {
       return;
     }
 
-    await _platformImplementation.setContinousRecording(enabled, config: config);
+    await _setPlatformContinousRecordingDirect(enabled, config: config);
   }
 
   Future<void> _setMacosPlatformContinousRecordingWithRetry({
@@ -1384,7 +1486,7 @@ final class NativeAudioRecorder {
 
     while (true) {
       try {
-        await _platformImplementation.setContinousRecording(true, config: configToTry);
+        await _setPlatformContinousRecordingDirect(true, config: configToTry);
         _continousRecordingConfig = configToTry;
         return;
       } on AudioRecorderException catch (error) {
@@ -1419,7 +1521,7 @@ final class NativeAudioRecorder {
 
     for (var attempt = 0; ; attempt++) {
       try {
-        await _platformImplementation.setContinousRecording(true, config: configToTry);
+        await _setPlatformContinousRecordingDirect(true, config: configToTry);
         _continousRecordingConfig = configToTry;
         return;
       } on AudioRecorderException catch (error, stackTrace) {
@@ -1436,7 +1538,7 @@ final class NativeAudioRecorder {
       }
 
       try {
-        await _platformImplementation.reset();
+        await _resetPlatformRecorder();
       } on Object {
         // Preserve the original startup failure when cleanup itself is noisy.
       }
@@ -2039,7 +2141,7 @@ final class NativeAudioRecorder {
     _streamTimer = null;
 
     try {
-      await _platformImplementation.reset();
+      await _resetPlatformRecorder();
     } on Object {
       // Best effort shutdown only.
     }

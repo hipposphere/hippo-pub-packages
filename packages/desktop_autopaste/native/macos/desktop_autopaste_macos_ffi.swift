@@ -25,27 +25,20 @@ private func writeUtf8(
 
 private struct SavedPasteboardItem {
   var data: [NSPasteboard.PasteboardType: Data]
-  var promised: [NSPasteboard.PasteboardType]
   var typeOrder: [NSPasteboard.PasteboardType]
 }
 
-private final class SavedProvider: NSObject, NSPasteboardItemDataProvider {
-  let payload: [NSPasteboard.PasteboardType: Data]
-
-  init(payload: [NSPasteboard.PasteboardType: Data]) {
-    self.payload = payload
-  }
-
-  func pasteboard(
-    _ pasteboard: NSPasteboard?,
-    item: NSPasteboardItem,
-    provideDataForType type: NSPasteboard.PasteboardType
-  ) {
-    if let data = payload[type] {
-      _ = item.setData(data, forType: type)
-    }
-  }
+private struct SavedPasteboard {
+  var items: [SavedPasteboardItem]
 }
+
+// Paste calls may overlap while a previous delayed restore is pending. Keep the
+// first external clipboard snapshot until the latest paste transaction finishes
+// so an intermediate injected value is never treated as user clipboard data.
+// These values are only accessed from the main thread.
+private var activePasteboardSnapshot: SavedPasteboard?
+private var activePasteboardChangeCount: Int?
+private var activePasteGeneration: UInt64 = 0
 
 enum PasteResult {
   case ok
@@ -59,14 +52,22 @@ func desktopAutopasteMacosPasteIntoCursorViaClipboardResult(_ text: String) -> P
     }
 
     let pasteboard = NSPasteboard.general
-    let savedItems = copyPasteboardItemsData(from: pasteboard)
+    preparePasteboardTransaction(pasteboard: pasteboard)
+    guard let savedPasteboard = activePasteboardSnapshot else {
+      return .error(code: 1, message: "Failed to snapshot pasteboard")
+    }
+    activePasteGeneration &+= 1
+    let pasteGeneration = activePasteGeneration
 
     let changeBeforeWrite = pasteboard.changeCount
     pasteboard.clearContents()
     guard pasteboard.setString(text, forType: .string) else {
-      restorePasteboardFromData(savedItems, pasteboard: pasteboard)
+      restorePasteboard(savedPasteboard, pasteboard: pasteboard)
+      clearActivePasteboardTransaction()
       return .error(code: 1, message: "Failed to write to pasteboard")
     }
+    let injectedChangeCount = pasteboard.changeCount
+    activePasteboardChangeCount = injectedChangeCount
 
     guard preflightPublish(
       pasteboard: pasteboard,
@@ -74,19 +75,40 @@ func desktopAutopasteMacosPasteIntoCursorViaClipboardResult(_ text: String) -> P
       expectedString: text,
       timeout: 0.6
     ) else {
-      restorePasteboardFromData(savedItems, pasteboard: pasteboard)
+      restorePasteboardIfUnchanged(
+        savedPasteboard,
+        pasteboard: pasteboard,
+        expectedChangeCount: injectedChangeCount,
+        expectedString: text
+      )
+      clearActivePasteboardTransaction()
       return .error(code: 1, message: "Pasteboard publish preflight failed")
     }
 
     guard emulateCommandV() else {
-      restorePasteboardFromData(savedItems, pasteboard: pasteboard)
+      restorePasteboardIfUnchanged(
+        savedPasteboard,
+        pasteboard: pasteboard,
+        expectedChangeCount: injectedChangeCount,
+        expectedString: text
+      )
+      clearActivePasteboardTransaction()
       return .error(code: 1, message: "Failed to emulate Command+V")
     }
     // Do not synchronously wait for a post-paste signal here. Flutter text
     // fields often consume Cmd+V asynchronously on the app event loop, and
     // waiting inline can race/delay delivery.
     DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-      restorePasteboardFromData(savedItems, pasteboard: pasteboard)
+      guard pasteGeneration == activePasteGeneration else {
+        return
+      }
+      restorePasteboardIfUnchanged(
+        savedPasteboard,
+        pasteboard: pasteboard,
+        expectedChangeCount: injectedChangeCount,
+        expectedString: text
+      )
+      clearActivePasteboardTransaction()
     }
 
     return .ok
@@ -295,9 +317,28 @@ private func waitForPostPasteSignal(
   return false
 }
 
-private func copyPasteboardItemsData(from pasteboard: NSPasteboard) -> [SavedPasteboardItem] {
+private func preparePasteboardTransaction(pasteboard: NSPasteboard) {
+  if let expectedChangeCount = activePasteboardChangeCount,
+    pasteboard.changeCount != expectedChangeCount
+  {
+    // An external writer changed the clipboard while a restore was pending.
+    // Treat the new contents as the next transaction's baseline.
+    clearActivePasteboardTransaction()
+  }
+
+  if activePasteboardSnapshot == nil {
+    activePasteboardSnapshot = copyPasteboard(from: pasteboard)
+  }
+}
+
+private func clearActivePasteboardTransaction() {
+  activePasteboardSnapshot = nil
+  activePasteboardChangeCount = nil
+}
+
+private func copyPasteboard(from pasteboard: NSPasteboard) -> SavedPasteboard {
   guard let items = pasteboard.pasteboardItems else {
-    return []
+    return SavedPasteboard(items: [])
   }
 
   var saved: [SavedPasteboardItem] = []
@@ -305,37 +346,45 @@ private func copyPasteboardItemsData(from pasteboard: NSPasteboard) -> [SavedPas
 
   for item in items {
     var dataByType: [NSPasteboard.PasteboardType: Data] = [:]
-    var promised: [NSPasteboard.PasteboardType] = []
     var typeOrder: [NSPasteboard.PasteboardType] = []
 
     for type in item.types {
-      let rawType = type.rawValue
-      if rawType.contains("0x") || rawType.contains(".pid.") ||
-        rawType.hasPrefix("com.microsoft.ole.source.")
-      {
-        continue
-      }
-
-      if let data = item.data(forType: type), !data.isEmpty {
+      // Reading every advertised type materializes promised clipboard data
+      // while its original owner is still available.
+      if let data = item.data(forType: type) {
         dataByType[type] = data
         typeOrder.append(type)
-      } else {
-        promised.append(type)
       }
     }
 
     saved.append(
-      SavedPasteboardItem(data: dataByType, promised: promised, typeOrder: typeOrder)
+      SavedPasteboardItem(data: dataByType, typeOrder: typeOrder)
     )
   }
 
-  return saved
+  return SavedPasteboard(items: saved)
 }
 
-private func restorePasteboardFromData(_ savedItems: [SavedPasteboardItem], pasteboard: NSPasteboard) {
-  guard !savedItems.isEmpty else {
+private func restorePasteboardIfUnchanged(
+  _ savedPasteboard: SavedPasteboard,
+  pasteboard: NSPasteboard,
+  expectedChangeCount: Int,
+  expectedString: String
+) {
+  guard pasteboard.changeCount == expectedChangeCount,
+    pasteboard.string(forType: .string) == expectedString
+  else {
     return
   }
+
+  restorePasteboard(savedPasteboard, pasteboard: pasteboard)
+}
+
+private func restorePasteboard(
+  _ savedPasteboard: SavedPasteboard,
+  pasteboard: NSPasteboard
+) {
+  let savedItems = savedPasteboard.items
 
   var newItems: [NSPasteboardItem] = []
   newItems.reserveCapacity(savedItems.count)
@@ -354,14 +403,11 @@ private func restorePasteboardFromData(_ savedItems: [SavedPasteboardItem], past
       }
     }
 
-    if !saved.promised.isEmpty {
-      let provider = SavedProvider(payload: saved.data)
-      item.setDataProvider(provider, forTypes: saved.promised)
-    }
-
     newItems.append(item)
   }
 
   pasteboard.clearContents()
-  _ = pasteboard.writeObjects(newItems)
+  if !newItems.isEmpty {
+    _ = pasteboard.writeObjects(newItems)
+  }
 }

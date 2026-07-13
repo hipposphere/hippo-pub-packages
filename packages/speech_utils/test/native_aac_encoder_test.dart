@@ -86,6 +86,27 @@ void main() {
       );
     });
 
+    test('rejects identical input and output without deleting the source', () async {
+      final tempDirectory = await Directory.systemTemp.createTemp('speech_utils_same_path_');
+      addTearDown(() => tempDirectory.delete(recursive: true));
+      final inputPath = '${tempDirectory.path}${Platform.pathSeparator}input.wav';
+      final inputFile = File(inputPath);
+      await inputFile.writeAsBytes(<int>[1, 2, 3, 4]);
+      final implementation = _FakeNativeAudioEncoderPlatformImplementation(
+        platform: NativeAudioEncoderPlatform.macOS,
+        availabilityFn: () => true,
+        encodeFn: ({required inputPath, required outputPath, required bitrateBps}) {},
+      );
+
+      await expectLater(
+        NativeAudioEncoder.custom(
+          platformImplementation: implementation,
+        ).encodeAudioFileToAac(inputPath: inputPath, outputPath: inputPath),
+        throwsArgumentError,
+      );
+      expect(await inputFile.readAsBytes(), <int>[1, 2, 3, 4]);
+    });
+
     test('propagates macOS availability probe', () async {
       final implementation = _FakeNativeAudioEncoderPlatformImplementation(
         platform: NativeAudioEncoderPlatform.macOS,

@@ -37,6 +37,12 @@ original PCM buffers.
 - No dependency on the legacy `record` package for microphone capture.
 - Zero-copy snippet views (`Int16List.view`, `Uint8List.view`).
 
+On Windows and macOS, slow recorder control operations (permission, device
+discovery, start, stop/finalization, reset, and warm-capture changes) run on a
+single long-lived worker isolate. Desktop file encoding and metadata reads use
+their own bounded workers. High-frequency PCM reads and amplitude polling stay
+local to avoid cross-isolate audio-buffer copies.
+
 ## Install
 
 ```yaml

@@ -1,6 +1,8 @@
 #include "autopaste_text.h"
 
+#include <ole2.h>
 #include <windows.h>
+#include <wrl/client.h>
 
 #include <algorithm>
 #include <array>
@@ -15,6 +17,8 @@ namespace desktop_autopaste {
 
 namespace {
 
+using Microsoft::WRL::ComPtr;
+
 constexpr int kClipboardOpenRetries = 20;
 constexpr int kClipboardOpenRetryDelayMs = 10;
 constexpr int kClipboardPublishAttempts = 2;
@@ -28,6 +32,28 @@ constexpr int kClipboardVerificationRetryDelayMs = 20;
 constexpr int kPostPasteRestoreDelayMs = 500;
 constexpr DWORD kPostPasteInputIdleTimeoutMs = 1000;
 constexpr UINT kMessageTimeoutMs = 300;
+std::mutex g_clipboard_paste_mutex;
+
+class ScopedOleInitialization {
+ public:
+  ScopedOleInitialization() : result_(::OleInitialize(nullptr)) {}
+
+  ~ScopedOleInitialization() {
+    if (result_ == S_OK || result_ == S_FALSE) {
+      ::OleUninitialize();
+    }
+  }
+
+  bool IsUsable() const { return result_ == S_OK || result_ == S_FALSE; }
+
+ private:
+  HRESULT result_;
+};
+
+struct ClipboardSnapshot {
+  ComPtr<IDataObject> data_object;
+  bool was_empty = false;
+};
 
 constexpr std::array<UINT, 8> kModifierVirtualKeys = {
     VK_LWIN,
@@ -302,44 +328,6 @@ bool OpenClipboardUnicodeTextEquals(const std::wstring& text) {
   return ReadOpenClipboardUnicodeText(&current_text) && current_text == text;
 }
 
-HGLOBAL DuplicateClipboardUnicodeText() {
-  if (!::IsClipboardFormatAvailable(CF_UNICODETEXT)) {
-    return nullptr;
-  }
-  HANDLE clipboard_data = ::GetClipboardData(CF_UNICODETEXT);
-  if (clipboard_data == nullptr) {
-    return nullptr;
-  }
-
-  SIZE_T size = ::GlobalSize(clipboard_data);
-  if (size == 0) {
-    return nullptr;
-  }
-
-  HGLOBAL copy = ::GlobalAlloc(GMEM_MOVEABLE, size);
-  if (copy == nullptr) {
-    return nullptr;
-  }
-
-  void* source = ::GlobalLock(clipboard_data);
-  void* destination = ::GlobalLock(copy);
-  if (source == nullptr || destination == nullptr) {
-    if (destination != nullptr) {
-      ::GlobalUnlock(copy);
-    }
-    if (source != nullptr) {
-      ::GlobalUnlock(clipboard_data);
-    }
-    ::GlobalFree(copy);
-    return nullptr;
-  }
-
-  std::memcpy(destination, source, size);
-  ::GlobalUnlock(copy);
-  ::GlobalUnlock(clipboard_data);
-  return copy;
-}
-
 bool SetClipboardUnicodeText(const std::wstring& text) {
   HGLOBAL clipboard_text =
       ::GlobalAlloc(GMEM_MOVEABLE, (text.length() + 1) * sizeof(wchar_t));
@@ -408,81 +396,87 @@ bool PublishClipboardUnicodeText(HWND owner_hwnd, const std::wstring& text) {
   return false;
 }
 
-bool CapturePreviousAndPublishClipboardUnicodeText(
+bool CaptureClipboardSnapshot(
     HWND owner_hwnd,
-    const std::wstring& text,
-    HGLOBAL* out_previous_text_copy) {
-  if (out_previous_text_copy == nullptr) {
+    ClipboardSnapshot* out_snapshot) {
+  if (out_snapshot == nullptr) {
     return false;
   }
-  *out_previous_text_copy = nullptr;
+  *out_snapshot = ClipboardSnapshot{};
 
   if (!OpenClipboardWithRetries(owner_hwnd)) {
     return false;
   }
 
-  *out_previous_text_copy = DuplicateClipboardUnicodeText();
+  ::SetLastError(ERROR_SUCCESS);
+  const UINT first_format = ::EnumClipboardFormats(0);
+  const DWORD enumeration_error = ::GetLastError();
   ::CloseClipboard();
 
-  return PublishClipboardUnicodeText(owner_hwnd, text);
-}
-
-void RestoreClipboardUnicodeText(HWND owner_hwnd, HGLOBAL previous_text_copy) {
-  if (previous_text_copy == nullptr) {
-    return;
+  if (first_format == 0 && enumeration_error == ERROR_SUCCESS) {
+    out_snapshot->was_empty = true;
+    return true;
   }
 
-  for (int i = 0; i < kClipboardOpenRetries; ++i) {
-    if (!::OpenClipboard(owner_hwnd)) {
-      ::Sleep(kClipboardOpenRetryDelayMs);
-      continue;
-    }
-
-    ::EmptyClipboard();
-    if (::SetClipboardData(CF_UNICODETEXT, previous_text_copy) != nullptr) {
-      ::CloseClipboard();
-      return;
-    }
-
-    ::CloseClipboard();
-    break;
+  if (first_format == 0) {
+    return false;
   }
 
-  // If ownership was not transferred back to the clipboard, we still own it.
-  ::GlobalFree(previous_text_copy);
+  return SUCCEEDED(::OleGetClipboard(
+      out_snapshot->data_object.ReleaseAndGetAddressOf()));
 }
 
-void RestoreClipboardUnicodeTextIfStillExpected(
+bool RestoreClipboardSnapshot(
     HWND owner_hwnd,
-    HGLOBAL previous_text_copy,
-    const std::wstring& expected_text) {
-  if (previous_text_copy == nullptr) {
-    return;
+    const ClipboardSnapshot& snapshot) {
+  if (snapshot.was_empty) {
+    if (!OpenClipboardWithRetries(owner_hwnd)) {
+      return false;
+    }
+    const bool cleared = ::EmptyClipboard() != FALSE;
+    ::CloseClipboard();
+    return cleared;
   }
 
+  if (!snapshot.data_object) {
+    return false;
+  }
+
+  const HRESULT restore_result = ::OleSetClipboard(snapshot.data_object.Get());
+  if (FAILED(restore_result)) {
+    return false;
+  }
+
+  // Materialize delayed formats so the restored clipboard does not depend on
+  // this process remaining alive after the paste operation completes.
+  (void)::OleFlushClipboard();
+  return true;
+}
+
+void RestoreClipboardSnapshotIfStillExpected(
+    HWND owner_hwnd,
+    const ClipboardSnapshot& snapshot,
+    DWORD expected_sequence,
+    const std::wstring& expected_text) {
   for (int i = 0; i < kClipboardOpenRetries; ++i) {
     if (!::OpenClipboard(owner_hwnd)) {
       ::Sleep(kClipboardOpenRetryDelayMs);
       continue;
     }
 
-    if (!OpenClipboardUnicodeTextEquals(expected_text)) {
-      ::CloseClipboard();
-      ::GlobalFree(previous_text_copy);
-      return;
-    }
-
-    ::EmptyClipboard();
-    if (::SetClipboardData(CF_UNICODETEXT, previous_text_copy) != nullptr) {
+    if (::GetClipboardSequenceNumber() != expected_sequence ||
+        !OpenClipboardUnicodeTextEquals(expected_text)) {
       ::CloseClipboard();
       return;
     }
 
     ::CloseClipboard();
-    break;
+    if (::GetClipboardSequenceNumber() != expected_sequence) {
+      return;
+    }
+    (void)RestoreClipboardSnapshot(owner_hwnd, snapshot);
+    return;
   }
-
-  ::GlobalFree(previous_text_copy);
 }
 
 INPUT MakeScanCodeInput(UINT virtual_key, bool key_up) {
@@ -692,13 +686,23 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
     return true;
   }
 
+  // The Windows clipboard is process-global. Serialize transactions across
+  // Dart isolates so each call snapshots external clipboard state rather than
+  // another in-flight paste's temporary text.
+  std::lock_guard<std::mutex> paste_lock(g_clipboard_paste_mutex);
+
+  ScopedOleInitialization ole;
+  if (!ole.IsUsable()) {
+    return false;
+  }
+
   const HWND clipboard_owner_hwnd = GetClipboardOwnerWindowHandle();
-  HGLOBAL previous_text_copy = nullptr;
-  if (!CapturePreviousAndPublishClipboardUnicodeText(
-          clipboard_owner_hwnd,
-          text,
-          &previous_text_copy)) {
-    RestoreClipboardUnicodeText(clipboard_owner_hwnd, previous_text_copy);
+  ClipboardSnapshot previous_clipboard;
+  if (!CaptureClipboardSnapshot(clipboard_owner_hwnd, &previous_clipboard)) {
+    return false;
+  }
+  if (!PublishClipboardUnicodeText(clipboard_owner_hwnd, text)) {
+    (void)RestoreClipboardSnapshot(clipboard_owner_hwnd, previous_clipboard);
     return false;
   }
 
@@ -708,15 +712,21 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
     ::Sleep(effective_pre_paste_delay_ms);
   }
 
-  if (!WaitForClipboardUnicodeText(clipboard_owner_hwnd, text) &&
-      !PublishClipboardUnicodeText(clipboard_owner_hwnd, text)) {
-    RestoreClipboardUnicodeText(clipboard_owner_hwnd, previous_text_copy);
+  if (!WaitForClipboardUnicodeText(clipboard_owner_hwnd, text)) {
+    // Another application changed the clipboard during the pre-paste delay.
+    // Its newer contents take precedence over this transaction and must not be
+    // overwritten by either republishing or restoring the old snapshot.
     return false;
   }
 
+  const DWORD injected_clipboard_sequence = ::GetClipboardSequenceNumber();
   const HWND target_hwnd = GetFocusedWindowHandle();
   if (!SendPasteShortcut(shortcut)) {
-    RestoreClipboardUnicodeText(clipboard_owner_hwnd, previous_text_copy);
+    RestoreClipboardSnapshotIfStillExpected(
+        clipboard_owner_hwnd,
+        previous_clipboard,
+        injected_clipboard_sequence,
+        text);
     return false;
   }
 
@@ -725,9 +735,10 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
   PumpPendingMessages();
   ::Sleep(kPostPasteRestoreDelayMs);
 
-  RestoreClipboardUnicodeTextIfStillExpected(
+  RestoreClipboardSnapshotIfStillExpected(
       clipboard_owner_hwnd,
-      previous_text_copy,
+      previous_clipboard,
+      injected_clipboard_sequence,
       text);
   return true;
 }

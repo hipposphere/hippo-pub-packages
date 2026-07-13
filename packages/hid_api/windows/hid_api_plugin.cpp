@@ -84,6 +84,7 @@ class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValu
   std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(
       const flutter::EncodableValue* arguments,
       std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override {
+    Stop();
     events_ = std::move(events);
     running_ = true;
     thread_ = std::thread(&ReportStreamHandler::ReadLoop, this);
@@ -97,21 +98,30 @@ class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValu
   std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(
       const flutter::EncodableValue* arguments) override {
     Stop();
+    events_ = nullptr;
     return nullptr;
   }
 
- private:
   void Stop() {
     running_ = false;
+    // CancelIo only affects I/O issued by the calling thread. CancelIoEx is
+    // required here because shutdown runs on Flutter's platform thread while
+    // the read was issued by ReadLoop.
+    CancelIoEx(device_, nullptr);
     if (thread_.joinable()) {
       thread_.join();
     }
   }
 
+ private:
   void ReadLoop() {
     std::vector<uint8_t> buffer(256);
     OVERLAPPED ol = {0};
     ol.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (ol.hEvent == nullptr) {
+      running_ = false;
+      return;
+    }
 
     while (running_) {
         DWORD bytesRead = 0;
@@ -125,13 +135,25 @@ class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValu
                 // Wait for the async operation to complete
                 DWORD waitResult = WaitForSingleObject(ol.hEvent, 100);
                 if (waitResult == WAIT_TIMEOUT) {
-                    // Cancel the pending I/O operation before continuing
-                    CancelIo(device_);
+                    // Do not reuse OVERLAPPED until cancellation has completed.
+                    CancelIoEx(device_, &ol);
+                    GetOverlappedResult(device_, &ol, &bytesRead, TRUE);
+                    if (!running_) break;
+                    continue;
+                }
+                if (waitResult != WAIT_OBJECT_0) {
+                    CancelIoEx(device_, &ol);
+                    GetOverlappedResult(device_, &ol, &bytesRead, TRUE);
+                    if (!running_) break;
                     continue;
                 }
                 // Get the result of the completed async operation
                 if (!GetOverlappedResult(device_, &ol, &bytesRead, FALSE)) {
                     lastError = GetLastError();
+                    if (!running_ || lastError == ERROR_OPERATION_ABORTED ||
+                        lastError == ERROR_INVALID_HANDLE) {
+                        break;
+                    }
                     if (lastError == ERROR_DEVICE_NOT_CONNECTED || lastError == ERROR_GEN_FAILURE) {
                         if (disconnection_handler_) disconnection_handler_->Notify();
                         running_ = false;
@@ -142,6 +164,9 @@ class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValu
                 if (disconnection_handler_) disconnection_handler_->Notify();
                 running_ = false;
                 continue;
+            } else if (lastError == ERROR_OPERATION_ABORTED ||
+                       lastError == ERROR_INVALID_HANDLE) {
+                break;
             } else {
                 // Other error, skip this iteration
                 continue;
@@ -159,7 +184,7 @@ class ReportStreamHandler : public flutter::StreamHandler<flutter::EncodableValu
             result_map[flutter::EncodableValue("data")] = flutter::EncodableValue(data);
             result_map[flutter::EncodableValue("reportId")] = flutter::EncodableValue((int)buffer[0]);
             
-            if (events_) {
+            if (events_ && running_) {
                 events_->Success(flutter::EncodableValue(result_map));
             }
         }
@@ -205,6 +230,46 @@ class DeviceUpdateStreamHandler : public flutter::StreamHandler<flutter::Encodab
 HidApiPlugin::HidApiPlugin(flutter::BinaryMessenger* messenger) : messenger_(messenger) {}
 
 HidApiPlugin::~HidApiPlugin() {
+    device_update_channel_.reset();
+    ShutdownDevices();
+}
+
+void HidApiPlugin::CloseDevice(const std::string& path) {
+    auto handler_it = report_handlers_.find(path);
+    if (handler_it != report_handlers_.end() && handler_it->second != nullptr) {
+        handler_it->second->Stop();
+    }
+
+    // Destroy stream handlers before invalidating the device handle they use.
+    event_channels_.erase(path);
+    report_handlers_.erase(path);
+    disconnection_channels_.erase(path);
+
+    auto handle_it = open_devices_.find(path);
+    if (handle_it != open_devices_.end()) {
+        CloseHandle(handle_it->second);
+        open_devices_.erase(handle_it);
+    }
+
+    auto preparsed_it = preparsed_data_.find(path);
+    if (preparsed_it != preparsed_data_.end()) {
+        HidD_FreePreparsedData(preparsed_it->second);
+        preparsed_data_.erase(preparsed_it);
+    }
+    device_caps_.erase(path);
+}
+
+void HidApiPlugin::ShutdownDevices() {
+    for (auto const& [path, handler] : report_handlers_) {
+        if (handler != nullptr) {
+            handler->Stop();
+        }
+    }
+
+    event_channels_.clear();
+    report_handlers_.clear();
+    disconnection_channels_.clear();
+
     for (auto const& [path, handle] : open_devices_) {
         CloseHandle(handle);
     }
@@ -350,10 +415,8 @@ void HidApiPlugin::HandleMethodCall(
       }
       result->Success();
   } else if (method_call.method_name().compare("shutdown") == 0) {
-      for (auto const& [path, handle] : open_devices_) {
-          CloseHandle(handle);
-      }
-      open_devices_.clear();
+      device_update_channel_.reset();
+      ShutdownDevices();
       result->Success();
   } else if (method_call.method_name().compare("enumerate") == 0) {
       flutter::EncodableList devices = GetDeviceList();
@@ -375,6 +438,11 @@ void HidApiPlugin::HandleMethodCall(
       }
 
       DWORD share_mode = exclusive ? 0 : (FILE_SHARE_READ | FILE_SHARE_WRITE);
+
+      if (open_devices_.count(path)) {
+          result->Error("ALREADY_OPEN", "Device path is already open");
+          return;
+      }
       
       HANDLE handle = CreateFileA(path.c_str(), GENERIC_READ | GENERIC_WRITE, share_mode, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
       
@@ -424,6 +492,7 @@ void HidApiPlugin::HandleMethodCall(
           messenger_, channel_name, &flutter::StandardMethodCodec::GetInstance());
       
       auto handler = std::make_unique<ReportStreamHandler>(handle);
+      ReportStreamHandler* handler_ptr = handler.get();
       
       // Setup disconnection channel
       std::string disc_channel_name = "hid_api/disconnection/" + path;
@@ -436,6 +505,7 @@ void HidApiPlugin::HandleMethodCall(
 
       event_channel->SetStreamHandler(std::move(handler));
       event_channels_[path] = std::move(event_channel);
+      report_handlers_[path] = handler_ptr;
 
       wchar_t buffer[126];
       std::string manufacturer = "";
@@ -464,17 +534,7 @@ void HidApiPlugin::HandleMethodCall(
       const auto* args = std::get_if<flutter::EncodableMap>(method_call.arguments());
       std::string path = std::get<std::string>(args->find(flutter::EncodableValue("path"))->second);
       
-      if (open_devices_.count(path)) {
-          CloseHandle(open_devices_[path]);
-          if (preparsed_data_.count(path)) {
-              HidD_FreePreparsedData(preparsed_data_[path]);
-              preparsed_data_.erase(path);
-          }
-          device_caps_.erase(path);
-          open_devices_.erase(path);
-          event_channels_.erase(path);
-          disconnection_channels_.erase(path);
-      }
+      CloseDevice(path);
       result->Success();
 
   } else if (method_call.method_name().compare("read") == 0) {

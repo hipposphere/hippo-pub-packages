@@ -1,5 +1,6 @@
 import 'dart:ffi' as ffi;
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 
@@ -9,8 +10,10 @@ import '../generated/metadata/apple_audio_metadata_bindings.dart' as apple_metad
 import '../generated/audio_encoder/windows_audio_encoder_bindings.dart' as windows_bindings;
 import '../models/audio_metadata.dart';
 import '../utils/pcm16_audio_utils.dart';
+import '../utils/native_worker_executor.dart';
 
 part 'errors/native_audio_metadata_reader_exceptions.dart';
+part 'native_audio_metadata_worker.dart';
 
 typedef NativeAudioMetadataReadFn = AudioMetadata Function(String inputPath);
 typedef NativeAudioMetadataAvailabilityFn = bool Function();
@@ -35,6 +38,13 @@ final class NativeAudioMetadataReader {
     NativeAudioMetadataReadFn? iosReadFn,
     NativeAudioMetadataAvailabilityFn? iosAvailabilityFn,
   }) : _platform = platform ?? _detectNativeAudioMetadataPlatform(),
+       _useWorker =
+           macosReadFn == null &&
+           windowsReadFn == null &&
+           linuxReadFn == null &&
+           androidReadFn == null &&
+           iosReadFn == null &&
+           _supportsMetadataWorker(platform ?? _detectNativeAudioMetadataPlatform()),
        _macosReadFn = macosReadFn ?? _readAudioMetadataViaMacosFfi,
        _macosAvailabilityFn = macosAvailabilityFn ?? _isAppleAudioMetadataAvailableViaFfi,
        _windowsReadFn = windowsReadFn ?? _readAudioMetadataViaWindowsFfi,
@@ -47,6 +57,7 @@ final class NativeAudioMetadataReader {
        _iosAvailabilityFn = iosAvailabilityFn ?? _isAppleAudioMetadataAvailableViaFfi;
 
   final NativeAudioMetadataPlatform _platform;
+  final bool _useWorker;
   final NativeAudioMetadataReadFn _macosReadFn;
   final NativeAudioMetadataAvailabilityFn _macosAvailabilityFn;
   final NativeAudioMetadataReadFn _windowsReadFn;
@@ -75,17 +86,11 @@ final class NativeAudioMetadataReader {
       throw ArgumentError.value(inputPath, 'inputPath', 'Must not be empty');
     }
 
-    final metadata = switch (_platform) {
-      NativeAudioMetadataPlatform.macOS => _macosReadFn(inputPath),
-      NativeAudioMetadataPlatform.windows => _windowsReadFn(inputPath),
-      NativeAudioMetadataPlatform.linux => _linuxReadFn(inputPath),
-      NativeAudioMetadataPlatform.android => _androidReadFn(inputPath),
-      NativeAudioMetadataPlatform.iOS => _iosReadFn(inputPath),
-      NativeAudioMetadataPlatform.unsupported =>
-        throw const NativeAudioMetadataUnsupportedPlatformException(
-          _unsupportedNativeAudioMetadataReaderMessage,
-        ),
-    };
+    final metadata = _useWorker
+        ? await _nativeAudioMetadataWorker.execute<AudioMetadata>(
+            _NativeAudioMetadataWorkerRequest(platform: _platform, inputPath: inputPath),
+          )
+        : _readAudioMetadataDirect(inputPath);
 
     if (metadata.duration < Duration.zero) {
       throw AudioMetadataException(
@@ -103,6 +108,20 @@ final class NativeAudioMetadataReader {
       codec: metadata.codec,
       codecProfile: metadata.codecProfile,
     );
+  }
+
+  AudioMetadata _readAudioMetadataDirect(String inputPath) {
+    return switch (_platform) {
+      NativeAudioMetadataPlatform.macOS => _macosReadFn(inputPath),
+      NativeAudioMetadataPlatform.windows => _windowsReadFn(inputPath),
+      NativeAudioMetadataPlatform.linux => _linuxReadFn(inputPath),
+      NativeAudioMetadataPlatform.android => _androidReadFn(inputPath),
+      NativeAudioMetadataPlatform.iOS => _iosReadFn(inputPath),
+      NativeAudioMetadataPlatform.unsupported =>
+        throw const NativeAudioMetadataUnsupportedPlatformException(
+          _unsupportedNativeAudioMetadataReaderMessage,
+        ),
+    };
   }
 
   Future<Duration> readAudioDuration({required String inputPath}) async {

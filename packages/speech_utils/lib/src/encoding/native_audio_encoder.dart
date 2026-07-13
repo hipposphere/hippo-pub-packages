@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ffi' as ffi;
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -11,9 +12,11 @@ import '../generated/audio_encoder/apple_audio_encoder_bindings.dart' as apple_b
 import '../generated/audio_encoder/linux_audio_encoder_bindings.dart' as linux_bindings;
 import '../generated/audio_encoder/windows_audio_encoder_bindings.dart' as windows_bindings;
 import '../utils/pcm16_audio_utils.dart';
+import '../utils/native_worker_executor.dart';
 
 part 'errors/native_audio_encoder_exceptions.dart';
 part 'native_audio_encoder_platform_implementations.dart';
+part 'native_audio_encoder_worker.dart';
 part 'implementations/native_audio_encoder_platform_implementation_android.dart';
 part 'implementations/native_audio_encoder_platform_implementation_ios.dart';
 part 'implementations/native_audio_encoder_platform_implementation_linux.dart';
@@ -41,16 +44,19 @@ final class NativeAudioEncoder implements AacEncoder {
           platform: _detectNativeAudioEncoderPlatform(),
           platformImplementation: null,
         ),
+        useWorker: true,
       );
 
   /// Uses a custom platform backend.
   NativeAudioEncoder.custom({
     required NativeAudioEncoderPlatformImplementation platformImplementation,
-  }) : this._(platformImplementation: platformImplementation);
+  }) : this._(platformImplementation: platformImplementation, useWorker: false);
 
-  NativeAudioEncoder._({required this._platformImplementation});
+  NativeAudioEncoder._({required this._platformImplementation, required bool useWorker})
+    : _useWorker = useWorker && _supportsEncoderWorker(_platformImplementation.platform);
 
   final NativeAudioEncoderPlatformImplementation _platformImplementation;
+  final bool _useWorker;
 
   Future<bool> isAvailable() async {
     try {
@@ -144,6 +150,9 @@ final class NativeAudioEncoder implements AacEncoder {
     if (bitrateKbps <= 0) {
       throw ArgumentError.value(bitrateKbps, 'bitrateKbps', 'Must be > 0');
     }
+    if (await _pathsReferToSameFile(inputPath, outputPath)) {
+      throw ArgumentError.value(outputPath, 'outputPath', 'Must not refer to the input file');
+    }
 
     final outputFile = File(outputPath);
     if (await outputFile.exists()) {
@@ -151,11 +160,22 @@ final class NativeAudioEncoder implements AacEncoder {
     }
 
     try {
-      await _platformImplementation.encodeAudioFileToAac(
-        inputPath: inputPath,
-        outputPath: outputPath,
-        bitrateBps: bitrateKbps * 1000,
-      );
+      if (_useWorker) {
+        await _nativeAudioEncoderWorker.execute<void>(
+          _NativeAudioEncoderWorkerRequest(
+            platform: _platformImplementation.platform,
+            inputPath: inputPath,
+            outputPath: outputPath,
+            bitrateBps: bitrateKbps * 1000,
+          ),
+        );
+      } else {
+        await _platformImplementation.encodeAudioFileToAac(
+          inputPath: inputPath,
+          outputPath: outputPath,
+          bitrateBps: bitrateKbps * 1000,
+        );
+      }
     } on AacEncodingException {
       rethrow;
     } on Object catch (error) {
@@ -185,6 +205,22 @@ final class NativeAudioEncoder implements AacEncoder {
         // Best-effort cleanup.
       }
     }
+  }
+}
+
+Future<bool> _pathsReferToSameFile(String firstPath, String secondPath) async {
+  final firstAbsolute = File(firstPath).absolute.path;
+  final secondAbsolute = File(secondPath).absolute.path;
+  if (firstAbsolute == secondAbsolute) {
+    return true;
+  }
+  try {
+    if (!await File(firstAbsolute).exists() || !await File(secondAbsolute).exists()) {
+      return false;
+    }
+    return await FileSystemEntity.identical(firstAbsolute, secondAbsolute);
+  } on FileSystemException {
+    return false;
   }
 }
 

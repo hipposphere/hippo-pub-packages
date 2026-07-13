@@ -99,10 +99,17 @@
 
 - Fixed `WakeWordDetectionConfig.sensitivity` so sherpa-onnx keyword spotting
   lowers its trigger threshold and raises its keyword boost at higher values.
+- Recalibrated wake-word sensitivity around a recommended default of `0.5` and
+  reduced the overly aggressive threshold and boost previously applied at `0.9`.
+- Increased sherpa keyword-search breadth from 4 to 16 active paths so fast or
+  coarticulated wake-word pronunciations are not pruned before detection.
+- Replaced the older spelling/BPE English model with sherpa-onnx's 2025
+  phoneme-based model, including lexicon lookup and unknown product-name G2P
+  pronunciation alternatives.
 - Breaking: replace `SherpaOnnxWakeWordDetector.create(keywordsThreshold: ...)`
   and `keywordsScore` with the higher-is-more-permissive `sensitivity` option.
 - Fixed desktop native worker teardown so Windows app exit releases recorder,
   encoder, and metadata isolates instead of leaving the process running.
 - Added package-managed English sherpa-onnx keyword spotting through
   `SherpaOnnxWakeWordDetector.create`, including automatic model extraction and
-  plain-text SentencePiece keyword tokenization.
+  plain-text pronunciation generation.

@@ -5,11 +5,13 @@ import '../recording/audio_recorder_config.dart';
 import '../vad/speech_vad_config.dart';
 
 final class WakeWordDetectionConfig {
-  const WakeWordDetectionConfig({required this.keywords, this.sensitivity = 0.6});
+  const WakeWordDetectionConfig({required this.keywords, this.sensitivity = 0.5});
 
   final List<String> keywords;
 
   /// Detection sensitivity in the range 0 (strict) to 1 (most permissive).
+  ///
+  /// The default of 0.5 is the recommended starting point.
   final double sensitivity;
 
   void validate() {

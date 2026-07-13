@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart' show TestWidgetsFlutterBinding;
@@ -18,6 +20,7 @@ void main() {
       );
 
       expect(config.validate, returnsNormally);
+      expect(config.maxActivePaths, 16);
     });
 
     test('requires keyword source', () {
@@ -33,12 +36,28 @@ void main() {
   });
 
   group('SherpaOnnxWakeWordDetector', () {
-    test('creates from plain English keywords with the bundled model', () async {
+    test('creates from an unknown product-name keyword with the bundled model', () async {
       final detector = await SherpaOnnxWakeWordDetector.create(
-        keywords: const <String>['hey siri'],
+        keywords: const <String>['hey dicto'],
       );
 
       detector.dispose();
+    });
+
+    test('detects a keyword in sherpa reference audio', () async {
+      final detector = await SherpaOnnxWakeWordDetector.create(
+        keywords: const <String>['light up'],
+      );
+      addTearDown(detector.dispose);
+
+      final events = _detectInWav(
+        detector,
+        File('test/fixtures/sherpa_kws_light_up.wav').readAsBytesSync(),
+        keyword: 'light up',
+        sensitivity: 0.5,
+      );
+
+      expect(events.map((event) => event.keyword), contains('light up'));
     });
 
     test('rejects an empty plain-text keyword list', () async {
@@ -63,7 +82,7 @@ void main() {
       expect(events, hasLength(1));
       expect(events.single.keyword, 'hey dicto');
       expect(adapter.lastSampleRateHz, 16000);
-      expect(adapter.lastSensitivity, 0.6);
+      expect(adapter.lastSensitivity, 0.5);
       expect(adapter.lastSamples, hasLength(3));
       expect(adapter.lastSamples[0], -1.0);
       expect(adapter.lastSamples[1], 0.0);
@@ -72,15 +91,12 @@ void main() {
 
     test('maps higher sensitivity to a lower threshold and higher boost', () {
       expect(SherpaOnnxWakeWordDetector.keywordThresholdForSensitivity(0), 0.8);
-      expect(SherpaOnnxWakeWordDetector.keywordThresholdForSensitivity(0.6), closeTo(0.35, 1e-9));
-      expect(
-        SherpaOnnxWakeWordDetector.keywordThresholdForSensitivity(0.9),
-        closeTo(0.03125, 1e-9),
-      );
-      expect(SherpaOnnxWakeWordDetector.keywordThresholdForSensitivity(1), 0.01);
-      expect(SherpaOnnxWakeWordDetector.keywordScoreForSensitivity(0.6), closeTo(1.5, 1e-9));
-      expect(SherpaOnnxWakeWordDetector.keywordScoreForSensitivity(0.9), closeTo(2.75, 1e-9));
-      expect(SherpaOnnxWakeWordDetector.keywordScoreForSensitivity(1), 3);
+      expect(SherpaOnnxWakeWordDetector.keywordThresholdForSensitivity(0.5), closeTo(0.2375, 1e-9));
+      expect(SherpaOnnxWakeWordDetector.keywordThresholdForSensitivity(0.9), closeTo(0.0575, 1e-9));
+      expect(SherpaOnnxWakeWordDetector.keywordThresholdForSensitivity(1), 0.05);
+      expect(SherpaOnnxWakeWordDetector.keywordScoreForSensitivity(0.5), 1);
+      expect(SherpaOnnxWakeWordDetector.keywordScoreForSensitivity(0.9), closeTo(1.76, 1e-9));
+      expect(SherpaOnnxWakeWordDetector.keywordScoreForSensitivity(1), 2);
     });
 
     test('rejects non-mono PCM', () {
@@ -109,6 +125,54 @@ void main() {
       expect(adapter.disposeCount, 1);
     });
   });
+}
+
+List<WakeWordEvent> _detectInWav(
+  SherpaOnnxWakeWordDetector detector,
+  Uint8List wavBytes, {
+  required String keyword,
+  required double sensitivity,
+}) {
+  final pcm = _wavPcmData(wavBytes);
+  final events = <WakeWordEvent>[];
+  const chunkBytes = 3200;
+  for (var offset = 0; offset < pcm.length; offset += chunkBytes) {
+    final end = (offset + chunkBytes).clamp(0, pcm.length);
+    events.addAll(
+      detector.addChunk(
+        Uint8List.sublistView(pcm, offset, end),
+        sampleRateHz: 16000,
+        channelCount: 1,
+        config: WakeWordDetectionConfig(keywords: <String>[keyword], sensitivity: sensitivity),
+      ),
+    );
+  }
+  for (var i = 0; i < 10; i++) {
+    events.addAll(
+      detector.addChunk(
+        Uint8List(chunkBytes),
+        sampleRateHz: 16000,
+        channelCount: 1,
+        config: WakeWordDetectionConfig(keywords: <String>[keyword], sensitivity: sensitivity),
+      ),
+    );
+  }
+  return events;
+}
+
+Uint8List _wavPcmData(Uint8List wavBytes) {
+  final data = ByteData.sublistView(wavBytes);
+  var offset = 12;
+  while (offset + 8 <= wavBytes.length) {
+    final chunkName = ascii.decode(wavBytes.sublist(offset, offset + 4));
+    final chunkLength = data.getUint32(offset + 4, Endian.little);
+    final payloadOffset = offset + 8;
+    if (chunkName == 'data') {
+      return Uint8List.sublistView(wavBytes, payloadOffset, payloadOffset + chunkLength);
+    }
+    offset = payloadOffset + chunkLength + chunkLength.remainder(2);
+  }
+  throw const FormatException('WAV data chunk not found');
 }
 
 final class _FakeSherpaAdapter implements SherpaOnnxKeywordSpotterAdapter {

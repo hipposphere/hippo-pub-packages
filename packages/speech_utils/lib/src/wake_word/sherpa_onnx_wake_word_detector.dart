@@ -3,9 +3,9 @@ import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:dart_sentencepiece_tokenizer/dart_sentencepiece_tokenizer.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/services.dart';
+import 'package:phonemize/phonemize.dart' as g2p;
 
 import '../generated/wake_word/sherpa_onnx_bindings.dart' as sherpa;
 import '../models/voice_action_capture.dart';
@@ -23,7 +23,7 @@ final class SherpaOnnxWakeWordDetectorConfig {
     this.keywordsBuffer = '',
     this.sampleRateHz = 16000,
     this.featureDim = 80,
-    this.maxActivePaths = 4,
+    this.maxActivePaths = 16,
     this.numTrailingBlanks = 1,
     this.keywordsScore = 1.0,
     this.keywordsThreshold = 0.25,
@@ -119,7 +119,7 @@ final class SherpaOnnxWakeWordDetector implements WakeWordDetector {
   static Future<SherpaOnnxWakeWordDetector> create({
     required Iterable<String> keywords,
     SherpaOnnxWakeWordModelPreset preset = SherpaOnnxWakeWordModelPreset.english,
-    double sensitivity = 0.6,
+    double sensitivity = 0.5,
     int numThreads = 1,
     bool debug = false,
   }) async {
@@ -151,14 +151,14 @@ final class SherpaOnnxWakeWordDetector implements WakeWordDetector {
   /// keyword-threshold scale.
   static double keywordThresholdForSensitivity(double sensitivity) {
     _validateSensitivity(sensitivity);
-    final strictness = (1 - sensitivity) / 0.4;
-    return (0.01 + 0.34 * strictness * strictness).clamp(0.01, 0.8);
+    final strictness = 1 - sensitivity;
+    return 0.05 + 0.75 * strictness * strictness;
   }
 
   /// Converts sensitivity into sherpa's keyword-path boosting score.
   static double keywordScoreForSensitivity(double sensitivity) {
     _validateSensitivity(sensitivity);
-    return (0.5 + sensitivity * sensitivity / 0.36).clamp(0.5, 3.0);
+    return 0.5 + 0.5 * sensitivity + sensitivity * sensitivity;
   }
 
   static void _validateSensitivity(double sensitivity) {
@@ -252,23 +252,25 @@ final class _SherpaOnnxPresetModel {
     required this.encoderPath,
     required this.decoderPath,
     required this.joinerPath,
-    required this.tokenizer,
+    required this.tokens,
+    required this.englishLexicon,
   });
 
   static const _assetDirectory = 'packages/speech_utils/assets/wake_word/sherpa_kws_en';
-  static const _cacheVersion = 'gigaspeech_3_3m_2024_01_01_int8_v1';
+  static const _cacheVersion = 'zh_en_3m_2025_12_20_phone_int8_v1';
   static const _tokens = 'tokens.txt';
-  static const _bpeModel = 'bpe.model';
-  static const _encoder = 'encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx';
-  static const _decoder = 'decoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx';
-  static const _joiner = 'joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx';
+  static const _englishLexicon = 'en.phone';
+  static const _encoder = 'encoder-epoch-13-avg-2-chunk-16-left-64.int8.onnx';
+  static const _decoder = 'decoder-epoch-13-avg-2-chunk-16-left-64.onnx';
+  static const _joiner = 'joiner-epoch-13-avg-2-chunk-16-left-64.int8.onnx';
   static Future<_SherpaOnnxPresetModel>? _english;
 
   final String tokensPath;
   final String encoderPath;
   final String decoderPath;
   final String joinerPath;
-  final SentencePieceTokenizer tokenizer;
+  final Set<String> tokens;
+  final String englishLexicon;
 
   static Future<_SherpaOnnxPresetModel> load(SherpaOnnxWakeWordModelPreset preset) {
     return switch (preset) {
@@ -284,7 +286,7 @@ final class _SherpaOnnxPresetModel {
     await cacheDirectory.create(recursive: true);
 
     final assetBytes = <String, Uint8List>{};
-    for (final name in const [_tokens, _bpeModel, _encoder, _decoder, _joiner]) {
+    for (final name in const [_tokens, _englishLexicon, _encoder, _decoder, _joiner]) {
       final data = await rootBundle.load('$_assetDirectory/$name');
       final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
       assetBytes[name] = bytes;
@@ -305,7 +307,8 @@ final class _SherpaOnnxPresetModel {
       encoderPath: path(_encoder),
       decoderPath: path(_decoder),
       joinerPath: path(_joiner),
-      tokenizer: SentencePieceTokenizer.fromBytes(assetBytes[_bpeModel]!),
+      tokens: _parseTokens(utf8.decode(assetBytes[_tokens]!)),
+      englishLexicon: utf8.decode(assetBytes[_englishLexicon]!),
     );
   }
 
@@ -314,21 +317,178 @@ final class _SherpaOnnxPresetModel {
     required double score,
     required double threshold,
   }) {
-    return keywords
-        .map((keyword) {
-          final pieces = tokenizer.tokenize(keyword.toUpperCase());
-          if (pieces.isEmpty || pieces.contains('<unk>')) {
-            throw ArgumentError.value(
-              keyword,
-              'keywords',
-              'The English wake-word model cannot tokenize this phrase.',
-            );
-          }
-          final marker = keyword.replaceAll(' ', '_');
-          return '${pieces.join(' ')} :$score #$threshold @$marker';
-        })
-        .join('\n');
+    final lines = <String>{};
+    for (final keyword in keywords) {
+      final marker = keyword.replaceAll(' ', '_');
+      for (final pronunciation in _phrasePronunciations(keyword)) {
+        if (pronunciation.isEmpty || pronunciation.any((token) => !tokens.contains(token))) {
+          continue;
+        }
+        lines.add('${pronunciation.join(' ')} :$score #$threshold @$marker');
+      }
+    }
+    if (lines.isEmpty) {
+      throw ArgumentError.value(
+        keywords,
+        'keywords',
+        'The English wake-word model cannot phonemize these phrases.',
+      );
+    }
+    return lines.join('\n');
   }
+
+  Iterable<List<String>> _phrasePronunciations(String phrase) sync* {
+    final words = _words(phrase);
+    if (words.isEmpty) {
+      return;
+    }
+
+    var combinations = <List<String>>[const <String>[]];
+    for (final word in words) {
+      final wordPronunciations = _wordPronunciations(word);
+      final next = <List<String>>[];
+      for (final prefix in combinations) {
+        for (final pronunciation in wordPronunciations) {
+          next.add(<String>[...prefix, ...pronunciation]);
+          if (next.length == 8) {
+            break;
+          }
+        }
+        if (next.length == 8) {
+          break;
+        }
+      }
+      combinations = next;
+      if (combinations.isEmpty) {
+        return;
+      }
+    }
+    yield* combinations;
+  }
+
+  List<List<String>> _wordPronunciations(String word) {
+    final pronunciations = _lexiconPronunciations(word);
+    if (pronunciations.isNotEmpty) {
+      return pronunciations;
+    }
+
+    final predicted = g2p.phonemize(word, format: 'arpabet', language: 'en-US');
+    final normalized = _normalizePredictedArpabet(predicted);
+    if (normalized.isEmpty || normalized.any((token) => !tokens.contains(token))) {
+      return const <List<String>>[];
+    }
+    pronunciations.add(normalized);
+
+    if (word.endsWith('O')) {
+      final alternate = normalized.toList(growable: false);
+      for (var i = alternate.length - 1; i >= 0; i--) {
+        if (_arpabetVowels.contains(_arpabetBase(alternate[i]))) {
+          alternate[i] = 'OW${_arpabetStress(alternate[i]) ?? '0'}';
+          break;
+        }
+      }
+      if (alternate.every(tokens.contains) && !_sameTokens(alternate, normalized)) {
+        pronunciations.add(alternate);
+      }
+    }
+    return pronunciations;
+  }
+
+  List<List<String>> _lexiconPronunciations(String word) {
+    final matches = RegExp(
+      '^${RegExp.escape(word)} (.+)\$',
+      multiLine: true,
+    ).allMatches(englishLexicon);
+    final pronunciations = matches
+        .map((match) => match.group(1)!.trim().split(RegExp(r'\s+')))
+        .where((pronunciation) => pronunciation.every(tokens.contains))
+        .toSet()
+        .toList(growable: true);
+    return pronunciations;
+  }
+}
+
+List<String> _words(String phrase) {
+  return phrase
+      .toUpperCase()
+      .split(RegExp("[^A-Z']+"))
+      .where((word) => word.isNotEmpty)
+      .toList(growable: false);
+}
+
+Set<String> _parseTokens(String contents) {
+  return contents
+      .split('\n')
+      .map((line) => line.trim().split(RegExp(r'\s+')).firstOrNull)
+      .whereType<String>()
+      .where((token) => token.isNotEmpty)
+      .toSet();
+}
+
+const _arpabetVowels = <String>{
+  'AA',
+  'AE',
+  'AH',
+  'AO',
+  'AW',
+  'AY',
+  'EH',
+  'ER',
+  'EY',
+  'IH',
+  'IY',
+  'OW',
+  'OY',
+  'UH',
+  'UW',
+};
+
+List<String> _normalizePredictedArpabet(String predicted) {
+  final output = <String>[];
+  String? pendingStress;
+  for (final raw in predicted.toUpperCase().split(RegExp(r'\s+'))) {
+    final match = RegExp(r'^([A-Z]+)([012])?$').firstMatch(raw);
+    if (match == null) {
+      continue;
+    }
+    final base = match.group(1)!;
+    final stress = match.group(2);
+    final expanded = switch (base) {
+      'AX' => const <String>['AH'],
+      'EL' => const <String>['AH', 'L'],
+      'EM' => const <String>['AH', 'M'],
+      'EN' => const <String>['AH', 'N'],
+      _ => <String>[base],
+    };
+    if (!_arpabetVowels.contains(expanded.first) && stress != null) {
+      pendingStress = stress;
+    }
+    for (final token in expanded) {
+      if (_arpabetVowels.contains(token)) {
+        output.add('$token${stress ?? pendingStress ?? '0'}');
+        pendingStress = null;
+      } else {
+        output.add(token);
+      }
+    }
+  }
+  return output;
+}
+
+String _arpabetBase(String token) => token.replaceFirst(RegExp(r'[012]$'), '');
+
+String? _arpabetStress(String token) => RegExp(r'[012]$').firstMatch(token)?.group(0);
+
+bool _sameTokens(List<String> left, List<String> right) {
+  if (left.length != right.length) {
+    return false;
+  }
+  for (var i = 0; i < left.length; i++) {
+    if (left[i] != right[i]) {
+      return false;
+    }
+  }
+  return true;
 }
 
 final class _NativeSherpaOnnxKeywordSpotterAdapter implements SherpaOnnxKeywordSpotterAdapter {
@@ -529,10 +689,10 @@ Float32List _pcm16leToFloat32(Uint8List pcm16leBytes) {
 
 String _stripSherpaOriginalKeywordMarker(String keyword) {
   final markerIndex = keyword.lastIndexOf('@');
-  if (markerIndex == -1 || markerIndex == keyword.length - 1) {
-    return keyword;
-  }
-  return keyword.substring(markerIndex + 1).replaceAll('_', ' ').trim();
+  final marker = markerIndex == -1 || markerIndex == keyword.length - 1
+      ? keyword
+      : keyword.substring(markerIndex + 1);
+  return marker.replaceAll('_', ' ').trim();
 }
 
 String _normalizeKeyword(String keyword) {

@@ -46,7 +46,7 @@ class _WakeWordActionPageState extends State<WakeWordActionPage> {
   int _wakeWordCount = 0;
   int _liveCommandBytes = 0;
   int _completedCommandBytes = 0;
-  double _sensitivity = 0.8;
+  double _sensitivity = 0.5;
   Duration _endSilenceDuration = const Duration(milliseconds: 1000);
   Duration _postWakeDelay = const Duration(milliseconds: 150);
 
@@ -358,7 +358,7 @@ class _WakeWordActionPageState extends State<WakeWordActionPage> {
             const SizedBox(height: 10),
             const Text(
               'Uses the bundled English sherpa-onnx wake-word model. Model files '
-              'and keyword tokenization are managed automatically.',
+              'and keyword pronunciation are managed automatically.',
             ),
           ],
         ),

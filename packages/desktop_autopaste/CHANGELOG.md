@@ -1,14 +1,8 @@
 ## Unreleased
 
-* Publish temporary Windows text through delayed clipboard rendering and
-  restore the original clipboard only after the target requests Unicode text.
-  This prevents Citrix and other remote sessions from receiving a prematurely
-  restored, stale clipboard entry.
-* Run Windows paste transactions outside Flutter's UI isolate and serialize
-  both managed and current-clipboard paste operations.
-* Complete Windows managed-paste calls immediately after shortcut injection
-  while consumption tracking and clipboard restoration continue on the native
-  transaction thread. This avoids a hotkey/Citrix dispatch circular wait.
+* Restore immediate, fully materialized Windows clipboard publishing. Remove
+  delayed-rendering owner windows and consumption tracking so local and remote
+  applications receive paste data without a rendering timeout.
 
 ## 0.2.14
 

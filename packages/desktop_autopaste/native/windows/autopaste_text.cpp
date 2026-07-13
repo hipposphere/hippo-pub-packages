@@ -8,13 +8,9 @@
 #include <array>
 #include <cstring>
 #include <cwctype>
-#include <future>
 #include <limits>
-#include <memory>
 #include <mutex>
 #include <string>
-#include <thread>
-#include <utility>
 #include <vector>
 
 namespace desktop_autopaste {
@@ -25,14 +21,17 @@ using Microsoft::WRL::ComPtr;
 
 constexpr int kClipboardOpenRetries = 20;
 constexpr int kClipboardOpenRetryDelayMs = 10;
-constexpr int kClipboardRenderRequestTimeoutMs = 5000;
-constexpr int kClipboardConsumerReleaseTimeoutMs = 1000;
-constexpr int kPostRenderGraceDelayMs = 250;
-constexpr int kPreRenderedPostPasteHoldMs = 1500;
+constexpr int kClipboardPublishAttempts = 2;
+constexpr int kClipboardSequenceRetries = 50;
+constexpr int kClipboardSequenceRetryDelayMs = 10;
+constexpr int kClipboardVerificationRetries = 5;
+constexpr int kClipboardVerificationRetryDelayMs = 20;
+// Remote-hosted Windows apps (for example Citrix sessions) can consume the
+// clipboard noticeably later than local apps, so restoring too early can cause
+// the target to paste an empty placeholder or stale content.
+constexpr int kPostPasteRestoreDelayMs = 500;
 constexpr DWORD kPostPasteInputIdleTimeoutMs = 1000;
 constexpr UINT kMessageTimeoutMs = 300;
-constexpr wchar_t kDelayedClipboardWindowClassName[] =
-    L"HippoDesktopAutopasteDelayedClipboardOwner";
 std::mutex g_clipboard_paste_mutex;
 
 class ScopedOleInitialization {
@@ -54,41 +53,6 @@ class ScopedOleInitialization {
 struct ClipboardSnapshot {
   ComPtr<IDataObject> data_object;
   bool was_empty = false;
-};
-
-struct DelayedClipboardRenderState {
-  explicit DelayedClipboardRenderState(std::wstring value)
-      : text(std::move(value)) {}
-
-  std::wstring text;
-  bool render_requested = false;
-  bool render_succeeded = false;
-  bool ownership_lost = false;
-};
-
-class PasteInjectionReporter {
- public:
-  explicit PasteInjectionReporter(
-      std::shared_ptr<std::promise<bool>> promise)
-      : promise_(std::move(promise)) {}
-
-  ~PasteInjectionReporter() { Report(false); }
-
-  void Report(bool injected) noexcept {
-    if (reported_) {
-      return;
-    }
-    reported_ = true;
-    try {
-      promise_->set_value(injected);
-    } catch (...) {
-      // The waiting FFI call may already be unwinding during process teardown.
-    }
-  }
-
- private:
-  std::shared_ptr<std::promise<bool>> promise_;
-  bool reported_ = false;
 };
 
 constexpr std::array<UINT, 8> kModifierVirtualKeys = {
@@ -313,6 +277,57 @@ bool OpenClipboardWithRetries(HWND owner_hwnd) {
   return false;
 }
 
+bool WaitForClipboardSequenceChange(DWORD previous_sequence) {
+  for (int i = 0; i < kClipboardSequenceRetries; ++i) {
+    if (::GetClipboardSequenceNumber() != previous_sequence) {
+      return true;
+    }
+    ::Sleep(kClipboardSequenceRetryDelayMs);
+  }
+  return false;
+}
+
+bool ReadOpenClipboardUnicodeText(std::wstring* out_text) {
+  if (out_text == nullptr) {
+    return false;
+  }
+  out_text->clear();
+
+  if (!::IsClipboardFormatAvailable(CF_UNICODETEXT)) {
+    return false;
+  }
+  HANDLE clipboard_data = ::GetClipboardData(CF_UNICODETEXT);
+  if (clipboard_data == nullptr) {
+    return false;
+  }
+
+  SIZE_T size = ::GlobalSize(clipboard_data);
+  if (size == 0) {
+    return false;
+  }
+
+  const wchar_t* source =
+      static_cast<const wchar_t*>(::GlobalLock(clipboard_data));
+  if (source == nullptr) {
+    return false;
+  }
+
+  const size_t capacity = size / sizeof(wchar_t);
+  size_t length = 0;
+  while (length < capacity && source[length] != L'\0') {
+    ++length;
+  }
+
+  out_text->assign(source, length);
+  ::GlobalUnlock(clipboard_data);
+  return true;
+}
+
+bool OpenClipboardUnicodeTextEquals(const std::wstring& text) {
+  std::wstring current_text;
+  return ReadOpenClipboardUnicodeText(&current_text) && current_text == text;
+}
+
 bool SetClipboardUnicodeText(const std::wstring& text) {
   HGLOBAL clipboard_text =
       ::GlobalAlloc(GMEM_MOVEABLE, (text.length() + 1) * sizeof(wchar_t));
@@ -337,110 +352,48 @@ bool SetClipboardUnicodeText(const std::wstring& text) {
   return true;
 }
 
-DelayedClipboardRenderState* GetDelayedClipboardRenderState(HWND hwnd) {
-  return reinterpret_cast<DelayedClipboardRenderState*>(
-      ::GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-}
+bool WaitForClipboardUnicodeText(HWND owner_hwnd, const std::wstring& text) {
+  for (int i = 0; i < kClipboardVerificationRetries; ++i) {
+    if (!OpenClipboardWithRetries(owner_hwnd)) {
+      ::Sleep(kClipboardVerificationRetryDelayMs);
+      continue;
+    }
 
-LRESULT CALLBACK DelayedClipboardWindowProc(
-    HWND hwnd,
-    UINT message,
-    WPARAM wparam,
-    LPARAM lparam) {
-  if (message == WM_NCCREATE) {
-    const auto* create = reinterpret_cast<const CREATESTRUCTW*>(lparam);
-    ::SetWindowLongPtrW(
-        hwnd,
-        GWLP_USERDATA,
-        reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-    return TRUE;
-  }
-
-  DelayedClipboardRenderState* state =
-      GetDelayedClipboardRenderState(hwnd);
-  switch (message) {
-    case WM_RENDERFORMAT:
-      if (state != nullptr && wparam == CF_UNICODETEXT) {
-        state->render_requested = true;
-        // The requesting process currently has the clipboard open. Windows
-        // requires the owner to render without calling OpenClipboard here.
-        state->render_succeeded = SetClipboardUnicodeText(state->text);
-      }
-      return 0;
-    case WM_RENDERALLFORMATS:
-      if (state != nullptr && ::GetClipboardOwner() == hwnd &&
-          ::OpenClipboard(hwnd)) {
-        if (::GetClipboardOwner() == hwnd &&
-            ::IsClipboardFormatAvailable(CF_UNICODETEXT)) {
-          (void)SetClipboardUnicodeText(state->text);
-        }
-        ::CloseClipboard();
-      }
-      return 0;
-    case WM_DESTROYCLIPBOARD:
-      if (state != nullptr) {
-        state->ownership_lost = true;
-      }
-      return 0;
-    case WM_NCDESTROY:
-      ::SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
-      break;
-  }
-
-  return ::DefWindowProcW(hwnd, message, wparam, lparam);
-}
-
-bool EnsureDelayedClipboardWindowClass() {
-  static const bool registered = []() {
-    WNDCLASSW window_class = {};
-    window_class.lpfnWndProc = &DelayedClipboardWindowProc;
-    window_class.hInstance = ::GetModuleHandleW(nullptr);
-    window_class.lpszClassName = kDelayedClipboardWindowClassName;
-    if (::RegisterClassW(&window_class) != 0) {
+    const bool matches = OpenClipboardUnicodeTextEquals(text);
+    ::CloseClipboard();
+    if (matches) {
       return true;
     }
-    return ::GetLastError() == ERROR_CLASS_ALREADY_EXISTS;
-  }();
-  return registered;
+
+    ::Sleep(kClipboardVerificationRetryDelayMs);
+  }
+  return false;
 }
 
-HWND CreateDelayedClipboardWindow(DelayedClipboardRenderState* state) {
-  if (state == nullptr || !EnsureDelayedClipboardWindowClass()) {
-    return nullptr;
+bool PublishClipboardUnicodeText(HWND owner_hwnd, const std::wstring& text) {
+  for (int i = 0; i < kClipboardPublishAttempts; ++i) {
+    DWORD sequence_before = ::GetClipboardSequenceNumber();
+    if (!OpenClipboardWithRetries(owner_hwnd)) {
+      return false;
+    }
+
+    bool publish_ok = false;
+    if (::EmptyClipboard()) {
+      publish_ok = SetClipboardUnicodeText(text);
+    }
+    ::CloseClipboard();
+
+    if (!publish_ok) {
+      continue;
+    }
+
+    WaitForClipboardSequenceChange(sequence_before);
+    if (WaitForClipboardUnicodeText(owner_hwnd, text)) {
+      return true;
+    }
   }
 
-  return ::CreateWindowExW(
-      0,
-      kDelayedClipboardWindowClassName,
-      L"",
-      0,
-      0,
-      0,
-      0,
-      0,
-      HWND_MESSAGE,
-      nullptr,
-      ::GetModuleHandleW(nullptr),
-      state);
-}
-
-bool PublishDelayedClipboardUnicodeText(HWND owner_hwnd) {
-  if (owner_hwnd == nullptr || !OpenClipboardWithRetries(owner_hwnd)) {
-    return false;
-  }
-
-  bool published = false;
-  if (::EmptyClipboard()) {
-    // A null handle advertises the format without materializing it. Windows
-    // will send WM_RENDERFORMAT to owner_hwnd when a consumer requests it.
-    ::SetLastError(ERROR_SUCCESS);
-    const HANDLE result = ::SetClipboardData(CF_UNICODETEXT, nullptr);
-    published = result != nullptr || ::GetLastError() == ERROR_SUCCESS;
-  }
-  ::CloseClipboard();
-
-  return published && ::GetClipboardOwner() == owner_hwnd &&
-         ::IsClipboardFormatAvailable(CF_UNICODETEXT);
+  return false;
 }
 
 bool CaptureClipboardSnapshot(
@@ -500,33 +453,30 @@ bool RestoreClipboardSnapshot(
   return true;
 }
 
-void PumpMessagesFor(int duration_ms);
-
-bool RestoreClipboardSnapshotIfStillOwned(
-    HWND delayed_owner_hwnd,
-    HWND restore_owner_hwnd,
-    const ClipboardSnapshot& snapshot) {
-  if (delayed_owner_hwnd == nullptr) {
-    return false;
-  }
-
+void RestoreClipboardSnapshotIfStillExpected(
+    HWND owner_hwnd,
+    const ClipboardSnapshot& snapshot,
+    DWORD expected_sequence,
+    const std::wstring& expected_text) {
   for (int i = 0; i < kClipboardOpenRetries; ++i) {
-    if (::GetClipboardOwner() != delayed_owner_hwnd) {
-      // Another process published newer clipboard data. Preserving it is a
-      // successful finalization even though the original snapshot is skipped.
-      return true;
+    if (!::OpenClipboard(owner_hwnd)) {
+      ::Sleep(kClipboardOpenRetryDelayMs);
+      continue;
     }
 
-    // This check and the OLE restore cannot be made atomic, but repeating the
-    // ownership test minimizes the race and prevents known newer data from
-    // being overwritten.
-    if (::GetClipboardOwner() == delayed_owner_hwnd &&
-        RestoreClipboardSnapshot(restore_owner_hwnd, snapshot)) {
-      return true;
+    if (::GetClipboardSequenceNumber() != expected_sequence ||
+        !OpenClipboardUnicodeTextEquals(expected_text)) {
+      ::CloseClipboard();
+      return;
     }
-    PumpMessagesFor(kClipboardOpenRetryDelayMs);
+
+    ::CloseClipboard();
+    if (::GetClipboardSequenceNumber() != expected_sequence) {
+      return;
+    }
+    (void)RestoreClipboardSnapshot(owner_hwnd, snapshot);
+    return;
   }
-  return ::GetClipboardOwner() != delayed_owner_hwnd;
 }
 
 INPUT MakeScanCodeInput(UINT virtual_key, bool key_up) {
@@ -613,66 +563,6 @@ void PumpPendingMessages() {
   while (::PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
     ::TranslateMessage(&msg);
     ::DispatchMessage(&msg);
-  }
-}
-
-void PumpMessagesFor(int duration_ms) {
-  if (duration_ms <= 0) {
-    PumpPendingMessages();
-    return;
-  }
-
-  const ULONGLONG deadline =
-      ::GetTickCount64() + static_cast<ULONGLONG>(duration_ms);
-  while (::GetTickCount64() < deadline) {
-    PumpPendingMessages();
-    const ULONGLONG now = ::GetTickCount64();
-    if (now >= deadline) {
-      break;
-    }
-    const ULONGLONG remaining = deadline - now;
-    const DWORD wait_ms = static_cast<DWORD>(
-        std::min<ULONGLONG>(remaining, 50));
-    (void)::MsgWaitForMultipleObjectsEx(
-        0,
-        nullptr,
-        wait_ms,
-        QS_ALLINPUT,
-        MWMO_INPUTAVAILABLE);
-  }
-  PumpPendingMessages();
-}
-
-bool WaitForDelayedClipboardRender(
-    HWND owner_hwnd,
-    DelayedClipboardRenderState* state,
-    int timeout_ms) {
-  if (state == nullptr) {
-    return false;
-  }
-
-  const ULONGLONG deadline =
-      ::GetTickCount64() + static_cast<ULONGLONG>(std::max(0, timeout_ms));
-  while (!state->render_requested && !state->ownership_lost &&
-         ::GetClipboardOwner() == owner_hwnd &&
-         ::GetTickCount64() < deadline) {
-    PumpMessagesFor(25);
-  }
-  PumpPendingMessages();
-  return state->render_requested && state->render_succeeded &&
-         !state->ownership_lost && ::GetClipboardOwner() == owner_hwnd;
-}
-
-void WaitForClipboardConsumerRelease(HWND owner_hwnd, int timeout_ms) {
-  const ULONGLONG deadline =
-      ::GetTickCount64() + static_cast<ULONGLONG>(std::max(0, timeout_ms));
-  while (::GetClipboardOwner() == owner_hwnd &&
-         ::GetTickCount64() < deadline) {
-    if (::OpenClipboard(owner_hwnd)) {
-      ::CloseClipboard();
-      return;
-    }
-    PumpMessagesFor(kClipboardOpenRetryDelayMs);
   }
 }
 
@@ -773,8 +663,6 @@ bool AutoPasteTextViaClipboard(const std::wstring& text,
 
 bool PasteFromClipboard(ClipboardPasteShortcut shortcut,
                         int pre_paste_delay_ms) {
-  std::lock_guard<std::mutex> paste_lock(g_clipboard_paste_mutex);
-
   const int effective_pre_paste_delay_ms =
       NormalizePrePasteDelayMs(pre_paste_delay_ms);
   if (effective_pre_paste_delay_ms > 0) {
@@ -791,13 +679,11 @@ bool PasteFromClipboard(ClipboardPasteShortcut shortcut,
   return true;
 }
 
-void RunAutoPasteTextViaClipboardTransaction(
-    const std::wstring& text,
-    ClipboardPasteShortcut shortcut,
-    int pre_paste_delay_ms,
-    PasteInjectionReporter* injection_reporter) {
-  if (injection_reporter == nullptr) {
-    return;
+bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
+                                           ClipboardPasteShortcut shortcut,
+                                           int pre_paste_delay_ms) {
+  if (text.empty()) {
+    return true;
   }
 
   // The Windows clipboard is process-global. Serialize transactions across
@@ -807,126 +693,54 @@ void RunAutoPasteTextViaClipboardTransaction(
 
   ScopedOleInitialization ole;
   if (!ole.IsUsable()) {
-    injection_reporter->Report(false);
-    return;
+    return false;
   }
 
   const HWND clipboard_owner_hwnd = GetClipboardOwnerWindowHandle();
   ClipboardSnapshot previous_clipboard;
   if (!CaptureClipboardSnapshot(clipboard_owner_hwnd, &previous_clipboard)) {
-    injection_reporter->Report(false);
-    return;
+    return false;
   }
-
-  DelayedClipboardRenderState render_state(text);
-  const HWND delayed_owner_hwnd =
-      CreateDelayedClipboardWindow(&render_state);
-  if (delayed_owner_hwnd == nullptr) {
-    injection_reporter->Report(false);
-    return;
-  }
-
-  if (!PublishDelayedClipboardUnicodeText(delayed_owner_hwnd)) {
-    RestoreClipboardSnapshotIfStillOwned(
-        delayed_owner_hwnd,
-        clipboard_owner_hwnd,
-        previous_clipboard);
-    ::DestroyWindow(delayed_owner_hwnd);
-    injection_reporter->Report(false);
-    return;
+  if (!PublishClipboardUnicodeText(clipboard_owner_hwnd, text)) {
+    (void)RestoreClipboardSnapshot(clipboard_owner_hwnd, previous_clipboard);
+    return false;
   }
 
   const int effective_pre_paste_delay_ms =
       NormalizePrePasteDelayMs(pre_paste_delay_ms);
   if (effective_pre_paste_delay_ms > 0) {
-    // The owner must continue processing WM_RENDERFORMAT while waiting. A
-    // plain Sleep would block Citrix or another consumer that requests data.
-    PumpMessagesFor(effective_pre_paste_delay_ms);
+    ::Sleep(effective_pre_paste_delay_ms);
   }
 
-  if (render_state.ownership_lost ||
-      ::GetClipboardOwner() != delayed_owner_hwnd) {
-    ::DestroyWindow(delayed_owner_hwnd);
-    injection_reporter->Report(false);
-    return;
-  }
-
-  if (!SendPasteShortcut(shortcut)) {
-    RestoreClipboardSnapshotIfStillOwned(
-        delayed_owner_hwnd,
-        clipboard_owner_hwnd,
-        previous_clipboard);
-    ::DestroyWindow(delayed_owner_hwnd);
-    injection_reporter->Report(false);
-    return;
-  }
-
-  // Let the Dart hotkey callback return immediately. Some global hotkey and
-  // remote-session stacks do not dispatch the synthetic paste chord until the
-  // originating callback unwinds. Clipboard ownership and message pumping stay
-  // alive on this transaction thread until consumption/restoration completes.
-  injection_reporter->Report(true);
-
-  // Wait until a consumer actually asks Windows to materialize the text. This
-  // is the point at which Citrix's clipboard virtual channel fetches the
-  // payload for the remote paste. If it already requested during pre-delay,
-  // keep the payload available for a grace period after shortcut injection.
-  const bool rendered_before_shortcut = render_state.render_requested;
-  const bool consumed = rendered_before_shortcut
-      ? render_state.render_succeeded
-      : WaitForDelayedClipboardRender(
-            delayed_owner_hwnd,
-            &render_state,
-            kClipboardRenderRequestTimeoutMs);
-
-  if (consumed) {
-    // WM_RENDERFORMAT completes before the requester necessarily finishes
-    // copying from the clipboard. Wait for it to close the clipboard, then
-    // leave a small grace interval for remote-channel processing.
-    WaitForClipboardConsumerRelease(
-        delayed_owner_hwnd,
-        kClipboardConsumerReleaseTimeoutMs);
-    PumpMessagesFor(
-        rendered_before_shortcut
-            ? kPreRenderedPostPasteHoldMs
-            : kPostRenderGraceDelayMs);
-  }
-
-  (void)RestoreClipboardSnapshotIfStillOwned(
-      delayed_owner_hwnd,
-      clipboard_owner_hwnd,
-      previous_clipboard);
-  ::DestroyWindow(delayed_owner_hwnd);
-}
-
-bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
-                                           ClipboardPasteShortcut shortcut,
-                                           int pre_paste_delay_ms) {
-  if (text.empty()) {
-    return true;
-  }
-
-  try {
-    auto promise = std::make_shared<std::promise<bool>>();
-    std::future<bool> injection_result = promise->get_future();
-    std::thread(
-        [text, shortcut, pre_paste_delay_ms, promise = std::move(promise)]() {
-          PasteInjectionReporter reporter(std::move(promise));
-          try {
-            RunAutoPasteTextViaClipboardTransaction(
-                text,
-                shortcut,
-                pre_paste_delay_ms,
-                &reporter);
-          } catch (...) {
-            reporter.Report(false);
-          }
-        })
-        .detach();
-    return injection_result.get();
-  } catch (...) {
+  if (!WaitForClipboardUnicodeText(clipboard_owner_hwnd, text)) {
+    // Another application changed the clipboard during the pre-paste delay.
+    // Its newer contents take precedence over this transaction and must not be
+    // overwritten by either republishing or restoring the old snapshot.
     return false;
   }
+
+  const DWORD injected_clipboard_sequence = ::GetClipboardSequenceNumber();
+  const HWND target_hwnd = GetFocusedWindowHandle();
+  if (!SendPasteShortcut(shortcut)) {
+    RestoreClipboardSnapshotIfStillExpected(
+        clipboard_owner_hwnd,
+        previous_clipboard,
+        injected_clipboard_sequence,
+        text);
+    return false;
+  }
+
+  // SendInput only confirms dispatch, not that the target accepted the paste.
+  WaitForWindowProcessInputIdle(target_hwnd);
+  PumpPendingMessages();
+  ::Sleep(kPostPasteRestoreDelayMs);
+
+  RestoreClipboardSnapshotIfStillExpected(
+      clipboard_owner_hwnd,
+      previous_clipboard,
+      injected_clipboard_sequence,
+      text);
+  return true;
 }
 
 }  // namespace desktop_autopaste

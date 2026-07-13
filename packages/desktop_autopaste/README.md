@@ -21,11 +21,9 @@ Desktop auto-paste helpers backed by native FFI code assets.
 ## Notes
 
 - Windows: paste + focused context + focused text edits are implemented
-  natively. Temporary text uses delayed clipboard rendering: the original
-  clipboard is restored after the target requests `CF_UNICODETEXT`, with a
-  bounded timeout for applications that never consume the paste. The wait runs
-  outside Flutter's UI isolate, and the paste `Future` completes once shortcut
-  injection succeeds while guarded restoration continues natively.
+  natively. Temporary text is materialized before shortcut injection and the
+  original clipboard is restored only while the temporary value remains
+  unchanged.
 - macOS: clipboard paste is implemented natively; focused context/edit APIs return unsupported.
 - Linux: clipboard paste is implemented for X11/XWayland via the X11 clipboard
   selection and XTEST shortcut injection; focused context/edit APIs return

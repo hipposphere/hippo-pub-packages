@@ -6,6 +6,9 @@
   restored, stale clipboard entry.
 * Run Windows paste transactions outside Flutter's UI isolate and serialize
   both managed and current-clipboard paste operations.
+* Complete Windows managed-paste calls immediately after shortcut injection
+  while consumption tracking and clipboard restoration continue on the native
+  transaction thread. This avoids a hotkey/Citrix dispatch circular wait.
 
 ## 0.2.14
 

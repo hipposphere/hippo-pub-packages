@@ -8,9 +8,12 @@
 #include <array>
 #include <cstring>
 #include <cwctype>
+#include <future>
 #include <limits>
+#include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -61,6 +64,31 @@ struct DelayedClipboardRenderState {
   bool render_requested = false;
   bool render_succeeded = false;
   bool ownership_lost = false;
+};
+
+class PasteInjectionReporter {
+ public:
+  explicit PasteInjectionReporter(
+      std::shared_ptr<std::promise<bool>> promise)
+      : promise_(std::move(promise)) {}
+
+  ~PasteInjectionReporter() { Report(false); }
+
+  void Report(bool injected) noexcept {
+    if (reported_) {
+      return;
+    }
+    reported_ = true;
+    try {
+      promise_->set_value(injected);
+    } catch (...) {
+      // The waiting FFI call may already be unwinding during process teardown.
+    }
+  }
+
+ private:
+  std::shared_ptr<std::promise<bool>> promise_;
+  bool reported_ = false;
 };
 
 constexpr std::array<UINT, 8> kModifierVirtualKeys = {
@@ -763,11 +791,13 @@ bool PasteFromClipboard(ClipboardPasteShortcut shortcut,
   return true;
 }
 
-bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
-                                           ClipboardPasteShortcut shortcut,
-                                           int pre_paste_delay_ms) {
-  if (text.empty()) {
-    return true;
+void RunAutoPasteTextViaClipboardTransaction(
+    const std::wstring& text,
+    ClipboardPasteShortcut shortcut,
+    int pre_paste_delay_ms,
+    PasteInjectionReporter* injection_reporter) {
+  if (injection_reporter == nullptr) {
+    return;
   }
 
   // The Windows clipboard is process-global. Serialize transactions across
@@ -777,20 +807,23 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
 
   ScopedOleInitialization ole;
   if (!ole.IsUsable()) {
-    return false;
+    injection_reporter->Report(false);
+    return;
   }
 
   const HWND clipboard_owner_hwnd = GetClipboardOwnerWindowHandle();
   ClipboardSnapshot previous_clipboard;
   if (!CaptureClipboardSnapshot(clipboard_owner_hwnd, &previous_clipboard)) {
-    return false;
+    injection_reporter->Report(false);
+    return;
   }
 
   DelayedClipboardRenderState render_state(text);
   const HWND delayed_owner_hwnd =
       CreateDelayedClipboardWindow(&render_state);
   if (delayed_owner_hwnd == nullptr) {
-    return false;
+    injection_reporter->Report(false);
+    return;
   }
 
   if (!PublishDelayedClipboardUnicodeText(delayed_owner_hwnd)) {
@@ -799,7 +832,8 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
         clipboard_owner_hwnd,
         previous_clipboard);
     ::DestroyWindow(delayed_owner_hwnd);
-    return false;
+    injection_reporter->Report(false);
+    return;
   }
 
   const int effective_pre_paste_delay_ms =
@@ -813,7 +847,8 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
   if (render_state.ownership_lost ||
       ::GetClipboardOwner() != delayed_owner_hwnd) {
     ::DestroyWindow(delayed_owner_hwnd);
-    return false;
+    injection_reporter->Report(false);
+    return;
   }
 
   if (!SendPasteShortcut(shortcut)) {
@@ -822,8 +857,15 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
         clipboard_owner_hwnd,
         previous_clipboard);
     ::DestroyWindow(delayed_owner_hwnd);
-    return false;
+    injection_reporter->Report(false);
+    return;
   }
+
+  // Let the Dart hotkey callback return immediately. Some global hotkey and
+  // remote-session stacks do not dispatch the synthetic paste chord until the
+  // originating callback unwinds. Clipboard ownership and message pumping stay
+  // alive on this transaction thread until consumption/restoration completes.
+  injection_reporter->Report(true);
 
   // Wait until a consumer actually asks Windows to materialize the text. This
   // is the point at which Citrix's clipboard virtual channel fetches the
@@ -850,12 +892,41 @@ bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
             : kPostRenderGraceDelayMs);
   }
 
-  const bool clipboard_finalized = RestoreClipboardSnapshotIfStillOwned(
+  (void)RestoreClipboardSnapshotIfStillOwned(
       delayed_owner_hwnd,
       clipboard_owner_hwnd,
       previous_clipboard);
   ::DestroyWindow(delayed_owner_hwnd);
-  return consumed && clipboard_finalized;
+}
+
+bool AutoPasteTextViaClipboardWithShortcut(const std::wstring& text,
+                                           ClipboardPasteShortcut shortcut,
+                                           int pre_paste_delay_ms) {
+  if (text.empty()) {
+    return true;
+  }
+
+  try {
+    auto promise = std::make_shared<std::promise<bool>>();
+    std::future<bool> injection_result = promise->get_future();
+    std::thread(
+        [text, shortcut, pre_paste_delay_ms, promise = std::move(promise)]() {
+          PasteInjectionReporter reporter(std::move(promise));
+          try {
+            RunAutoPasteTextViaClipboardTransaction(
+                text,
+                shortcut,
+                pre_paste_delay_ms,
+                &reporter);
+          } catch (...) {
+            reporter.Report(false);
+          }
+        })
+        .detach();
+    return injection_result.get();
+  } catch (...) {
+    return false;
+  }
 }
 
 }  // namespace desktop_autopaste

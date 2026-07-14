@@ -429,6 +429,99 @@ void main() {
       },
     );
 
+    test('Windows continuous capture replaces an unavailable selected input device', () async {
+      final configCalls = <AudioRecorderConfig>[];
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[
+          InputDevice(id: 'mic-default', label: 'Default Mic', isDefault: true),
+        ],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        setContinousRecordingFn: ({required enabled, required config}) {
+          configCalls.add(config);
+          if (enabled && config.inputDeviceId == 'mic-disconnected') {
+            throw const AudioRecorderException(
+              'Windows continuous capture toggle failed',
+              errorCode: -3,
+              details: 'Selected input device is no longer available.',
+            );
+          }
+        },
+        stopFn: () {},
+        isRecordingFn: () => false,
+      );
+
+      await recorder.setContinousRecording(true, inputDeviceId: 'mic-disconnected');
+
+      expect(configCalls.map((config) => config.inputDeviceId), <String?>[
+        'mic-disconnected',
+        'mic-default',
+      ]);
+      expect(recorder.continousRecordingState, NativeAudioRecorderContinousRecordingState.active);
+    });
+
+    test('Windows continuous capture disables gracefully when no input device remains', () async {
+      final enabledCalls = <bool>[];
+
+      final recorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        availabilityFn: () => true,
+        hasPermissionFn: () => true,
+        requestPermissionFn: () => true,
+        listInputDevicesFn: () => const <InputDevice>[],
+        startFileFn:
+            ({
+              required outputPath,
+              required sampleRateHz,
+              required channelCount,
+              required inputDeviceId,
+            }) {},
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {},
+        readPcmStreamFn: ({required maxSamples}) => Uint8List(0),
+        setContinousRecordingFn: ({required enabled, required config}) {
+          enabledCalls.add(enabled);
+          if (enabled) {
+            throw const AudioRecorderException(
+              'Windows continuous capture toggle failed',
+              errorCode: -3,
+              details: 'Selected input device is no longer available.',
+            );
+          }
+        },
+        stopFn: () {},
+        isRecordingFn: () => false,
+      );
+
+      await recorder.setContinousRecording(true, inputDeviceId: 'mic-disconnected');
+
+      expect(enabledCalls, <bool>[true, false]);
+      expect(recorder.continousRecordingState, NativeAudioRecorderContinousRecordingState.disabled);
+    });
+
     test(
       'continousRecordingState hibernates after the warm duration and reactivates after stop',
       () async {

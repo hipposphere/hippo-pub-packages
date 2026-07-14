@@ -309,8 +309,16 @@ final class NativeAudioRecorder {
     _continousRecordingDuration = enabled ? resolvedDuration : null;
     _continousRecordingError = null;
     try {
-      await _setPlatformContinousRecording(enabled: enabled, config: resolvedConfig);
-      _continousRecordingNativeEnabled = enabled && _supportsNativeContinousRecordingWarmCapture;
+      final effectiveEnabled = await _setPlatformContinousRecording(
+        enabled: enabled,
+        config: resolvedConfig,
+      );
+      _continousRecordingEnabled = effectiveEnabled;
+      _continousRecordingNativeEnabled =
+          effectiveEnabled && _supportsNativeContinousRecordingWarmCapture;
+      if (!effectiveEnabled) {
+        _continousRecordingDuration = null;
+      }
       _scheduleContinousRecordingWarmTimerIfNeeded();
     } on Object catch (error) {
       _continousRecordingEnabled = previousEnabled;
@@ -1189,23 +1197,23 @@ final class NativeAudioRecorder {
     }
   }
 
-  Future<void> _setPlatformContinousRecording({
+  Future<bool> _setPlatformContinousRecording({
     required bool enabled,
     required AudioRecorderConfig config,
   }) async {
     if (enabled && platform == NativeAudioRecorderPlatform.macOS) {
       await _setMacosPlatformContinousRecordingWithRetry(config: config);
-      return;
+      return true;
     }
 
     if (enabled &&
         (platform == NativeAudioRecorderPlatform.windows ||
             platform == NativeAudioRecorderPlatform.linux)) {
-      await _setMiniaudioPlatformContinousRecordingWithRetry(config: config);
-      return;
+      return _setMiniaudioPlatformContinousRecordingWithRetry(config: config);
     }
 
     await _setPlatformContinousRecordingDirect(enabled, config: config);
+    return enabled;
   }
 
   Future<void> _setMacosPlatformContinousRecordingWithRetry({
@@ -1244,7 +1252,7 @@ final class NativeAudioRecorder {
     }
   }
 
-  Future<void> _setMiniaudioPlatformContinousRecordingWithRetry({
+  Future<bool> _setMiniaudioPlatformContinousRecordingWithRetry({
     required AudioRecorderConfig config,
   }) async {
     var configToTry = await _resolvePlatformDefaultContinousInputConfig(config);
@@ -1253,8 +1261,25 @@ final class NativeAudioRecorder {
       try {
         await _setPlatformContinousRecordingDirect(true, config: configToTry);
         _continousRecordingConfig = configToTry;
-        return;
+        return true;
       } on AudioRecorderException catch (error, stackTrace) {
+        if (_isUnavailableSelectedInputDeviceError(error)) {
+          final fallbackConfig = await _resolveAvailableContinousInputConfig(configToTry);
+          if (fallbackConfig == null) {
+            try {
+              await _setPlatformContinousRecordingDirect(false, config: configToTry);
+            } on Object {
+              // The failed native start already disables warm capture. Cleanup
+              // here is best effort so an absent microphone remains nonfatal.
+            }
+            return false;
+          }
+          if (fallbackConfig.inputDeviceId != configToTry.inputDeviceId) {
+            configToTry = fallbackConfig;
+            continue;
+          }
+        }
+
         final fallbackConfig = await _resolvePlatformDefaultContinousInputConfig(configToTry);
         if (fallbackConfig.inputDeviceId != configToTry.inputDeviceId) {
           configToTry = fallbackConfig;
@@ -1289,6 +1314,11 @@ final class NativeAudioRecorder {
       }
     }
     return false;
+  }
+
+  bool _isUnavailableSelectedInputDeviceError(AudioRecorderException error) {
+    return error.details?.toLowerCase().contains('selected input device is no longer available') ??
+        false;
   }
 
   bool _isRetryableMacosContinousStartError(AudioRecorderException error) {
@@ -1374,6 +1404,25 @@ final class NativeAudioRecorder {
 
     final resolvedDevice = defaultDevice ?? devices.first;
     return _copyAudioRecorderConfig(config, inputDeviceId: resolvedDevice.id);
+  }
+
+  Future<AudioRecorderConfig?> _resolveAvailableContinousInputConfig(
+    AudioRecorderConfig config,
+  ) async {
+    final devices = await listInputDevices();
+    if (devices.isEmpty) {
+      return null;
+    }
+
+    InputDevice? defaultDevice;
+    for (final device in devices) {
+      if (device.isDefault) {
+        defaultDevice = device;
+        break;
+      }
+    }
+
+    return _copyAudioRecorderConfig(config, inputDeviceId: (defaultDevice ?? devices.first).id);
   }
 
   Duration? _normalizeContinousRecordingDuration(Duration? duration) {
@@ -1960,11 +2009,15 @@ final class NativeAudioRecorder {
     }
 
     try {
-      await _setPlatformContinousRecording(
+      final effectiveEnabled = await _setPlatformContinousRecording(
         enabled: true,
         config: _resolveContinousRecordingConfig(),
       );
-      _continousRecordingNativeEnabled = true;
+      _continousRecordingEnabled = effectiveEnabled;
+      _continousRecordingNativeEnabled = effectiveEnabled;
+      if (!effectiveEnabled) {
+        _continousRecordingDuration = null;
+      }
       _continousRecordingError = null;
       _scheduleContinousRecordingWarmTimerIfNeeded();
     } on Object catch (error) {

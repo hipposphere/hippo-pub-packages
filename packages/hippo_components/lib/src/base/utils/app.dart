@@ -23,6 +23,7 @@ class App extends StatelessWidget {
   final Iterable<Locale>? supportedLocales;
   final PageTransitionsTheme? pageTransitionsTheme;
   final GlobalKey<NavigatorState>? navigatorKey;
+  final TransitionBuilder? builder;
   final List<LocalizationsDelegate> localizationsDelegate;
   final List<NavigatorObserver> navigatorObservers;
   const App({
@@ -31,6 +32,7 @@ class App extends StatelessWidget {
     this.title = '',
     this.locale,
     this.navigatorKey,
+    this.builder,
     this.supportedLocales,
     this.pageTransitionsTheme,
     this.localizationsDelegate = const [],
@@ -49,6 +51,7 @@ class App extends StatelessWidget {
         child: CupertinoApp(
           title: title,
           navigatorKey: navigatorKey,
+          builder: builder,
           localizationsDelegates: [
             ComponentsLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,

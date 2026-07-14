@@ -1,3 +1,8 @@
+## Unreleased
+
+- Expose `CupertinoApp.builder` through `App.builder` for app-wide layers that
+  must remain above the navigator.
+
 ## 0.1.54
 
 - Add a details toggle to JSON schema visualization and hide metadata chips by default.

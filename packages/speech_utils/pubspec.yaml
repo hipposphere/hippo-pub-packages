@@ -1,6 +1,6 @@
 name: speech_utils
 description: Utilities for PCM16 speech segmentation, segmented capture, and AAC compression.
-version: 0.2.23
+version: 0.2.24
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace

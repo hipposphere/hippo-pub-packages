@@ -66,6 +66,21 @@ void main() {
     expect(await executor.execute<int>(<String, Object?>{'delayMs': 0, 'value': 2}), 2);
   });
 
+  test('permanent shutdown prevents the worker from being revived', () async {
+    final executor = NativeWorkerExecutor(
+      entrypoint: _testNativeWorkerMain,
+      debugName: 'speech_utils permanent shutdown worker test',
+    );
+
+    expect(await executor.execute<int>(<String, Object?>{'delayMs': 0, 'value': 1}), 1);
+    await executor.shutdown(permanently: true);
+
+    await expectLater(
+      executor.execute<int>(<String, Object?>{'delayMs': 0, 'value': 2}),
+      throwsA(isA<StateError>()),
+    );
+  });
+
   test('default desktop codec and metadata workers call bundled native assets', () async {
     if (!Platform.isMacOS && !Platform.isWindows && !Platform.isLinux) {
       return;

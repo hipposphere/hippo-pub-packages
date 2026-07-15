@@ -974,7 +974,7 @@ final class NativeAudioRecorder {
   /// fully release microphone/WASAPI resources before the updater waits for
   /// process shutdown. Active recordings are stopped normally before the final
   /// native reset.
-  Future<void> prepareForAppExit() async {
+  Future<void> prepareForAppExit({bool finalShutdown = false}) async {
     _ensureSupportedPlatform();
 
     Object? firstError;
@@ -1013,7 +1013,7 @@ final class NativeAudioRecorder {
     }
 
     try {
-      await _cleanupForAppDetach();
+      await _cleanupForAppDetach(permanentlyShutdown: finalShutdown);
     } on Object catch (error, stackTrace) {
       rememberError(error, stackTrace);
     }
@@ -1902,7 +1902,7 @@ final class NativeAudioRecorder {
       return existingCleanup;
     }
 
-    final cleanupFuture = _cleanupForAppDetach();
+    final cleanupFuture = _cleanupForAppDetach(permanentlyShutdown: true);
     _appDetachCleanupFuture = cleanupFuture;
     return cleanupFuture.whenComplete(() {
       if (identical(_appDetachCleanupFuture, cleanupFuture)) {
@@ -1911,7 +1911,7 @@ final class NativeAudioRecorder {
     });
   }
 
-  Future<void> _cleanupForAppDetach() async {
+  Future<void> _cleanupForAppDetach({bool permanentlyShutdown = false}) async {
     _cancelContinousRecordingWarmTimer();
     _continousRecordingNativeEnabled = false;
     _nativeAmplitudeTimer?.cancel();
@@ -1947,7 +1947,7 @@ final class NativeAudioRecorder {
     _clearActiveRecordingOutputTracking();
     _resetAmplitudeState();
     if (_useControlWorker) {
-      await NativeWorkerExecutor.shutdownAll();
+      await NativeWorkerExecutor.shutdownAll(permanently: permanentlyShutdown);
     }
   }
 

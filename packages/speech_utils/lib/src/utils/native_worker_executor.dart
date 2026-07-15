@@ -32,13 +32,17 @@ final class NativeWorkerExecutor {
   ReceivePort? _exitPort;
   Isolate? _isolate;
   Future<void>? _shutdownFuture;
+  bool _isPermanentlyShutdown = false;
 
   Future<T> execute<T>(Object? request) async {
+    _ensureNotPermanentlyShutdown();
     final shutdownFuture = _shutdownFuture;
     if (shutdownFuture != null) {
       await shutdownFuture;
+      _ensureNotPermanentlyShutdown();
     }
     final commandPort = await (_startFuture ??= _start());
+    _ensureNotPermanentlyShutdown();
     final requestId = _nextRequestId++;
     final completer = Completer<Object?>();
     _pending[requestId] = completer;
@@ -54,16 +58,34 @@ final class NativeWorkerExecutor {
   /// Stops the current worker after its queued commands finish.
   ///
   /// A later [execute] call starts a fresh worker, so shared executors can be
-  /// released during desktop app shutdown and reused by a subsequent session.
-  Future<void> shutdown() {
+  /// released during a session and reused by a subsequent session. Set
+  /// [permanently] only during final application shutdown; later [execute]
+  /// calls then fail instead of starting a new isolate.
+  Future<void> shutdown({bool permanently = false}) {
+    if (permanently) {
+      _isPermanentlyShutdown = true;
+    }
     return _shutdownFuture ??= _shutdown().whenComplete(() {
       _shutdownFuture = null;
     });
   }
 
   /// Stops every native worker created in this isolate.
-  static Future<void> shutdownAll() async {
-    await Future.wait(_instances.toList(growable: false).map((executor) => executor.shutdown()));
+  ///
+  /// Set [permanently] during final application shutdown so background work
+  /// cannot revive a worker after recorder cleanup has completed.
+  static Future<void> shutdownAll({bool permanently = false}) async {
+    await Future.wait(
+      _instances
+          .toList(growable: false)
+          .map((executor) => executor.shutdown(permanently: permanently)),
+    );
+  }
+
+  void _ensureNotPermanentlyShutdown() {
+    if (_isPermanentlyShutdown) {
+      throw StateError('$_debugName has been permanently shut down');
+    }
   }
 
   Future<void> _shutdown() async {

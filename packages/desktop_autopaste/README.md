@@ -1,6 +1,6 @@
 # desktop_autopaste
 
-Desktop auto-paste helpers backed by native FFI code assets.
+Federated desktop auto-paste helpers backed by endorsed native packages.
 
 ## API
 
@@ -12,11 +12,17 @@ Desktop auto-paste helpers backed by native FFI code assets.
 - `getFocusedTextFieldContext(maxCharsBefore, maxCharsAfter, enableScreenReader)`
 - `editFocusedTextField(operations)`
 
-## Implementation
+## Package family
 
-- Dart calls native symbols through `dart:ffi`.
-- Bindings are generated with `ffigen` from `native/include/desktop_autopaste_ffi.h`.
-- Native libraries are built with Dart build hooks (`hook/build.dart`) and bundled as code assets.
+- `desktop_autopaste` is the app-facing API and endorses the desktop packages.
+- `desktop_autopaste_platform_interface` owns the public models, registration
+  contract, unsupported fallback, and shared FFI marshalling.
+- `desktop_autopaste_linux`, `desktop_autopaste_macos`, and
+  `desktop_autopaste_windows` own their native sources, bindings, build hooks,
+  and code assets.
+
+Applications only need to depend on `desktop_autopaste`; Flutter selects and
+registers the endorsed implementation for the target desktop platform.
 
 ## Notes
 
@@ -29,20 +35,21 @@ Desktop auto-paste helpers backed by native FFI code assets.
   selection and XTEST shortcut injection; focused context/edit APIs return
   unsupported. Linux builds require the X11 and Xtst development libraries.
 
-## Experimental Swiftgen (macOS)
+## Experimental Swiftgen (macOS package)
 
 An experimental `swiftgen` setup is available for trying direct Swift-to-Dart
 Objective-C interop generation:
 
 - Swift API surface:
-  - `native/macos/desktop_autopaste_macos_ffi.swift`
+  - `../desktop_autopaste_macos/native/macos/desktop_autopaste_macos_ffi.swift`
 - Generator script:
-  - `tool/generate_macos_swiftgen_bindings.dart`
+  - `../desktop_autopaste_macos/tool/generate_macos_swiftgen_bindings.dart`
 - Generated Dart bindings:
-  - `lib/src/ffi/generated/desktop_autopaste_macos_swiftgen_bindings.dart`
+  - `../desktop_autopaste_macos/lib/src/generated/desktop_autopaste_macos_swiftgen_bindings.dart`
 
 Run:
 
 ```sh
+cd ../desktop_autopaste_macos
 dart run tool/generate_macos_swiftgen_bindings.dart
 ```

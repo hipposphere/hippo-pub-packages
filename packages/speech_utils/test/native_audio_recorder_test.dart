@@ -1481,6 +1481,10 @@ void main() {
     test(
       'startFileRecording uses direct Apple AAC output on macOS when voice processing is disabled',
       () async {
+        final outputDirectory = await Directory.systemTemp.createTemp(
+          'speech_utils_direct_aac_test_',
+        );
+        final outputPath = '${outputDirectory.path}${Platform.pathSeparator}recording.m4a';
         final fakeAacEncoder = _FakeAacEncoder();
         late String nativeOutputPath;
         var stopCalls = 0;
@@ -1515,25 +1519,32 @@ void main() {
           isRecordingFn: () => true,
         );
 
-        await recorder.startFileRecording(
-          outputPath: '/tmp/recording.m4a',
-          config: AudioRecorderConfig(
-            sampleRateHz: 16000,
-            channelCount: 1,
-            processing: const AudioProcessingConfig(preset: AudioCapturePreset.raw),
-            encoding: AudioEncodingConfig(
-              encoder: AudioEncoder.aacLc,
-              bitrateBps: 64000,
-              audioEncoder: fakeAacEncoder,
+        try {
+          await recorder.startFileRecording(
+            outputPath: outputPath,
+            config: AudioRecorderConfig(
+              sampleRateHz: 16000,
+              channelCount: 1,
+              processing: const AudioProcessingConfig(preset: AudioCapturePreset.raw),
+              encoding: AudioEncodingConfig(
+                encoder: AudioEncoder.aacLc,
+                bitrateBps: 64000,
+                audioEncoder: fakeAacEncoder,
+              ),
             ),
-          ),
-        );
+          );
 
-        expect(nativeOutputPath, '/tmp/recording.m4a');
-        await recorder.stop();
+          expect(nativeOutputPath, outputPath);
+          await recorder.stop();
 
-        expect(stopCalls, 1);
-        expect(fakeAacEncoder.encodeAudioFileToAacCalls, 0);
+          expect(stopCalls, 1);
+          expect(fakeAacEncoder.encodeAudioFileToAacCalls, 0);
+        } finally {
+          await recorder.dispose();
+          if (await outputDirectory.exists()) {
+            await outputDirectory.delete(recursive: true);
+          }
+        }
       },
     );
 
@@ -1602,6 +1613,10 @@ void main() {
     });
 
     test('startFileRecording uses direct native AAC output on Android', () async {
+      final outputDirectory = await Directory.systemTemp.createTemp(
+        'speech_utils_direct_aac_test_',
+      );
+      final outputPath = '${outputDirectory.path}${Platform.pathSeparator}recording_android.m4a';
       final fakeAacEncoder = _FakeAacEncoder();
       late String nativeOutputPath;
       var stopCalls = 0;
@@ -1636,29 +1651,40 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      await recorder.startFileRecording(
-        outputPath: '/tmp/recording_android.m4a',
-        config: AudioRecorderConfig(
-          sampleRateHz: 16000,
-          channelCount: 1,
-          encoding: AudioEncodingConfig(
-            encoder: AudioEncoder.aacLc,
-            bitrateBps: 64000,
-            audioEncoder: fakeAacEncoder,
+      try {
+        await recorder.startFileRecording(
+          outputPath: outputPath,
+          config: AudioRecorderConfig(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            encoding: AudioEncodingConfig(
+              encoder: AudioEncoder.aacLc,
+              bitrateBps: 64000,
+              audioEncoder: fakeAacEncoder,
+            ),
           ),
-        ),
-      );
+        );
 
-      expect(nativeOutputPath, '/tmp/recording_android.m4a');
+        expect(nativeOutputPath, outputPath);
 
-      await recorder.stop();
-      expect(stopCalls, 1);
-      expect(fakeAacEncoder.encodeAudioFileToAacCalls, 0);
+        await recorder.stop();
+        expect(stopCalls, 1);
+        expect(fakeAacEncoder.encodeAudioFileToAacCalls, 0);
+      } finally {
+        await recorder.dispose();
+        if (await outputDirectory.exists()) {
+          await outputDirectory.delete(recursive: true);
+        }
+      }
     });
 
     test(
       'startFileRecording uses direct Apple AAC output on macOS when voice processing is requested',
       () async {
+        final outputDirectory = await Directory.systemTemp.createTemp(
+          'speech_utils_direct_aac_test_',
+        );
+        final outputPath = '${outputDirectory.path}${Platform.pathSeparator}recording_vp.m4a';
         final fakeAacEncoder = _FakeAacEncoder();
         late String nativeOutputPath;
         var stopCalls = 0;
@@ -1693,29 +1719,40 @@ void main() {
           isRecordingFn: () => true,
         );
 
-        await recorder.startFileRecording(
-          outputPath: '/tmp/recording_vp.m4a',
-          config: AudioRecorderConfig(
-            sampleRateHz: 16000,
-            channelCount: 1,
-            processing: const AudioProcessingConfig(preset: AudioCapturePreset.voice),
-            encoding: AudioEncodingConfig(
-              encoder: AudioEncoder.aacLc,
-              bitrateBps: 64000,
-              audioEncoder: fakeAacEncoder,
+        try {
+          await recorder.startFileRecording(
+            outputPath: outputPath,
+            config: AudioRecorderConfig(
+              sampleRateHz: 16000,
+              channelCount: 1,
+              processing: const AudioProcessingConfig(preset: AudioCapturePreset.voice),
+              encoding: AudioEncodingConfig(
+                encoder: AudioEncoder.aacLc,
+                bitrateBps: 64000,
+                audioEncoder: fakeAacEncoder,
+              ),
             ),
-          ),
-        );
+          );
 
-        expect(nativeOutputPath, '/tmp/recording_vp.m4a');
+          expect(nativeOutputPath, outputPath);
 
-        await recorder.stop();
-        expect(stopCalls, 1);
-        expect(fakeAacEncoder.encodeAudioFileToAacCalls, 0);
+          await recorder.stop();
+          expect(stopCalls, 1);
+          expect(fakeAacEncoder.encodeAudioFileToAacCalls, 0);
+        } finally {
+          await recorder.dispose();
+          if (await outputDirectory.exists()) {
+            await outputDirectory.delete(recursive: true);
+          }
+        }
       },
     );
 
     test('startFileRecording uses direct Apple AAC output on iOS', () async {
+      final outputDirectory = await Directory.systemTemp.createTemp(
+        'speech_utils_direct_aac_test_',
+      );
+      final outputPath = '${outputDirectory.path}${Platform.pathSeparator}recording_ios.m4a';
       final fakeAacEncoder = _FakeAacEncoder();
       late String nativeOutputPath;
       var stopCalls = 0;
@@ -1750,24 +1787,31 @@ void main() {
         isRecordingFn: () => true,
       );
 
-      await recorder.startFileRecording(
-        outputPath: '/tmp/recording_ios.m4a',
-        config: AudioRecorderConfig(
-          sampleRateHz: 16000,
-          channelCount: 1,
-          encoding: AudioEncodingConfig(
-            encoder: AudioEncoder.aacLc,
-            bitrateBps: 64000,
-            audioEncoder: fakeAacEncoder,
+      try {
+        await recorder.startFileRecording(
+          outputPath: outputPath,
+          config: AudioRecorderConfig(
+            sampleRateHz: 16000,
+            channelCount: 1,
+            encoding: AudioEncodingConfig(
+              encoder: AudioEncoder.aacLc,
+              bitrateBps: 64000,
+              audioEncoder: fakeAacEncoder,
+            ),
           ),
-        ),
-      );
+        );
 
-      expect(nativeOutputPath, '/tmp/recording_ios.m4a');
+        expect(nativeOutputPath, outputPath);
 
-      await recorder.stop();
-      expect(stopCalls, 1);
-      expect(fakeAacEncoder.encodeAudioFileToAacCalls, 0);
+        await recorder.stop();
+        expect(stopCalls, 1);
+        expect(fakeAacEncoder.encodeAudioFileToAacCalls, 0);
+      } finally {
+        await recorder.dispose();
+        if (await outputDirectory.exists()) {
+          await outputDirectory.delete(recursive: true);
+        }
+      }
     });
 
     test('startFileRecording rejects non-m4a output for macOS AAC recording', () {

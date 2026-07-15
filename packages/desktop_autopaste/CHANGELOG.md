@@ -1,4 +1,13 @@
-## Unreleased
+## 0.3.0
+
+* Convert `desktop_autopaste` to a federated Flutter plugin family.
+* Add `desktop_autopaste_platform_interface` for shared API types,
+  registration, unsupported behavior, and FFI marshalling.
+* Move all native sources, generated bindings, build hooks, and native assets
+  into endorsed Linux, macOS, and Windows packages.
+* Preserve the existing app-facing API and platform behavior.
+
+## 0.2.18
 
 * Restore immediate, fully materialized Windows clipboard publishing. Remove
   delayed-rendering owner windows and consumption tracking so local and remote

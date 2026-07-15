@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/dart-lang/native/main/pkgs/ffigen/ffigen.schema.json
+
+name: DesktopAutopasteLinuxBindings
+description: Generated bindings for the desktop_autopaste Linux native API.
+output: lib/src/generated/desktop_autopaste_linux_bindings.dart
+exclude-all-by-default: true
+headers:
+  entry-points:
+    - native/include/desktop_autopaste_ffi.h
+ffi-native:
+  asset-id: package:desktop_autopaste_linux/src/generated/desktop_autopaste_linux_bindings.dart
+functions:
+  include:
+    - desktop_autopaste_paste_into_cursor_via_clipboard
+    - desktop_autopaste_paste_from_clipboard
+    - desktop_autopaste_get_focused_text_field_context_json
+    - desktop_autopaste_edit_focused_text_field
+structs:
+  include:
+    - desktop_autopaste_text_edit_operation_t

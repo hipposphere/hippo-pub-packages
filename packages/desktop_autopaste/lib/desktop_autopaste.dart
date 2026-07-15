@@ -1,11 +1,10 @@
-import 'src/ffi/desktop_autopaste_ffi.dart';
-import 'src/focused_text_edit_operation.dart';
-import 'src/focused_text_field_context.dart';
-import 'src/paste_shortcut.dart';
+import 'package:desktop_autopaste_platform_interface/desktop_autopaste_platform_interface.dart';
 
-export 'src/focused_text_field_context.dart';
-export 'src/focused_text_edit_operation.dart';
-export 'src/paste_shortcut.dart';
+export 'package:desktop_autopaste_platform_interface/desktop_autopaste_platform_interface.dart'
+    show
+        DesktopAutopastePasteShortcut,
+        FocusedTextEditOperation,
+        FocusedTextFieldContext;
 
 class DesktopAutopaste {
   Future<bool> pasteIntoCursorViaClipboard(
@@ -14,7 +13,7 @@ class DesktopAutopaste {
     DesktopAutopastePasteShortcut pasteShortcut =
         DesktopAutopastePasteShortcut.ctrlV,
   }) {
-    return DesktopAutopasteFfi.instance.pasteIntoCursorViaClipboard(
+    return DesktopAutopastePlatform.instance.pasteIntoCursorViaClipboard(
       text,
       prePasteDelay: prePasteDelay,
       pasteShortcut: pasteShortcut,
@@ -26,7 +25,7 @@ class DesktopAutopaste {
     DesktopAutopastePasteShortcut pasteShortcut =
         DesktopAutopastePasteShortcut.ctrlV,
   }) {
-    return DesktopAutopasteFfi.instance.pasteFromClipboard(
+    return DesktopAutopastePlatform.instance.pasteFromClipboard(
       prePasteDelay: prePasteDelay,
       pasteShortcut: pasteShortcut,
     );
@@ -37,7 +36,7 @@ class DesktopAutopaste {
     int? maxCharsAfter = 120,
     bool enableScreenReader = false,
   }) {
-    return DesktopAutopasteFfi.instance.getFocusedTextFieldContext(
+    return DesktopAutopastePlatform.instance.getFocusedTextFieldContext(
       maxCharsBefore: maxCharsBefore,
       maxCharsAfter: maxCharsAfter,
       enableScreenReader: enableScreenReader,
@@ -45,7 +44,7 @@ class DesktopAutopaste {
   }
 
   Future<bool> editFocusedTextField(List<FocusedTextEditOperation> operations) {
-    return DesktopAutopasteFfi.instance.editFocusedTextField(operations);
+    return DesktopAutopastePlatform.instance.editFocusedTextField(operations);
   }
 
   Future<bool> replaceRangeInFocusedTextField({

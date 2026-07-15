@@ -1,27 +1,17 @@
-import 'dart:async';
-import 'dart:ffi' as ffi;
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:ffi/ffi.dart';
+import 'package:speech_utils_android/speech_utils_android.dart';
+import 'package:speech_utils_ios/speech_utils_ios.dart';
+import 'package:speech_utils_linux/speech_utils_linux.dart';
+import 'package:speech_utils_macos/speech_utils_macos.dart';
+import 'package:speech_utils_platform_interface/speech_utils_platform_interface.dart';
+import 'package:speech_utils_windows/speech_utils_windows.dart';
 
-import 'aac_encoder.dart';
-import '../generated/audio_encoder/android_audio_encoder_bindings.dart' as android_bindings;
-import '../generated/audio_encoder/apple_audio_encoder_bindings.dart' as apple_bindings;
-import '../generated/audio_encoder/linux_audio_encoder_bindings.dart' as linux_bindings;
-import '../generated/audio_encoder/windows_audio_encoder_bindings.dart' as windows_bindings;
 import '../utils/pcm16_audio_utils.dart';
-import '../utils/native_worker_executor.dart';
 
 part 'errors/native_audio_encoder_exceptions.dart';
 part 'native_audio_encoder_platform_implementations.dart';
-part 'native_audio_encoder_worker.dart';
-part 'implementations/native_audio_encoder_platform_implementation_android.dart';
-part 'implementations/native_audio_encoder_platform_implementation_ios.dart';
-part 'implementations/native_audio_encoder_platform_implementation_linux.dart';
-part 'implementations/native_audio_encoder_platform_implementation_macos.dart';
-part 'implementations/native_audio_encoder_platform_implementation_windows.dart';
 
 const _unsupportedNativeAudioEncoderMessage =
     'NativeAudioEncoder is currently supported on macOS (AVFoundation), '
@@ -44,19 +34,15 @@ final class NativeAudioEncoder implements AacEncoder {
           platform: _detectNativeAudioEncoderPlatform(),
           platformImplementation: null,
         ),
-        useWorker: true,
       );
 
   /// Uses a custom platform backend.
-  NativeAudioEncoder.custom({
-    required NativeAudioEncoderPlatformImplementation platformImplementation,
-  }) : this._(platformImplementation: platformImplementation, useWorker: false);
+  NativeAudioEncoder.custom({required NativeAacEncoderBackend platformImplementation})
+    : this._(platformImplementation: platformImplementation);
 
-  NativeAudioEncoder._({required this._platformImplementation, required bool useWorker})
-    : _useWorker = useWorker && _supportsEncoderWorker(_platformImplementation.platform);
+  NativeAudioEncoder._({required this._platformImplementation});
 
-  final NativeAudioEncoderPlatformImplementation _platformImplementation;
-  final bool _useWorker;
+  final NativeAacEncoderBackend _platformImplementation;
 
   Future<bool> isAvailable() async {
     try {
@@ -74,7 +60,7 @@ final class NativeAudioEncoder implements AacEncoder {
     required String outputPath,
     int bitrateKbps = 48,
   }) async {
-    _platformImplementation.ensureSupported();
+    _ensureEncoderSupported(_platformImplementation);
     _validatePcmParams(sampleRateHz: sampleRateHz, channelCount: channelCount);
     if (pcm16leBytes.isEmpty) {
       throw ArgumentError.value(pcm16leBytes, 'pcm16leBytes', 'Cannot be empty');
@@ -111,7 +97,7 @@ final class NativeAudioEncoder implements AacEncoder {
     required String outputPath,
     int bitrateKbps = 48,
   }) async {
-    _platformImplementation.ensureSupported();
+    _ensureEncoderSupported(_platformImplementation);
     _validatePcmParams(sampleRateHz: sampleRateHz, channelCount: channelCount);
 
     final inputFile = File(inputPath);
@@ -146,7 +132,7 @@ final class NativeAudioEncoder implements AacEncoder {
     required String outputPath,
     int bitrateKbps = 48,
   }) async {
-    _platformImplementation.ensureSupported();
+    _ensureEncoderSupported(_platformImplementation);
     if (bitrateKbps <= 0) {
       throw ArgumentError.value(bitrateKbps, 'bitrateKbps', 'Must be > 0');
     }
@@ -160,27 +146,16 @@ final class NativeAudioEncoder implements AacEncoder {
     }
 
     try {
-      if (_useWorker) {
-        await _nativeAudioEncoderWorker.execute<void>(
-          _NativeAudioEncoderWorkerRequest(
-            platform: _platformImplementation.platform,
-            inputPath: inputPath,
-            outputPath: outputPath,
-            bitrateBps: bitrateKbps * 1000,
-          ),
-        );
-      } else {
-        await _platformImplementation.encodeAudioFileToAac(
-          inputPath: inputPath,
-          outputPath: outputPath,
-          bitrateBps: bitrateKbps * 1000,
-        );
-      }
+      await _platformImplementation.encodeAudioFileToAac(
+        inputPath: inputPath,
+        outputPath: outputPath,
+        bitrateBps: bitrateKbps * 1000,
+      );
     } on AacEncodingException {
       rethrow;
     } on Object catch (error) {
       throw AacEncodingException(
-        'Failed to execute ${_platformImplementation.platform.label} native AAC encoder: $error',
+        'Failed to execute ${_platformImplementation.platformLabel} native AAC encoder: $error',
       );
     }
   }
@@ -261,52 +236,4 @@ Future<void> _writePcm16FileAsWav({
   );
   await sink.addStream(inputFile.openRead());
   await sink.close();
-}
-
-const _nativeErrorBufferBytes = 4096;
-
-bool _isAppleNativeAacAvailableViaFfi() {
-  return true;
-}
-
-typedef _AppleAacEncoderFfi =
-    int Function(
-      ffi.Pointer<ffi.Char> inputPathUtf8,
-      ffi.Pointer<ffi.Char> outputPathUtf8,
-      int bitrateBps,
-      ffi.Pointer<ffi.Char> errorUtf8,
-      int errorUtf8Capacity,
-    );
-
-void _encodeAudioFileToAacViaAppleFfi({
-  required _AppleAacEncoderFfi function,
-  required String platform,
-  required ffi.Pointer<ffi.Char> inputPathPtr,
-  required ffi.Pointer<ffi.Char> outputPathPtr,
-  required int bitrateBps,
-  required ffi.Pointer<ffi.Char> errorPtr,
-}) {
-  try {
-    final code = function(
-      inputPathPtr,
-      outputPathPtr,
-      bitrateBps,
-      errorPtr,
-      _nativeErrorBufferBytes,
-    );
-    if (code == 0) {
-      return;
-    }
-
-    final stderr = errorPtr.cast<Utf8>().toDartString();
-    throw AacEncodingException(
-      '$platform native AAC encoder failed',
-      exitCode: code,
-      stderr: stderr.isEmpty ? null : stderr,
-    );
-  } finally {
-    calloc.free(inputPathPtr);
-    calloc.free(outputPathPtr);
-    calloc.free(errorPtr);
-  }
 }

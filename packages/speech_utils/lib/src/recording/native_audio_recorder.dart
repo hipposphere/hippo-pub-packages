@@ -1,103 +1,32 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:ffi' as ffi;
 import 'dart:io';
-import 'dart:isolate';
-import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:cross_file/cross_file.dart';
-import 'package:ffi/ffi.dart';
 import 'package:flutter/widgets.dart';
-import 'package:jni/jni.dart';
-import 'package:jni_flutter/jni_flutter.dart';
 import 'package:path/path.dart' as path;
+import 'package:speech_utils_android/speech_utils_android.dart';
+import 'package:speech_utils_platform_interface/speech_utils_platform_interface.dart';
+import 'package:speech_utils_ios/speech_utils_ios.dart';
+import 'package:speech_utils_linux/speech_utils_linux.dart';
+import 'package:speech_utils_macos/speech_utils_macos.dart';
+import 'package:speech_utils_windows/speech_utils_windows.dart';
 
-import '../encoding/aac_encoder.dart';
 import '../encoding/native_audio_encoder.dart';
-import '../models/audio_metadata.dart';
 import '../models/audio_segment_metrics.dart';
 import '../models/segmented_audio_capture.dart';
 import '../models/pause_split_options.dart';
 import '../models/pcm16_snippet.dart';
 import '../models/voice_activity_metadata.dart';
-import '../models/input_device.dart';
 import '../splitting/pcm16_stream_pause_splitter.dart';
 import '../utils/pcm16_audio_utils.dart';
-import '../utils/native_worker_executor.dart';
 import '../vad/speech_vad_config.dart';
-import 'audio_recorder_config.dart';
-import '../generated/recorder/android_jni_bindings.dart' as android_jni;
-import '../generated/recorder/ios_audio_recorder_bindings.dart' as ios_bindings;
-import '../generated/recorder/linux_audio_recorder_bindings.dart' as linux_bindings;
-import '../generated/recorder/macos_audio_recorder_bindings.dart' as macos_bindings;
-import '../generated/recorder/windows_audio_recorder_bindings.dart' as windows_bindings;
 import 'voice_segment.dart';
 
-part 'native_audio_recorder_platform_builders.dart';
 part 'native_audio_recorder_platform_implementations.dart';
-part 'native_audio_recorder_worker.dart';
-part 'errors/native_audio_recorder_exceptions.dart';
-part 'implementations/native_audio_recorder_platform_implementation_macos.dart';
-part 'implementations/native_audio_recorder_platform_implementation_windows.dart';
-part 'implementations/native_audio_recorder_platform_implementation_linux.dart';
-part 'implementations/native_audio_recorder_platform_implementation_ios.dart';
-part 'implementations/native_audio_recorder_platform_implementation_android.dart';
-part 'implementations/native_audio_recorder_platform_ffi.dart';
-
-enum NativeAudioRecorderPlatform { android, macOS, windows, linux, iOS, unsupported }
 
 enum NativeAudioRecorderContinousRecordingState { disabled, hibernation, error, active }
-
-/// Recorder enhancement capabilities currently implemented by this package.
-///
-/// These flags represent library/backend support, not theoretical OS support.
-final class NativeAudioRecorderCapabilities {
-  const NativeAudioRecorderCapabilities({
-    required this.supportsNoiseCancellation,
-    required this.supportsEchoCancellation,
-    required this.supportsVoiceIsolation,
-  });
-
-  final bool supportsNoiseCancellation;
-  final bool supportsEchoCancellation;
-  final bool supportsVoiceIsolation;
-}
-
-final class _NativeRecorderRuntimeConfig {
-  const _NativeRecorderRuntimeConfig({
-    required this.processingFlags,
-    required this.iosSessionModeCode,
-    required this.iosCategoryOptionsFlags,
-    required this.preferredLatencySeconds,
-    required this.iosPreferredIoBufferDurationSeconds,
-    required this.iosPreferredInputGain,
-    required this.fileBitrateBps,
-    required this.fileEncoderCode,
-    required this.macosProcessingQueueDurationSeconds,
-    required this.windowsPreferredPeriodFrames,
-    required this.windowsFlags,
-    required this.windowsCaptureCategoryCode,
-    required this.windowsUseCommunicationsDevice,
-    required this.windowsVoiceProcessingModeCode,
-  });
-
-  final int processingFlags;
-  final int iosSessionModeCode;
-  final int iosCategoryOptionsFlags;
-  final double preferredLatencySeconds;
-  final double iosPreferredIoBufferDurationSeconds;
-  final double iosPreferredInputGain;
-  final int fileBitrateBps;
-  final int fileEncoderCode;
-  final double macosProcessingQueueDurationSeconds;
-  final int windowsPreferredPeriodFrames;
-  final int windowsFlags;
-  final int windowsCaptureCategoryCode;
-  final int windowsUseCommunicationsDevice;
-  final int windowsVoiceProcessingModeCode;
-}
 
 enum _RecorderMode { stopped, file, stream }
 
@@ -110,28 +39,23 @@ enum _RecorderMode { stopped, file, stream }
 /// - Linux: miniaudio
 final class NativeAudioRecorder {
   /// Uses platform detection to select the default backend.
-  NativeAudioRecorder()
-    : this._(
-        platformImplementation: _resolveNativeAudioRecorderPlatformImplementation(
-          platform: _detectNativeAudioRecorderPlatform(),
-          platformImplementation: null,
-        ),
-        useWorker: true,
-      );
+  factory NativeAudioRecorder() {
+    final implementation = _resolveNativeAudioRecorderPlatformImplementation(
+      platform: _detectNativeAudioRecorderPlatform(),
+      platformImplementation: null,
+    );
+    return NativeAudioRecorder._(platformImplementation: implementation);
+  }
 
   /// Uses a custom platform backend.
-  NativeAudioRecorder.custom({
-    required NativeAudioRecorderPlatformImplementation platformImplementation,
-  }) : this._(platformImplementation: platformImplementation, useWorker: false);
+  NativeAudioRecorder.custom({required SpeechUtilsPlatform platformImplementation})
+    : this._(platformImplementation: platformImplementation);
 
-  NativeAudioRecorder._({required this._platformImplementation, required bool useWorker})
-    : _useControlWorker =
-          useWorker && _supportsRecorderControlWorker(_platformImplementation.platform) {
+  NativeAudioRecorder._({required this._platformImplementation}) {
     _appLifecycleListener = _createAppLifecycleListenerIfAvailable();
   }
 
-  final NativeAudioRecorderPlatformImplementation _platformImplementation;
-  final bool _useControlWorker;
+  final SpeechUtilsPlatform _platformImplementation;
 
   _RecorderMode _mode = _RecorderMode.stopped;
   Timer? _streamTimer;
@@ -218,27 +142,11 @@ final class NativeAudioRecorder {
 
   Future<bool> hasPermission() async {
     _ensureSupportedPlatform();
-    if (_useControlWorker) {
-      return _nativeAudioRecorderControlWorker.execute<bool>(
-        _NativeAudioRecorderWorkerRequest.simple(
-          operation: _NativeAudioRecorderWorkerOperation.hasPermission,
-          platform: platform,
-        ),
-      );
-    }
     return _platformImplementation.hasPermission();
   }
 
   Future<bool> requestPermission() async {
     _ensureSupportedPlatform();
-    if (_useControlWorker) {
-      return _nativeAudioRecorderControlWorker.execute<bool>(
-        _NativeAudioRecorderWorkerRequest.simple(
-          operation: _NativeAudioRecorderWorkerOperation.requestPermission,
-          platform: platform,
-        ),
-      );
-    }
     return await _platformImplementation.requestPermission();
   }
 
@@ -263,14 +171,6 @@ final class NativeAudioRecorder {
 
   Future<List<InputDevice>> listInputDevices() async {
     _ensureSupportedPlatform();
-    if (_useControlWorker) {
-      return _nativeAudioRecorderControlWorker.execute<List<InputDevice>>(
-        _NativeAudioRecorderWorkerRequest.simple(
-          operation: _NativeAudioRecorderWorkerOperation.listInputDevices,
-          platform: platform,
-        ),
-      );
-    }
     return _platformImplementation.listInputDevices();
   }
 
@@ -1041,9 +941,7 @@ final class NativeAudioRecorder {
         await amplitudeController.close();
       }
     } finally {
-      if (_useControlWorker) {
-        await NativeWorkerExecutor.shutdownAll();
-      }
+      await NativeWorkerExecutor.shutdownAll();
     }
   }
 
@@ -1088,57 +986,18 @@ final class NativeAudioRecorder {
     required String outputPath,
     required AudioRecorderConfig config,
   }) async {
-    if (_useControlWorker) {
-      await _nativeAudioRecorderControlWorker.execute<void>(
-        _NativeAudioRecorderWorkerRequest.withConfig(
-          operation: _NativeAudioRecorderWorkerOperation.startFile,
-          platform: platform,
-          config: config,
-          outputPath: outputPath,
-        ),
-      );
-      return;
-    }
     await _platformImplementation.startFile(outputPath: outputPath, config: config);
   }
 
   Future<void> _startPlatformStream({required AudioRecorderConfig config}) async {
-    if (_useControlWorker) {
-      await _nativeAudioRecorderControlWorker.execute<void>(
-        _NativeAudioRecorderWorkerRequest.withConfig(
-          operation: _NativeAudioRecorderWorkerOperation.startStream,
-          platform: platform,
-          config: config,
-        ),
-      );
-      return;
-    }
     await _platformImplementation.startStream(config: config);
   }
 
   Future<void> _stopPlatformRecorder() async {
-    if (_useControlWorker) {
-      await _nativeAudioRecorderControlWorker.execute<void>(
-        _NativeAudioRecorderWorkerRequest.simple(
-          operation: _NativeAudioRecorderWorkerOperation.stop,
-          platform: platform,
-        ),
-      );
-      return;
-    }
     await _platformImplementation.stop();
   }
 
   Future<void> _resetPlatformRecorder() async {
-    if (_useControlWorker) {
-      await _nativeAudioRecorderControlWorker.execute<void>(
-        _NativeAudioRecorderWorkerRequest.simple(
-          operation: _NativeAudioRecorderWorkerOperation.reset,
-          platform: platform,
-        ),
-      );
-      return;
-    }
     await _platformImplementation.reset();
   }
 
@@ -1146,22 +1005,14 @@ final class NativeAudioRecorder {
     bool enabled, {
     required AudioRecorderConfig config,
   }) async {
-    if (_useControlWorker) {
-      await _nativeAudioRecorderControlWorker.execute<void>(
-        _NativeAudioRecorderWorkerRequest.withConfig(
-          operation: _NativeAudioRecorderWorkerOperation.setContinousRecording,
-          platform: platform,
-          config: config,
-          enabled: enabled,
-        ),
-      );
-      return;
-    }
     await _platformImplementation.setContinousRecording(enabled, config: config);
   }
 
   void _ensureSupportedPlatform() {
-    _platformImplementation.ensureSupported();
+    if (platform == NativeAudioRecorderPlatform.unsupported ||
+        platform == NativeAudioRecorderPlatform.web) {
+      throw NativeAudioRecorderUnsupportedPlatformException(_unsupportedAudioRecorderMessage);
+    }
   }
 
   void _ensureIdle() {
@@ -1946,9 +1797,7 @@ final class NativeAudioRecorder {
     await _cleanupTempRecordingDirectory(_activeTempDirectory);
     _clearActiveRecordingOutputTracking();
     _resetAmplitudeState();
-    if (_useControlWorker) {
-      await NativeWorkerExecutor.shutdownAll(permanently: permanentlyShutdown);
-    }
+    await NativeWorkerExecutor.shutdownAll(permanently: permanentlyShutdown);
   }
 
   void _cancelContinousRecordingWarmTimer() {

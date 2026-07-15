@@ -27,7 +27,7 @@ dependencies:
     version: ^0.1.54
   speech_utils:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.2.18
+    version: ^0.3.0
 
 dev_dependencies:
   flutter_test:

@@ -1,0 +1,36 @@
+name: speech_utils_linux
+description: Linux miniaudio and FFmpeg AAC implementation for speech_utils.
+version: 0.3.0
+homepage: https://hippolabs.org
+publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: ">=3.44.0"
+
+dependencies:
+  code_assets: ^1.2.1
+  ffi: ^2.2.0
+  flutter:
+    sdk: flutter
+  hippo_native_deps:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.1
+  hooks: ^2.0.2
+  native_toolchain_c: ^0.19.2
+  path: ^1.9.1
+  speech_utils_core: ^0.3.0
+  speech_utils_platform_interface: ^0.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^6.1.0
+
+flutter:
+  plugin:
+    implements: speech_utils
+    platforms:
+      linux:
+        dartPluginClass: SpeechUtilsLinux

@@ -6,7 +6,6 @@ import 'package:cross_file/cross_file.dart';
 import '../recording/audio_recorder_config.dart';
 import '../recording/voice_segment.dart';
 import '../vad/speech_vad_config.dart';
-import 'audio_metadata.dart';
 import 'audio_segment_metrics.dart';
 import 'pause_split_options.dart';
 

@@ -1,4 +1,7 @@
 export 'package:cross_file/cross_file.dart' show XFile;
+export 'package:speech_utils_core/speech_utils_core.dart';
+export 'package:speech_utils_platform_interface/speech_utils_platform_interface.dart'
+    show NativeAudioRecorderCapabilities, NativeAudioRecorderPlatform, SpeechUtilsPlatform;
 export 'src/encoding/aac_encoder.dart';
 export 'src/encoding/ffmpeg_aac_encoder.dart';
 export 'src/encoding/native_audio_encoder.dart';

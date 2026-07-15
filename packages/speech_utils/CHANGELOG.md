@@ -1,3 +1,21 @@
+## 0.3.0
+
+- Start the behavior-preserving federated migration.
+- Extract public recorder, processing, encoding, amplitude, and input-device
+  types into `speech_utils_core`.
+- Add the typed `speech_utils_platform_interface` recorder backend boundary.
+- Route `NativeAudioRecorder()` through a registered federated backend when
+  one is available, with the existing native implementations retained as the
+  compatibility baseline during platform-package extraction.
+- Preserve the existing miniaudio, WebRTC processing, FFmpeg AAC, Apple,
+  Android, TEN VAD, worker-isolation, and cleanup implementations.
+- Extract the macOS and iOS recorder engines into independent endorsed
+  `speech_utils_macos` and `speech_utils_ios` packages.
+- Extract Windows miniaudio capture, WebRTC processing, FFmpeg/libavcodec AAC,
+  metadata, bindings, and runtime assets into `speech_utils_windows`.
+- Extract Linux miniaudio capture and FFmpeg/libavcodec AAC into
+  `speech_utils_linux`.
+
 ## 0.2.24
 
 - Prevent native workers from being restarted after final desktop app shutdown.

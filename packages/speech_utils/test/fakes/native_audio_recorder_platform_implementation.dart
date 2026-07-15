@@ -73,6 +73,7 @@ NativeAudioRecorder recorderFixture({
           supportsEchoCancellation: false,
           supportsVoiceIsolation: true,
         ),
+        NativeAudioRecorderPlatform.web ||
         NativeAudioRecorderPlatform.unsupported => const NativeAudioRecorderCapabilities(
           supportsNoiseCancellation: false,
           supportsEchoCancellation: false,
@@ -181,8 +182,7 @@ NativeAudioRecorder recorderFixture({
   );
 }
 
-final class _TestNativeAudioRecorderPlatformImplementation
-    extends NativeAudioRecorderPlatformImplementation {
+final class _TestNativeAudioRecorderPlatformImplementation extends SpeechUtilsPlatform {
   const _TestNativeAudioRecorderPlatformImplementation({
     required super.platform,
     required super.supportsInputSelection,

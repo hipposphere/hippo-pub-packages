@@ -1,5 +1,11 @@
 # speech_utils
 
+`speech_utils` is migrating in place to a federated package family. Public
+shared types now live in `speech_utils_core`, and native recorder backends use
+the contract from `speech_utils_platform_interface`. Existing native engines
+remain the compatibility and performance baseline while their assets are
+moved into endorsed platform packages. See [FEDERATION.md](FEDERATION.md).
+
 `speech_utils` provides four focused capabilities for PCM16 speech workflows:
 
 1. Split PCM16 recordings into snippets when silence is detected.
@@ -384,7 +390,7 @@ Notes:
 ## Platform notes
 
 - Segmentation: works on any Dart platform.
-- TEN VAD FFI: bundled via `hook/build.dart` for macOS, Windows x64,
+- TEN VAD FFI: bundled by `speech_utils_vad_ten` for macOS, Windows x64,
   Linux x64, Android (`arm64-v8a`, `armeabi-v7a`), and iOS arm64
   (device build).
 - AAC encoding (`NativeAudioEncoder`) without `ffmpeg` fallback:
@@ -406,29 +412,29 @@ Notes:
   - Linux: miniaudio
   - iOS: AVFoundation
 
-Windows/Linux FFmpeg build notes:
+Windows/Linux FFmpeg platform-package build notes:
 
 - The hook expects a prebuilt SDK in
-  `third_party/ffmpeg/windows/{include,lib,bin}` or
-  `third_party/ffmpeg/linux/{include,lib}`.
+  `speech_utils_windows/third_party/ffmpeg/windows/{include,lib,bin}` or
+  `speech_utils_linux/third_party/ffmpeg/linux/{include,lib}`.
 - Missing FFmpeg SDK now fails Windows/Linux AAC/metadata native asset build.
 - CI prebuild workflow:
   `.github/workflows/build_windows_ffmpeg_lib.yml` (manual trigger,
   uploads zipped `include/lib/bin` SDK artifact).
 - Build/verify the Linux SDK locally:
-  `packages/speech_utils/tool/build_linux_ffmpeg_sdk.sh`
-  `packages/speech_utils/tool/verify_linux_ffmpeg_bundle.sh`
+  `packages/speech_utils_linux/tool/build_linux_ffmpeg_sdk.sh`
+  `packages/speech_utils_linux/tool/verify_linux_ffmpeg_bundle.sh`
 - Windows runtime DLLs in `bin/` and Linux runtime `.so` files in `lib/` are
   bundled automatically as native assets.
-- See `third_party/ffmpeg/windows/README.md` and
-  `third_party/ffmpeg/linux/README.md` for full details.
+- See the `third_party/ffmpeg` directories in `speech_utils_windows` and
+  `speech_utils_linux` for full details.
 
 ## Maintainers
 
 Regenerate TEN bindings after changing bridge/header files:
 
 ```bash
-cd packages/speech_utils
+cd packages/speech_utils_vad_ten
 dart run ffigen --config ffigen.yaml
 ```
 

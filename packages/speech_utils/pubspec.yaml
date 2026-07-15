@@ -1,6 +1,6 @@
 name: speech_utils
 description: Utilities for PCM16 speech segmentation, segmented capture, and AAC compression.
-version: 0.2.24
+version: 0.3.0
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -12,23 +12,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  code_assets: ^1.2.1
+  speech_utils_android: ^0.3.0
+  speech_utils_core: ^0.3.0
+  speech_utils_ios: ^0.3.0
+  speech_utils_linux: ^0.3.0
+  speech_utils_macos: ^0.3.0
+  speech_utils_platform_interface: ^0.3.0
+  speech_utils_vad_ten: ^0.3.0
+  speech_utils_windows: ^0.3.0
   cross_file: ^0.3.5+4
-  ffi: ^2.2.0
-  hippo_native_deps:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.1.1
-  hooks: ^2.0.2
-  jni: ^1.0.0
-  jni_flutter: ^1.0.1
-  native_toolchain_c: ^0.19.2
   path: ^1.9.1
 
 dev_dependencies:
-  ffigen: ^20.1.1
   flutter_test:
     sdk: flutter
-  jnigen: ^0.16.0
   lints: ^6.1.0
   test: ^1.31.1
 
@@ -36,5 +33,12 @@ flutter:
   plugin:
     platforms:
       android:
-        package: org.hippolabs.speech_utils
-        pluginClass: SpeechUtilsPlugin
+        default_package: speech_utils_android
+      ios:
+        default_package: speech_utils_ios
+      linux:
+        default_package: speech_utils_linux
+      macos:
+        default_package: speech_utils_macos
+      windows:
+        default_package: speech_utils_windows

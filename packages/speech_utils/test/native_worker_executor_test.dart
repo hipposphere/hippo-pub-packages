@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:speech_utils/src/utils/native_worker_executor.dart';
 import 'package:speech_utils/speech_utils.dart';
 import 'package:test/test.dart';
 

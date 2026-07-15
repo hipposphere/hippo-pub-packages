@@ -979,10 +979,10 @@ packages:
     dependency: transitive
     description:
       name: hippobase_auth_models
-      sha256: e4fee5cc20fa5d9cec0ac27c65a16d7711166be774ccc3f0fd6ab017232fd7bc
+      sha256: e544dd46f1f5a54bcc616fe31f2aea1474d4a4cc587903a52eaae1f0bfff26ec
       url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.5"
+    version: "0.1.6"
   hooks:
     dependency: transitive
     description:

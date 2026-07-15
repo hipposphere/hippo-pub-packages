@@ -15,6 +15,14 @@
   metadata, bindings, and runtime assets into `speech_utils_windows`.
 - Extract Linux miniaudio capture and FFmpeg/libavcodec AAC into
   `speech_utils_linux`.
+- Extract Android AudioRecord/MediaRecorder, JNI bindings, permission flow,
+  and MediaCodec AAC into `speech_utils_android`.
+- Move AAC and metadata FFI implementations, generated bindings, build hooks,
+  native sources, and vendor runtimes entirely into their owning platform
+  packages.
+- Move TEN binaries, bindings, and build hooks into `speech_utils_vad_ten`.
+- Remove all native source trees, platform bindings, and native build hooks
+  from the app-facing `speech_utils` package.
 
 ## 0.2.24
 

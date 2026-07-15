@@ -27,13 +27,14 @@ risk control; iOS and macOS remain independent implementations.
 ## Current boundary
 
 `NativeAudioRecorder()` first uses a matching implementation registered with
-`SpeechUtilsPlatform.instance`. Until a platform owner has been extracted, it
-falls back to the existing in-package implementation. This keeps current apps
-working while allowing one platform at a time to move behind the federated
-contract.
+`SpeechUtilsPlatform.instance`, then resolves the corresponding endorsed
+package directly for non-plugin test and command-line contexts. There are no
+remaining in-package native recorder fallbacks.
 
 Extracted and endorsed now:
 
+- `speech_utils_android`: AudioRecord/MediaRecorder, JNI lifecycle, and
+  MediaCodec AAC.
 - `speech_utils_macos`: AVFoundation recorder and persistent control worker.
 - `speech_utils_ios`: independent AVFoundation/AVAudioSession recorder.
 - `speech_utils_windows`: miniaudio, WebRTC processing, FFmpeg AAC, and

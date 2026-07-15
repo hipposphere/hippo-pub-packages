@@ -1,0 +1,69 @@
+name: Speech Utils Windows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.44.4
+
+jobs:
+  test:
+    name: Windows ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2022
+          - windows-2025
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "any"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          cache-key: ${{ runner.OS }}-${{ matrix.os }}-flutter-${{ env.FLUTTER_VERSION }}
+          pub-cache-key: ${{ runner.OS }}-${{ matrix.os }}-pub-${{ env.FLUTTER_VERSION }}
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Bootstrap workspace
+        run: dart pub get
+
+      - name: Analyze speech_utils_core
+        working-directory: packages/speech_utils_core
+        run: dart analyze
+
+      - name: Analyze speech_utils_windows
+        working-directory: packages/speech_utils_windows
+        run: dart analyze
+
+      - name: Analyze speech_utils
+        working-directory: packages/speech_utils
+        run: dart analyze
+
+      - name: Test Windows platform package
+        working-directory: packages/speech_utils_windows
+        run: flutter test
+
+      - name: Test worker and native asset lifecycle
+        working-directory: packages/speech_utils
+        run: flutter test test/native_worker_executor_test.dart
+
+      - name: Test recorder lifecycle
+        working-directory: packages/speech_utils
+        run: flutter test test/native_audio_recorder_test.dart
+
+      - name: Build Windows example
+        working-directory: packages/speech_utils/example
+        run: flutter build windows --release

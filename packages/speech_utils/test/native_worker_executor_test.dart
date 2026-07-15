@@ -65,6 +65,33 @@ void main() {
     expect(await executor.execute<int>(<String, Object?>{'delayMs': 0, 'value': 2}), 2);
   });
 
+  test('execute survives shutdown while the worker is starting', () async {
+    final executor = NativeWorkerExecutor(
+      entrypoint: _delayedNativeWorkerMain,
+      debugName: 'speech_utils startup shutdown worker test',
+    );
+    addTearDown(executor.shutdown);
+
+    final commandFuture = executor.execute<int>(<String, Object?>{'delayMs': 0, 'value': 17});
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await executor.shutdown().timeout(const Duration(seconds: 2));
+
+    expect(await commandFuture.timeout(const Duration(seconds: 2)), 17);
+  });
+
+  test('worker exit before ready fails startup instead of hanging', () async {
+    final executor = NativeWorkerExecutor(
+      entrypoint: _exitingBeforeReadyWorkerMain,
+      debugName: 'speech_utils failed startup worker test',
+    );
+    addTearDown(executor.shutdown);
+
+    await expectLater(
+      executor.execute<int>(null).timeout(const Duration(seconds: 2)),
+      throwsStateError,
+    );
+  });
+
   test('permanent shutdown prevents the worker from being revived', () async {
     final executor = NativeWorkerExecutor(
       entrypoint: _testNativeWorkerMain,
@@ -126,4 +153,15 @@ void _testNativeWorkerMain(SendPort replyPort) {
     sleep(Duration(milliseconds: request['delayMs']! as int));
     return request['value']! as int;
   });
+}
+
+@pragma('vm:entry-point')
+void _delayedNativeWorkerMain(SendPort replyPort) {
+  sleep(const Duration(milliseconds: 100));
+  _testNativeWorkerMain(replyPort);
+}
+
+@pragma('vm:entry-point')
+void _exitingBeforeReadyWorkerMain(SendPort _) {
+  Isolate.exit();
 }

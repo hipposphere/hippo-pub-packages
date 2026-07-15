@@ -926,13 +926,18 @@ final class NativeAudioRecorder {
   Future<void> dispose() async {
     _appLifecycleListener?.dispose();
     _appLifecycleListener = null;
+    final shouldResetNativeRecorder =
+        _mode != _RecorderMode.stopped || _continousRecordingNativeEnabled;
     _cancelContinousRecordingWarmTimer();
     _continousRecordingEnabled = false;
     _continousRecordingNativeEnabled = false;
     _continousRecordingDuration = null;
     _continousRecordingError = null;
     try {
-      await reset();
+      if (shouldResetNativeRecorder) {
+        await reset();
+      }
+    } finally {
       _nativeAmplitudeTimer?.cancel();
       _nativeAmplitudeTimer = null;
       final amplitudeController = _amplitudeController;
@@ -940,8 +945,6 @@ final class NativeAudioRecorder {
       if (amplitudeController != null && !amplitudeController.isClosed) {
         await amplitudeController.close();
       }
-    } finally {
-      await NativeWorkerExecutor.shutdownAll();
     }
   }
 

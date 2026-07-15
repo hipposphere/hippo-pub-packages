@@ -35,24 +35,37 @@ final class NativeWorkerExecutor {
   bool _isPermanentlyShutdown = false;
 
   Future<T> execute<T>(Object? request) async {
-    _ensureNotPermanentlyShutdown();
-    final shutdownFuture = _shutdownFuture;
-    if (shutdownFuture != null) {
-      await shutdownFuture;
+    while (true) {
       _ensureNotPermanentlyShutdown();
+      final shutdownFuture = _shutdownFuture;
+      if (shutdownFuture != null) {
+        await shutdownFuture;
+        continue;
+      }
+
+      final commandPort = await (_startFuture ??= _start());
+      _ensureNotPermanentlyShutdown();
+
+      // Shutdown can begin while the worker isolate is starting. Let it finish
+      // and retry with a fresh worker instead of sending to the isolate that is
+      // about to be killed.
+      final shutdownAfterStart = _shutdownFuture;
+      if (shutdownAfterStart != null) {
+        await shutdownAfterStart;
+        continue;
+      }
+
+      final requestId = _nextRequestId++;
+      final completer = Completer<Object?>();
+      _pending[requestId] = completer;
+      try {
+        commandPort.send(<Object?>[requestId, request]);
+      } on Object catch (error, stackTrace) {
+        _pending.remove(requestId);
+        Error.throwWithStackTrace(error, stackTrace);
+      }
+      return (await completer.future) as T;
     }
-    final commandPort = await (_startFuture ??= _start());
-    _ensureNotPermanentlyShutdown();
-    final requestId = _nextRequestId++;
-    final completer = Completer<Object?>();
-    _pending[requestId] = completer;
-    try {
-      commandPort.send(<Object?>[requestId, request]);
-    } on Object catch (error, stackTrace) {
-      _pending.remove(requestId);
-      Error.throwWithStackTrace(error, stackTrace);
-    }
-    return (await completer.future) as T;
   }
 
   /// Stops the current worker after its queued commands finish.
@@ -169,17 +182,27 @@ final class NativeWorkerExecutor {
         ),
         _ => StackTrace.current,
       };
+      final failure =
+          error ?? StateError('$_debugName terminated during startup');
+      if (!ready.isCompleted) {
+        ready.completeError(failure, stackTrace);
+      }
       _handleWorkerTermination(
         generation,
-        error: error,
+        error: failure,
         stackTrace: stackTrace,
       );
     });
     exitPort.listen((Object? _) {
+      final error = StateError('$_debugName exited unexpectedly');
+      final stackTrace = StackTrace.current;
+      if (!ready.isCompleted) {
+        ready.completeError(error, stackTrace);
+      }
       _handleWorkerTermination(
         generation,
-        error: StateError('$_debugName exited unexpectedly'),
-        stackTrace: StackTrace.current,
+        error: error,
+        stackTrace: stackTrace,
       );
     });
 

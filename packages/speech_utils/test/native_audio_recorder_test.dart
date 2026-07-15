@@ -721,6 +721,46 @@ void main() {
       await recorder.dispose();
     });
 
+    test('disposing an idle Windows facade does not reset shared native state', () async {
+      var resetCalls = 0;
+      var nativeRecording = false;
+      final activeRecorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        startPcmStreamFn:
+            ({
+              required sampleRateHz,
+              required channelCount,
+              required framesPerChunk,
+              required inputDeviceId,
+            }) {
+              nativeRecording = true;
+            },
+        resetFn: () {
+          resetCalls++;
+          nativeRecording = false;
+        },
+        isRecordingFn: () => nativeRecording,
+      );
+      final idleRecorder = recorderFixture(
+        platform: NativeAudioRecorderPlatform.windows,
+        resetFn: () {
+          resetCalls++;
+          nativeRecording = false;
+        },
+      );
+
+      await activeRecorder.startPcmStream(pollInterval: const Duration(seconds: 1));
+      await idleRecorder.dispose();
+
+      expect(nativeRecording, isTrue);
+      expect(activeRecorder.isRecording, isTrue);
+      expect(resetCalls, 0);
+
+      await activeRecorder.dispose();
+      expect(nativeRecording, isFalse);
+      expect(resetCalls, 1);
+    });
+
     test('Windows app exit request resets native recorder state', () async {
       var resetCalls = 0;
 

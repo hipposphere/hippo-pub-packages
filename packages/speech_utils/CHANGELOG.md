@@ -1,3 +1,7 @@
+## 0.3.1
+
+- Resolve all federated speech packages from the Hippo internal registry.
+
 ## 0.3.0
 
 - Start the behavior-preserving federated migration.

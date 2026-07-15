@@ -1,6 +1,6 @@
 name: speech_utils_platform_interface
 description: Platform backend contract for the federated speech_utils package family.
-version: 0.3.0
+version: 0.3.1
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -10,7 +10,9 @@ environment:
 
 dependencies:
   ffi: ^2.2.0
-  speech_utils_core: ^0.3.0
+  speech_utils_core:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.0
 
 dev_dependencies:
   lints: ^6.1.0

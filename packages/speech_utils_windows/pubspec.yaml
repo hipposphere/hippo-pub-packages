@@ -1,6 +1,6 @@
 name: speech_utils_windows
 description: Windows miniaudio, WebRTC processing, and FFmpeg AAC implementation for speech_utils.
-version: 0.3.0
+version: 0.3.1
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -20,8 +20,12 @@ dependencies:
   hooks: ^2.0.2
   native_toolchain_c: ^0.19.2
   path: ^1.9.1
-  speech_utils_core: ^0.3.0
-  speech_utils_platform_interface: ^0.3.0
+  speech_utils_core:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.0
+  speech_utils_platform_interface:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.1
 
 dev_dependencies:
   flutter_test:

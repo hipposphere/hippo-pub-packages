@@ -1,6 +1,6 @@
 name: speech_utils_vad_ten
 description: TEN VAD native assets and FFI provider for speech_utils.
-version: 0.3.0
+version: 0.3.1
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -14,7 +14,9 @@ dependencies:
   hooks: ^2.0.2
   native_toolchain_c: ^0.19.2
   path: ^1.9.1
-  speech_utils_core: ^0.3.0
+  speech_utils_core:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.0
 
 dev_dependencies:
   ffigen: ^20.1.1

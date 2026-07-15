@@ -1,6 +1,6 @@
 name: speech_utils
 description: Utilities for PCM16 speech segmentation, segmented capture, and AAC compression.
-version: 0.3.0
+version: 0.3.1
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -12,14 +12,30 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  speech_utils_android: ^0.3.0
-  speech_utils_core: ^0.3.0
-  speech_utils_ios: ^0.3.0
-  speech_utils_linux: ^0.3.0
-  speech_utils_macos: ^0.3.0
-  speech_utils_platform_interface: ^0.3.0
-  speech_utils_vad_ten: ^0.3.0
-  speech_utils_windows: ^0.3.0
+  speech_utils_android:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.1
+  speech_utils_core:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.0
+  speech_utils_ios:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.1
+  speech_utils_linux:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.1
+  speech_utils_macos:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.1
+  speech_utils_platform_interface:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.1
+  speech_utils_vad_ten:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.1
+  speech_utils_windows:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.1
   cross_file: ^0.3.5+4
   path: ^1.9.1
 

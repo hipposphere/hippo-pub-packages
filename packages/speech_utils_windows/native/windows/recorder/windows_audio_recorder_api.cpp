@@ -8,19 +8,24 @@
 #include <mmdeviceapi.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
+#include <chrono>
 #include <cmath>
+#include <condition_variable>
 #include <cstdio>
 #include <cstring>
 #include <deque>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 
 #include "../../../third_party/miniaudio/include/miniaudio.h"
+#include "bounded_spsc_sample_queue.h"
 
 namespace speech_utils::windows_recorder {
 
@@ -588,6 +593,7 @@ class WindowsAudioRecorderState {
   ~WindowsAudioRecorderState() {
     char error[1] = {0};
     Reset(error, sizeof(error));
+    ShutdownProcessingThread();
   }
 
   int32_t ListInputDevicesJson(char* out_json_utf8, uint32_t out_json_capacity,
@@ -649,6 +655,14 @@ class WindowsAudioRecorderState {
         windows_flags, windows_capture_category_code, windows_use_communications_device,
         windows_voice_processing_mode_code, input_device_id_utf8);
 
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (mode_ == RecorderMode::kFile || mode_ == RecorderMode::kStream) {
+        WriteError("Recorder is already running.", error_utf8, error_utf8_capacity);
+        return -6;
+      }
+    }
+
     FILE* file = _wfopen(output_path.c_str(), L"wb");
     if (file == nullptr) {
       WriteError("Failed to open output file for writing.", error_utf8, error_utf8_capacity);
@@ -661,43 +675,54 @@ class WindowsAudioRecorderState {
       return -5;
     }
 
-    while (true) {
-      bool should_stop_device = false;
-      {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (mode_ == RecorderMode::kFile || mode_ == RecorderMode::kStream) {
-          std::fclose(file);
-          WriteError("Recorder is already running.", error_utf8, error_utf8_capacity);
-          return -6;
-        }
-
-        warm_capture_config_ = requested_config;
-
-        if (device_initialized_ && !current_device_config_.IsCompatibleWith(requested_config)) {
-          PrepareDeviceRestartLocked();
-          should_stop_device = true;
-        } else {
-          if (!device_initialized_ &&
-              !StartDeviceLocked(requested_config, error_utf8, error_utf8_capacity)) {
-            std::fclose(file);
-            return -7;
-          }
-
-          file_ = file;
-          sample_rate_hz_ = sample_rate_hz;
-          channel_count_ = channel_count;
-          data_bytes_written_ = 0;
-          ResetAmplitudeStateLocked();
-          mode_ = RecorderMode::kFile;
-          return 0;
-        }
-      }
-
-      if (should_stop_device) {
-        ma_device_stop(&device_);
-        ma_device_uninit(&device_);
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (mode_ == RecorderMode::kFile || mode_ == RecorderMode::kStream) {
+        std::fclose(file);
+        WriteError("Recorder is already running.", error_utf8, error_utf8_capacity);
+        return -6;
       }
     }
+
+    PauseCaptureAndDrain();
+    bool should_stop_device = false;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (mode_ == RecorderMode::kFile || mode_ == RecorderMode::kStream) {
+        ResumeCapture();
+        std::fclose(file);
+        WriteError("Recorder is already running.", error_utf8, error_utf8_capacity);
+        return -6;
+      }
+      warm_capture_config_ = requested_config;
+      if (device_initialized_ && !current_device_config_.IsCompatibleWith(requested_config)) {
+        PrepareDeviceRestartLocked();
+        should_stop_device = true;
+      }
+    }
+
+    if (should_stop_device) {
+      ma_device_stop(&device_);
+      ma_device_uninit(&device_);
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (!device_initialized_ &&
+          !StartDeviceLocked(requested_config, error_utf8, error_utf8_capacity)) {
+        std::fclose(file);
+        return -7;
+      }
+
+      file_ = file;
+      data_bytes_written_ = 0;
+      processing_error_.clear();
+      session_dropped_samples_start_ = capture_queue_.DroppedSamples();
+      ResetAmplitudeStateLocked();
+      mode_ = RecorderMode::kFile;
+    }
+    ResumeCapture();
+    return 0;
   }
 
   int32_t StartStream(const speech_utils::recorder::RecorderStartConfig& start_config,
@@ -731,42 +756,53 @@ class WindowsAudioRecorderState {
         windows_capture_category_code, windows_use_communications_device,
         windows_voice_processing_mode_code, input_device_id_utf8);
 
-    while (true) {
-      bool should_stop_device = false;
-      {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (mode_ == RecorderMode::kFile || mode_ == RecorderMode::kStream) {
-          WriteError("Recorder is already running.", error_utf8, error_utf8_capacity);
-          return -2;
-        }
-
-        warm_capture_config_ = requested_config;
-
-        if (device_initialized_ && !current_device_config_.IsCompatibleWith(requested_config)) {
-          PrepareDeviceRestartLocked();
-          should_stop_device = true;
-        } else {
-          if (!device_initialized_ &&
-              !StartDeviceLocked(requested_config, error_utf8, error_utf8_capacity)) {
-            return -3;
-          }
-
-          ClearBufferedAudioLocked();
-          stream_sample_limit_ =
-              std::max<std::size_t>(sample_rate_hz * channel_count * 5,
-                                    static_cast<std::size_t>(frames_per_chunk) * channel_count *
-                                        16);
-          ResetAmplitudeStateLocked();
-          mode_ = RecorderMode::kStream;
-          return 0;
-        }
-      }
-
-      if (should_stop_device) {
-        ma_device_stop(&device_);
-        ma_device_uninit(&device_);
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (mode_ == RecorderMode::kFile || mode_ == RecorderMode::kStream) {
+        WriteError("Recorder is already running.", error_utf8, error_utf8_capacity);
+        return -2;
       }
     }
+
+    PauseCaptureAndDrain();
+    bool should_stop_device = false;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (mode_ == RecorderMode::kFile || mode_ == RecorderMode::kStream) {
+        ResumeCapture();
+        WriteError("Recorder is already running.", error_utf8, error_utf8_capacity);
+        return -2;
+      }
+      warm_capture_config_ = requested_config;
+      if (device_initialized_ && !current_device_config_.IsCompatibleWith(requested_config)) {
+        PrepareDeviceRestartLocked();
+        should_stop_device = true;
+      }
+    }
+
+    if (should_stop_device) {
+      ma_device_stop(&device_);
+      ma_device_uninit(&device_);
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (!device_initialized_ &&
+          !StartDeviceLocked(requested_config, error_utf8, error_utf8_capacity)) {
+        return -3;
+      }
+
+      ClearBufferedAudioLocked();
+      stream_sample_limit_ =
+          std::max<std::size_t>(sample_rate_hz * channel_count * 5,
+                                static_cast<std::size_t>(frames_per_chunk) * channel_count * 16);
+      processing_error_.clear();
+      session_dropped_samples_start_ = capture_queue_.DroppedSamples();
+      ResetAmplitudeStateLocked();
+      mode_ = RecorderMode::kStream;
+    }
+    ResumeCapture();
+    return 0;
   }
 
   int32_t SetContinousCapture(int32_t enabled,
@@ -799,63 +835,73 @@ class WindowsAudioRecorderState {
           start_config->input_device_id_utf8);
     }
 
-    while (true) {
-      bool should_stop_device = false;
-      bool should_start_device = false;
-      CaptureDeviceConfig config_to_start{};
-
+    if (!should_enable) {
       {
         std::lock_guard<std::mutex> lock(mutex_);
-        continuous_capture_enabled_ = should_enable;
-
-        if (should_enable) {
-          warm_capture_config_ = requested_config;
-          if (mode_ == RecorderMode::kFile || mode_ == RecorderMode::kStream) {
-            return 0;
-          }
-          if (device_initialized_ && current_device_config_.IsCompatibleWith(warm_capture_config_)) {
-            mode_ = RecorderMode::kContinuous;
-            return 0;
-          }
-          if (device_initialized_) {
-            PrepareDeviceRestartLocked();
-            should_stop_device = true;
-          } else {
-            config_to_start = warm_capture_config_;
-            should_start_device = IsCaptureDeviceConfigValid(config_to_start);
-          }
-        } else {
-          if (mode_ == RecorderMode::kContinuous && device_initialized_) {
-            PrepareDeviceRestartLocked();
-            should_stop_device = true;
-          } else {
-            return 0;
-          }
+        continuous_capture_enabled_ = false;
+        if (mode_ != RecorderMode::kContinuous || !device_initialized_) {
+          return 0;
         }
       }
 
+      PauseCaptureAndDrain();
+      bool should_stop_device = false;
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (mode_ == RecorderMode::kContinuous && device_initialized_) {
+          PrepareDeviceRestartLocked();
+          should_stop_device = true;
+        }
+      }
       if (should_stop_device) {
         ma_device_stop(&device_);
         ma_device_uninit(&device_);
-        if (!should_enable) {
-          return 0;
-        }
-        continue;
+        ShutdownProcessingThread();
       }
-
-      if (should_start_device) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (!StartDeviceLocked(config_to_start, error_utf8, error_utf8_capacity)) {
-          continuous_capture_enabled_ = false;
-          return -3;
-        }
-        ResetAmplitudeStateLocked();
-        mode_ = RecorderMode::kContinuous;
-        return 0;
-      }
-
       return 0;
     }
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      continuous_capture_enabled_ = true;
+      warm_capture_config_ = requested_config;
+      if (mode_ == RecorderMode::kFile || mode_ == RecorderMode::kStream) {
+        return 0;
+      }
+      if (device_initialized_ && current_device_config_.IsCompatibleWith(requested_config)) {
+        mode_ = RecorderMode::kContinuous;
+        ResetAmplitudeStateLocked();
+        ResumeCapture();
+        return 0;
+      }
+    }
+
+    PauseCaptureAndDrain();
+    bool should_stop_device = false;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (device_initialized_ && !current_device_config_.IsCompatibleWith(requested_config)) {
+        PrepareDeviceRestartLocked();
+        should_stop_device = true;
+      }
+    }
+    if (should_stop_device) {
+      ma_device_stop(&device_);
+      ma_device_uninit(&device_);
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (!device_initialized_ &&
+          !StartDeviceLocked(requested_config, error_utf8, error_utf8_capacity)) {
+        continuous_capture_enabled_ = false;
+        return -3;
+      }
+      ResetAmplitudeStateLocked();
+      mode_ = RecorderMode::kContinuous;
+    }
+    ResumeCapture();
+    return 0;
   }
 
   int32_t ReadStreamPcm16(int16_t* out_samples, uint32_t out_sample_capacity,
@@ -891,13 +937,24 @@ class WindowsAudioRecorderState {
     bool should_stop_device = false;
     bool should_start_device = false;
     CaptureDeviceConfig warm_config_to_start{};
+    std::string processing_error;
+    uint64_t dropped_samples = 0;
 
     {
       std::lock_guard<std::mutex> lock(mutex_);
       if (mode_ == RecorderMode::kStopped || mode_ == RecorderMode::kContinuous) {
         return 0;
       }
+    }
 
+    PauseCaptureAndDrain();
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (mode_ == RecorderMode::kStopped || mode_ == RecorderMode::kContinuous) {
+        ResumeCapture();
+        return 0;
+      }
       const bool keep_device_running =
           continuous_capture_enabled_ && device_initialized_ &&
           IsCaptureDeviceConfigValid(warm_capture_config_) &&
@@ -915,6 +972,9 @@ class WindowsAudioRecorderState {
       sample_rate_hz = sample_rate_hz_;
       channel_count = channel_count_;
       data_bytes_written_ = 0;
+      processing_error = processing_error_;
+      processing_error_.clear();
+      dropped_samples = capture_queue_.DroppedSamples() - session_dropped_samples_start_;
 
       if (!keep_device_running) {
         should_stop_device = device_initialized_;
@@ -924,28 +984,57 @@ class WindowsAudioRecorderState {
       }
     }
 
+    if (!should_stop_device) {
+      ResumeCapture();
+    }
+
+    std::string stop_error;
     if (should_stop_device) {
-      ma_device_stop(&device_);
+      const ma_result stop_result = ma_device_stop(&device_);
+      if (stop_result != MA_SUCCESS) {
+        stop_error = DescribeMiniaudioError("Failed to stop miniaudio capture device", stop_result);
+      }
       ma_device_uninit(&device_);
+      if (!should_start_device) {
+        ShutdownProcessingThread();
+      }
     }
 
     if (file_to_finalize != nullptr) {
       if (!FinalizeWavHeader(file_to_finalize, data_bytes_written, sample_rate_hz, channel_count)) {
-        WriteError("Failed to finalize WAV header.", error_utf8, error_utf8_capacity);
-        std::fclose(file_to_finalize);
-        return -1;
+        stop_error = "Failed to finalize WAV header.";
       }
-      std::fclose(file_to_finalize);
+      if (std::fclose(file_to_finalize) != 0 && stop_error.empty()) {
+        stop_error = "Failed to close WAV output file.";
+      }
     }
 
     if (should_start_device) {
-      std::lock_guard<std::mutex> lock(mutex_);
-      if (!StartDeviceLocked(warm_config_to_start, error_utf8, error_utf8_capacity)) {
-        continuous_capture_enabled_ = false;
-        return -2;
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!StartDeviceLocked(warm_config_to_start, error_utf8, error_utf8_capacity)) {
+          continuous_capture_enabled_ = false;
+          return -2;
+        }
+        ResetAmplitudeStateLocked();
+        mode_ = RecorderMode::kContinuous;
       }
-      ResetAmplitudeStateLocked();
-      mode_ = RecorderMode::kContinuous;
+      ResumeCapture();
+    }
+
+    if (!processing_error.empty()) {
+      WriteError(processing_error, error_utf8, error_utf8_capacity);
+      return -3;
+    }
+    if (dropped_samples > 0) {
+      WriteError("The native capture queue overflowed and dropped " +
+                     std::to_string(dropped_samples) + " PCM samples.",
+                 error_utf8, error_utf8_capacity);
+      return -4;
+    }
+    if (!stop_error.empty()) {
+      WriteError(stop_error, error_utf8, error_utf8_capacity);
+      return -5;
     }
 
     return 0;
@@ -960,7 +1049,12 @@ class WindowsAudioRecorderState {
       if (mode_ == RecorderMode::kStopped && !device_initialized_) {
         return 0;
       }
+    }
 
+    PauseCaptureAndDrain();
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
       file_to_close = file_;
       file_ = nullptr;
       mode_ = RecorderMode::kStopped;
@@ -970,15 +1064,28 @@ class WindowsAudioRecorderState {
       PrepareDeviceRestartLocked();
     }
 
+    std::string reset_error;
     if (should_stop_device) {
-      ma_device_stop(&device_);
+      const ma_result stop_result = ma_device_stop(&device_);
+      if (stop_result != MA_SUCCESS) {
+        reset_error =
+            DescribeMiniaudioError("Failed to stop miniaudio capture device", stop_result);
+      }
       ma_device_uninit(&device_);
     }
 
     if (file_to_close != nullptr) {
-      std::fclose(file_to_close);
+      if (std::fclose(file_to_close) != 0) {
+        reset_error = "Failed to close WAV output file during reset.";
+      }
     }
 
+    ShutdownProcessingThread();
+
+    if (!reset_error.empty()) {
+      WriteError(reset_error, error_utf8, error_utf8_capacity);
+      return -1;
+    }
     WriteError("", error_utf8, error_utf8_capacity);
     return 0;
   }
@@ -1008,25 +1115,163 @@ class WindowsAudioRecorderState {
     return 0;
   }
 
-  void OnCapturedSamples(const int16_t* samples, uint32_t frame_count) {
+  void OnCapturedSamples(const int16_t* samples, uint32_t frame_count) noexcept {
     if (samples == nullptr || frame_count == 0) {
       return;
     }
 
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (mode_ == RecorderMode::kStopped) {
+    callbacks_in_flight_.fetch_add(1, std::memory_order_acq_rel);
+    bool capture_attempted = false;
+    if (capture_accepting_.load(std::memory_order_acquire)) {
+      const uint32_t channel_count = callback_channel_count_.load(std::memory_order_relaxed);
+      const auto sample_count = static_cast<std::size_t>(frame_count) * channel_count;
+      if (channel_count > 0 && capture_accepting_.load(std::memory_order_acquire)) {
+        capture_attempted = true;
+        capture_queue_.TryPush(samples, sample_count);
+      }
+    }
+    callbacks_in_flight_.fetch_sub(1, std::memory_order_acq_rel);
+
+    if (capture_attempted) {
+      capture_available_cv_.notify_one();
+    }
+    if (drain_requested_.load(std::memory_order_relaxed)) {
+      capture_drained_cv_.notify_all();
+    }
+  }
+
+ private:
+  void ConfigureCapturePipelineLocked(uint32_t sample_rate_hz, uint32_t channel_count,
+                                      uint32_t preferred_period_frames) {
+    const std::size_t period_frames =
+        preferred_period_frames > 0
+            ? preferred_period_frames
+            : std::max<std::size_t>(sample_rate_hz / 100, 1);
+    const std::size_t period_samples = period_frames * channel_count;
+    const std::size_t queue_capacity =
+        std::max<std::size_t>(static_cast<std::size_t>(sample_rate_hz) * channel_count * 2,
+                              period_samples * 32);
+    const std::size_t webrtc_frame_samples =
+        webrtc_processing_active_ ? static_cast<std::size_t>(sample_rate_hz / 100) * channel_count
+                                  : 0;
+    const std::size_t processing_batch_samples =
+        std::max<std::size_t>(period_samples * 8, webrtc_frame_samples * 10);
+
+    capture_queue_.Configure(queue_capacity);
+    processing_input_buffer_.assign(std::max<std::size_t>(processing_batch_samples, 1), 0);
+    callback_channel_count_.store(channel_count, std::memory_order_relaxed);
+    processing_batch_samples_.store(processing_input_buffer_.size(), std::memory_order_relaxed);
+    webrtc_frame_samples_.store(webrtc_frame_samples, std::memory_order_relaxed);
+    drain_requested_.store(false, std::memory_order_relaxed);
+  }
+
+  void PauseCaptureAndDrain() {
+    capture_accepting_.store(false, std::memory_order_release);
+    std::unique_lock<std::mutex> lock(capture_wait_mutex_);
+    drain_requested_.store(true, std::memory_order_release);
+    const auto is_drained = [this] {
+      return callbacks_in_flight_.load(std::memory_order_acquire) == 0 &&
+             capture_queue_.Size() == 0 &&
+             !processing_in_flight_.load(std::memory_order_acquire);
+    };
+    while (!is_drained()) {
+      capture_available_cv_.notify_one();
+      capture_drained_cv_.wait_for(lock, std::chrono::milliseconds(10));
+    }
+    drain_requested_.store(false, std::memory_order_release);
+  }
+
+  void ResumeCapture() {
+    drain_requested_.store(false, std::memory_order_release);
+    capture_accepting_.store(true, std::memory_order_release);
+  }
+
+  bool HasProcessableCaptureSamples() const {
+    const std::size_t available = capture_queue_.Size();
+    if (available == 0) {
+      return false;
+    }
+    const std::size_t webrtc_frame_samples =
+        webrtc_frame_samples_.load(std::memory_order_relaxed);
+    return drain_requested_.load(std::memory_order_acquire) || webrtc_frame_samples == 0 ||
+           available >= webrtc_frame_samples;
+  }
+
+  void ProcessingThreadMain() {
+    while (true) {
+      {
+        std::unique_lock<std::mutex> lock(capture_wait_mutex_);
+        capture_available_cv_.wait(lock, [this] {
+          return processing_thread_shutdown_.load(std::memory_order_acquire) ||
+                 HasProcessableCaptureSamples();
+        });
+      }
+
+      if (processing_thread_shutdown_.load(std::memory_order_acquire)) {
+        return;
+      }
+      try {
+        ProcessQueuedCaptureSamples();
+      } catch (...) {
+        {
+          std::lock_guard<std::mutex> lock(mutex_);
+          if (processing_error_.empty()) {
+            processing_error_ = "The native audio processing thread failed unexpectedly.";
+          }
+        }
+        capture_queue_.Clear();
+        processing_in_flight_.store(false, std::memory_order_release);
+        capture_drained_cv_.notify_all();
+      }
+    }
+  }
+
+  void ProcessQueuedCaptureSamples() {
+    while (true) {
+      const std::size_t available = capture_queue_.Size();
+      if (available == 0) {
+        capture_drained_cv_.notify_all();
+        return;
+      }
+
+      const bool draining = drain_requested_.load(std::memory_order_acquire);
+      const std::size_t webrtc_frame_samples =
+          webrtc_frame_samples_.load(std::memory_order_relaxed);
+      std::size_t sample_count = std::min(
+          available, processing_batch_samples_.load(std::memory_order_relaxed));
+      if (!draining && webrtc_frame_samples > 0) {
+        sample_count -= sample_count % webrtc_frame_samples;
+        if (sample_count == 0) {
+          return;
+        }
+      }
+
+      processing_in_flight_.store(true, std::memory_order_release);
+      const std::size_t popped =
+          capture_queue_.Pop(processing_input_buffer_.data(), sample_count);
+      if (popped > 0) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        ProcessCapturedSamplesLocked(processing_input_buffer_.data(), popped);
+      }
+      processing_in_flight_.store(false, std::memory_order_release);
+      capture_drained_cv_.notify_all();
+    }
+  }
+
+  void ProcessCapturedSamplesLocked(const int16_t* samples, std::size_t sample_count) {
+    if (mode_ == RecorderMode::kStopped || samples == nullptr || sample_count == 0) {
       return;
     }
 
-    const auto sample_count = static_cast<std::size_t>(frame_count) * channel_count_;
     const int16_t* processed_samples = MaybeProcessSamplesLocked(samples, sample_count);
     UpdateAmplitudeLocked(processed_samples, sample_count);
 
     if (mode_ == RecorderMode::kFile && file_ != nullptr) {
       const auto written =
           std::fwrite(processed_samples, sizeof(int16_t), sample_count, file_);
-      if (written == sample_count) {
-        data_bytes_written_ += static_cast<uint32_t>(written * sizeof(int16_t));
+      data_bytes_written_ += static_cast<uint32_t>(written * sizeof(int16_t));
+      if (written != sample_count && processing_error_.empty()) {
+        processing_error_ = "Failed to write all captured samples to the WAV file.";
       }
       return;
     }
@@ -1041,7 +1286,24 @@ class WindowsAudioRecorderState {
     }
   }
 
-private:
+  void ShutdownProcessingThread() {
+    {
+      std::lock_guard<std::mutex> lock(capture_wait_mutex_);
+      processing_thread_shutdown_.store(true, std::memory_order_release);
+    }
+    capture_available_cv_.notify_all();
+    if (processing_thread_.joinable()) {
+      processing_thread_.join();
+    }
+  }
+
+  void EnsureProcessingThreadLocked() {
+    if (!processing_thread_.joinable()) {
+      processing_thread_shutdown_.store(false, std::memory_order_relaxed);
+      processing_thread_ = std::thread(&WindowsAudioRecorderState::ProcessingThreadMain, this);
+    }
+  }
+
   void ResetAmplitudeStateLocked() {
     current_amplitude_dbfs_ = -90.0;
     max_amplitude_dbfs_ = -90.0;
@@ -1053,6 +1315,7 @@ private:
   }
 
   void PrepareDeviceRestartLocked() {
+    capture_accepting_.store(false, std::memory_order_release);
     mode_ = RecorderMode::kStopped;
     file_ = nullptr;
     ClearBufferedAudioLocked();
@@ -1064,7 +1327,10 @@ private:
     data_bytes_written_ = 0;
     sample_rate_hz_ = 0;
     channel_count_ = 0;
-    ResetSoftwareProcessingStateLocked();
+    callback_channel_count_.store(0, std::memory_order_relaxed);
+    webrtc_frame_samples_.store(0, std::memory_order_relaxed);
+    processing_error_.clear();
+    ResetVoiceProcessingStateLocked();
   }
 
   static double ComputeDbfs(const int16_t* samples, std::size_t sample_count) {
@@ -1103,7 +1369,7 @@ private:
   }
 
   static void DataCallback(ma_device* device, void* output, const void* input,
-                           ma_uint32 frame_count) {
+                           ma_uint32 frame_count) noexcept {
     (void)output;
     if (device == nullptr || input == nullptr) {
       return;
@@ -1173,11 +1439,9 @@ private:
     return true;
   }
 
-  void ResetSoftwareProcessingStateLocked() {
+  void ResetSoftwareProcessingBuffersLocked() {
     software_noise_floor_rms_ = 0.015;
     software_agc_gain_ = 1.0;
-    webrtc_processing_active_ = false;
-    webrtc_processor_.Reset();
 
     const auto channel_count = std::max<uint32_t>(channel_count_, 1);
     hpf_prev_input_by_channel_.assign(channel_count, 0.0);
@@ -1186,13 +1450,22 @@ private:
     software_output_buffer_.clear();
   }
 
+  void ResetVoiceProcessingStateLocked() {
+    webrtc_processing_active_ = false;
+    webrtc_processor_.Reset();
+    ResetSoftwareProcessingBuffersLocked();
+  }
+
   const int16_t* MaybeProcessSamplesLocked(const int16_t* samples, std::size_t sample_count) {
     if (samples == nullptr || sample_count == 0 ||
         active_processing_backend_ != VoiceProcessingBackend::kSoftware) {
       return samples;
     }
 
-    if (webrtc_processing_active_) {
+    const std::size_t webrtc_frame_samples =
+        webrtc_frame_samples_.load(std::memory_order_relaxed);
+    if (webrtc_processing_active_ && webrtc_frame_samples > 0 &&
+        sample_count % webrtc_frame_samples == 0) {
       std::size_t processed_sample_count = 0;
       std::string webrtc_error;
       const int16_t* webrtc_processed = webrtc_processor_.ProcessInterleaved(
@@ -1201,6 +1474,10 @@ private:
         return webrtc_processed;
       }
       webrtc_processing_active_ = false;
+      const std::string message =
+          "speech_utils_windows: WebRTC processing failed; using software fallback: " +
+          webrtc_error + "\n";
+      OutputDebugStringA(message.c_str());
     }
 
     software_frame_buffer_.resize(sample_count);
@@ -1355,9 +1632,11 @@ private:
       return false;
     }
 
+    sample_rate_hz_ = sample_rate_hz;
+    channel_count_ = channel_count;
     active_processing_backend_ = voice_processing_selection.backend;
     software_processing_config_ = voice_processing_selection.software;
-    webrtc_processing_active_ = false;
+    ResetVoiceProcessingStateLocked();
 
     if (active_processing_backend_ == VoiceProcessingBackend::kSoftware) {
       WebRtcProcessingConfig webrtc_config{};
@@ -1423,26 +1702,41 @@ private:
 
     const ma_result init_result = ma_device_init(nullptr, &config, &device_);
     if (init_result != MA_SUCCESS) {
+      callback_channel_count_.store(0, std::memory_order_relaxed);
+      ResetVoiceProcessingStateLocked();
       WriteError(DescribeMiniaudioError("Failed to initialize miniaudio capture device",
                                         init_result),
                  error_utf8, error_utf8_capacity);
       return false;
     }
 
+    try {
+      EnsureProcessingThreadLocked();
+      ConfigureCapturePipelineLocked(sample_rate_hz, channel_count, effective_period_frames);
+    } catch (...) {
+      ma_device_uninit(&device_);
+      callback_channel_count_.store(0, std::memory_order_relaxed);
+      ResetVoiceProcessingStateLocked();
+      ShutdownProcessingThread();
+      WriteError("Failed to initialize the native audio processing pipeline.", error_utf8,
+                 error_utf8_capacity);
+      return false;
+    }
+
     const ma_result start_result = ma_device_start(&device_);
     if (start_result != MA_SUCCESS) {
       ma_device_uninit(&device_);
+      callback_channel_count_.store(0, std::memory_order_relaxed);
+      ResetVoiceProcessingStateLocked();
+      ShutdownProcessingThread();
       WriteError(DescribeMiniaudioError("Failed to start miniaudio capture device", start_result),
                  error_utf8, error_utf8_capacity);
       return false;
     }
 
     device_initialized_ = true;
-    sample_rate_hz_ = sample_rate_hz;
-    channel_count_ = channel_count;
     data_bytes_written_ = 0;
     current_device_config_ = requested_config;
-    ResetSoftwareProcessingStateLocked();
     return true;
   }
 
@@ -1474,9 +1768,32 @@ private:
 
   std::deque<int16_t> stream_samples_;
   std::size_t stream_sample_limit_ = 0;
+
+  std::mutex capture_wait_mutex_;
+  std::condition_variable capture_available_cv_;
+  std::condition_variable capture_drained_cv_;
+  BoundedSpscSampleQueue capture_queue_;
+  std::vector<int16_t> processing_input_buffer_{1, 0};
+  std::atomic<bool> processing_thread_shutdown_{false};
+  std::atomic<bool> capture_accepting_{false};
+  std::atomic<bool> drain_requested_{false};
+  std::atomic<bool> processing_in_flight_{false};
+  std::atomic<uint32_t> callbacks_in_flight_{0};
+  std::atomic<uint32_t> callback_channel_count_{0};
+  std::atomic<std::size_t> processing_batch_samples_{1};
+  std::atomic<std::size_t> webrtc_frame_samples_{0};
+  std::string processing_error_;
+  uint64_t session_dropped_samples_start_ = 0;
+  std::thread processing_thread_;
 };
 
-WindowsAudioRecorderState g_recorder;
+WindowsAudioRecorderState& RecorderState() {
+  // Native assets can be unloaded while the Windows loader lock is held.
+  // Keep the process-wide recorder alive until process termination so its
+  // thread is never joined from a DLL global destructor.
+  static auto* recorder = new WindowsAudioRecorderState();
+  return *recorder;
+}
 }  // namespace
 
 int32_t HasPermission(int32_t* out_has_permission, char* error_utf8, uint32_t error_utf8_capacity) {
@@ -1503,8 +1820,8 @@ int32_t RequestPermission(int32_t* out_has_permission, char* error_utf8,
 int32_t ListInputDevicesJson(char* out_json_utf8, uint32_t out_json_capacity, char* error_utf8,
                              uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
-  return g_recorder.ListInputDevicesJson(out_json_utf8, out_json_capacity, error_utf8,
-                                         error_utf8_capacity);
+  return RecorderState().ListInputDevicesJson(out_json_utf8, out_json_capacity, error_utf8,
+                                              error_utf8_capacity);
 }
 
 int32_t StartFile(const speech_utils::recorder::RecorderStartConfig* start_config,
@@ -1515,7 +1832,7 @@ int32_t StartFile(const speech_utils::recorder::RecorderStartConfig* start_confi
     WriteError("Start config pointer is null.", error_utf8, error_utf8_capacity);
     return -1;
   }
-  return g_recorder.StartFile(*start_config, error_utf8, error_utf8_capacity);
+  return RecorderState().StartFile(*start_config, error_utf8, error_utf8_capacity);
 }
 
 int32_t StartStream(const speech_utils::recorder::RecorderStartConfig* start_config,
@@ -1526,7 +1843,7 @@ int32_t StartStream(const speech_utils::recorder::RecorderStartConfig* start_con
     WriteError("Start config pointer is null.", error_utf8, error_utf8_capacity);
     return -1;
   }
-  return g_recorder.StartStream(*start_config, error_utf8, error_utf8_capacity);
+  return RecorderState().StartStream(*start_config, error_utf8, error_utf8_capacity);
 }
 
 int32_t SetContinousCapture(int32_t enabled,
@@ -1534,36 +1851,38 @@ int32_t SetContinousCapture(int32_t enabled,
                             char* error_utf8,
                             uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
-  return g_recorder.SetContinousCapture(enabled, start_config, error_utf8, error_utf8_capacity);
+  return RecorderState().SetContinousCapture(enabled, start_config, error_utf8,
+                                             error_utf8_capacity);
 }
 
 int32_t ReadStreamPcm16(int16_t* out_samples, uint32_t out_sample_capacity,
                         uint32_t* out_samples_written, char* error_utf8,
                         uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
-  return g_recorder.ReadStreamPcm16(out_samples, out_sample_capacity, out_samples_written,
-                                    error_utf8, error_utf8_capacity);
+  return RecorderState().ReadStreamPcm16(out_samples, out_sample_capacity, out_samples_written,
+                                         error_utf8, error_utf8_capacity);
 }
 
 int32_t Stop(char* error_utf8, uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
-  return g_recorder.Stop(error_utf8, error_utf8_capacity);
+  return RecorderState().Stop(error_utf8, error_utf8_capacity);
 }
 
 int32_t Reset(char* error_utf8, uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
-  return g_recorder.Reset(error_utf8, error_utf8_capacity);
+  return RecorderState().Reset(error_utf8, error_utf8_capacity);
 }
 
 int32_t IsRecording(int32_t* out_is_recording, char* error_utf8, uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
-  return g_recorder.IsRecording(out_is_recording, error_utf8, error_utf8_capacity);
+  return RecorderState().IsRecording(out_is_recording, error_utf8, error_utf8_capacity);
 }
 
 int32_t GetAmplitude(double* out_current_dbfs, double* out_max_dbfs, char* error_utf8,
                      uint32_t error_utf8_capacity) {
   WriteError("", error_utf8, error_utf8_capacity);
-  return g_recorder.GetAmplitude(out_current_dbfs, out_max_dbfs, error_utf8, error_utf8_capacity);
+  return RecorderState().GetAmplitude(out_current_dbfs, out_max_dbfs, error_utf8,
+                                      error_utf8_capacity);
 }
 
 }  // namespace speech_utils::windows_recorder

@@ -65,6 +65,12 @@ Future<void> buildWindowsAudioRecorderAsset(
       output: output,
     );
   }
+  requireSourceFile(
+    input,
+    relativePath: 'native/windows/recorder/bounded_spsc_sample_queue.h',
+    label: 'Windows bounded audio capture queue',
+    output: output,
+  );
   final nativeDepsIncludes = requireNativeDepsWindowsIncludeDirs(input);
   final webrtcSdk = requireVendoredWindowsWebRtcApmSdk(input, output: output);
 

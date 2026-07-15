@@ -52,6 +52,13 @@ jobs:
         working-directory: packages/speech_utils
         run: dart analyze
 
+      - name: Test bounded native capture queue
+        working-directory: packages/speech_utils_windows
+        shell: pwsh
+        run: |
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror native/test/bounded_spsc_sample_queue_test.cpp -o "$env:RUNNER_TEMP\bounded_spsc_sample_queue_test.exe"
+          & "$env:RUNNER_TEMP\bounded_spsc_sample_queue_test.exe"
+
       - name: Test Windows platform package
         working-directory: packages/speech_utils_windows
         run: flutter test

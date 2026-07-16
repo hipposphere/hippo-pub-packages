@@ -4,10 +4,11 @@ import 'dart:typed_data';
 
 import 'package:openai_dart/openai_dart.dart' as openai;
 import 'package:openai_dart/openai_dart_realtime.dart' as realtime;
+import 'package:agent_core/agent_core.dart';
 
 import '../live_audio_service.dart';
 import '../live_audio_session.dart';
-import '../models/live_audio_tool.dart';
+import '../models/live_audio_tool_mapping.dart';
 import 'openai_realtime_config.dart';
 
 final class OpenAIRealtimeService implements LiveAudioService {
@@ -115,19 +116,22 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
   }
 
   @override
-  Future<void> sendToolResponse(LiveAudioToolResponse response) async {
+  Future<void> sendToolResult(AgentToolResult<Object?> result) async {
     if (_closed) {
       return;
     }
-    final callId = response.id;
-    if (callId == null || callId.isEmpty) {
+    final callId = result.callId;
+    if (callId.isEmpty) {
       throw ArgumentError.value(
-        response.id,
-        'response.id',
-        'OpenAI Realtime tool responses require a call id.',
+        result.callId,
+        'result.callId',
+        'OpenAI Realtime tool results require a call id.',
       );
     }
-    _connection.sendFunctionOutput(callId, jsonEncode(response.responseJson));
+    _connection.sendFunctionOutput(
+      callId,
+      jsonEncode(liveAudioToolResultValue(result)),
+    );
     _connection.createResponse(outputModalities: const ['audio']);
   }
 
@@ -296,13 +300,16 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
 
     final arguments = item['arguments'];
     _events.add(
-      LiveAudioToolCall(
+      LiveAudioToolCallEvent(
         provider: provider,
-        name: name,
-        id: item['call_id'] as String? ?? item['id'] as String?,
-        arguments: arguments is String && arguments.isNotEmpty
-            ? jsonDecode(arguments) as Map<String, dynamic>
-            : const <String, dynamic>{},
+        call: liveAudioToolCall(
+          id: item['call_id'] as String? ?? item['id'] as String? ?? '',
+          name: name,
+          arguments: arguments,
+          metadata: const <String, Object?>{
+            'provider': 'openai_realtime',
+          },
+        ),
         rawEvent: rawEvent,
       ),
     );
@@ -337,7 +344,7 @@ Map<String, dynamic> _sessionUpdate(OpenAIRealtimeConfig config) {
       },
     },
     if (config.tools.isNotEmpty)
-      'tools': config.tools.map((tool) => tool.toOpenAIJson()).toList(growable: false),
+      'tools': config.tools.map(liveAudioOpenAIToolJson).toList(growable: false),
     if (config.temperature != null) 'temperature': config.temperature,
     ...?config.extraSession,
   };

@@ -9,6 +9,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "100.0.0"
+  agent_core:
+    dependency: transitive
+    description:
+      name: agent_core
+      sha256: "3bc99ddd9af7b6dab8c189730edeaa6feb13506cd2f20c8980915b2fb4a35699"
+      url: "https://pub.dicto.org"
+    source: hosted
+    version: "0.2.4"
   analyzer:
     dependency: transitive
     description:

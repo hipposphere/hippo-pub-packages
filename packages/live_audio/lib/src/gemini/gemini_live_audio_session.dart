@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:agent_core/agent_core.dart';
 import 'package:googleai_dart/googleai_dart.dart' as genai;
 
 import '../live_audio_service.dart';
 import '../live_audio_session.dart';
-import '../models/live_audio_tool.dart';
+import '../models/live_audio_tool_mapping.dart';
 import '../utils/audio.dart';
 import 'gemini_live_audio_config.dart';
 
@@ -120,12 +121,16 @@ final class GeminiLiveAudioSession implements LiveAudioSession {
   }
 
   @override
-  Future<void> sendToolResponse(LiveAudioToolResponse response) async {
+  Future<void> sendToolResult(AgentToolResult<Object?> result) async {
     if (_closed || !_session.isConnected) {
       return;
     }
     _session.sendToolResponse([
-      genai.FunctionResponse(id: response.id, name: response.name, response: response.responseJson),
+      genai.FunctionResponse(
+        id: result.callId.isEmpty ? null : result.callId,
+        name: result.name,
+        response: liveAudioToolResultObject(result),
+      ),
     ]);
   }
 
@@ -222,11 +227,14 @@ final class GeminiLiveAudioSession implements LiveAudioSession {
       case genai.BidiGenerateContentToolCall(:final functionCalls):
         for (final call in functionCalls) {
           _events.add(
-            LiveAudioToolCall(
+            LiveAudioToolCallEvent(
               provider: provider,
-              name: call.name,
-              arguments: call.args ?? const <String, dynamic>{},
-              id: call.id,
+              call: liveAudioToolCall(
+                id: call.id ?? '',
+                name: call.name,
+                arguments: call.args,
+                metadata: const <String, Object?>{'provider': 'gemini'},
+              ),
               rawEvent: message,
             ),
           );
@@ -254,9 +262,11 @@ genai.LiveConfig _liveConfig(GeminiLiveAudioConfig config) {
               functionDeclarations: config.tools
                   .map(
                     (tool) => genai.FunctionDeclaration(
-                      name: tool.name,
-                      description: tool.description ?? '',
-                      parameters: genai.Schema.fromJson(tool.parametersJson),
+                      name: tool.descriptor.name,
+                      description: tool.descriptor.description ?? '',
+                      parameters: genai.Schema.fromJson(
+                        liveAudioJsonObject(tool.descriptor.inputSchema),
+                      ),
                     ),
                   )
                   .toList(growable: false),

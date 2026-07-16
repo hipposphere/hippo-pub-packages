@@ -10,5 +10,4 @@ export 'src/models/live_audio_format.dart';
 export 'src/models/live_audio_provider.dart';
 export 'src/openai/openai_realtime_config.dart';
 export 'src/openai/openai_realtime_session.dart';
-export 'src/models/live_audio_tool.dart';
 export 'src/utils/audio.dart';

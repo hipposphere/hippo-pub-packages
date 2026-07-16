@@ -1,4 +1,4 @@
-import '../models/live_audio_tool.dart';
+import 'package:agent_core/agent_core.dart';
 
 final class GeminiLiveAudioModels {
   const GeminiLiveAudioModels._();
@@ -31,7 +31,7 @@ final class GeminiLiveAudioConfig {
   final bool enableInputTranscription;
   final bool enableOutputTranscription;
   final GeminiLiveAudioVadConfig? vad;
-  final List<LiveAudioTool> tools;
+  final List<AgentTool<dynamic, dynamic>> tools;
 }
 
 enum GeminiLiveAudioActivityHandling { startOfActivityInterrupts, noInterruption }

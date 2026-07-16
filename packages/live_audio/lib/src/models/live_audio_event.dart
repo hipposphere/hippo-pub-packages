@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:agent_core/agent_core.dart';
+
 import 'live_audio_format.dart';
 import 'live_audio_provider.dart';
 
@@ -87,18 +89,14 @@ final class LiveAudioTurnComplete extends LiveAudioEvent {
   final String? turnId;
 }
 
-final class LiveAudioToolCall extends LiveAudioEvent {
-  const LiveAudioToolCall({
+final class LiveAudioToolCallEvent extends LiveAudioEvent {
+  const LiveAudioToolCallEvent({
     required super.provider,
-    required this.name,
-    required this.arguments,
-    this.id,
+    required this.call,
     super.rawEvent,
   });
 
-  final String name;
-  final Map<String, dynamic> arguments;
-  final String? id;
+  final AgentToolCall<Map<String, Object?>> call;
 }
 
 final class LiveAudioError extends LiveAudioEvent {

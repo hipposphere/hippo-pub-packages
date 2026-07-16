@@ -1,8 +1,9 @@
 import 'dart:typed_data';
 
+import 'package:agent_core/agent_core.dart';
+
 import 'models/live_audio_event.dart';
 import 'models/live_audio_provider.dart';
-import 'models/live_audio_tool.dart';
 
 export 'models/live_audio_event.dart';
 export 'models/live_audio_format.dart';
@@ -23,7 +24,7 @@ abstract interface class LiveAudioSession {
 
   Future<void> endAudioInput();
 
-  Future<void> sendToolResponse(LiveAudioToolResponse response);
+  Future<void> sendToolResult(AgentToolResult<Object?> result);
 
   Future<void> close();
 }

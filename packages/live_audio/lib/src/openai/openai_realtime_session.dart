@@ -128,10 +128,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
         'OpenAI Realtime tool results require a call id.',
       );
     }
-    _connection.sendFunctionOutput(
-      callId,
-      jsonEncode(liveAudioToolResultValue(result)),
-    );
+    _connection.sendFunctionOutput(callId, jsonEncode(liveAudioToolResultValue(result)));
     _connection.createResponse(outputModalities: const ['audio']);
   }
 
@@ -306,9 +303,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
           id: item['call_id'] as String? ?? item['id'] as String? ?? '',
           name: name,
           arguments: arguments,
-          metadata: const <String, Object?>{
-            'provider': 'openai_realtime',
-          },
+          metadata: const <String, Object?>{'provider': 'openai_realtime'},
         ),
         rawEvent: rawEvent,
       ),

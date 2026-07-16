@@ -260,15 +260,7 @@ genai.LiveConfig _liveConfig(GeminiLiveAudioConfig config) {
         : [
             genai.Tool(
               functionDeclarations: config.tools
-                  .map(
-                    (tool) => genai.FunctionDeclaration(
-                      name: tool.descriptor.name,
-                      description: tool.descriptor.description ?? '',
-                      parameters: genai.Schema.fromJson(
-                        liveAudioJsonObject(tool.descriptor.inputSchema),
-                      ),
-                    ),
-                  )
+                  .map(geminiLiveAudioFunctionDeclaration)
                   .toList(growable: false),
             ),
           ],
@@ -279,6 +271,14 @@ genai.LiveConfig _liveConfig(GeminiLiveAudioConfig config) {
         ? genai.AudioTranscriptionConfig.enabled()
         : null,
     realtimeInputConfig: _realtimeInputConfig(config.vad),
+  );
+}
+
+genai.FunctionDeclaration geminiLiveAudioFunctionDeclaration(AgentTool<dynamic, dynamic> tool) {
+  return genai.FunctionDeclaration(
+    name: tool.descriptor.name,
+    description: tool.descriptor.description ?? '',
+    parameters: genai.Schema.fromJson(liveAudioJsonObject(tool.descriptor.inputSchema)),
   );
 }
 

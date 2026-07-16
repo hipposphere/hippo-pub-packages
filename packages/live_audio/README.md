@@ -20,14 +20,20 @@ Realtime speech-to-speech sessions, plus PCM utilities for realtime pipelines.
 ## Usage
 
 ```dart
+import 'package:agent_core/agent_core.dart';
 import 'package:live_audio/live_audio.dart';
 
-Future<void> startGeminiLiveAudio(String apiKey, String initialPrompt) async {
+Future<void> startGeminiLiveAudio(
+  String apiKey,
+  String initialPrompt,
+  AgentTool<Map<String, Object?>, Map<String, Object?>> lookupTool,
+) async {
   final config = GeminiLiveAudioConfig(
     apiKey: apiKey,
     model: GeminiLiveAudioModels.gemini31FlashLivePreview,
     voiceName: GeminiLiveAudioVoices.kore,
     systemInstruction: 'You are a concise phone assistant.',
+    tools: [lookupTool],
   );
   final session = await GeminiLiveAudioService(config).connect();
 
@@ -42,12 +48,19 @@ Future<void> startGeminiLiveAudio(String apiKey, String initialPrompt) async {
         case LiveAudioTranscript(:final kind, :final text):
           // Show input or output transcript text.
           break;
-        case LiveAudioToolCall(:final id, :final name):
-          await session.sendToolResponse(
-            LiveAudioToolResponse(
-              id: id,
-              name: name,
-              response: {'ok': true},
+        case LiveAudioToolCallEvent(:final call):
+          final result = await lookupTool.call(
+            call.arguments,
+            AgentToolCallContext(
+              executionId: 'example-session',
+              agentId: 'example-live-audio',
+            ),
+          );
+          await session.sendToolResult(
+            AgentToolResult<Object?>(
+              callId: call.id,
+              name: call.name,
+              result: result,
             ),
           );
           break;
@@ -121,8 +134,9 @@ Client frames:
 - JSON `{ "type": "clear_audio" }` clears buffered audio.
 - JSON `{ "type": "end_audio_input" }` ends the audio input stream.
 - JSON `{ "type": "cancel_response" }` cancels OpenAI Realtime output.
-- JSON `{ "type": "tool_response", "id": "...", "name": "...", "response": {...} }`
-  sends a provider-neutral tool response.
+- JSON `{ "type": "tool_response", "id": "...", "name": "...", "response": ... }`
+  sends a successful Agent tool result. Failed results additionally use an
+  `"error"` string while retaining the same message type.
 - JSON `{ "type": "close" }` closes the provider session and socket.
 
 By default output audio chunks are sent as binary frames, while transcripts,

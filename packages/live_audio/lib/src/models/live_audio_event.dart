@@ -90,11 +90,7 @@ final class LiveAudioTurnComplete extends LiveAudioEvent {
 }
 
 final class LiveAudioToolCallEvent extends LiveAudioEvent {
-  const LiveAudioToolCallEvent({
-    required super.provider,
-    required this.call,
-    super.rawEvent,
-  });
+  const LiveAudioToolCallEvent({required super.provider, required this.call, super.rawEvent});
 
   final AgentToolCall<Map<String, Object?>> call;
 }

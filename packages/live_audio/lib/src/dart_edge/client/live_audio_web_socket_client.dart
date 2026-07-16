@@ -54,10 +54,7 @@ final class LiveAudioDartEdgeWebSocketClient {
 
   Future<void> sendToolResult(AgentToolResult<Object?> result) {
     return _send(
-      LiveAudioSocketMessage(
-        type: LiveAudioSocketMessageType.toolResult,
-        toolResult: result,
-      ),
+      LiveAudioSocketMessage(type: LiveAudioSocketMessageType.toolResult, toolResult: result),
     );
   }
 

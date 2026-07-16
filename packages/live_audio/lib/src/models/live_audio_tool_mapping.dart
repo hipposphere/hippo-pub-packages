@@ -2,15 +2,12 @@ import 'dart:convert';
 
 import 'package:agent_core/agent_core.dart';
 
-Map<String, dynamic> liveAudioOpenAIToolJson(
-  AgentTool<dynamic, dynamic> tool,
-) {
+Map<String, dynamic> liveAudioOpenAIToolJson(AgentTool<dynamic, dynamic> tool) {
   final descriptor = tool.descriptor;
   return {
     'type': 'function',
     'name': descriptor.name,
-    if (descriptor.description != null)
-      'description': descriptor.description,
+    if (descriptor.description != null) 'description': descriptor.description,
     'parameters': liveAudioJsonObject(descriptor.inputSchema),
   };
 }
@@ -26,17 +23,11 @@ AgentToolCall<Map<String, Object?>> liveAudioToolCall({
     id: id,
     name: name,
     arguments: parsed.arguments,
-    metadata: {
-      ...metadata,
-      if (parsed.error != null) 'argumentsError': parsed.error,
-    },
+    metadata: {...metadata, if (parsed.error != null) 'argumentsError': parsed.error},
   );
 }
 
-Object? liveAudioToolResultValue(
-  AgentToolResult<Object?> result, {
-  bool requireObject = false,
-}) {
+Object? liveAudioToolResultValue(AgentToolResult<Object?> result, {bool requireObject = false}) {
   if (result.error case final error?) {
     return <String, Object?>{'error': error};
   }
@@ -48,9 +39,7 @@ Object? liveAudioToolResultValue(
   return <String, Object?>{'result': value};
 }
 
-Map<String, dynamic> liveAudioToolResultObject(
-  AgentToolResult<Object?> result,
-) {
+Map<String, dynamic> liveAudioToolResultObject(AgentToolResult<Object?> result) {
   final value = liveAudioToolResultValue(result, requireObject: true);
   return {
     for (final entry in (value! as Map).entries)
@@ -67,25 +56,16 @@ _ToolArguments _toolArguments(Object? value) {
     try {
       return _toolArguments(jsonDecode(value));
     } on FormatException catch (error) {
-      return _ToolArguments(
-        const <String, Object?>{},
-        error.toString(),
-      );
+      return _ToolArguments(const <String, Object?>{}, error.toString());
     }
   }
   if (value is Map) {
-    return _ToolArguments(
-      <String, Object?>{
-        for (final entry in value.entries)
-          if (entry.key case final String key) key: entry.value,
-      },
-      null,
-    );
+    return _ToolArguments(<String, Object?>{
+      for (final entry in value.entries)
+        if (entry.key case final String key) key: entry.value,
+    }, null);
   }
-  return _ToolArguments(
-    const <String, Object?>{},
-    'Tool arguments must be a JSON object.',
-  );
+  return _ToolArguments(const <String, Object?>{}, 'Tool arguments must be a JSON object.');
 }
 
 Object? _jsonValue(Object? value) {
@@ -95,8 +75,7 @@ Object? _jsonValue(Object? value) {
   if (value is Map) {
     return {
       for (final entry in value.entries)
-        if (entry.key is String)
-          entry.key as String: _jsonValue(entry.value),
+        if (entry.key is String) entry.key as String: _jsonValue(entry.value),
     };
   }
   if (value is Iterable) {

@@ -18,3 +18,6 @@ dependencies:
     version: ^0.3.27
   googleai_dart: ^9.0.0
   openai_dart: ^7.0.1
+
+dev_dependencies:
+  test: ^1.30.0

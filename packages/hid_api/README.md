@@ -1,6 +1,18 @@
 # hid_api
 
-A Flutter HID plugin with support for shared or exclusive device opens.
+Federated Flutter HID plugin with endorsed Linux, macOS, and Windows
+implementations and support for shared or exclusive device opens.
+
+## Package family
+
+- `hid_api` is the app-facing API and endorses the desktop packages.
+- `hid_api_platform_interface` owns the public HID types, registration
+  contract, and shared method-channel implementation.
+- `hid_api_linux`, `hid_api_macos`, and `hid_api_windows` own their native
+  plugins and platform registration.
+
+Applications only need to depend on `hid_api`; Flutter selects and registers
+the endorsed implementation for the target desktop platform.
 
 ## Usage
 

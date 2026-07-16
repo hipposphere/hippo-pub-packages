@@ -1,18 +1,29 @@
 name: hid_api
-description: "A new Flutter plugin project."
-version: 0.1.7
+description: Federated Human Interface Device API for Flutter desktop applications.
+version: 0.1.8
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
 
 environment:
-  sdk: ^3.11.0
-  flutter: ">=3.3.0"
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: ">=3.44.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  plugin_platform_interface: ^2.1.8
+  hid_api_linux:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.8
+  hid_api_macos:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.8
+  hid_api_platform_interface:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.8
+  hid_api_windows:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.8
 
 dev_dependencies:
   flutter_test:
@@ -23,8 +34,8 @@ flutter:
   plugin:
     platforms:
       linux:
-        pluginClass: HidApiPlugin
+        default_package: hid_api_linux
       macos:
-        pluginClass: HidApiPlugin
+        default_package: hid_api_macos
       windows:
-        pluginClass: HidApiPluginCApi
+        default_package: hid_api_windows

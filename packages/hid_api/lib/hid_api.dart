@@ -1,6 +1,6 @@
-import 'hid_api_platform_interface.dart';
+import 'package:hid_api_platform_interface/hid_api_platform_interface.dart';
 
-export 'hid_api_platform_interface.dart'
+export 'package:hid_api_platform_interface/hid_api_platform_interface.dart'
     show
         HidDeviceInfo,
         HidDevice,

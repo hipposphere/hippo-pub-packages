@@ -22,7 +22,7 @@ This repository contains commonly used Dart & Flutter packages maintained by **H
 - **`packages/hippo_ui_codegen`** – Build runner code generators for Hipposphere UI annotations.
 - **`packages/dictation_support`** – Support dictation devices using the hid_api package.
 - **`packages/hid_device_manager`** – Reactive HID device registration, connection policy, and lifecycle management.
-- **`packages/hid_api`** – Human Interface Device (HID) API bindings for native device communication.
+- **`packages/hid_api`** – Federated Human Interface Device (HID) API with endorsed Linux, macOS, and Windows implementations.
 - **`packages/postgres_base_models`** – Base models and utilities for PostgreSQL database interactions.
 - **`packages/postgres_models_builder`** – Code generation tools for PostgreSQL model creation and management.
 
@@ -126,7 +126,8 @@ import 'package:hippo_utils/hippo_utils.dart';
 **Focus**: Human Interface Device (HID) API bindings for native device communication.
 
 **Features**: 
-- **Native Bindings**: FFI-based integration with HID APIs
+- **Federated Plugin**: App-facing API, shared platform contract, and independently owned desktop implementations
+- **Native Bindings**: Method-channel integration with native HID APIs
 - **Device Communication**: Direct communication with USB and Bluetooth HID devices
 - **Cross-platform Support**: Windows, macOS, and Linux compatibility
 

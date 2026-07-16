@@ -30,9 +30,9 @@ void main() {
     expect(declaration['name'], 'lookup');
     expect(declaration['description'], 'Looks up a value.');
     expect(declaration['parameters'], {
-      'type': 'object',
+      'type': 'OBJECT',
       'properties': {
-        'query': {'type': 'string'},
+        'query': {'type': 'STRING'},
       },
       'required': ['query'],
     });

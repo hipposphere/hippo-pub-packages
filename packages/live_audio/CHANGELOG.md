@@ -1,3 +1,12 @@
+## 0.2.0
+
+- Replaces the package-specific live audio tool descriptor, call, and response
+  types with executable `agent_core` tools and shared Agent call/result models.
+- Keeps live audio tool execution caller-controlled while allowing the same
+  tools and schemas to be reused by text Agents.
+- Preserves the existing `tool_call` and `tool_response` WebSocket wire message
+  names and adds error results.
+
 ## 0.1.4
 
 - Adds normalized `turnId` metadata to live audio output, text, transcript, thinking, interrupted, and turn-complete events.

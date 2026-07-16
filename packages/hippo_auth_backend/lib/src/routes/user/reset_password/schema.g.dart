@@ -15,8 +15,7 @@ final class _$ResetPasswordBody implements JsonEncodable {
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
@@ -26,10 +25,7 @@ final class _$ResetPasswordBody implements JsonEncodable {
   final String newPassword;
 
   @override
-  Map<String, Object?> toJson() => <String, Object?>{
-    "token": token,
-    "new_password": newPassword,
-  };
+  Map<String, Object?> toJson() => <String, Object?>{"token": token, "new_password": newPassword};
 
   static ResetPasswordBody fromJson(Object? value) {
     final json = value! as Map<String, Object?>;
@@ -47,8 +43,7 @@ final class _$ResetPasswordResponse implements JsonEncodable {
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);

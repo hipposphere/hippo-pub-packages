@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dart_edge_http_server/dart_edge_http_server.dart';
 import 'package:dart_edge_sql/dart_edge_sql.dart';
 import 'package:hippo_auth_backend/hippo_auth_backend.dart';
+import 'package:json_schema/json_schema.dart';
 
 Future<void> main() async {
   final database = SqliteDatabase.inMemory();

@@ -20,8 +20,7 @@ final class _$HippoAuthSessionPayload implements JsonEncodable {
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
@@ -48,9 +47,7 @@ final class _$HippoAuthSessionPayload implements JsonEncodable {
       sessionId: json["session_id"]! as String,
       token: json["token"]! as String,
       expiresAt: json["expires_at"]! as String,
-      user: AuthUserRow.fromJson(
-        Map<String, Object?>.from(json["user"]! as Map),
-      ),
+      user: AuthUserRow.fromJson(Map<String, Object?>.from(json["user"]! as Map)),
     );
   }
 }

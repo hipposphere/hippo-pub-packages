@@ -9,18 +9,13 @@ part of 'schema.dart';
 // ignore_for_file: unused_element, unused_field
 
 final class _$SignUpEmailBody implements JsonEncodable {
-  const _$SignUpEmailBody({
-    required this.email,
-    required this.password,
-    required this.name,
-  });
+  const _$SignUpEmailBody({required this.email, required this.password, required this.name});
 
   static const schemaId = "SignUpEmailBody";
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);

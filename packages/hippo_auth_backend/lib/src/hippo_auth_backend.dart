@@ -1,5 +1,6 @@
 import 'package:dart_edge_auth/dart_edge_auth.dart';
 import 'package:dart_edge_http_server_runtime/dart_edge_http_server_runtime.dart';
+import 'package:json_schema/json_schema.dart';
 
 import 'options.dart';
 import 'routes/routes.dart';

@@ -15,8 +15,7 @@ final class _$AdminUpdateOAuthClientResponse implements JsonEncodable {
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
@@ -24,9 +23,7 @@ final class _$AdminUpdateOAuthClientResponse implements JsonEncodable {
   final Map<String, Object?> oauthClient;
 
   @override
-  Map<String, Object?> toJson() => <String, Object?>{
-    "oauth_client": oauthClient,
-  };
+  Map<String, Object?> toJson() => <String, Object?>{"oauth_client": oauthClient};
 
   static AdminUpdateOAuthClientResponse fromJson(Object? value) {
     final json = value! as Map<String, Object?>;

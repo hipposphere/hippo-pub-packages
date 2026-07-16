@@ -15,8 +15,7 @@ final class _$AdminDeleteUserBody implements JsonEncodable {
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
@@ -33,17 +32,13 @@ final class _$AdminDeleteUserBody implements JsonEncodable {
 }
 
 final class _$AdminDeleteUserResponse implements JsonEncodable {
-  const _$AdminDeleteUserResponse({
-    required this.success,
-    required this.userId,
-  });
+  const _$AdminDeleteUserResponse({required this.success, required this.userId});
 
   static const schemaId = "AdminDeleteUserResponse";
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
@@ -53,10 +48,7 @@ final class _$AdminDeleteUserResponse implements JsonEncodable {
   final String userId;
 
   @override
-  Map<String, Object?> toJson() => <String, Object?>{
-    "success": success,
-    "user_id": userId,
-  };
+  Map<String, Object?> toJson() => <String, Object?>{"success": success, "user_id": userId};
 
   static AdminDeleteUserResponse fromJson(Object? value) {
     final json = value! as Map<String, Object?>;

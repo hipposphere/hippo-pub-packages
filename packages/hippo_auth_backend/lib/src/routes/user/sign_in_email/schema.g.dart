@@ -15,8 +15,7 @@ final class _$SignInEmailBody implements JsonEncodable {
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
@@ -26,16 +25,10 @@ final class _$SignInEmailBody implements JsonEncodable {
   final String password;
 
   @override
-  Map<String, Object?> toJson() => <String, Object?>{
-    "email": email,
-    "password": password,
-  };
+  Map<String, Object?> toJson() => <String, Object?>{"email": email, "password": password};
 
   static SignInEmailBody fromJson(Object? value) {
     final json = value! as Map<String, Object?>;
-    return SignInEmailBody(
-      email: json["email"]! as String,
-      password: json["password"]! as String,
-    );
+    return SignInEmailBody(email: json["email"]! as String, password: json["password"]! as String);
   }
 }

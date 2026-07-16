@@ -15,8 +15,7 @@ final class _$AdminUpdateUserBody implements JsonEncodable {
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
@@ -28,20 +27,14 @@ final class _$AdminUpdateUserBody implements JsonEncodable {
   final Map<String, Object?>? data;
 
   @override
-  Map<String, Object?> toJson() => <String, Object?>{
-    "user_id": userId,
-    "role": role,
-    "data": data,
-  };
+  Map<String, Object?> toJson() => <String, Object?>{"user_id": userId, "role": role, "data": data};
 
   static AdminUpdateUserBody fromJson(Object? value) {
     final json = value! as Map<String, Object?>;
     return AdminUpdateUserBody(
       userId: json["user_id"]! as String,
       role: json["role"],
-      data: json["data"] == null
-          ? null
-          : Map<String, Object?>.from(json["data"] as Map),
+      data: json["data"] == null ? null : Map<String, Object?>.from(json["data"] as Map),
     );
   }
 }
@@ -53,8 +46,7 @@ final class _$AdminUpdateUserResponse implements JsonEncodable {
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
@@ -67,9 +59,7 @@ final class _$AdminUpdateUserResponse implements JsonEncodable {
   static AdminUpdateUserResponse fromJson(Object? value) {
     final json = value! as Map<String, Object?>;
     return AdminUpdateUserResponse(
-      user: AuthUserRow.fromJson(
-        Map<String, Object?>.from(json["user"]! as Map),
-      ),
+      user: AuthUserRow.fromJson(Map<String, Object?>.from(json["user"]! as Map)),
     );
   }
 }

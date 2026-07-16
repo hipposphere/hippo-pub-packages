@@ -1,5 +1,6 @@
 import 'package:dart_edge_core/dart_edge_core.dart';
 import 'package:hippobase_auth_models/hippobase_auth_models.dart';
+import 'package:json_schema/json_schema.dart';
 
 part 'hippo_auth_session_payload.g.dart';
 

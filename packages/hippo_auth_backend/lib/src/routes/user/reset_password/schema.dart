@@ -1,4 +1,5 @@
 import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:json_schema/json_schema.dart';
 
 part 'schema.g.dart';
 

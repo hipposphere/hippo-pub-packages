@@ -16,4 +16,7 @@ dependencies:
   dart_edge_sql:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.3.27
+  json_schema:
+    hosted: https://pub.hippolabs.org
+    version: ^0.1.1
   

@@ -15,8 +15,7 @@ final class _$LogoutResponse implements JsonEncodable {
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
@@ -29,9 +28,7 @@ final class _$LogoutResponse implements JsonEncodable {
   static LogoutResponse fromJson(Object? value) {
     final json = value! as Map<String, Object?>;
     return LogoutResponse(
-      user: AuthUserRow.fromJson(
-        Map<String, Object?>.from(json["user"]! as Map),
-      ),
+      user: AuthUserRow.fromJson(Map<String, Object?>.from(json["user"]! as Map)),
     );
   }
 }

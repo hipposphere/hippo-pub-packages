@@ -22,8 +22,7 @@ final class _$AdminListUsersQuery implements JsonEncodable {
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
@@ -78,8 +77,7 @@ final class _$AdminListUsersResponse implements JsonEncodable {
 
   static const schemaRef = JsonSchema.ref(schemaId);
 
-  static RequestBody get requestBody =>
-      RequestBody.json(schema: schemaRef, decoder: fromJson);
+  static RequestBody get requestBody => RequestBody.json(schema: schemaRef, decoder: fromJson);
 
   static ResponseSpec response({int status = 200}) =>
       ResponseSpec.json(status: status, schema: schemaRef);
@@ -113,11 +111,7 @@ final class _$AdminListUsersResponse implements JsonEncodable {
     final json = value! as Map<String, Object?>;
     return AdminListUsersResponse(
       users: (json["users"]! as List<Object?>)
-          .map(
-            (item) => AuthUserRow.fromJson(
-              Map<String, Object?>.from(item! as Map),
-            ),
-          )
+          .map((item) => AuthUserRow.fromJson(Map<String, Object?>.from(item! as Map)))
           .toList(),
       total: json["total"]! as int,
       limit: json["limit"]! as int,

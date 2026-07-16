@@ -445,18 +445,18 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_auth
-      sha256: bdfe8759c31a9ec9768c42365740054d7e2bf72d9fe3f93010c7df993c5d88bc
+      sha256: ba1cf092ae2abfe5cba68c36bb971b9be8c5ea004bb42e2f4887c22905288284
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.36"
+    version: "0.3.37"
   dart_edge_core:
     dependency: transitive
     description:
       name: dart_edge_core
-      sha256: "0e179861865da10c3a4300f815c8a390008e2e7a52377a114be12ba307881575"
+      sha256: f125b24dbce401a8182669204f7aeccc2f23df26ef7311cdc84e4a252b8c7251
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.31"
+    version: "0.3.34"
   dart_edge_http_server:
     dependency: transitive
     description:
@@ -469,10 +469,10 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_http_server_runtime
-      sha256: ee067fec8440766512c3c32f1fef72b9b2765a9fe9f353e1b2b3c442b5be74f2
+      sha256: ecc0bdcbe5e60eb0634adeecf26f6ea3ba789c87d59b219719b40bf9632186d8
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.25"
+    version: "0.3.26"
   dart_edge_jaspr:
     dependency: transitive
     description:
@@ -987,10 +987,10 @@ packages:
     dependency: transitive
     description:
       name: hippobase_auth_models
-      sha256: e544dd46f1f5a54bcc616fe31f2aea1474d4a4cc587903a52eaae1f0bfff26ec
+      sha256: eaeed3bd1cd9fd3009a72049feaa6be9050be9abe0fd6b32859779f76a9906fb
       url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.6"
+    version: "0.1.7"
   hooks:
     dependency: transitive
     description:
@@ -1116,6 +1116,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.12.0"
+  json_schema:
+    dependency: transitive
+    description:
+      name: json_schema
+      sha256: a28488a8449e07faedcf1bf255de8fe6720501e9a96d14eb2a4dd444327133b7
+      url: "https://pub.hippolabs.org"
+    source: hosted
+    version: "0.1.1"
   json_serializable:
     dependency: transitive
     description:

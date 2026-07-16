@@ -384,7 +384,7 @@ Returns detailed Input Monitoring permission status.
 This package works great with:
 
 - [`hotkey_api`](../hotkey_api) - Global hotkey monitoring (requires Accessibility/Input Monitoring permission)
-- [`desktop_autopaste`](../desktop_autopaste) - Auto-paste functionality (requires Accessibility permission)
+- [`desktop_autopaste`](https://github.com/TruhnLab/Pub-Packages/tree/main/packages/input/autopaste/desktop_autopaste) - Auto-paste functionality (requires Accessibility permission)
 
 ## Contributing
 

@@ -1833,22 +1833,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.1"
-  swift2objc:
-    dependency: transitive
-    description:
-      name: swift2objc
-      sha256: "55536573af440bbd7d05fbe639e3a0979bb5b4f598b14f739d8d54f454693cb9"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.0"
-  swiftgen:
-    dependency: transitive
-    description:
-      name: swiftgen
-      sha256: "8f128b4f706fc2c91948020111788bda38384d8e6b2c82905bf4bc931939713a"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.2"
   sync_http:
     dependency: transitive
     description:

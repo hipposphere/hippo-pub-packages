@@ -116,7 +116,10 @@ final class LiveAudioSocketMessageCodec {
       'type': _typeToJson(message.type),
       'text': ?message.text,
       'audio': ?(message.audio == null ? null : base64Encode(message.audio!)),
-      'id': ?message.toolResult?.callId,
+      'id': ?switch (message.toolResult?.callId) {
+        final id? when id.isNotEmpty => id,
+        _ => null,
+      },
       'name': ?message.toolResult?.name,
       'response': ?message.toolResult?.result,
       'error': ?message.toolResult?.error,
@@ -221,7 +224,7 @@ final class LiveAudioSocketEventCodec {
         'type': 'tool_call',
         'name': call.name,
         'arguments': call.arguments,
-        'id': call.id,
+        'id': ?(call.id.isEmpty ? null : call.id),
         'provider': event.provider.name,
       },
       LiveAudioError(:final message, :final code) => {

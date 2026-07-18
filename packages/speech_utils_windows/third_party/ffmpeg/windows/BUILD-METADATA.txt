@@ -1,5 +1,0 @@
-ffmpeg workflow: build_windows_ffmpeg_lib.yml
-profile: audio-only minimal
-toolchain: msvc
-threads: w32threads
-ffmpeg_commit: f951aa9ef382d6bb517e05d04d52710f751de427

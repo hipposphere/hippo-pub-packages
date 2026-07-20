@@ -2,6 +2,8 @@
 
 - Expose `CupertinoApp.builder` through `App.builder` for app-wide layers that
   must remain above the navigator.
+- Migrate the JSON Schema editor and visualization to `json_schema` 0.1.4 from
+  `https://pub.hippolabs.org`.
 
 ## 0.1.54
 

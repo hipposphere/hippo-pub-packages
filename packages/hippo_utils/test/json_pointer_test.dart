@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hippo_utils/hippo_utils.dart';
+import 'package:json_schema/json_schema.dart';
 
 void main() {
   group('JsonPointer', () {

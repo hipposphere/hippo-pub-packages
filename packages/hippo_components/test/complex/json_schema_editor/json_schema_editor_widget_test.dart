@@ -20,7 +20,7 @@ Finder _findOptionalTooltip(String message) {
 void main() {
   testWidgets('renders editor and reacts to root type changes', (WidgetTester tester) async {
     final controller = JsonSchemaEditorController(
-      initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode(title: 'Label')),
+      initialSchema: jsonSchemaFromNode(const JsonSchemaStringNode(title: 'Label')),
     );
 
     await tester.pumpWidget(
@@ -53,7 +53,7 @@ void main() {
 
   testWidgets('reorders object properties from editor move buttons', (WidgetTester tester) async {
     final controller = JsonSchemaEditorController(
-      initialSchema: JsonSchema.fromNode(
+      initialSchema: jsonSchemaFromNode(
         const JsonSchemaObjectNode(
           properties: {
             'first': JsonSchemaStringNode(),
@@ -82,7 +82,7 @@ void main() {
 
   testWidgets('shows a card around every property block', (WidgetTester tester) async {
     final controller = JsonSchemaEditorController(
-      initialSchema: JsonSchema.fromNode(
+      initialSchema: jsonSchemaFromNode(
         const JsonSchemaObjectNode(
           properties: {
             'plain': JsonSchemaStringNode(),
@@ -108,7 +108,7 @@ void main() {
     WidgetTester tester,
   ) async {
     final controller = JsonSchemaEditorController(
-      initialSchema: JsonSchema.fromNode(
+      initialSchema: jsonSchemaFromNode(
         const JsonSchemaArrayNode(items: JsonSchemaArrayNode(items: JsonSchemaStringNode())),
       ),
     );
@@ -136,7 +136,7 @@ void main() {
           ),
         ],
       ),
-      initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode(title: 'Label')),
+      initialSchema: jsonSchemaFromNode(const JsonSchemaStringNode(title: 'Label')),
     );
 
     await tester.pumpWidget(
@@ -182,7 +182,7 @@ void main() {
     WidgetTester tester,
   ) async {
     final controller = JsonSchemaEditorController(
-      initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode(title: 'Label')),
+      initialSchema: jsonSchemaFromNode(const JsonSchemaStringNode(title: 'Label')),
     );
 
     await tester.pumpWidget(
@@ -238,7 +238,7 @@ void main() {
           ),
         ],
       ),
-      initialSchema: JsonSchema.fromNode(
+      initialSchema: jsonSchemaFromNode(
         const JsonSchemaStringNode(extensions: {'x-notes': 'Line 1'}),
       ),
     );
@@ -279,7 +279,7 @@ void main() {
           ),
         ],
       ),
-      initialSchema: JsonSchema.fromNode(
+      initialSchema: jsonSchemaFromNode(
         const JsonSchemaStringNode(extensions: {'x-role': 'admin'}),
       ),
     );
@@ -326,7 +326,7 @@ void main() {
           ),
         ],
       ),
-      initialSchema: JsonSchema.fromNode(
+      initialSchema: jsonSchemaFromNode(
         const JsonSchemaStringNode(extensions: {'x-notes': 'Line 1'}),
       ),
     );

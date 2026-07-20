@@ -9,8 +9,7 @@
 */
 
 import 'package:flutter/foundation.dart';
-
-import '../json_pointer/json_pointer.dart';
+import 'package:json_schema/json_schema.dart';
 
 @immutable
 sealed class JsonSchemaPathSegment {

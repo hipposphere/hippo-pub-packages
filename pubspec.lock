@@ -585,14 +585,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.1.2"
-  ffigen:
-    dependency: transitive
-    description:
-      name: ffigen
-      sha256: b7803707faeec4ce3c1b0c2274906504b796e3b70ad573577e72333bd1c9b3ba
-      url: "https://pub.dev"
-    source: hosted
-    version: "20.1.1"
   file:
     dependency: transitive
     description:
@@ -1100,14 +1092,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.1"
-  jnigen:
-    dependency: transitive
-    description:
-      name: jnigen
-      sha256: "6079cbd103ac24892f597af5be17c43f817b93cb25acb3b51197684f0b102e87"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.16.0"
   json_annotation:
     dependency: transitive
     description:
@@ -1120,10 +1104,10 @@ packages:
     dependency: transitive
     description:
       name: json_schema
-      sha256: a28488a8449e07faedcf1bf255de8fe6720501e9a96d14eb2a4dd444327133b7
+      sha256: ea97de334403ac210704f32685f62d969eabd9a75f3af65b4b66a904476cb531
       url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.1"
+    version: "0.1.4"
   json_serializable:
     dependency: transitive
     description:
@@ -1236,14 +1220,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.5"
-  native_toolchain_c:
-    dependency: transitive
-    description:
-      name: native_toolchain_c
-      sha256: f9c168717100ae6d9fee9ffb0be379bf1f8b26b0f6bcbd4fdddcd931993a6a72
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.19.2"
   native_toolchain_rust:
     dependency: transitive
     description:
@@ -1540,14 +1516,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.8.0"
-  quiver:
-    dependency: transitive
-    description:
-      name: quiver
-      sha256: ea0b925899e64ecdfbf9c7becb60d5b50e706ade44a85b2363be2a22d88117d2
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.2.2"
   rational:
     dependency: transitive
     description:

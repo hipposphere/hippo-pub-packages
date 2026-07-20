@@ -15,6 +15,7 @@ import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_components/src/complex/json_schema_editor/json_schema_editor_descriptions.dart';
 import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_schema_editor_info_icon.dart';
 import 'package:hippo_utils/hippo_utils.dart';
+import 'package:json_schema/json_schema.dart';
 
 bool _isInternalSchemaExtensionKey(String key) {
   return key.trim() == jsonSchemaObjectPropertyOrderExtensionKey;

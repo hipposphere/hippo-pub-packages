@@ -33,7 +33,7 @@ void main() {
           ),
         ],
       ),
-      initialSchema: JsonSchema.fromNode(
+      initialSchema: jsonSchemaFromNode(
         const JsonSchemaObjectNode(
           title: 'Account schema',
           properties: {'name': JsonSchemaStringNode(title: 'Name')},
@@ -82,7 +82,7 @@ void main() {
           ),
         ],
       ),
-      initialSchema: JsonSchema.fromNode(
+      initialSchema: jsonSchemaFromNode(
         const JsonSchemaObjectNode(
           title: 'Account schema',
           properties: {'name': JsonSchemaStringNode(title: 'Name')},
@@ -123,7 +123,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final controller = JsonSchemaEditorController(
-      initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode(title: 'Label')),
+      initialSchema: jsonSchemaFromNode(const JsonSchemaStringNode(title: 'Label')),
     );
 
     await tester.pumpWidget(
@@ -175,7 +175,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final controller = JsonSchemaEditorController(
-      initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode(title: 'Label')),
+      initialSchema: jsonSchemaFromNode(const JsonSchemaStringNode(title: 'Label')),
     );
 
     await tester.pumpWidget(
@@ -212,7 +212,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final controller = JsonSchemaEditorController(
-      initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode(title: 'Label')),
+      initialSchema: jsonSchemaFromNode(const JsonSchemaStringNode(title: 'Label')),
     );
 
     await tester.pumpWidget(

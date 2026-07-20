@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
+import 'package:json_schema/json_schema.dart';
 
 void main() {
   group('JsonSchemaEditorController', () {
@@ -14,7 +15,7 @@ void main() {
 
     test('supports immutable object mutations', () {
       final controller = JsonSchemaEditorController(
-        initialSchema: JsonSchema.fromNode(
+        initialSchema: jsonSchemaFromNode(
           const JsonSchemaObjectNode(
             properties: {'name': JsonSchemaStringNode()},
             required: {'name'},
@@ -45,7 +46,7 @@ void main() {
 
     test('maintains property order metadata across add rename and remove', () {
       final controller = JsonSchemaEditorController(
-        initialSchema: JsonSchema({
+        initialSchema: JsonSchema.raw({
           'type': 'object',
           'properties': {
             'name': {'type': 'string'},
@@ -89,7 +90,7 @@ void main() {
 
     test('reorders properties while preserving required flags and node types', () {
       final controller = JsonSchemaEditorController(
-        initialSchema: JsonSchema.fromNode(
+        initialSchema: jsonSchemaFromNode(
           const JsonSchemaObjectNode(
             properties: {
               'first': JsonSchemaStringNode(),
@@ -114,7 +115,7 @@ void main() {
 
     test('reorders nested objects independently', () {
       final controller = JsonSchemaEditorController(
-        initialSchema: JsonSchema.fromNode(
+        initialSchema: jsonSchemaFromNode(
           const JsonSchemaObjectNode(
             properties: {
               'top': JsonSchemaStringNode(),
@@ -145,7 +146,7 @@ void main() {
 
     test('validates diagnostics for invalid constraints', () {
       final controller = JsonSchemaEditorController(
-        initialSchema: JsonSchema.fromNode(
+        initialSchema: jsonSchemaFromNode(
           const JsonSchemaArrayNode(items: JsonSchemaNumberNode.number(), minItems: 5, maxItems: 2),
         ),
       );
@@ -162,7 +163,7 @@ void main() {
 
     test('supports custom validators with multiple diagnostics per node', () {
       final controller = JsonSchemaEditorController(
-        initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode()),
+        initialSchema: jsonSchemaFromNode(const JsonSchemaStringNode()),
         customValidators: [
           (root) sync* {
             for (final visit in root.traverse()) {
@@ -212,7 +213,7 @@ void main() {
 
     test('reset restores the initial schema', () {
       final controller = JsonSchemaEditorController(
-        initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode(title: 'start')),
+        initialSchema: jsonSchemaFromNode(const JsonSchemaStringNode(title: 'start')),
       );
 
       controller.setRoot(const JsonSchemaNumberNode.number(title: 'changed'));
@@ -224,7 +225,7 @@ void main() {
 
     test('imports a root schema from JSON text', () {
       final controller = JsonSchemaEditorController(
-        initialSchema: JsonSchema.fromNode(const JsonSchemaStringNode(title: 'start')),
+        initialSchema: jsonSchemaFromNode(const JsonSchemaStringNode(title: 'start')),
       );
 
       controller.importJsonString('''
@@ -261,7 +262,7 @@ void main() {
 
     test('supports boolean root nodes', () {
       final controller = JsonSchemaEditorController(
-        initialSchema: JsonSchema.fromNode(
+        initialSchema: jsonSchemaFromNode(
           const JsonSchemaBooleanNode(title: 'flag', defaultValue: false),
         ),
       );
@@ -280,7 +281,7 @@ void main() {
 
     test('sets required on a node path', () {
       final controller = JsonSchemaEditorController(
-        initialSchema: JsonSchema.fromNode(
+        initialSchema: jsonSchemaFromNode(
           const JsonSchemaObjectNode(
             properties: {
               'nested': JsonSchemaObjectNode(properties: {'flag': JsonSchemaBooleanNode()}),
@@ -398,7 +399,7 @@ void main() {
 
     test('supports extensions on nested non-object nodes', () {
       final controller = JsonSchemaEditorController(
-        initialSchema: JsonSchema.fromNode(
+        initialSchema: jsonSchemaFromNode(
           const JsonSchemaObjectNode(
             properties: {
               'name': JsonSchemaStringNode(extensions: {'x-token': 'token'}),

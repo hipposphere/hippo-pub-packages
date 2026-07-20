@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
+import 'package:json_schema/json_schema.dart';
 
 Widget _buildTestApp(Widget child, {Locale locale = const Locale('en')}) {
   return MaterialApp(
@@ -25,7 +26,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1400, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    final schema = JsonSchema.fromNode(
+    final schema = jsonSchemaFromNode(
       const JsonSchemaObjectNode(
         title: 'Account schema',
         required: {'name'},
@@ -158,7 +159,7 @@ void main() {
       messenger.setMockMethodCallHandler(SystemChannels.platform, null);
     });
 
-    final schema = JsonSchema.fromNode(
+    final schema = jsonSchemaFromNode(
       const JsonSchemaObjectNode(
         properties: {'flags': JsonSchemaArrayNode(items: JsonSchemaBooleanNode())},
       ),
@@ -181,7 +182,7 @@ void main() {
   testWidgets('renders object properties in configured order and hides internal order metadata', (
     WidgetTester tester,
   ) async {
-    final schema = JsonSchema({
+    final schema = JsonSchema.raw({
       'type': 'object',
       'properties': {
         'first': {'type': 'string', 'title': 'First'},

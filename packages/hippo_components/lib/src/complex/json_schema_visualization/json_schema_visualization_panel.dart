@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
+import 'package:json_schema/json_schema.dart';
 
 enum _JsonSchemaPreviewMode { optimized, json }
 

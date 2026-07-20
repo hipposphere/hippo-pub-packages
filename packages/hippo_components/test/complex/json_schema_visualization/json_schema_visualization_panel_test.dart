@@ -20,7 +20,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final controller = JsonSchemaEditorController(
-      initialSchema: JsonSchema.fromNode(
+      initialSchema: jsonSchemaFromNode(
         const JsonSchemaObjectNode(
           title: 'Account',
           properties: {'name': JsonSchemaStringNode(title: 'Name')},
@@ -59,7 +59,7 @@ void main() {
 
   testWidgets('json preview reflects reordered properties', (WidgetTester tester) async {
     final controller = JsonSchemaEditorController(
-      initialSchema: JsonSchema.fromNode(
+      initialSchema: jsonSchemaFromNode(
         const JsonSchemaObjectNode(
           properties: {
             'first': JsonSchemaStringNode(title: 'First'),

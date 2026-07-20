@@ -11,6 +11,7 @@ import 'dart:convert';
 
 import 'package:hippo_core/hippo_core.dart';
 import 'package:hippo_utils/hippo_utils.dart';
+import 'package:json_schema/json_schema.dart';
 import 'models/feature_options.dart';
 
 class JsonSchemaEditorController {
@@ -45,7 +46,7 @@ class JsonSchemaEditorController {
        schemaSubject = DataSubject.seeded(initialSchema) {
     final parsed = _normalizeNode(initialSchema);
     _initialSchema = parsed;
-    _initialJsonSchema = JsonSchema.fromNode(parsed);
+    _initialJsonSchema = jsonSchemaFromNode(parsed);
     _apply(parsed, notify: false);
   }
 
@@ -318,15 +319,15 @@ class JsonSchemaEditorController {
   }
 
   void importJsonString(String source) {
-    setJsonSchema(JsonSchema(_decodeJsonSchemaString(source)));
+    setJsonSchema(JsonSchema.raw(_decodeJsonSchemaString(source)));
   }
 
   JsonSchema toJsonSchema() {
-    return JsonSchema.fromNode(schema);
+    return jsonSchemaFromNode(schema);
   }
 
   Map<String, dynamic> toData() {
-    return toJsonSchema().map;
+    return Map<String, dynamic>.from(toJsonSchema().toJson());
   }
 
   String toJsonString({bool pretty = true}) {

@@ -4,6 +4,7 @@ import 'package:hippo_components/src/complex/json_schema_editor/widgets/json_sch
 import 'package:hippo_components/src/complex/json_schema_visualization/json_schema_visualization_panel.dart';
 import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 import 'package:hippo_utils/hippo_utils.dart';
+import 'package:json_schema/json_schema.dart';
 
 class JsonSchemaEditorPage extends StatelessWidget {
   final String title;
@@ -108,7 +109,7 @@ class _PreviewAndDiagnostics extends StatelessWidget {
                     const Gap(16),
                     JsonSchemaVisualizationPanel(
                       controller: controller,
-                      schema: JsonSchema.fromNode(schemaNode),
+                      schema: jsonSchemaFromNode(schemaNode),
                     ),
                   ],
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_utils/hippo_utils.dart';
+import 'package:json_schema/json_schema.dart';
 
 class JsonSchemaViewerExamplePage extends StatefulWidget {
   const JsonSchemaViewerExamplePage({super.key});
@@ -58,7 +59,7 @@ class _JsonSchemaViewerExamplePageState extends State<JsonSchemaViewerExamplePag
       title: 'User Profile Payload',
       description:
           'A typical account settings schema with nested objects, required fields, extensions, and array items.',
-      schema: JsonSchema.fromNode(
+      schema: jsonSchemaFromNode(
         const JsonSchemaObjectNode(
           title: 'User profile payload',
           description: 'Schema used by an account settings surface.',
@@ -140,7 +141,7 @@ class _JsonSchemaViewerExamplePageState extends State<JsonSchemaViewerExamplePag
       title: 'Workflow Automation',
       description:
           'A more operational schema that highlights enums, numeric constraints, nested arrays, and rollout metadata.',
-      schema: JsonSchema.fromNode(
+      schema: jsonSchemaFromNode(
         const JsonSchemaObjectNode(
           title: 'Workflow automation',
           description: 'Schema for a configurable event-driven automation.',

@@ -11,9 +11,26 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:hippo_utils/hippo_utils.dart';
+import 'package:json_schema/json_schema.dart';
+
+import 'json_schema_path.dart';
 
 enum JsonSchemaNodeType { string, number, integer, boolean, object, array }
+
+/// Converts the editor's mutable node model to the shared JSON Schema model.
+JsonSchema jsonSchemaFromNode(JsonSchemaNode node) => JsonSchema.raw(node.toJson());
+
+/// Editor-specific conversions for the shared JSON Schema model.
+extension JsonSchemaNodeConversion on JsonSchema {
+  JsonSchemaNode get node => JsonSchemaNode.fromJson(Map<String, dynamic>.from(toJson()));
+
+  String toJsonString({bool pretty = false}) {
+    if (pretty) {
+      return const JsonEncoder.withIndent('  ').convert(toJson());
+    }
+    return jsonEncode(toJson());
+  }
+}
 
 const _jsonSchemaStringNodeReservedKeys = <String>{
   'type',
@@ -59,83 +76,6 @@ const _jsonSchemaArrayNodeReservedKeys = <String>{
   'uniqueItems',
 };
 
-@immutable
-class JsonSchemaModel {
-  const JsonSchemaModel._(this.raw);
-
-  factory JsonSchemaModel(Map<String, dynamic> raw) {
-    final normalized = raw.isEmpty ? <String, dynamic>{} : _normalizeMapStringKeys(raw);
-    return JsonSchemaModel._(Map.unmodifiable(normalized));
-  }
-
-  factory JsonSchemaModel.fromNode(JsonSchemaNode node) {
-    return JsonSchemaModel._(Map.unmodifiable(node.toJson()));
-  }
-
-  factory JsonSchemaModel.empty() => const JsonSchemaModel._({});
-
-  final Map<String, dynamic> raw;
-
-  JsonSchemaNode get node => JsonSchemaNode.fromJson(raw);
-
-  Map<String, dynamic> toMap() {
-    return _cloneMap(raw);
-  }
-
-  String toJsonString({bool pretty = false}) {
-    if (pretty) {
-      final encoder = JsonEncoder.withIndent('  ');
-      return encoder.convert(raw);
-    }
-    return jsonEncode(raw);
-  }
-}
-
-Map<String, dynamic> _cloneMap(Map<String, dynamic> raw) {
-  return raw.map((entryKey, entryValue) {
-    if (entryValue is Map<String, dynamic>) {
-      return MapEntry(entryKey, _cloneMap(entryValue));
-    }
-    if (entryValue is List) {
-      return MapEntry(entryKey, _cloneList(entryValue));
-    }
-    return MapEntry(entryKey, entryValue);
-  });
-}
-
-Map<String, dynamic> _normalizeMapStringKeys(Map<String, dynamic> raw) {
-  final normalized = <String, dynamic>{};
-  for (final entry in raw.entries) {
-    final key = entry.key.toString();
-    final value = entry.value;
-    if (value is Map) {
-      normalized[key] = _normalizeMapStringKeys(value.map((k, v) => MapEntry(k.toString(), v)));
-    } else if (value is List) {
-      normalized[key] = value.map((entry) {
-        if (entry is Map) {
-          return _normalizeMapStringKeys(entry.map((k, v) => MapEntry(k.toString(), v)));
-        }
-        return entry;
-      }).toList();
-    } else {
-      normalized[key] = value;
-    }
-  }
-  return normalized;
-}
-
-List<Object?> _cloneList(List<Object?> list) {
-  return list.map((entry) {
-    if (entry is Map<String, dynamic>) {
-      return _cloneMap(entry);
-    }
-    if (entry is List) {
-      return _cloneList(entry);
-    }
-    return entry;
-  }).toList();
-}
-
 extension JsonSchemaNodeTypeJson on JsonSchemaNodeType {
   String toJsonType() {
     return switch (this) {
@@ -172,7 +112,7 @@ sealed class JsonSchemaNode {
 
   Map<String, dynamic> toJson();
 
-  JsonSchema toSchema() => JsonSchema.fromNode(this);
+  JsonSchema toSchema() => jsonSchemaFromNode(this);
 
   Iterable<JsonSchemaNodeVisit> traverse({
     JsonSchemaPath startPath = const JsonSchemaPath.root(),

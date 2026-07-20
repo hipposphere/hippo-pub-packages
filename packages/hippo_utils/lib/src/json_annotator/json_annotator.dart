@@ -9,9 +9,9 @@
 */
 
 import 'package:flutter/foundation.dart';
-import '../json_schema/json_schema.dart';
+import 'package:json_schema/json_schema.dart';
+
 import '../json_schema/json_schema_nodes.dart';
-import '../json_pointer/json_pointer.dart';
 import '../json_pointer/json_pointer_map.dart';
 
 /// The type of an [AnnotatedJsonNode].

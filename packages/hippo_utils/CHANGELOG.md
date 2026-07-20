@@ -1,3 +1,9 @@
+## Unreleased
+
+- Breaking: Replace the local `JsonSchema`, `JsonSchemaModel`, and `JsonPointer`
+  implementations with `json_schema` 0.1.4 from
+  `https://pub.hippolabs.org` while retaining the editor node APIs.
+
 ## 0.3.3
 
 - Breaking: Move the `KeyValueStore` contract to `hippo_core`; keep concrete key-value store implementations in `hippo_utils`.

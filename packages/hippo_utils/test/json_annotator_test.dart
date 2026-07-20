@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hippo_utils/hippo_utils.dart';
+import 'package:json_schema/json_schema.dart';
 
 void main() {
   group('JsonAnnotator', () {
@@ -11,7 +12,7 @@ void main() {
       map.setString('/profile/age', 'Age Metadata');
 
       // 2. Setup a simplistic JsonSchema
-      final schema = JsonSchema.fromNode(
+      final schema = jsonSchemaFromNode(
         const JsonSchemaObjectNode(
           properties: {
             'name': JsonSchemaStringNode(),
@@ -78,7 +79,7 @@ void main() {
     test('handles fallback to null schema nodes for missing schemas', () {
       final map = JsonPointerMap<String>();
       // We only define 'known' in the schema, but provide 'unknown' in json
-      final schema = JsonSchema.fromNode(
+      final schema = jsonSchemaFromNode(
         const JsonSchemaObjectNode(properties: {'known': JsonSchemaStringNode()}),
       );
 
@@ -94,7 +95,7 @@ void main() {
     });
 
     test('orders annotated object properties using schema property order', () {
-      final schema = JsonSchema({
+      final schema = JsonSchema.raw({
         'type': 'object',
         'properties': {
           'first': {'type': 'string'},

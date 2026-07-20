@@ -131,7 +131,7 @@ class JsonSchemaEditorExample extends StatelessWidget {
           ),
         ],
       ),
-      initialSchema: JsonSchema.fromNode(
+      initialSchema: jsonSchemaFromNode(
         const JsonSchemaObjectNode(
           title: 'Example schema',
           extensions: {'x-token': 'test', 'x-object-label': 'object-level'},

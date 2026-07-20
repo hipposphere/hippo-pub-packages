@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 */
 
-import 'json_pointer.dart';
+import 'package:json_schema/json_schema.dart';
 
 /// A generic map that uses [JsonPointer] as keys.
 ///

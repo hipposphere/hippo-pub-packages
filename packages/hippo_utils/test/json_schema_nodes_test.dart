@@ -1,10 +1,34 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hippo_utils/hippo_utils.dart';
+import 'package:json_schema/json_schema.dart';
 
 void main() {
+  test('converts shared typed schemas to editor nodes and back', () {
+    const schema = JsonSchema.object(
+      properties: <String, JsonSchema>{
+        'name': JsonSchema.string(),
+        'enabled': JsonSchema.boolean(defaultValue: true),
+      },
+      required: <String>['name'],
+      additionalProperties: false,
+    );
+
+    final node = schema.node;
+    final roundTrip = node.toSchema().toJson();
+
+    expect(node, isA<JsonSchemaObjectNode>());
+    expect(roundTrip['type'], 'object');
+    expect(roundTrip['required'], <String>['name']);
+    expect(roundTrip['additionalProperties'], false);
+    expect((roundTrip['properties'] as Map<String, Object?>)['enabled'], <String, Object?>{
+      'type': 'boolean',
+      'default': true,
+    });
+  });
+
   group('JsonSchemaObjectNode property ordering', () {
     test('parses and serializes explicit property order', () {
-      final schema = JsonSchema({
+      final schema = JsonSchema.raw({
         'type': 'object',
         'properties': {
           'first': {'type': 'string'},
@@ -34,7 +58,7 @@ void main() {
     });
 
     test('normalizes missing and stale order entries deterministically', () {
-      final schema = JsonSchema({
+      final schema = JsonSchema.raw({
         'type': 'object',
         'properties': {
           'first': {'type': 'string'},
@@ -45,7 +69,7 @@ void main() {
       });
 
       final node = schema.node as JsonSchemaObjectNode;
-      final roundTrip = JsonSchema.fromNode(node).node as JsonSchemaObjectNode;
+      final roundTrip = jsonSchemaFromNode(node).node as JsonSchemaObjectNode;
 
       expect(node.resolvedPropertyOrder, orderedEquals(['second', 'first', 'third']));
       expect(roundTrip.resolvedPropertyOrder, orderedEquals(['second', 'first', 'third']));

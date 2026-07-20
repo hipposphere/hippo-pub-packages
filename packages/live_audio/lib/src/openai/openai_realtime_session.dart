@@ -43,7 +43,6 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
   final openai.RealtimeConnection _connection;
   final _events = StreamController<LiveAudioEvent>.broadcast();
   late final StreamSubscription<realtime.RealtimeEvent> _subscription;
-  var _responseActive = false;
   String? _currentResponseId;
   var _closed = false;
 
@@ -76,7 +75,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
         {'type': 'input_text', 'text': text.trim()},
       ],
     });
-    _connection.createResponse(outputModalities: const ['audio']);
+    _createResponse();
   }
 
   @override
@@ -94,7 +93,7 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
     }
     _connection.commitAudio();
     if (!_config.enableServerVad || !_config.createResponseFromVad) {
-      _connection.createResponse(outputModalities: const ['audio']);
+      _createResponse();
     }
   }
 
@@ -130,7 +129,11 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
       );
     }
     _connection.sendFunctionOutput(callId, jsonEncode(liveAudioToolResultValue(result)));
-    _connection.createResponse(outputModalities: const ['audio']);
+    _createResponse();
+  }
+
+  void _createResponse() {
+    _connection.createResponse(outputModalities: [_config.outputModality.name]);
   }
 
   @override
@@ -222,17 +225,17 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
           );
         }
       case realtime.InputAudioBufferSpeechStartedEvent():
-        if (_responseActive) {
-          _events.add(
-            LiveAudioInterrupted(provider: provider, turnId: _currentResponseId, rawEvent: event),
-          );
-        }
+        // Provider generation can finish before a downstream audio device has
+        // played the complete response. Always surface caller speech so the
+        // playback owner can discard audio that is still queued locally.
+        _events.add(
+          LiveAudioInterrupted(provider: provider, turnId: _currentResponseId, rawEvent: event),
+        );
       case realtime.ConversationItemTruncatedEvent():
         _events.add(
           LiveAudioInterrupted(provider: provider, turnId: _currentResponseId, rawEvent: event),
         );
       case realtime.ResponseCreatedEvent(:final response):
-        _responseActive = true;
         if (response['id'] case final String responseId when responseId.isNotEmpty) {
           _currentResponseId = responseId;
         }
@@ -243,7 +246,6 @@ final class OpenAIRealtimeSession implements LiveAudioSession {
           final String responseId when responseId.isNotEmpty => responseId,
           _ => _currentResponseId,
         };
-        _responseActive = false;
         _currentResponseId = null;
         _events.add(LiveAudioTurnComplete(provider: provider, turnId: turnId, rawEvent: event));
       case realtime.ErrorEvent(:final error):

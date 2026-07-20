@@ -1,4 +1,5 @@
 import 'package:agent_core/agent_core.dart';
+import 'package:live_audio/src/gemini/gemini_live_audio_config.dart';
 import 'package:live_audio/src/gemini/gemini_live_audio_session.dart';
 import 'package:live_audio/src/models/live_audio_event.dart';
 import 'package:live_audio/src/models/live_audio_provider.dart';
@@ -36,6 +37,18 @@ void main() {
       },
       'required': ['query'],
     });
+  });
+
+  test('enables Gemini audio transcription with empty config objects', () {
+    final json = geminiLiveConfig(
+      const GeminiLiveAudioConfig(
+        apiKey: 'test-key',
+        model: GeminiLiveAudioModels.gemini31FlashLivePreview,
+      ),
+    ).toJson();
+
+    expect(json['inputAudioTranscription'], isEmpty);
+    expect(json['outputAudioTranscription'], isEmpty);
   });
 
   test('maps provider calls to Agent tool calls', () {

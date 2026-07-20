@@ -3,6 +3,24 @@ import 'package:live_audio/src/openai/openai_realtime_session_update.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('uses audio output by default', () {
+    final session = _session(const OpenAIRealtimeConfig(apiKey: 'test', model: 'gpt-realtime'));
+
+    expect(session['output_modalities'], ['audio']);
+  });
+
+  test('supports text-only output', () {
+    final session = _session(
+      const OpenAIRealtimeConfig(
+        apiKey: 'test',
+        model: 'gpt-realtime',
+        outputModality: OpenAIRealtimeOutputModality.text,
+      ),
+    );
+
+    expect(session['output_modalities'], ['text']);
+  });
+
   test('includes the default model when input transcription is enabled', () {
     final transcription = _inputTranscription(
       const OpenAIRealtimeConfig(apiKey: 'test', model: 'gpt-realtime'),
@@ -47,8 +65,12 @@ Map<String, dynamic> _inputTranscription(OpenAIRealtimeConfig config) {
 }
 
 Map<String, dynamic> _audioInput(OpenAIRealtimeConfig config) {
-  final update = createOpenAIRealtimeSessionUpdate(config);
-  final session = update['session']! as Map<String, dynamic>;
+  final session = _session(config);
   final audio = session['audio']! as Map<String, dynamic>;
   return audio['input']! as Map<String, dynamic>;
+}
+
+Map<String, dynamic> _session(OpenAIRealtimeConfig config) {
+  final update = createOpenAIRealtimeSessionUpdate(config);
+  return update['session']! as Map<String, dynamic>;
 }

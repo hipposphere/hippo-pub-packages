@@ -29,12 +29,15 @@ final class OpenAIRealtimeTranscriptionModels {
   static const whisper1 = 'whisper-1';
 }
 
+enum OpenAIRealtimeOutputModality { audio, text }
+
 final class OpenAIRealtimeConfig {
   const OpenAIRealtimeConfig({
     required this.apiKey,
     required this.model,
     this.voice,
     this.instructions,
+    this.outputModality = OpenAIRealtimeOutputModality.audio,
     this.inputFormat = const LiveAudioInputFormat.pcm24k(),
     this.outputFormat = const LiveAudioInputFormat.pcm24k(),
     this.transcriptionModel = OpenAIRealtimeTranscriptionModels.gpt4oMiniTranscribe,
@@ -53,6 +56,7 @@ final class OpenAIRealtimeConfig {
   final String model;
   final String? voice;
   final String? instructions;
+  final OpenAIRealtimeOutputModality outputModality;
   final LiveAudioInputFormat inputFormat;
   final LiveAudioInputFormat outputFormat;
   final String transcriptionModel;

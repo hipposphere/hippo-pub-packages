@@ -65,7 +65,7 @@ final class GeminiLiveAudioSession implements LiveAudioSession {
     try {
       final session = await liveClient.connect(
         model: config.model,
-        liveConfig: _liveConfig(config),
+        liveConfig: geminiLiveConfig(config),
       );
       return GeminiLiveAudioSession._(client: client, liveClient: liveClient, session: session);
     } catch (error) {
@@ -245,7 +245,7 @@ final class GeminiLiveAudioSession implements LiveAudioSession {
   }
 }
 
-genai.LiveConfig _liveConfig(GeminiLiveAudioConfig config) {
+genai.LiveConfig geminiLiveConfig(GeminiLiveAudioConfig config) {
   return genai.LiveConfig(
     generationConfig: genai.LiveGenerationConfig.audioOnly(
       speechConfig: config.voiceName == null
@@ -265,10 +265,10 @@ genai.LiveConfig _liveConfig(GeminiLiveAudioConfig config) {
             ),
           ],
     inputAudioTranscription: config.enableInputTranscription
-        ? genai.AudioTranscriptionConfig.enabled()
+        ? const genai.AudioTranscriptionConfig()
         : null,
     outputAudioTranscription: config.enableOutputTranscription
-        ? genai.AudioTranscriptionConfig.enabled()
+        ? const genai.AudioTranscriptionConfig()
         : null,
     realtimeInputConfig: _realtimeInputConfig(config.vad),
   );

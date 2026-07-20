@@ -10,11 +10,15 @@ Realtime speech-to-speech sessions, plus PCM utilities for realtime pipelines.
 
 - Connects to Gemini Live with API-key authentication through `googleai_dart`.
 - Connects to OpenAI Realtime over WebSocket for server-side audio sessions.
+- Supports audio or text-only OpenAI Realtime model output.
 - Sends text prompts, PCM audio chunks, tool responses, commit, clear, and close
   commands through a common `LiveAudioSession` interface.
 - Emits normalized output audio chunks, input/output transcriptions, text
   deltas, thinking, interruption, tool calls, turn completion, errors, and raw
   provider events.
+- Emits an OpenAI interruption whenever server VAD detects caller speech, even
+  if response generation has completed, so downstream playback queues can stop
+  audio that has not played yet.
 - Includes a PCM 24 kHz to 16 kHz downsampler for little-endian 16-bit audio.
 
 ## Usage
@@ -154,6 +158,23 @@ await socket.commitAudio();
 
 socket.audioChunks().listen(playAudio);
 socket.jsonEvents().listen(handleLiveAudioEventJson);
+```
+
+For text-only OpenAI Realtime conversations, select the text output modality
+and consume `LiveAudioTextDelta` events instead of audio chunks or output
+transcriptions:
+
+```dart
+final service = OpenAIRealtimeService(
+  OpenAIRealtimeConfig(
+    apiKey: apiKey,
+    model: OpenAIRealtimeModels.gptRealtime2,
+    instructions: 'You are a concise clinic assistant.',
+    outputModality: OpenAIRealtimeOutputModality.text,
+    enableInputTranscription: false,
+    enableServerVad: false,
+  ),
+);
 ```
 
 OpenAI Realtime uses 24 kHz mono PCM input by default:

@@ -7,7 +7,7 @@ Map<String, dynamic> createOpenAIRealtimeSessionUpdate(OpenAIRealtimeConfig conf
     'type': 'realtime',
     'model': config.model,
     if (config.instructions != null) 'instructions': config.instructions,
-    'output_modalities': ['audio'],
+    'output_modalities': [config.outputModality.name],
     'audio': {
       'input': {
         'format': _format(config.inputFormat),

@@ -1,3 +1,8 @@
+## 0.2.1
+
+- Adds the required transcription model to OpenAI Realtime input
+  transcription configuration, defaulting to `gpt-4o-mini-transcribe`.
+
 ## 0.2.0
 
 - Replaces the package-specific live audio tool descriptor, call, and response

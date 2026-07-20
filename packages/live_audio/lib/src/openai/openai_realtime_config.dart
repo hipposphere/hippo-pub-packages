@@ -21,6 +21,14 @@ final class OpenAIRealtimeVoices {
   static const marin = 'marin';
 }
 
+final class OpenAIRealtimeTranscriptionModels {
+  const OpenAIRealtimeTranscriptionModels._();
+
+  static const gpt4oMiniTranscribe = 'gpt-4o-mini-transcribe';
+  static const gpt4oTranscribe = 'gpt-4o-transcribe';
+  static const whisper1 = 'whisper-1';
+}
+
 final class OpenAIRealtimeConfig {
   const OpenAIRealtimeConfig({
     required this.apiKey,
@@ -29,6 +37,7 @@ final class OpenAIRealtimeConfig {
     this.instructions,
     this.inputFormat = const LiveAudioInputFormat.pcm24k(),
     this.outputFormat = const LiveAudioInputFormat.pcm24k(),
+    this.transcriptionModel = OpenAIRealtimeTranscriptionModels.gpt4oMiniTranscribe,
     this.transcriptionLanguage,
     this.transcriptionPrompt,
     this.enableInputTranscription = true,
@@ -46,6 +55,7 @@ final class OpenAIRealtimeConfig {
   final String? instructions;
   final LiveAudioInputFormat inputFormat;
   final LiveAudioInputFormat outputFormat;
+  final String transcriptionModel;
   final String? transcriptionLanguage;
   final String? transcriptionPrompt;
   final bool enableInputTranscription;

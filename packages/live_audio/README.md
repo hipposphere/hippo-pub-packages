@@ -165,6 +165,8 @@ final service = OpenAIRealtimeService(
     model: OpenAIRealtimeModels.gptRealtime2,
     voice: OpenAIRealtimeVoices.marin,
     instructions: 'You are a concise phone assistant.',
+    transcriptionModel:
+        OpenAIRealtimeTranscriptionModels.gpt4oMiniTranscribe,
     transcriptionLanguage: 'en',
   ),
 );

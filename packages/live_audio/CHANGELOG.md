@@ -1,3 +1,9 @@
+## 0.2.3
+
+- Adds typed OpenAI server VAD controls for activation threshold, prefix
+  padding, silence duration, and automatic response interruption.
+- Preserves the existing OpenAI VAD behavior when the new controls are omitted.
+
 ## 0.2.1
 
 - Adds the required transcription model to OpenAI Realtime input

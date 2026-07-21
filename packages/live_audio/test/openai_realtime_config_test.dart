@@ -58,6 +58,72 @@ void main() {
 
     expect(input, isNot(contains('transcription')));
   });
+
+  test('uses backward-compatible server VAD defaults', () {
+    final turnDetection = _turnDetection(
+      const OpenAIRealtimeConfig(apiKey: 'test', model: 'gpt-realtime'),
+    );
+
+    expect(turnDetection, {
+      'type': 'server_vad',
+      'create_response': true,
+      'interrupt_response': true,
+    });
+  });
+
+  test('includes configured server VAD tuning', () {
+    final turnDetection = _turnDetection(
+      const OpenAIRealtimeConfig(
+        apiKey: 'test',
+        model: 'gpt-realtime',
+        createResponseFromVad: false,
+        interruptResponseFromVad: false,
+        serverVadThreshold: 0.7,
+        serverVadPrefixPaddingMs: 250,
+        serverVadSilenceDurationMs: 650,
+      ),
+    );
+
+    expect(turnDetection, {
+      'type': 'server_vad',
+      'create_response': false,
+      'interrupt_response': false,
+      'threshold': 0.7,
+      'prefix_padding_ms': 250,
+      'silence_duration_ms': 650,
+    });
+  });
+
+  test('rejects invalid server VAD tuning', () {
+    expect(
+      () => _turnDetection(
+        const OpenAIRealtimeConfig(apiKey: 'test', model: 'gpt-realtime', serverVadThreshold: 1.1),
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => _turnDetection(
+        const OpenAIRealtimeConfig(
+          apiKey: 'test',
+          model: 'gpt-realtime',
+          serverVadSilenceDurationMs: -1,
+        ),
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('disables server VAD', () {
+    final input = _audioInput(
+      const OpenAIRealtimeConfig(apiKey: 'test', model: 'gpt-realtime', enableServerVad: false),
+    );
+
+    expect(input['turn_detection'], isNull);
+  });
+}
+
+Map<String, dynamic> _turnDetection(OpenAIRealtimeConfig config) {
+  return _audioInput(config)['turn_detection']! as Map<String, dynamic>;
 }
 
 Map<String, dynamic> _inputTranscription(OpenAIRealtimeConfig config) {

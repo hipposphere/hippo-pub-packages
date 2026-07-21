@@ -202,6 +202,26 @@ final callAudio = Pcm16StereoStreamCombiner(
 callAudio.listen(recordOrPlayStereoPcm16);
 ```
 
+Server VAD can be tuned for noisy or echo-prone phone audio. Higher thresholds
+require louder input before OpenAI reports speech; the timing values are in
+milliseconds. Omit a value to retain the OpenAI default:
+
+```dart
+final service = OpenAIRealtimeService(
+  OpenAIRealtimeConfig(
+    apiKey: apiKey,
+    model: OpenAIRealtimeModels.gptRealtime2,
+    serverVadThreshold: 0.7,
+    serverVadPrefixPaddingMs: 250,
+    serverVadSilenceDurationMs: 650,
+    interruptResponseFromVad: true,
+  ),
+);
+```
+
+Set `interruptResponseFromVad` to `false` when the application validates a
+potential interruption itself before cancelling model output.
+
 Customize Gemini through `GeminiLiveAudioConfig`:
 
 ```dart

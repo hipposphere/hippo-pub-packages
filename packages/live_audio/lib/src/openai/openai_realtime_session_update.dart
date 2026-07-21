@@ -21,7 +21,19 @@ Map<String, dynamic> createOpenAIRealtimeSessionUpdate(OpenAIRealtimeConfig conf
             ? {
                 'type': 'server_vad',
                 'create_response': config.createResponseFromVad,
-                'interrupt_response': true,
+                'interrupt_response': config.interruptResponseFromVad,
+                if (config.serverVadThreshold != null)
+                  'threshold': _serverVadThreshold(config.serverVadThreshold!),
+                if (config.serverVadPrefixPaddingMs != null)
+                  'prefix_padding_ms': _nonNegativeMilliseconds(
+                    config.serverVadPrefixPaddingMs!,
+                    'serverVadPrefixPaddingMs',
+                  ),
+                if (config.serverVadSilenceDurationMs != null)
+                  'silence_duration_ms': _nonNegativeMilliseconds(
+                    config.serverVadSilenceDurationMs!,
+                    'serverVadSilenceDurationMs',
+                  ),
               }
             : null,
       },
@@ -37,6 +49,20 @@ Map<String, dynamic> createOpenAIRealtimeSessionUpdate(OpenAIRealtimeConfig conf
   };
 
   return {'type': 'session.update', 'session': session};
+}
+
+double _serverVadThreshold(double value) {
+  if (!value.isFinite || value < 0 || value > 1) {
+    throw ArgumentError.value(value, 'serverVadThreshold', 'Must be between 0 and 1.');
+  }
+  return value;
+}
+
+int _nonNegativeMilliseconds(int value, String name) {
+  if (value < 0) {
+    throw ArgumentError.value(value, name, 'Must not be negative.');
+  }
+  return value;
 }
 
 Map<String, dynamic> _format(LiveAudioInputFormat format) {

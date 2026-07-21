@@ -46,6 +46,10 @@ final class OpenAIRealtimeConfig {
     this.enableInputTranscription = true,
     this.enableServerVad = true,
     this.createResponseFromVad = true,
+    this.interruptResponseFromVad = true,
+    this.serverVadThreshold,
+    this.serverVadPrefixPaddingMs,
+    this.serverVadSilenceDurationMs,
     this.tools = const [],
     this.temperature,
     this.extraSession,
@@ -65,6 +69,24 @@ final class OpenAIRealtimeConfig {
   final bool enableInputTranscription;
   final bool enableServerVad;
   final bool createResponseFromVad;
+  final bool interruptResponseFromVad;
+
+  /// Audio activation threshold for server VAD, from 0 to 1.
+  ///
+  /// Higher values require louder input and can reduce false interruptions in
+  /// noisy or echo-prone audio pipelines. When omitted, OpenAI uses its
+  /// default.
+  final double? serverVadThreshold;
+
+  /// Audio to include before detected speech, in milliseconds.
+  ///
+  /// When omitted, OpenAI uses its default.
+  final int? serverVadPrefixPaddingMs;
+
+  /// Silence required to end a speech turn, in milliseconds.
+  ///
+  /// When omitted, OpenAI uses its default.
+  final int? serverVadSilenceDurationMs;
   final List<AgentTool<dynamic, dynamic>> tools;
   final double? temperature;
   final Map<String, dynamic>? extraSession;

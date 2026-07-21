@@ -1,6 +1,6 @@
 name: live_audio
 description: Abstracted live audio service integrations.
-version: 0.2.2
+version: 0.2.3
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace

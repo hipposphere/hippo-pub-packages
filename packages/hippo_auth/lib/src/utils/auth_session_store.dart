@@ -15,12 +15,7 @@ class AuthSessionStore {
     if (sessionString == null) {
       return null;
     }
-    final session = AuthSession.decode(sessionString);
-
-    if (session.isExpired) {
-      return null;
-    }
-    return session;
+    return AuthSession.decode(sessionString);
   }
 
   Future<void> saveSession(AuthSession session) async {

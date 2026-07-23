@@ -18,6 +18,9 @@ RawResponse hippoAuthErrorResponse(
 }) {
   return RawResponse.json(
     status: status,
+    headers: status == 401 && _isBearerSessionError(code)
+        ? const <HttpHeader>[HttpHeader('www-authenticate', 'Bearer error="invalid_token"')]
+        : const <HttpHeader>[],
     body: {
       'error': {
         'code': code,
@@ -26,6 +29,10 @@ RawResponse hippoAuthErrorResponse(
       },
     },
   );
+}
+
+bool _isBearerSessionError(String code) {
+  return code == 'Unauthorized' || code.startsWith('RefreshSession');
 }
 
 RawResponse hippoAuthExceptionResponse(

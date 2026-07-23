@@ -1,3 +1,9 @@
+## 0.1.25
+
+* Make session refresh idempotent while a session is still healthy.
+* Revoke the server-side session during logout.
+* Mark invalid bearer sessions with a `WWW-Authenticate` challenge.
+
 ## 0.1.21
 
 * Update Dart Edge auth, SQL, and HTTP server runtime package constraints.

@@ -33,16 +33,24 @@ class AuthSession {
   }
 
   bool get isExpired {
-    return expiresAt.isBefore(DateTime.now());
+    return isExpiredAt(DateTime.now());
   }
 
   bool get canBeRefreshed {
-    return !isExpired &&
-        expiresAt.isBefore(DateTime.now().add(Duration(days: 89)));
+    return canBeRefreshedAt(DateTime.now());
+  }
+
+  bool isExpiredAt(DateTime now) {
+    return !expiresAt.isAfter(now);
+  }
+
+  bool canBeRefreshedAt(DateTime now) {
+    return !isExpiredAt(now) &&
+        expiresAt.isBefore(now.add(const Duration(days: 89)));
   }
 
   @override
   String toString() {
-    return 'AuthSession(id: $id, token: $token, expiresAt: $expiresAt)';
+    return 'AuthSession(id: $id, token: [redacted], expiresAt: $expiresAt)';
   }
 }

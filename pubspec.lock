@@ -453,10 +453,10 @@ packages:
     dependency: transitive
     description:
       name: dart_edge_core
-      sha256: f125b24dbce401a8182669204f7aeccc2f23df26ef7311cdc84e4a252b8c7251
+      sha256: "0e537cc372306cf03b151fd2cdc4f1f167a10f5af6fb75bdf27da279ca24e05d"
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
-    version: "0.3.34"
+    version: "0.3.36"
   dart_edge_http_server:
     dependency: transitive
     description:
@@ -955,34 +955,34 @@ packages:
     dependency: transitive
     description:
       name: hippo_core
-      sha256: "6f1864d8f244f43197d211b78cfd06ea13c768453a89f508bcfd3fbaf5ab8c61"
+      sha256: "29e58dedfaed3c7ed3b78441c2bb1a00a97834362287991f30aa1c3f9c7bb7d5"
       url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.5"
+    version: "0.1.6"
   hippo_core_flutter:
     dependency: transitive
     description:
       name: hippo_core_flutter
-      sha256: "6691d8c6ae0748645582b2c47cd6d7cb067a34ed96953c65080f77d83e9904a6"
+      sha256: "9771589e251b3ffc0ecf78eb82f33b960a9ad28aee176af04d2cedb0164831cf"
       url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.6"
+    version: "0.1.7"
   hippo_flutter_app_architecture:
     dependency: transitive
     description:
       name: hippo_flutter_app_architecture
-      sha256: "45ed88a17c0f4f6e4df2f5ad4301e03a41b6a27fd253cfd76117a6d5fef47de3"
+      sha256: cb10ab6e0dc05ec120d4182b3056b985ab9952b09252881e19c6814783cfba63
       url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.6"
+    version: "0.1.7"
   hippobase_auth_models:
     dependency: transitive
     description:
       name: hippobase_auth_models
-      sha256: eaeed3bd1cd9fd3009a72049feaa6be9050be9abe0fd6b32859779f76a9906fb
+      sha256: "86aef39cf8d901fda68adf39ee8e829dd81f1d8d3fb362ba746c756355317f54"
       url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.7"
+    version: "0.1.9"
   hooks:
     dependency: transitive
     description:

@@ -11,7 +11,7 @@ final class RefreshSessionRoute<TServices> extends HippoAuthJsonRoute<TServices>
         error: const HippoAuthRouteError(
           'RefreshSessionFailed',
           'Refresh session failed.',
-          status: 401,
+          status: 500,
         ),
       );
 
@@ -44,11 +44,7 @@ final class RefreshSessionRoute<TServices> extends HippoAuthJsonRoute<TServices>
 
     final threshold = now.add(const Duration(days: 89));
     if (expiresAt.isAfter(threshold)) {
-      throw const HippoAuthBackendException(
-        401,
-        'RefreshSessionInvalidRequest',
-        'Session is still valid.',
-      );
+      return RefreshSessionResponse(expiresAt: expiresAt.toIso8601String());
     }
 
     final newExpiresAt = now.add(const Duration(days: 90));

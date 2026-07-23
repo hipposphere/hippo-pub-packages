@@ -16,7 +16,14 @@ final class LogoutRoute<TServices> extends HippoAuthJsonRoute<TServices> {
   RouteOptions get options => logoutRouteOptions;
 
   @override
-  Object? handleJson(RequestContext<TServices> ctx) {
-    return LogoutResponse(user: hippobaseAuthUser(ctx.requireAuthIdentity.user));
+  Future<Object?> handleJson(RequestContext<TServices> ctx) async {
+    final user = hippobaseAuthUser(ctx.requireAuthIdentity.user);
+    final result = await context.api(ctx).signOut();
+    for (final header in result.response.headers) {
+      if (header.name.toLowerCase() == 'set-cookie') {
+        ctx.res.header(header.name, header.value);
+      }
+    }
+    return LogoutResponse(user: user);
   }
 }

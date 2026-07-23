@@ -410,6 +410,26 @@ void main() {
     final body = await _readJson(response);
     final user = body['user']! as Map<String, Object?>;
     expect(user['email'], 'ada@example.com');
+
+    final refreshRequest = await client.postUrl(baseUri.resolve('/v1/user/refresh-session'));
+    refreshRequest.headers.set(HttpHeaders.authorizationHeader, 'Bearer ${signupJson['token']}');
+    final refreshResponse = await refreshRequest.close();
+    expect(refreshResponse.statusCode, HttpStatus.ok, reason: await _readBody(refreshResponse));
+
+    final logoutRequest = await client.getUrl(baseUri.resolve('/v1/user/logout'));
+    logoutRequest.headers.set(HttpHeaders.authorizationHeader, 'Bearer ${signupJson['token']}');
+    final logoutResponse = await logoutRequest.close();
+    expect(logoutResponse.statusCode, HttpStatus.ok, reason: await _readBody(logoutResponse));
+
+    final replayRequest = await client.getUrl(baseUri.resolve('/v1/user/get_user'));
+    replayRequest.headers.set(HttpHeaders.authorizationHeader, 'Bearer ${signupJson['token']}');
+    final replayResponse = await replayRequest.close();
+    expect(replayResponse.statusCode, HttpStatus.unauthorized);
+    expect(
+      replayResponse.headers.value(HttpHeaders.wwwAuthenticateHeader),
+      'Bearer error="invalid_token"',
+    );
+    await _readBody(replayResponse);
   });
 
   test('signs up through subpath-mounted routes', () async {

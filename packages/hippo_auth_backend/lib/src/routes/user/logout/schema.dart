@@ -25,7 +25,7 @@ typedef LogoutResponse = _$LogoutResponse;
 
 final logoutRouteOptions = RouteOptions(
   operationId: 'getV1UserLogout',
-  summary: 'Return the authenticated logout user payload.',
+  summary: 'Revoke the current session and return its user payload.',
   success: ResponseSpec.json(schema: logoutRouteResponseSchema),
   errors: const <ErrorResponse>[
     ErrorResponse(status: 401, code: 'Unauthorized'),

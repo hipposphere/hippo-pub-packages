@@ -112,13 +112,25 @@ class HippoAuthLoginController {
     apiController.stateSubject.add(LoadingAuthState());
     try {
       await apiController.setSession(session);
-    } catch (e) {
-      apiController.stateSubject.add(UnauthenticatedAuthState());
+    } catch (_) {
+      await apiController.removeSession(
+        reason: AuthSessionEndReason.invalidStoredSession,
+      );
     }
   }
 
   Future<void> signOut() async {
-    await apiController.removeSession();
+    try {
+      if (apiController.currentSession != null) {
+        await apiController.api.v1UserLogoutGet().timeout(
+          const Duration(seconds: 5),
+        );
+      }
+    } catch (_) {
+      // Signing out locally must still work while the server is unavailable.
+    } finally {
+      await apiController.removeSession(reason: AuthSessionEndReason.signedOut);
+    }
   }
 }
 

@@ -1,5 +1,13 @@
 import 'package:hippo_auth/hippo_auth.dart';
 
+/// Explains why an authenticated session transitioned back to signed out.
+enum AuthSessionEndReason {
+  signedOut,
+  expired,
+  serverRejected,
+  invalidStoredSession,
+}
+
 sealed class HippoAuthState {
   const HippoAuthState();
 
@@ -33,7 +41,10 @@ class ErrorAuthState extends HippoAuthState {
 }
 
 class UnauthenticatedAuthState extends HippoAuthState {
-  const UnauthenticatedAuthState();
+  /// Null for a normal initial state where no session has been established.
+  final AuthSessionEndReason? reason;
+
+  const UnauthenticatedAuthState({this.reason});
 
   @override
   AuthSession? get session => null;

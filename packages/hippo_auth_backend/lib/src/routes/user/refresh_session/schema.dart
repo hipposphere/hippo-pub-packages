@@ -18,7 +18,7 @@ typedef RefreshSessionResponse = _$RefreshSessionResponse;
 
 final refreshSessionRouteOptions = RouteOptions(
   operationId: 'postV1UserRefreshSession',
-  summary: 'Extend a near-expiry session.',
+  summary: 'Return a valid expiry, extending a near-expiry session when needed.',
   success: ResponseSpec.json(schema: refreshSessionResponseSchema),
   errors: const <ErrorResponse>[
     ErrorResponse(status: 401, code: 'RefreshSessionInvalidRequest'),

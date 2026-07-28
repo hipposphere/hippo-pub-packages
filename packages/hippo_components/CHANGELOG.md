@@ -1,5 +1,9 @@
 ## Unreleased
 
+## 0.1.61
+
+- Allow `PageHeader` callers to set the navigation bar brightness so transparent
+  headers can select the correct system status bar appearance.
 - Expose `CupertinoApp.builder` through `App.builder` for app-wide layers that
   must remain above the navigator.
 - Migrate the JSON Schema editor and visualization to `json_schema` 0.1.4 from

@@ -1,6 +1,6 @@
 name: hippo_components
 description: Comprehensive Flutter UI component library featuring modals, charts, themes, sliver utilities, and cross-platform adaptive widgets for Hipposphere applications.
-version: 0.1.61
+version: 0.1.62
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -17,7 +17,6 @@ dependencies:
   intl: ^0.20.2
   cupertino_icons: ^1.0.9
   forui: ^0.24.0
-  nativeapi: ^0.1.4
   wolt_modal_sheet: 0.11.0
   soft_edge_blur: 0.1.3
   super_sliver_list: 0.4.1

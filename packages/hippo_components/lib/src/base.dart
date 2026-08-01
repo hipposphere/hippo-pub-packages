@@ -37,7 +37,6 @@ export 'base/other/alert.dart';
 export 'base/other/tile.dart';
 export 'base/other/section.dart';
 export 'base/other/breadcrumb.dart';
-export 'base/other/native_context_menu.dart';
 export 'base/other/tappable_chip.dart';
 export 'base/other/animated_glow_container.dart';
 export 'base/other/text_summary.dart';

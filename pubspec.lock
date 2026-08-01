@@ -297,14 +297,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.2"
-  cnativeapi:
-    dependency: transitive
-    description:
-      name: cnativeapi
-      sha256: "8316cee1e5ba8e80a3c6365a188119c3dc044f6a4b7e43a135dc802ab0bdfb0b"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.4"
   code_assets:
     dependency: transitive
     description:
@@ -1228,14 +1220,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.4+0"
-  nativeapi:
-    dependency: transitive
-    description:
-      name: nativeapi
-      sha256: bcf391b5fe317c540f3966810400a1a2f0f238e382ff5cfbbbf82203967b4fc4
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.4"
   nested:
     dependency: transitive
     description:

@@ -1,5 +1,9 @@
 ## Unreleased
 
+## 0.1.62
+
+- Remove the unused native context menu API and its `nativeapi` dependency.
+
 ## 0.1.61
 
 - Allow `PageHeader` callers to set the navigation bar brightness so transparent

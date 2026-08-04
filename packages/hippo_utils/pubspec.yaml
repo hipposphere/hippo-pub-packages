@@ -1,6 +1,6 @@
 name: hippo_utils
 description: A new Flutter package project.
-version: 0.3.5
+version: 0.3.6
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -20,9 +20,6 @@ dependencies:
   hippo_core_flutter:
     hosted: https://pub.hippolabs.org
     version: ^0.1.5
-  json_schema:
-    hosted: https://pub.hippolabs.org
-    version: ^0.1.4
   rxdart: ^0.28.0
   url_launcher: ^6.3.2
   uuid: ^4.5.3

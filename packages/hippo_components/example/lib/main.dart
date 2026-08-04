@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'src/adaptive_detail_container_example.dart';
-import 'src/json_schema_editor_example.dart';
-import 'src/json_schema_viewer_example.dart';
 
 void main() {
   runApp(const HippoComponentsExampleApp());
@@ -30,17 +28,6 @@ class ExampleCatalogPage extends StatelessWidget {
       description:
           'Navigate between list and detail panes with adaptive behavior for mobile and desktop.',
       builder: (_) => const AdaptiveDetailContainerExamplePage(),
-    ),
-    _ExampleEntry(
-      title: 'JSON Schema Editor',
-      description: 'Edit a JSON Schema and preview/validate fields in an interactive example.',
-      builder: (_) => const JsonSchemaEditorExample(),
-    ),
-    _ExampleEntry(
-      title: 'JSON Schema Viewer',
-      description:
-          'Inspect realistic JSON schemas in a structured read-only viewer with extension metadata.',
-      builder: (_) => const JsonSchemaViewerExamplePage(),
     ),
   ];
 

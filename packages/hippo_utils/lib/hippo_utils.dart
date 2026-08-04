@@ -35,14 +35,3 @@ export 'src/implementations/web_functions/web_functions.dart';
 export 'src/implementations/content_resolver/get_content_from_uri.dart';
 // extensions
 export 'src/extensions/stream_extensions.dart';
-
-// json_schema
-export 'src/json_schema/json_schema_nodes.dart';
-export 'src/json_schema/json_schema_validator.dart';
-export 'src/json_schema/json_schema_path.dart';
-
-// json_pointer
-export 'src/json_pointer/json_pointer_map.dart';
-
-// json_annotator
-export 'src/json_annotator/json_annotator.dart';

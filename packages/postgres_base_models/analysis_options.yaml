@@ -21,6 +21,13 @@ linter:
 
 analyzer:
   exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
     # - samples/data_class_samples/input_example_data.dart
 
 # For more information about the core and recommended set of lints, see

@@ -38,7 +38,7 @@ final class OAuth2SignInRoute<TServices> extends HippoAuthJsonRoute<TServices> {
       return hippoAuthErrorResponse(
         400,
         'SSOLoginInitiationFailed',
-        'callbackURL must be an absolute http(s) URL on the auth origin, a trusted origin, or a loopback origin.',
+        'callbackURL must be an absolute URL on the auth origin, a trusted origin, or an allowed loopback origin.',
         details: {'provider_id': providerId},
       );
     }
@@ -124,25 +124,42 @@ String? _oauthState(String authorizationUrl) {
 
 bool _isTrustedAppCallbackUrl(HippoAuthBackendOptions options, String callbackUrl) {
   final uri = Uri.tryParse(callbackUrl);
-  if (uri == null || !_isHttpScheme(uri) || uri.host.isEmpty) {
+  if (uri == null || uri.scheme.isEmpty || uri.host.isEmpty || uri.userInfo.isNotEmpty) {
     return false;
   }
-  if (options.allowLoopbackOAuthCallbackUrls && _isLoopbackHost(uri.host)) {
+  if (_isHttpScheme(uri) && options.allowLoopbackOAuthCallbackUrls && _isLoopbackHost(uri.host)) {
     return true;
   }
 
   final baseUrl = Uri.tryParse(options.baseUrl);
-  if (baseUrl != null && _isHttpScheme(baseUrl) && uri.origin == baseUrl.origin) {
+  if (baseUrl != null &&
+      _isHttpScheme(uri) &&
+      _isHttpScheme(baseUrl) &&
+      uri.origin == baseUrl.origin) {
     return true;
   }
 
   for (final trustedOrigin in options.trustedOrigins) {
     final trustedUri = Uri.tryParse(trustedOrigin.trim());
-    if (trustedUri != null && _isHttpScheme(trustedUri) && uri.origin == trustedUri.origin) {
+    if (trustedUri != null && _sameConfiguredOrigin(uri, trustedUri)) {
       return true;
     }
   }
   return false;
+}
+
+bool _sameConfiguredOrigin(Uri uri, Uri trustedUri) {
+  if (trustedUri.scheme.isEmpty ||
+      trustedUri.host.isEmpty ||
+      trustedUri.userInfo.isNotEmpty ||
+      uri.scheme != trustedUri.scheme ||
+      uri.host != trustedUri.host) {
+    return false;
+  }
+  if (_isHttpScheme(uri)) {
+    return _isHttpScheme(trustedUri) && uri.origin == trustedUri.origin;
+  }
+  return uri.hasPort == trustedUri.hasPort && (!uri.hasPort || uri.port == trustedUri.port);
 }
 
 bool _isAbsoluteHttpUrl(String value) {

@@ -67,11 +67,13 @@ overridden per provider with `HippoAuthSsoProvider.redirectUrl` for proxied or
 subpath deployments.
 
 The final app `callbackURL` must be an absolute HTTP(S) URL on the auth origin,
-on a configured `trustedOrigins` origin, or on a loopback host when
-`allowLoopbackOAuthCallbackUrls` is enabled. Loopback ports such as
+an absolute URL on a configured `trustedOrigins` origin, or an HTTP(S) URL on a
+loopback host when `allowLoopbackOAuthCallbackUrls` is enabled. Explicitly
+configured custom-scheme origins such as `com.example.app://auth` are supported
+for native app callbacks. Loopback ports such as
 `http://127.0.0.1:55357/callback` do not need to be added to Better Auth trusted
 origins. Configure the OAuth provider, such as Azure Entra ID, with the backend
-callback URL, not the loopback app callback URL.
+callback URL, not the final native or loopback app callback URL.
 
 Generated OpenAPI docs include stable operation IDs, request body presence,
 response content types, and error status metadata. Hippo route payloads are

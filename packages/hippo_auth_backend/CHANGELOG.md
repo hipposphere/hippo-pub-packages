@@ -1,3 +1,8 @@
+## 0.1.26
+
+* Allow explicitly trusted custom-scheme origins as final OAuth application
+  callbacks for native clients.
+
 ## 0.1.25
 
 * Make session refresh idempotent while a session is still healthy.

@@ -237,6 +237,64 @@ void main() {
     expect(await verifications.oauthRelayCallbackUrl('state-1'), isNull);
   });
 
+  test('accepts an explicitly trusted custom-scheme OAuth app callback', () async {
+    final database = SqliteDatabase.inMemory();
+    final backend = _backend(
+      database,
+      trustedOrigins: const ['dicto://auth'],
+      ssoProviders: const [
+        HippoAuthSsoProvider(
+          providerId: 'uka',
+          providerType: HippoAuthSsoProviderType.genericOAuth,
+          clientId: 'client-id',
+          authorizationUrl: 'https://login.example.test/oauth2/authorize',
+          tokenUrl: 'https://login.example.test/oauth2/token',
+        ),
+      ],
+    );
+    final app = DartEdge<void>(services: () {});
+    backend.mount(app);
+
+    final server = await app.listen(port: 0, workers: 1);
+    final client = HttpClient();
+    addTearDown(() async {
+      client.close(force: true);
+      await server.close();
+      backend.dispose();
+      await database.close();
+    });
+
+    final baseUri = Uri.http('127.0.0.1:${server.port}');
+    final rejectedResponse = await client
+        .getUrl(
+          baseUri.replace(
+            path: '/v1/oauth2/sign-in/uka',
+            queryParameters: const {'callbackURL': 'dicto://evil/callback'},
+          ),
+        )
+        .then((request) => request.close());
+    expect(
+      rejectedResponse.statusCode,
+      HttpStatus.badRequest,
+      reason: await _readBody(rejectedResponse),
+    );
+
+    final request = await client.getUrl(
+      baseUri.replace(
+        path: '/v1/oauth2/sign-in/uka',
+        queryParameters: const {'callbackURL': 'dicto://auth/callback'},
+      ),
+    );
+    request.followRedirects = false;
+    final response = await request.close();
+
+    expect(response.statusCode, HttpStatus.found, reason: await _readBody(response));
+    expect(
+      response.headers.value(HttpHeaders.locationHeader),
+      startsWith('https://login.example.test/'),
+    );
+  });
+
   test('normalizes and validates database schema options', () {
     final database = SqliteDatabase.inMemory();
     addTearDown(database.close);
@@ -514,17 +572,24 @@ Future<void> _expectDirectBetterAuthSignupThenCompatibilitySignin({
   expect(signinUser['email'], 'katherine@example.com');
 }
 
-HippoAuthBackend _backend(SqlPool database, {String? databaseSchema}) {
+HippoAuthBackend _backend(
+  SqlPool database, {
+  String? databaseSchema,
+  List<String> trustedOrigins = const <String>[],
+  List<HippoAuthSsoProvider> ssoProviders = const <HippoAuthSsoProvider>[],
+}) {
   return HippoAuthBackend(
     HippoAuthBackendOptions(
       workerPoolSize: 4,
       database: database,
       secret: 'test-secret-key-that-is-at-least-32-characters-long',
       baseUrl: 'http://localhost:3000',
+      trustedOrigins: trustedOrigins,
       databaseSchema: databaseSchema,
       exposeBetterAuthApi: true,
       enableRateLimit: false,
       manageMigrations: true,
+      ssoProviders: ssoProviders,
     ),
   );
 }

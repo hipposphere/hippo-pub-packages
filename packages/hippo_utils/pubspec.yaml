@@ -16,10 +16,10 @@ dependencies:
     sdk: flutter
   hippo_core:
     hosted: https://pub.hippolabs.org
-    version: ^0.1.5
+    version: ^0.1.10
   hippo_core_flutter:
     hosted: https://pub.hippolabs.org
-    version: ^0.1.5
+    version: ^0.1.13
   rxdart: ^0.28.0
   url_launcher: ^6.3.2
   uuid: ^4.5.3

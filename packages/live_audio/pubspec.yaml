@@ -1,6 +1,6 @@
 name: live_audio
 description: Abstracted live audio service integrations.
-version: 0.2.3
+version: 0.2.4
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -17,7 +17,7 @@ dependencies:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.3.27
   googleai_dart: ^9.0.0
-  openai_dart: ^7.0.1
+  openai_dart: ^8.0.0
 
 dev_dependencies:
   test: ^1.30.0

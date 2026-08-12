@@ -20,12 +20,16 @@ dependencies:
   hippo_core_flutter:
     hosted: https://pub.hippolabs.org
     version: ^0.1.13
+  hippo_core_flutter_secure_storage:
+    hosted: https://pub.hippolabs.org
+    version: ^0.1.0
+  hippo_core_flutter_shared_preferences:
+    hosted: https://pub.hippolabs.org
+    version: ^0.1.0
   rxdart: ^0.28.0
   url_launcher: ^6.3.2
   uuid: ^4.5.3
   web: ^1.1.1
-  shared_preferences: ^2.5.5
-  flutter_secure_storage: ^11.0.0
   cross_file: ^0.3.5+4
   archive: ^4.0.9
   file_picker: ^12.0.0-beta.7

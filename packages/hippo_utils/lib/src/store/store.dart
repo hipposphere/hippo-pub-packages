@@ -13,8 +13,11 @@ export 'file_store/impl/mock.dart';
 export 'file_store/impl/common_file_store/common_file_store.dart';
 
 export 'package:hippo_core/hippo_core.dart' show KeyValueStore;
-export 'package:hippo_core_flutter/hippo_core_flutter.dart'
-    show MockKeyValueStore, SecureKeyValueStore, SharedPreferencesKeyValueStore;
+export 'package:hippo_core_flutter/hippo_core_flutter.dart' show MockKeyValueStore;
+export 'package:hippo_core_flutter_secure_storage/hippo_core_flutter_secure_storage.dart'
+    show SecureKeyValueStore;
+export 'package:hippo_core_flutter_shared_preferences/hippo_core_flutter_shared_preferences.dart'
+    show SharedPreferencesKeyValueStore;
 
 // credential_store
 export 'credential_store/credential_key.dart';

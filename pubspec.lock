@@ -959,6 +959,22 @@ packages:
       url: "https://pub.hippolabs.org"
     source: hosted
     version: "0.1.13"
+  hippo_core_flutter_secure_storage:
+    dependency: transitive
+    description:
+      name: hippo_core_flutter_secure_storage
+      sha256: "6a9e4bc6556d3eaa8200d0cb7401bb86720906a5678a325e8b5a2d8fef8bfe49"
+      url: "https://pub.hippolabs.org"
+    source: hosted
+    version: "0.1.0"
+  hippo_core_flutter_shared_preferences:
+    dependency: transitive
+    description:
+      name: hippo_core_flutter_shared_preferences
+      sha256: "043d949197ee36e2820eef45b9f7483e500c6657d18e8fa4fd71b847bba997ef"
+      url: "https://pub.hippolabs.org"
+    source: hosted
+    version: "0.1.0"
   hippo_flutter_app_architecture:
     dependency: transitive
     description:

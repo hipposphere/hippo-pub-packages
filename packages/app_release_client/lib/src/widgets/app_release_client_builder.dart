@@ -22,8 +22,8 @@ class AppReleaseClientBuilder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentBloc = bloc ?? AppReleaseClientBloc.of(context);
-    return StatefulDataSubjectBuilder(
-      subject: currentBloc.appCastUrlSubject,
+    return DataValueBuilder(
+      value: currentBloc.appCastUrlSubject,
       builder: builder,
     );
   }

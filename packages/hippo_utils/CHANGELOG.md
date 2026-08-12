@@ -1,5 +1,10 @@
 ## Unreleased
 
+- Breaking: Replace `SubjectTextField`'s deprecated
+  `TextEditingDataSubject` input with separate `TextEditingController` and
+  `DataSubject<String>` inputs.
+- Re-export secure-storage and shared-preferences key-value stores from their
+  dedicated `hippo_core_flutter` adapter packages.
 - Breaking: Replace the local `JsonSchema`, `JsonSchemaModel`, and `JsonPointer`
   implementations with `json_schema` 0.1.4 from
   `https://pub.hippolabs.org` while retaining the editor node APIs.

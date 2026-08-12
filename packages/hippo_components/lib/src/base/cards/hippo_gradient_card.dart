@@ -37,9 +37,9 @@ class HippoGradientCard extends StatelessWidget {
     final isHoveredSubject = DataSubject<bool>.seeded(false);
     final isPressedSubject = DataSubject<bool>.seeded(false);
 
-    return CombinedDataSubjectBuilder<bool, bool>(
-      subject1: isHoveredSubject,
-      subject2: isPressedSubject,
+    return CombinedDataValueBuilder<bool, bool>(
+      value1: isHoveredSubject,
+      value2: isPressedSubject,
       builder: (context, isHovered, isPressed) {
         final child = Container(
           padding: padding,

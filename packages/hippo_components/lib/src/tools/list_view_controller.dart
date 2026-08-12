@@ -144,9 +144,9 @@ class ListViewBuilder<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CombinedDataSubjectBuilder(
-      subject1: controller.subject,
-      subject2: controller.selectedIndexSubject,
+    return CombinedDataValueBuilder(
+      value1: controller.subject,
+      value2: controller.selectedIndexSubject,
       builder: (context, list, index) {
         return builder(context, list, index);
       },
@@ -178,9 +178,9 @@ class ListViewControlFlowBuilder<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CombinedDataSubjectBuilder(
-      subject1: controller.subject,
-      subject2: controller.selectedIndexSubject,
+    return CombinedDataValueBuilder(
+      value1: controller.subject,
+      value2: controller.selectedIndexSubject,
       builder: (context, list, index) {
         if (list.isEmpty) {
           return builder(context, false, false, null);

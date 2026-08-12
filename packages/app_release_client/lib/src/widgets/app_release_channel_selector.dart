@@ -29,12 +29,12 @@ class AppReleaseChannelSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final currentBloc = bloc ?? AppReleaseClientBloc.of(context);
 
-    return CombinedDataSubjectBuilder<
+    return CombinedDataValueBuilder<
       SelectedValue<List<AppReleaseChannel>>,
       SelectedValue<AppReleaseChannel?>
     >(
-      subject1: currentBloc.channelsSubject,
-      subject2: currentBloc.selectedChannelSubject,
+      value1: currentBloc.channelsSubject,
+      value2: currentBloc.selectedChannelSubject,
       builder: (context, channelsState, selectedState) {
         final channels = channelsState.value;
         final selectedChannel = selectedState.value;

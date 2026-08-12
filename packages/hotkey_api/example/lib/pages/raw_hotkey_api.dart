@@ -26,9 +26,9 @@ class RawHotkeyApiExample extends StatelessWidget {
       body: CustomScrollView(
         controller: bloc.scrollController,
         slivers: [
-          CombinedDataSubjectBuilder(
-            subject1: bloc.isListeningSubject,
-            subject2: bloc.selectedHotkeySubject,
+          CombinedDataValueBuilder(
+            value1: bloc.isListeningSubject,
+            value2: bloc.selectedHotkeySubject,
             builder: (context, isListening, selectedHotkey) {
               return SliverColumn(
                 children: [

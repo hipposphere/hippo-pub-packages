@@ -228,9 +228,9 @@ class ControlPanel extends StatelessWidget {
             },
           ),
         ),
-        CombinedDataSubjectBuilder<String?, String?>(
-          subject1: bloc.reportIdErrorSubject,
-          subject2: bloc.dataErrorSubject,
+        CombinedDataValueBuilder<String?, String?>(
+          value1: bloc.reportIdErrorSubject,
+          value2: bloc.dataErrorSubject,
           builder: (context, idError, dataError) {
             final isEnabled =
                 idError == null &&

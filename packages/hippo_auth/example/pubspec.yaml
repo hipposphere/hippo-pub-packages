@@ -12,6 +12,8 @@ dependencies:
     sdk: flutter
   hippo_auth:
     path: ../
+  hippo_auth_ui:
+    path: ../../hippo_auth_ui
   hippo_components:
     hosted: https://registry.hippolabs.org/pub/internal-pub/
     version: ^0.1.53

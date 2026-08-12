@@ -9,8 +9,8 @@ class HippoAuthBuilder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authBloc = HippoAuthBloc.of(context);
-    return StatefulDataSubjectBuilder(
-      subject: authBloc.apiController.stateSubject,
+    return DataValueBuilder(
+      value: authBloc.apiController.stateSubject,
       builder: builder,
     );
   }

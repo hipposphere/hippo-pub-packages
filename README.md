@@ -15,6 +15,7 @@ This repository contains commonly used Dart & Flutter packages maintained by **H
 - **`packages/hippo_components`** – Comprehensive Flutter UI component library with modals, charts, themes, sliver utilities, and cross-platform adaptive widgets.
 - **`packages/hippo_utils`** – Cross‑platform utility wrappers and convenience exports for frequently used packages (files, sharing, purchases, URL launching, reactive streams, BLoC helpers, etc.).
 - **`packages/hippo_auth`** – Authentication and authorization utilities for Hipposphere applications.
+- **`packages/hippo_auth_ui`** – Ready-made Flutter authentication widgets and login flows built on `hippo_auth`.
 - **`packages/hippo_ui`** – Framework-neutral widget preview annotations for Hipposphere UI tooling.
 - **`packages/hippo_ui_flutter`** – Flutter widget preview annotations backed by `hippo_ui` metadata.
 - **`packages/hippo_ui_review`** – Contracts for UI review, inspection, playground, and design QA apps.
@@ -82,6 +83,11 @@ import 'package:hippo_utils/hippo_utils.dart';
 **Focus**: Authentication and authorization utilities for secure application access.
 
 **Features**: User authentication, session management, and security utilities for Hipposphere applications.
+
+### `hippo_auth_ui`  [→ detailed README](packages/hippo_auth_ui/README.md)
+**Focus**: Reusable Flutter UI for `hippo_auth`.
+
+**Features**: Authentication gates, state builders, login wrappers, SSO buttons, and email sign-in/sign-up flows.
 
 ### `hippo_ui`  [→ detailed README](packages/hippo_ui/README.md)
 **Focus**: Framework-neutral widget preview annotations.

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hippo_auth/hippo_auth.dart';
+import 'package:hippo_auth_ui/src/login_app/blocs/sign_up_email_bloc.dart';
 import 'package:hippo_components/hippo_components.dart';
 import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 

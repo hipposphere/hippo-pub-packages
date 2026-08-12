@@ -1,6 +1,6 @@
-name: hippo_auth
-description: Flutter package for Hippo authentication
-version: 0.2.0
+name: hippo_auth_ui
+description: Flutter UI components and login flows for hippo_auth
+version: 0.1.0
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -10,28 +10,25 @@ environment:
   flutter: ">=3.44.0"
 
 dependencies:
-  flutter_web_auth_2: ^5.0.3
   flutter:
     sdk: flutter
+  hippo_auth:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.2.0
+  hippo_components:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.1.53
   hippo_core:
     hosted: https://pub.hippolabs.org
     version: ^0.1.5
-  chopper: ^8.6.0
-  json_annotation: ^4.12.0
-  collection: ^1.19.1
-  http: ^1.6.0
   hippo_core_flutter:
     hosted: https://pub.hippolabs.org
     version: ^0.1.6
-  hippo_flutter_app_architecture:
-    hosted: https://pub.hippolabs.org
-    version: ^0.1.6
+  hippo_utils:
+    hosted: https://registry.hippolabs.org/pub/internal-pub/
+    version: ^0.3.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  swagger_dart_code_generator: ^4.1.1
-  build_runner: ^2.15.1
-  chopper_generator: ^8.6.2
-  json_serializable: ^6.13.2

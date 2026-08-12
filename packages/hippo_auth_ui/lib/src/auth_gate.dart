@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
-import 'package:hippo_auth/src/auth_bloc.dart';
-import 'package:hippo_auth/src/models/auth_session.dart';
-import 'package:hippo_auth/src/models/auth_state.dart';
+import 'package:hippo_auth/hippo_auth.dart';
 
 class HippoAuthGate<TAuthenticated, TUnauthenticated> extends StatefulWidget {
   const HippoAuthGate({

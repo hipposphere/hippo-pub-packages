@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hippo_auth/hippo_auth.dart';
+import 'package:hippo_auth_ui/hippo_auth_ui.dart';
 import 'package:hippo_core_flutter/hippo_core_flutter.dart';
 
 void main() {

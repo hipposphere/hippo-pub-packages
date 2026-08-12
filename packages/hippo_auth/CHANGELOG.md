@@ -1,3 +1,9 @@
+## 0.2.0
+
+* Breaking: Move Flutter authentication widgets and the login flow to `hippo_auth_ui`.
+* Remove the `hippo_components` and `hippo_utils` dependencies.
+* Export `HippoAuthLoginController` for UI integrations.
+
 ## 0.1.19
 
 * Centralize proactive, single-flight session renewal in the auth controller.

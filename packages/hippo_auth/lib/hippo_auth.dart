@@ -2,7 +2,7 @@ export 'api/api.dart';
 
 export 'src/auth_api_controller.dart';
 export 'src/auth_bloc.dart';
-export 'src/auth_gate.dart';
+export 'src/auth_login_controller.dart';
 
 export 'src/models/auth_response.dart';
 export 'src/models/auth_session.dart';
@@ -13,14 +13,3 @@ export 'src/models/auth_state.dart';
 
 export 'src/utils/authorization_interceptor.dart';
 export 'src/utils/oauth2_redirect_server.dart';
-
-export 'src/components/login_app/login_app.dart';
-export 'src/components/login_app/blocs/sign_in_email_bloc.dart';
-export 'src/components/login_app/blocs/sign_up_email_bloc.dart';
-export 'src/components/widgets/auth_builder.dart';
-export 'src/components/widgets/hippo_auth_wrapper.dart';
-export 'src/components/widgets/sso_login_button.dart';
-
-export 'src/components/login_app/pages/forgot_password/modal.dart';
-export 'src/components/login_app/pages/sign_in_email/page.dart';
-export 'src/components/login_app/pages/sign_up_email/page.dart';

@@ -788,18 +788,18 @@ packages:
     dependency: transitive
     description:
       name: flutter_secure_storage
-      sha256: "7686b1d6a29985dcbb808c59518226e603e3bfa7c0ddfd1a0d00e4cda77c868e"
+      sha256: "15e8c8fe269fdf7d469b23008ab3df521c8b826ed345820532364c31bdebace6"
       url: "https://pub.dev"
     source: hosted
-    version: "10.3.1"
+    version: "11.0.0"
   flutter_secure_storage_darwin:
     dependency: transitive
     description:
       name: flutter_secure_storage_darwin
-      sha256: "82329fa5cdf343773b1b6897dea959105a29f092454259edff92f9f6637e8149"
+      sha256: ac6d76a752de0cd738334eb4b21743fc4943f449f5b6e308f18838b048c02ac0
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.2"
+    version: "0.4.0"
   flutter_secure_storage_linux:
     dependency: transitive
     description:
@@ -947,18 +947,18 @@ packages:
     dependency: transitive
     description:
       name: hippo_core
-      sha256: "29e58dedfaed3c7ed3b78441c2bb1a00a97834362287991f30aa1c3f9c7bb7d5"
+      sha256: "71bd59092201b2f20c580ea1d92caa4568d158a89c586e67f4d31ef8374b0c43"
       url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.6"
+    version: "0.1.10"
   hippo_core_flutter:
     dependency: transitive
     description:
       name: hippo_core_flutter
-      sha256: "9771589e251b3ffc0ecf78eb82f33b960a9ad28aee176af04d2cedb0164831cf"
+      sha256: "02e935e38df8b1033984a276194a77e9fda2e27a460629019b1fe3cef5010a66"
       url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.7"
+    version: "0.1.13"
   hippo_flutter_app_architecture:
     dependency: transitive
     description:

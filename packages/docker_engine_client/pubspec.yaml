@@ -1,0 +1,12 @@
+name: docker_engine_client
+description: Typed Dart client for the Docker Engine HTTP API over Unix sockets or TCP/TLS.
+version: 0.1.0
+homepage: https://hippolabs.org
+publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dev_dependencies:
+  test: ^1.31.1

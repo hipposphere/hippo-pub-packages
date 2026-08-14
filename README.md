@@ -21,9 +21,6 @@ This repository contains commonly used Dart & Flutter packages maintained by **H
 - **`packages/hippo_ui_review`** – Contracts for UI review, inspection, playground, and design QA apps.
 - **`packages/hippo_ui_review_flutter`** – Flutter widgets for UI review, inspection, playground, and design QA apps.
 - **`packages/hippo_ui_codegen`** – Build runner code generators for Hipposphere UI annotations.
-- **`packages/dictation_support`** – Support dictation devices using the hid_api package.
-- **`packages/hid_device_manager`** – Reactive HID device registration, connection policy, and lifecycle management.
-- **`packages/hid_api`** – Federated Human Interface Device (HID) API with endorsed Linux, macOS, and Windows implementations.
 - **`packages/postgres_base_models`** – Base models and utilities for PostgreSQL database interactions.
 - **`packages/postgres_models_builder`** – Code generation tools for PostgreSQL model creation and management.
 
@@ -113,29 +110,6 @@ import 'package:hippo_utils/hippo_utils.dart';
 **Focus**: Code generation for Hipposphere UI annotations.
 
 **Features**: A `build_runner` builder that reads `HippoWidgetFolder` and `HippoWidgetPreview` annotations and emits generated catalog metadata.
-
-### `dictation_support`  [→ detailed README](packages/dictation_support/README.md)
-**Focus**: Speech recognition and dictation capabilities.
-
-**Features**: Flutter integration for speech-to-text functionality and voice input support.
-
-### `hid_device_manager`  [→ detailed README](packages/hid_device_manager/README.md)
-**Focus**: Reactive HID device orchestration on top of `hid_api`.
-
-**Features**:
-- **Device Registration**: Match HID devices to typed definitions
-- **Connection Policy**: Auto-connect, reconnect, and open-mode handling
-- **Reactive State**: Subjects and streams for availability, connection state, and device lists
-- **Typed Controllers**: Build semantic device layers without reimplementing HID lifecycle logic
-
-### `hid_api`  [→ detailed README](packages/hid_api/README.md)
-**Focus**: Human Interface Device (HID) API bindings for native device communication.
-
-**Features**: 
-- **Federated Plugin**: App-facing API, shared platform contract, and independently owned desktop implementations
-- **Native Bindings**: Method-channel integration with native HID APIs
-- **Device Communication**: Direct communication with USB and Bluetooth HID devices
-- **Cross-platform Support**: Windows, macOS, and Linux compatibility
 
 ### `postgres_base_models`  [→ detailed README](packages/postgres_base_models/README.md)
 **Focus**: Foundation models and utilities for PostgreSQL database operations.

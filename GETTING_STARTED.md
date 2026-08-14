@@ -16,7 +16,7 @@ Before you begin, ensure you have the following tools installed on your system:
 #### 2. **Flutter SDK** (≥3.35.0)
 - **Download**: [docs.flutter.dev/get-started/install](https://docs.flutter.dev/get-started/install)
 - **Verify installation**: `flutter --version`
-- **Required for**: Working with `hippo_components`, `dictation_support`, and other Flutter packages
+- **Required for**: Working with `hippo_components` and other Flutter packages
 
 #### 3. **Git**
 - **Download**: [git-scm.com](https://git-scm.com/)

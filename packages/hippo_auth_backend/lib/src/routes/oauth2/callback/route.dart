@@ -1,5 +1,5 @@
-import 'package:dart_edge_auth/dart_edge_auth.dart';
-import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:dart_better_auth/dart_better_auth.dart';
+import 'package:dart_http_core/dart_http_core.dart';
 
 import '../../../utils/api_error.dart';
 import '../../../utils/auth_response_token.dart';
@@ -62,7 +62,7 @@ final class OAuth2CallbackRoute<TServices> extends HippoAuthJsonRoute<TServices>
       );
     }
 
-    final DartEdgeAuthApiResponse authResponse;
+    final DartBetterAuthApiResponse authResponse;
     try {
       authResponse = await context
           .api(ctx)
@@ -82,7 +82,7 @@ final class OAuth2CallbackRoute<TServices> extends HippoAuthJsonRoute<TServices>
     }
     if (!authResponse.isSuccess) {
       return hippoAuthExceptionResponse(
-        DartEdgeAuthApiException(authResponse),
+        DartBetterAuthApiException(authResponse),
         defaultStatus: authResponse.status,
         defaultCode: 'OAuth2CallbackExchangeFailed',
         defaultMessage: 'OAuth2 callback exchange failed.',

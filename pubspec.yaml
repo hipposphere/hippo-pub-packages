@@ -12,6 +12,10 @@ dev_dependencies:
 dependency_overrides:
   cli_util: 0.5.1
   test_api: 0.7.12
+  dart_better_auth:
+    path: ../../hippolabs-org/dart-better-auth
+  hippobase_auth_models:
+    path: ../packages/packages/hippobase/hippobase_auth_models
 
 workspace:
   - packages/*

@@ -3,8 +3,8 @@
 Backend routes for Hippo Auth on Dart Edge.
 
 The package mounts the Hippo Auth HTTP surface from the NPM package on top of
-`dart_edge_core`, uses `dart_edge_auth` for Better Auth, stores auth data in a
-shared `dart_edge_sql` pool, and renders reset-password / confirm-mail pages
+`dart_http_core`, uses `dart_better_auth` for Better Auth, stores auth data in a
+shared `dart_sql` pool, and renders reset-password / confirm-mail pages
 with `dart_edge_jaspr`.
 
 ```dart
@@ -21,7 +21,7 @@ final backend = HippoAuthBackend(
   ),
 );
 
-final app = DartEdge<void>(services: () {});
+final app = DartHttp<void>(services: () {});
 backend.mount(app);
 await app.listen(port: 3000);
 ```
@@ -53,9 +53,9 @@ Mounted routes include:
 - `/views/reset-password`
 - `/views/confirm-mail`
 
-OAuth2 and SSO routes are backed by `dart_edge_auth` OAuth providers. OAuth
+OAuth2 and SSO routes are backed by `dart_better_auth` OAuth providers. OAuth
 client admin routes are still registered for client compatibility, but return
-`501` until `dart_edge_auth` exposes the matching Better Auth OAuth provider
+`501` until `dart_better_auth` exposes the matching Better Auth OAuth provider
 management plugin.
 
 `callbackURL` on `/v1/oauth2/sign-in/<provider>` is the final application return
@@ -87,7 +87,7 @@ Better Auth user row models and table descriptors come from
 server implementation. `hippo_auth_backend` re-exports `AuthUserId`,
 `AuthUserRow`, `AuthUserInsert`, `AuthUserUpdate`, and `AuthUsersTable`.
 Session persistence and the Better Auth runtime remain provided by
-`dart_edge_auth`.
+`dart_better_auth`.
 
 Auth-managed migrations are disabled by default. Production applications should
 create and evolve the Better Auth tables through their normal migration system.
@@ -95,5 +95,5 @@ Set `manageMigrations: true` only for throwaway/demo databases.
 
 For PostgreSQL deployments that isolate auth tables in a separate schema, pass
 `databaseSchema: 'auth'` and create that schema and its tables yourself.
-`hippo_auth_backend` forwards the schema to `dart_edge_auth`, and backend
+`hippo_auth_backend` forwards the schema to `dart_better_auth`, and backend
 session lookups use the schema-aware SQL table descriptors.

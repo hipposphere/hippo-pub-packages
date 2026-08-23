@@ -425,6 +425,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.9"
+  dart_better_auth:
+    dependency: "direct overridden"
+    description:
+      path: "../../hippolabs-org/dart-better-auth"
+      relative: true
+    source: path
+    version: "0.1.0"
   dart_casing:
     dependency: transitive
     description:
@@ -433,14 +440,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.1"
-  dart_edge_auth:
-    dependency: transitive
-    description:
-      name: dart_edge_auth
-      sha256: ba1cf092ae2abfe5cba68c36bb971b9be8c5ea004bb42e2f4887c22905288284
-      url: "https://registry.hippolabs.org/pub/internal-pub/"
-    source: hosted
-    version: "0.3.37"
   dart_edge_core:
     dependency: transitive
     description:
@@ -497,22 +496,46 @@ packages:
       url: "https://registry.hippolabs.org/pub/internal-pub/"
     source: hosted
     version: "0.1.2"
-  dart_edge_sql:
+  dart_http_core:
     dependency: transitive
     description:
-      name: dart_edge_sql
-      sha256: d646faed2d4dd9ee0c5ec803555defcb85aa1cfd07e67fe1e49f0958372691cc
-      url: "https://registry.hippolabs.org/pub/internal-pub/"
+      name: dart_http_core
+      sha256: c3502c1e3506d4f9d6b830565cf3a7d57811e8824bc33887f05d3bcfd50eab66
+      url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.3.31"
-  dart_edge_sql_pglite:
+    version: "0.3.46"
+  dart_http_server:
     dependency: transitive
     description:
-      name: dart_edge_sql_pglite
-      sha256: "122fd82b2a1f32d84183c6d87c553d842e569319159f7fd331a320b1312d74e4"
-      url: "https://registry.hippolabs.org/pub/internal-pub/"
+      name: dart_http_server
+      sha256: cebbc6169e8729a1b6aebc726c7e3041de862c3210dd3370a8b5212f0ef5798c
+      url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.14"
+    version: "0.3.26"
+  dart_http_server_runtime:
+    dependency: transitive
+    description:
+      name: dart_http_server_runtime
+      sha256: f75a2c1d1dbd5c113b44f86df458163312cabff3d1ac87a1cb0da28c18bc3ffa
+      url: "https://pub.hippolabs.org"
+    source: hosted
+    version: "0.3.39"
+  dart_sql:
+    dependency: transitive
+    description:
+      name: dart_sql
+      sha256: dd5663ad33cf2b38e0aeb16f662c08ea732a07d9d7912378ca550d971e6af3a5
+      url: "https://pub.hippolabs.org"
+    source: hosted
+    version: "0.4.1"
+  dart_sql_pglite:
+    dependency: transitive
+    description:
+      name: dart_sql_pglite
+      sha256: f4b58cf3ae4a05c32424f1b98a46b9eaf10c698cc8959cabc61d569b89bc241b
+      url: "https://pub.hippolabs.org"
+    source: hosted
+    version: "0.2.1"
   dart_style:
     dependency: transitive
     description:
@@ -734,11 +757,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.0.20"
-  flutter_driver:
-    dependency: transitive
-    description: flutter
-    source: sdk
-    version: "0.0.0"
   flutter_lints:
     dependency: transitive
     description:
@@ -890,11 +908,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.0"
-  fuchsia_remote_debug_protocol:
-    dependency: transitive
-    description: flutter
-    source: sdk
-    version: "0.0.0"
   glob:
     dependency: transitive
     description:
@@ -984,21 +997,28 @@ packages:
     source: hosted
     version: "0.1.8"
   hippobase_auth_models:
+    dependency: "direct overridden"
+    description:
+      path: "../packages/packages/hippobase/hippobase_auth_models"
+      relative: true
+    source: path
+    version: "0.2.0"
+  hippolabs_native_assets:
     dependency: transitive
     description:
-      name: hippobase_auth_models
-      sha256: "86aef39cf8d901fda68adf39ee8e829dd81f1d8d3fb362ba746c756355317f54"
+      name: hippolabs_native_assets
+      sha256: "1dca12b9da23b2a6ce04543f7e04c5e49efbcfda301b69ed7d9c214016df254d"
       url: "https://pub.hippolabs.org"
     source: hosted
-    version: "0.1.9"
+    version: "0.1.1"
   hooks:
     dependency: transitive
     description:
       name: hooks
-      sha256: "9a62a50b50b769a737bc0a8ff381f333529df3ab746b2f6b02e83760231455ba"
+      sha256: eaac480a35ec0814146c2c48d96aaa829e0e44a7662c88ae84c9edf4bc35651f
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.2"
+    version: "2.2.0"
   hotreloader:
     dependency: transitive
     description:
@@ -1047,11 +1067,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
-  integration_test:
-    dependency: transitive
-    description: flutter
-    source: sdk
-    version: "0.0.0"
   intl:
     dependency: transitive
     description:
@@ -1228,14 +1243,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.5"
+  native_exchange:
+    dependency: transitive
+    description:
+      name: native_exchange
+      sha256: "4b7b02e08fd71552977369d38dbe8a34321b0b78426cdb96a8b2bbdd58c14b4b"
+      url: "https://pub.hippolabs.org"
+    source: hosted
+    version: "0.2.0"
   native_toolchain_rust:
     dependency: transitive
     description:
       name: native_toolchain_rust
-      sha256: faa57d2258a3b0fd2a634054f54e4496c9fcbd971977e7d2b7e6916d56892857
+      sha256: "8469a0e32a47a5c84b7fd300de9fd0e8082aac76c37922986324f5082a58350d"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.4+0"
+    version: "1.0.6"
   nested:
     dependency: transitive
     description:
@@ -1536,10 +1559,10 @@ packages:
     dependency: transitive
     description:
       name: record_use
-      sha256: "2551bd8eecfe95d14ae75f6021ad0248be5c27f138c2ec12fcb52b500b3ba1ed"
+      sha256: "1cb8564af8d43b464294411db9217f5ec04891c6f22ee2c32d73ae05e88a6bd2"
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.0"
+    version: "1.1.1"
   rxdart:
     dependency: transitive
     description:
@@ -1817,14 +1840,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.1"
-  sync_http:
-    dependency: transitive
-    description:
-      name: sync_http
-      sha256: "7f0cd72eca000d2e026bcd6f990b81d0ca06022ef4e32fb257b30d3d1014a961"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.3.1"
   synchronized:
     dependency: transitive
     description:
@@ -2021,10 +2036,10 @@ packages:
     dependency: transitive
     description:
       name: vector_math
-      sha256: "99b6fb0d1881dd1302cd42e0f53bcce99ea246e0a85c8aeb79fb38b283852e88"
+      sha256: f36f9f3be64c6198714492bb455c11056e33e2f85d9a0b676a48301e44fdcf47
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.1"
+    version: "2.4.2"
   visibility_detector:
     dependency: transitive
     description:
@@ -2073,14 +2088,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.3"
-  webdriver:
-    dependency: transitive
-    description:
-      name: webdriver
-      sha256: "2f3a14ca026957870cfd9c635b83507e0e51d8091568e90129fbf805aba7cade"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.1.0"
   webkit_inspection_protocol:
     dependency: transitive
     description:
@@ -2186,5 +2193,5 @@ packages:
     source: hosted
     version: "2.2.4"
 sdks:
-  dart: ">=3.12.0 <4.0.0"
+  dart: ">=3.13.0 <4.0.0"
   flutter: ">=3.44.0"

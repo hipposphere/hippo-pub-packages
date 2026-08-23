@@ -1,5 +1,5 @@
-import 'package:dart_edge_auth/dart_edge_auth.dart';
-import 'package:dart_edge_http_server_runtime/dart_edge_http_server_runtime.dart';
+import 'package:dart_better_auth/dart_better_auth.dart';
+import 'package:dart_http_server_runtime/dart_http_server_runtime.dart';
 import 'package:json_schema/json_schema.dart';
 
 import 'options.dart';
@@ -9,10 +9,10 @@ import 'utils/schemas.dart';
 import 'views/views.dart';
 
 final class HippoAuthBackend {
-  HippoAuthBackend(this.options) : auth = DartEdgeAuth(options.toDartEdgeAuthConfig());
+  HippoAuthBackend(this.options) : auth = DartBetterAuth(options.toDartBetterAuthConfig());
 
   final HippoAuthBackendOptions options;
-  final DartEdgeAuth auth;
+  final DartBetterAuth auth;
 
   Router<TServices> createRouter<TServices>({String basePath = ''}) {
     final router = Router<TServices>();
@@ -57,7 +57,7 @@ final class HippoAuthBackend {
 }
 
 void _installSchemas<TServices>(Router<TServices> router) {
-  if (router is! DartEdge<TServices>) {
+  if (router is! DartHttp<TServices>) {
     return;
   }
 

@@ -1,5 +1,5 @@
-import 'package:dart_edge_auth/dart_edge_auth.dart';
-import 'package:dart_edge_sql/dart_edge_sql.dart';
+import 'package:dart_better_auth/dart_better_auth.dart';
+import 'package:dart_sql/dart_sql.dart';
 
 const defaultHippoAuthSessionCookieName = 'hippo_auth_session';
 
@@ -52,14 +52,14 @@ final class HippoAuthBackendOptions {
   final HippoAuthBackendAdminOptions admin;
   final HippoAuthBackendBranding branding;
 
-  DartEdgeAuthConfig toDartEdgeAuthConfig() {
+  DartBetterAuthConfig toDartBetterAuthConfig() {
     final adminRoles = admin.normalizedAdminRoles;
-    return DartEdgeAuthConfig(
+    return DartBetterAuthConfig(
       secret: secret,
       baseUrl: baseUrl,
       trustedOrigins: trustedOrigins,
       workerPoolSize: workerPoolSize,
-      database: DartEdgeAuthDatabase.fromDatabase(
+      database: DartBetterAuthDatabase.fromDatabase(
         database,
         schema: normalizedDatabaseSchema,
         manageMigrations: manageMigrations,
@@ -73,11 +73,11 @@ final class HippoAuthBackendOptions {
       enableEmailVerification: enableEmailVerification,
       enableRateLimit: enableRateLimit,
       oauthProviders: ssoProviders
-          .map((provider) => provider.toDartEdgeOAuthProviderConfig())
+          .map((provider) => provider.toDartBetterOAuthProviderConfig())
           .nonNulls
           .toList(growable: false),
       admin: admin.enabled
-          ? DartEdgeAuthAdminConfig(
+          ? DartBetterAuthAdminConfig(
               adminRole: adminRoles.first,
               defaultUserRole: admin.defaultUserRole,
               allowBanAdmin: admin.allowBanAdmin,
@@ -169,7 +169,7 @@ final class HippoAuthSsoProvider {
     'provider_type': providerType.jsonValue,
   };
 
-  DartEdgeAuthOAuthProviderConfig? toDartEdgeOAuthProviderConfig() {
+  DartBetterAuthOAuthProviderConfig? toDartBetterOAuthProviderConfig() {
     if (providerType != HippoAuthSsoProviderType.genericOAuth) {
       return null;
     }
@@ -188,7 +188,7 @@ final class HippoAuthSsoProvider {
         normalizedTokenUrl.isEmpty) {
       return null;
     }
-    return DartEdgeAuthOAuthProviderConfig(
+    return DartBetterAuthOAuthProviderConfig(
       providerId: normalizedProviderId,
       clientId: normalizedClientId,
       clientSecret: normalizedClientSecret,

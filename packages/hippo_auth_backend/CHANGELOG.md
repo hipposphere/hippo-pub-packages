@@ -1,3 +1,7 @@
+## 0.2.0
+
+* Replace `dart_edge_auth` with the standalone `dart_better_auth` package.
+
 ## 0.1.26
 
 * Allow explicitly trusted custom-scheme origins as final OAuth application

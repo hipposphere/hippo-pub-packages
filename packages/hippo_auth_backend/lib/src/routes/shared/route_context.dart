@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:dart_edge_auth/dart_edge_auth.dart';
-import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:dart_better_auth/dart_better_auth.dart';
+import 'package:dart_http_core/dart_http_core.dart';
 import 'package:hippobase_auth_models/hippobase_auth_models.dart';
 
 import '../../utils/api_error.dart';
@@ -22,7 +22,7 @@ final class HippoAuthRouteContext {
       );
 
   final HippoAuthBackendOptions options;
-  final DartEdgeAuth auth;
+  final DartBetterAuth auth;
   final SessionGateway sessions;
   final VerificationGateway verifications;
 
@@ -34,11 +34,11 @@ final class HippoAuthRouteContext {
     );
   }
 
-  DartEdgeAuthApi api<TServices>(RequestContext<TServices> ctx) {
+  DartBetterAuthApi api<TServices>(RequestContext<TServices> ctx) {
     return auth.api.withHeaders(betterAuthHeaders(ctx));
   }
 
-  DartEdgeAuthAdminApi adminApi<TServices>(RequestContext<TServices> ctx) {
+  DartBetterAuthAdminApi adminApi<TServices>(RequestContext<TServices> ctx) {
     return api(ctx).admin;
   }
 
@@ -70,7 +70,7 @@ final class HippoAuthRouteContext {
   }
 
   Future<HippoAuthSessionPayload> signUpSessionPayload(
-    DartEdgeAuthSignUpResult result,
+    DartBetterAuthSignUpResult result,
     ResponseBuilder response,
   ) {
     return _sessionPayload(
@@ -82,7 +82,7 @@ final class HippoAuthRouteContext {
   }
 
   Future<HippoAuthSessionPayload> signInSessionPayload(
-    DartEdgeAuthSignInResult result,
+    DartBetterAuthSignInResult result,
     ResponseBuilder response,
   ) {
     return _sessionPayload(
@@ -95,12 +95,12 @@ final class HippoAuthRouteContext {
 
   Future<HippoAuthSessionPayload> _sessionPayload({
     required String? token,
-    required DartEdgeAuthUser? user,
-    required DartEdgeAuthApiResponse authResponse,
+    required DartBetterAuthUser? user,
+    required DartBetterAuthApiResponse authResponse,
     required ResponseBuilder response,
   }) async {
     final sessionUser = _sessionUser(user);
-    final session = await _createdSession(token);
+    final session = _createdSession(token);
     for (final header in _responseHeaders(authResponse, session)) {
       response.header(header.name, header.value);
     }
@@ -118,7 +118,7 @@ final class HippoAuthRouteContext {
     }
   }
 
-  Future<DartEdgeAuthSession> _createdSession(String? token) async {
+  DartBetterAuthSession _createdSession(String? token) {
     if (token == null || token.isEmpty) {
       throw const HippoAuthBackendException(
         401,
@@ -127,18 +127,15 @@ final class HippoAuthRouteContext {
       );
     }
 
-    final session = await sessions.findByToken(token);
-    if (session == null) {
-      throw const HippoAuthBackendException(
-        500,
-        'SessionLookupFailed',
-        'Created auth session could not be found.',
-      );
-    }
-    return session;
+    final result = DartBetterAuthSessionResult.fromResponse(
+      auth.api
+          .withBearerToken(token)
+          .callKnownOperationSync(operation: DartBetterAuthOperation.getSession),
+    );
+    return result.session;
   }
 
-  AuthUserRow _sessionUser(DartEdgeAuthUser? user) {
+  AuthUserRow _sessionUser(DartBetterAuthUser? user) {
     if (user == null) {
       throw const HippoAuthBackendException(
         401,
@@ -149,7 +146,10 @@ final class HippoAuthRouteContext {
     return hippobaseAuthUser(user);
   }
 
-  List<HttpHeader> _responseHeaders(DartEdgeAuthApiResponse response, DartEdgeAuthSession session) {
+  List<HttpHeader> _responseHeaders(
+    DartBetterAuthApiResponse response,
+    DartBetterAuthSession session,
+  ) {
     final headers = [
       for (final header in response.headers)
         if (_isForwardedHeader(header.name)) header,

@@ -1,5 +1,5 @@
-import 'package:dart_edge_auth/dart_edge_auth.dart';
-import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:dart_better_auth/dart_better_auth.dart';
+import 'package:dart_http_core/dart_http_core.dart';
 
 import '../../utils/api_error.dart';
 
@@ -7,9 +7,9 @@ Map<String, Object?> requestBody<TServices>(RequestContext<TServices> ctx) {
   return readJsonObject(ctx.req.bodyOrNull);
 }
 
-bool statusFromResponse(DartEdgeAuthApiResponse response) {
+bool statusFromResponse(DartBetterAuthApiResponse response) {
   if (!response.isSuccess) {
-    throw DartEdgeAuthApiException(response);
+    throw DartBetterAuthApiException(response);
   }
   return readStatus(response.jsonBody);
 }

@@ -1,11 +1,13 @@
-export 'package:dart_edge_auth/dart_edge_auth.dart'
+export 'package:dart_better_auth/dart_better_auth.dart'
     show
-        DartEdgeAuthSchema,
-        DartEdgeAuthSession,
-        DartEdgeAuthSessionInsert,
-        DartEdgeAuthSessionRow,
-        DartEdgeAuthSessionsTable,
-        DartEdgeAuthSessionUpdate;
+        DartBetterAuthSchema,
+        DartBetterAuthIdentity,
+        DartBetterAuthRequestContext,
+        DartBetterAuthSession,
+        DartBetterAuthSessionInsert,
+        DartBetterAuthSessionRow,
+        DartBetterAuthSessionsTable,
+        DartBetterAuthSessionUpdate;
 
 export 'package:hippobase_auth_models/hippobase_auth_models.dart'
     show AuthUserId, AuthUserInsert, AuthUserRow, AuthUsersTable, AuthUserUpdate;

@@ -1,14 +1,14 @@
 import 'dart:convert';
 
-import 'package:dart_edge_auth/dart_edge_auth.dart';
-import 'package:dart_edge_sql/dart_edge_sql.dart';
+import 'package:dart_better_auth/dart_better_auth.dart';
+import 'package:dart_sql/dart_sql.dart';
 
 final class VerificationGateway {
   VerificationGateway(this.database, {String? schema})
-    : _verifications = DartEdgeAuthVerificationsTable.withSchema(schema);
+    : _verifications = DartBetterAuthVerificationsTable.withSchema(schema);
 
   final SqlExecutor database;
-  final DartEdgeAuthVerificationsTable _verifications;
+  final DartBetterAuthVerificationsTable _verifications;
 
   Future<String?> oauthCallbackUrl(String state) async {
     return _callbackUrl('oauth:$state');
@@ -26,12 +26,12 @@ final class VerificationGateway {
     final now = DateTime.now().toUtc();
     await database.typed
         .deleteFrom(_verifications)
-        .where(_verifications.identifier.equals(identifier))
+        .where(DartBetterAuthVerificationsTable.identifier.equals(identifier))
         .execute();
     await database.typed
         .insertInto(_verifications)
         .values(
-          DartEdgeAuthVerificationInsert(
+          DartBetterAuthVerificationInsert(
             id: SqlValue(identifier),
             identifier: identifier,
             value: jsonEncode({'callback_url': callbackUrl}),
@@ -46,7 +46,9 @@ final class VerificationGateway {
   Future<void> deleteOAuthRelayCallbackUrl(String state) async {
     await database.typed
         .deleteFrom(_verifications)
-        .where(_verifications.identifier.equals(_oauthRelayCallbackIdentifier(state)))
+        .where(
+          DartBetterAuthVerificationsTable.identifier.equals(_oauthRelayCallbackIdentifier(state)),
+        )
         .execute();
   }
 
@@ -54,7 +56,7 @@ final class VerificationGateway {
     final verification = await database.typed
         .from(_verifications)
         .selectTable(_verifications)
-        .where(_verifications.identifier.equals(identifier))
+        .where(DartBetterAuthVerificationsTable.identifier.equals(identifier))
         .executeFirstOrNull();
     if (verification == null) {
       return null;

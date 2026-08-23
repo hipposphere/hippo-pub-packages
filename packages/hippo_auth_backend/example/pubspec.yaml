@@ -10,12 +10,12 @@ environment:
 dependencies:
   hippo_auth_backend:
     path: ../
-  dart_edge_http_server:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.17
-  dart_edge_sql:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.27
+  dart_http_server:
+    hosted: https://pub.hippolabs.org
+    version: ^0.3.26
+  dart_sql:
+    hosted: https://pub.hippolabs.org
+    version: ^0.4.1
   json_schema:
     hosted: https://pub.hippolabs.org
     version: ^0.1.1

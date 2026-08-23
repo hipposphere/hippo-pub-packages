@@ -1,4 +1,4 @@
-import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:dart_http_core/dart_http_core.dart';
 
 import '../../../models/auth_user.dart';
 import '../../../utils/api_error.dart';
@@ -27,7 +27,7 @@ final class AdminUpdateUserRoute<TServices> extends HippoAuthJsonRoute<TServices
       throw HippoAuthBackendException(
         501,
         'AdminUpdateUserDataUnsupported',
-        'Generic admin user data updates are not supported by dart_edge_auth.',
+        'Generic admin user data updates are not supported by dart_better_auth.',
         details: {'fields': unsupportedFields},
       );
     }

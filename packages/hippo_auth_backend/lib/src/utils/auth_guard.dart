@@ -1,5 +1,5 @@
-import 'package:dart_edge_auth/dart_edge_auth.dart';
-import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:dart_better_auth/dart_better_auth.dart';
+import 'package:dart_http_core/dart_http_core.dart';
 
 import 'api_error.dart';
 import 'session_cookie_names.dart';
@@ -7,7 +7,7 @@ import 'session_cookie_names.dart';
 final class HippoAuthGuard<TServices> implements Guard<TServices> {
   HippoAuthGuard({required this.auth, required this.sessionCookieName, this.allowedRoles});
 
-  final DartEdgeAuth auth;
+  final DartBetterAuth auth;
   final String sessionCookieName;
   final List<String>? allowedRoles;
 
@@ -23,7 +23,7 @@ final class HippoAuthGuard<TServices> implements Guard<TServices> {
       return GuardResult.deny(hippoAuthErrorResponse(401, 'Unauthorized', 'Unauthorized.'));
     }
 
-    final identity = DartEdgeAuthIdentity(
+    final identity = DartBetterAuthIdentity(
       session: sessionResult.session,
       user: sessionResult.user,
       response: sessionResult,

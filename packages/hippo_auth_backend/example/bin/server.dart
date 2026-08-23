@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:dart_edge_http_server/dart_edge_http_server.dart';
-import 'package:dart_edge_sql/dart_edge_sql.dart';
+import 'package:dart_http_server/dart_http_server.dart';
+import 'package:dart_sql/dart_sql.dart';
 import 'package:hippo_auth_backend/hippo_auth_backend.dart';
 import 'package:json_schema/json_schema.dart';
 
@@ -24,7 +24,7 @@ Future<void> main() async {
     ),
   );
 
-  final app = DartEdge<void>(
+  final app = DartHttp<void>(
     services: () {},
     openApiDocument: OpenApiDocument(title: 'Hippo Auth Backend Example', version: '0.1.0'),
   );

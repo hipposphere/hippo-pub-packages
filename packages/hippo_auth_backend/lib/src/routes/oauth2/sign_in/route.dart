@@ -1,5 +1,5 @@
-import 'package:dart_edge_auth/dart_edge_auth.dart';
-import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:dart_better_auth/dart_better_auth.dart';
+import 'package:dart_http_core/dart_http_core.dart';
 
 import '../../../options.dart';
 import '../../../utils/api_error.dart';
@@ -85,7 +85,7 @@ final class OAuth2SignInRoute<TServices> extends HippoAuthJsonRoute<TServices> {
   }
 }
 
-List<HttpHeader> _forwardedHeaders(DartEdgeAuthApiResponse response) {
+List<HttpHeader> _forwardedHeaders(DartBetterAuthApiResponse response) {
   return [
     for (final header in response.headers)
       if (header.name.toLowerCase() != 'content-length') header,

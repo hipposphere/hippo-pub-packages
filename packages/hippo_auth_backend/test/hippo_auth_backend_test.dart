@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dart_edge_auth/dart_edge_auth.dart';
-import 'package:dart_edge_http_server/dart_edge_http_server.dart' hide SqlPool;
-import 'package:dart_edge_sql/dart_edge_sql.dart';
-import 'package:dart_edge_sql_pglite/dart_edge_sql_pglite.dart';
+import 'package:dart_better_auth/dart_better_auth.dart';
+import 'package:dart_http_server/dart_http_server.dart';
+import 'package:dart_sql/dart_sql.dart';
+import 'package:dart_sql_pglite/dart_sql_pglite.dart';
 import 'package:hippo_auth_backend/hippo_auth_backend.dart';
 import 'package:hippo_auth_backend/src/gateways/verification_gateway.dart';
 import 'package:hippo_auth_backend/src/utils/auth_response_token.dart';
@@ -13,8 +13,8 @@ import 'package:test/test.dart';
 void main() {
   test('normalizes direct auth API errors to the public error envelope', () {
     final response = hippoAuthExceptionResponse(
-      DartEdgeAuthApiException(
-        DartEdgeAuthApiResponse(
+      DartBetterAuthApiException(
+        DartBetterAuthApiResponse(
           status: HttpStatus.unauthorized,
           contentType: 'application/json',
           headers: const <HttpHeader>[],
@@ -69,7 +69,7 @@ void main() {
   });
 
   test('reads OAuth session tokens from Better Auth callback cookies', () {
-    final response = DartEdgeAuthApiResponse(
+    final response = DartBetterAuthApiResponse(
       status: HttpStatus.ok,
       contentType: 'application/json',
       headers: const [
@@ -85,7 +85,7 @@ void main() {
   });
 
   test('reads OAuth session tokens from secure Better Auth callback cookies', () {
-    final response = DartEdgeAuthApiResponse(
+    final response = DartBetterAuthApiResponse(
       status: HttpStatus.ok,
       contentType: 'application/json',
       headers: const [
@@ -112,7 +112,7 @@ void main() {
     );
 
     expect(options.manageMigrations, isFalse);
-    expect(options.toDartEdgeAuthConfig().database.manageMigrations, isFalse);
+    expect(options.toDartBetterAuthConfig().database.manageMigrations, isFalse);
   });
 
   test('passes explicit auth-managed migrations through', () {
@@ -127,10 +127,10 @@ void main() {
       manageMigrations: true,
     );
 
-    expect(options.toDartEdgeAuthConfig().database.manageMigrations, isTrue);
+    expect(options.toDartBetterAuthConfig().database.manageMigrations, isTrue);
   });
 
-  test('passes trusted origins through to dart_edge_auth', () {
+  test('passes trusted origins through to dart_better_auth', () {
     final database = SqliteDatabase.inMemory();
     addTearDown(database.close);
 
@@ -142,11 +142,11 @@ void main() {
       trustedOrigins: const ['http://127.0.0.1:12345', 'https://app.example.test'],
     );
 
-    final config = options.toDartEdgeAuthConfig();
+    final config = options.toDartBetterAuthConfig();
     expect(config.trustedOrigins, ['http://127.0.0.1:12345', 'https://app.example.test']);
   });
 
-  test('passes generic OAuth SSO providers to dart_edge_auth', () {
+  test('passes generic OAuth SSO providers to dart_better_auth', () {
     final database = SqliteDatabase.inMemory();
     addTearDown(database.close);
 
@@ -168,45 +168,42 @@ void main() {
       ],
     );
 
-    final oauthProviders = options.toDartEdgeAuthConfig().oauthProviders;
+    final oauthProviders = options.toDartBetterAuthConfig().oauthProviders;
     expect(oauthProviders, hasLength(1));
     expect(oauthProviders.single.providerId, 'uka');
     expect(oauthProviders.single.clientId, 'client-id');
   });
 
-  test(
-    'passes generic OAuth SSO providers without client secrets or user info endpoints to dart_edge_auth',
-    () {
-      final database = SqliteDatabase.inMemory();
-      addTearDown(database.close);
+  test('passes generic OAuth SSO providers without client secrets or user info endpoints to dart_better_auth', () {
+    final database = SqliteDatabase.inMemory();
+    addTearDown(database.close);
 
-      final options = HippoAuthBackendOptions(
-        workerPoolSize: 4,
-        database: database,
-        secret: 'test-secret-key-that-is-at-least-32-characters-long',
-        baseUrl: 'http://localhost:3000',
-        ssoProviders: const [
-          HippoAuthSsoProvider(
-            providerId: 'uka',
-            providerType: HippoAuthSsoProviderType.genericOAuth,
-            clientId: 'client-id',
-            authorizationUrl: 'https://idp.example.test/oauth/authorize',
-            tokenUrl: 'https://idp.example.test/oauth/token',
-          ),
-        ],
-      );
+    final options = HippoAuthBackendOptions(
+      workerPoolSize: 4,
+      database: database,
+      secret: 'test-secret-key-that-is-at-least-32-characters-long',
+      baseUrl: 'http://localhost:3000',
+      ssoProviders: const [
+        HippoAuthSsoProvider(
+          providerId: 'uka',
+          providerType: HippoAuthSsoProviderType.genericOAuth,
+          clientId: 'client-id',
+          authorizationUrl: 'https://idp.example.test/oauth/authorize',
+          tokenUrl: 'https://idp.example.test/oauth/token',
+        ),
+      ],
+    );
 
-      final oauthProviders = options.toDartEdgeAuthConfig().oauthProviders;
-      expect(oauthProviders, hasLength(1));
-      expect(oauthProviders.single.clientSecret, isNull);
-      expect(oauthProviders.single.userInfoUrl, isNull);
-    },
-  );
+    final oauthProviders = options.toDartBetterAuthConfig().oauthProviders;
+    expect(oauthProviders, hasLength(1));
+    expect(oauthProviders.single.clientSecret, isNull);
+    expect(oauthProviders.single.userInfoUrl, isNull);
+  });
 
   test('stores OAuth relay callback URLs by state', () async {
     final database = SqliteDatabase.inMemory();
     final backend = _backend(database);
-    final app = DartEdge<void>(services: () {});
+    final app = DartHttp<void>(services: () {});
     backend.mount(app);
 
     final server = await app.listen(port: 0, workers: 1);
@@ -252,7 +249,7 @@ void main() {
         ),
       ],
     );
-    final app = DartEdge<void>(services: () {});
+    final app = DartHttp<void>(services: () {});
     backend.mount(app);
 
     final server = await app.listen(port: 0, workers: 1);
@@ -308,9 +305,9 @@ void main() {
     );
 
     expect(options.normalizedDatabaseSchema, 'auth');
-    final authDatabase = options.toDartEdgeAuthConfig().database;
-    expect(authDatabase, isA<SharedDartEdgeAuthDatabase>());
-    expect((authDatabase as SharedDartEdgeAuthDatabase).schema, 'auth');
+    final authDatabase = options.toDartBetterAuthConfig().database;
+    expect(authDatabase, isA<SharedDartBetterAuthDatabase>());
+    expect((authDatabase as SharedDartBetterAuthDatabase).schema, 'auth');
 
     expect(
       () => HippoAuthBackendOptions(
@@ -332,7 +329,7 @@ void main() {
       await database.close();
     });
 
-    final app = DartEdge<void>(services: () {});
+    final app = DartHttp<void>(services: () {});
     backend.mount(app);
 
     final document = app.buildOpenApiDocumentJson();
@@ -386,7 +383,7 @@ void main() {
       await database.close();
     });
 
-    final app = DartEdge<void>(services: () {});
+    final app = DartHttp<void>(services: () {});
     backend.mount(app, basePath: '/auth');
 
     final document = app.buildOpenApiDocumentJson();
@@ -401,7 +398,7 @@ void main() {
   test('signs up, signs in, and resolves a session through the ported routes', () async {
     final database = SqliteDatabase.inMemory();
     final backend = _backend(database);
-    final app = DartEdge<void>(services: () {});
+    final app = DartHttp<void>(services: () {});
     backend.mount(app);
 
     final server = await app.listen(port: 0, workers: 1);
@@ -493,7 +490,7 @@ void main() {
   test('signs up through subpath-mounted routes', () async {
     final database = SqliteDatabase.inMemory();
     final backend = _backend(database);
-    final app = DartEdge<void>(services: () {});
+    final app = DartHttp<void>(services: () {});
     backend.mount(app, basePath: '/auth');
 
     final server = await app.listen(port: 0, workers: 1);
@@ -536,7 +533,7 @@ Future<void> _expectDirectBetterAuthSignupThenCompatibilitySignin({
   String? databaseSchema,
 }) async {
   final backend = _backend(database, databaseSchema: databaseSchema);
-  final app = DartEdge<void>(services: () {});
+  final app = DartHttp<void>(services: () {});
   backend.mount(app, basePath: '/auth');
 
   final server = await app.listen(port: 0, workers: 1);

@@ -1,4 +1,5 @@
-import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:dart_http_core/dart_http_core.dart';
+
 import 'dart:math' as math;
 
 import '../../../models/auth_user.dart';

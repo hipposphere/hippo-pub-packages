@@ -1,4 +1,4 @@
-import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:dart_http_core/dart_http_core.dart';
 
 import 'admin/admin_routes.dart';
 import 'oauth2/oauth2_routes.dart';

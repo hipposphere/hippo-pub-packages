@@ -1,7 +1,7 @@
-import 'package:dart_edge_auth/dart_edge_auth.dart';
+import 'package:dart_better_auth/dart_better_auth.dart';
 import 'package:hippobase_auth_models/hippobase_auth_models.dart';
 
-AuthUserRow hippobaseAuthUser(DartEdgeAuthUser user) {
+AuthUserRow hippobaseAuthUser(DartBetterAuthUser user) {
   final name = user.name;
   final email = user.email;
   if (name == null || email == null) {

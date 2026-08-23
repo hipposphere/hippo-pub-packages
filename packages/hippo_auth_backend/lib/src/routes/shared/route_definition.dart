@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:dart_http_core/dart_http_core.dart';
 
 import '../../utils/api_error.dart';
 

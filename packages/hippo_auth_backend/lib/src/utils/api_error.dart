@@ -1,5 +1,5 @@
-import 'package:dart_edge_auth/dart_edge_auth.dart';
-import 'package:dart_edge_core/dart_edge_core.dart';
+import 'package:dart_better_auth/dart_better_auth.dart';
+import 'package:dart_http_core/dart_http_core.dart';
 
 final class HippoAuthBackendException implements Exception {
   const HippoAuthBackendException(this.status, this.code, this.message, {this.details});
@@ -51,7 +51,7 @@ RawResponse hippoAuthExceptionResponse(
     );
   }
 
-  if (error case final DartEdgeAuthApiException authError) {
+  if (error case final DartBetterAuthApiException authError) {
     final parsed = _parseAuthError(authError.response.jsonBody);
     return hippoAuthErrorResponse(
       authError.status,

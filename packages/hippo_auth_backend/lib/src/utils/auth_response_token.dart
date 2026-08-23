@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:dart_edge_auth/dart_edge_auth.dart';
+import 'package:dart_better_auth/dart_better_auth.dart';
 
 import 'session_cookie_names.dart';
 
-String? sessionTokenFromAuthResponse(DartEdgeAuthApiResponse response) {
+String? sessionTokenFromAuthResponse(DartBetterAuthApiResponse response) {
   final jsonBody = response.jsonBody;
   if (jsonBody case {'token': final String token}) {
     return token;
@@ -18,7 +18,7 @@ String? sessionTokenFromAuthResponse(DartEdgeAuthApiResponse response) {
   return response.header('set-auth-token') ?? _sessionCookieToken(response);
 }
 
-String? _sessionCookieToken(DartEdgeAuthApiResponse response) {
+String? _sessionCookieToken(DartBetterAuthApiResponse response) {
   for (final header in response.headers) {
     if (header.name.toLowerCase() != 'set-cookie') {
       continue;

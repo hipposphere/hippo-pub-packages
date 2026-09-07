@@ -1,3 +1,11 @@
+## 0.2.2
+
+* Migrate SQLite and PGlite setup to the asynchronous `dart_sql` 0.5 pool API.
+
+## 0.2.1
+
+* Support `dart_sql` 0.5 and `dart_better_auth` 0.1.3.
+
 ## 0.2.0
 
 * Replace `dart_edge_auth` with the standalone `dart_better_auth` package.

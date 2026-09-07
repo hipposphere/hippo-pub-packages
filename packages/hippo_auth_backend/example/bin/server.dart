@@ -6,7 +6,7 @@ import 'package:hippo_auth_backend/hippo_auth_backend.dart';
 import 'package:json_schema/json_schema.dart';
 
 Future<void> main() async {
-  final database = SqliteDatabase.inMemory();
+  final database = await SqliteDatabase.inMemory();
 
   final backend = HippoAuthBackend(
     HippoAuthBackendOptions(

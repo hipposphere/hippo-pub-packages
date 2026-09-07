@@ -100,8 +100,8 @@ void main() {
     expect(sessionTokenFromAuthResponse(response), 'session/token.signature=');
   });
 
-  test('disables auth-managed migrations by default', () {
-    final database = SqliteDatabase.inMemory();
+  test('disables auth-managed migrations by default', () async {
+    final database = await SqliteDatabase.inMemory();
     addTearDown(database.close);
 
     final options = HippoAuthBackendOptions(
@@ -115,8 +115,8 @@ void main() {
     expect(options.toDartBetterAuthConfig().database.manageMigrations, isFalse);
   });
 
-  test('passes explicit auth-managed migrations through', () {
-    final database = SqliteDatabase.inMemory();
+  test('passes explicit auth-managed migrations through', () async {
+    final database = await SqliteDatabase.inMemory();
     addTearDown(database.close);
 
     final options = HippoAuthBackendOptions(
@@ -130,8 +130,8 @@ void main() {
     expect(options.toDartBetterAuthConfig().database.manageMigrations, isTrue);
   });
 
-  test('passes trusted origins through to dart_better_auth', () {
-    final database = SqliteDatabase.inMemory();
+  test('passes trusted origins through to dart_better_auth', () async {
+    final database = await SqliteDatabase.inMemory();
     addTearDown(database.close);
 
     final options = HippoAuthBackendOptions(
@@ -146,8 +146,8 @@ void main() {
     expect(config.trustedOrigins, ['http://127.0.0.1:12345', 'https://app.example.test']);
   });
 
-  test('passes generic OAuth SSO providers to dart_better_auth', () {
-    final database = SqliteDatabase.inMemory();
+  test('passes generic OAuth SSO providers to dart_better_auth', () async {
+    final database = await SqliteDatabase.inMemory();
     addTearDown(database.close);
 
     final options = HippoAuthBackendOptions(
@@ -174,8 +174,8 @@ void main() {
     expect(oauthProviders.single.clientId, 'client-id');
   });
 
-  test('passes generic OAuth SSO providers without client secrets or user info endpoints to dart_better_auth', () {
-    final database = SqliteDatabase.inMemory();
+  test('passes generic OAuth SSO providers without client secrets or user info endpoints to dart_better_auth', () async {
+    final database = await SqliteDatabase.inMemory();
     addTearDown(database.close);
 
     final options = HippoAuthBackendOptions(
@@ -201,7 +201,7 @@ void main() {
   });
 
   test('stores OAuth relay callback URLs by state', () async {
-    final database = SqliteDatabase.inMemory();
+    final database = await SqliteDatabase.inMemory();
     final backend = _backend(database);
     final app = DartHttp<void>(services: () {});
     backend.mount(app);
@@ -235,7 +235,7 @@ void main() {
   });
 
   test('accepts an explicitly trusted custom-scheme OAuth app callback', () async {
-    final database = SqliteDatabase.inMemory();
+    final database = await SqliteDatabase.inMemory();
     final backend = _backend(
       database,
       trustedOrigins: const ['dicto://auth'],
@@ -292,8 +292,8 @@ void main() {
     );
   });
 
-  test('normalizes and validates database schema options', () {
-    final database = SqliteDatabase.inMemory();
+  test('normalizes and validates database schema options', () async {
+    final database = await SqliteDatabase.inMemory();
     addTearDown(database.close);
 
     final options = HippoAuthBackendOptions(
@@ -321,8 +321,8 @@ void main() {
     );
   });
 
-  test('mounts hippo auth, view, and optional better-auth routes', () {
-    final database = SqliteDatabase.inMemory();
+  test('mounts hippo auth, view, and optional better-auth routes', () async {
+    final database = await SqliteDatabase.inMemory();
     final backend = _backend(database);
     addTearDown(() async {
       backend.dispose();
@@ -375,8 +375,8 @@ void main() {
     expect(userItems.keys, isNot(contains('\$ref')));
   });
 
-  test('mounts the full backend under a subpath', () {
-    final database = SqliteDatabase.inMemory();
+  test('mounts the full backend under a subpath', () async {
+    final database = await SqliteDatabase.inMemory();
     final backend = _backend(database);
     addTearDown(() async {
       backend.dispose();
@@ -396,7 +396,7 @@ void main() {
   });
 
   test('signs up, signs in, and resolves a session through the ported routes', () async {
-    final database = SqliteDatabase.inMemory();
+    final database = await SqliteDatabase.inMemory();
     final backend = _backend(database);
     final app = DartHttp<void>(services: () {});
     backend.mount(app);
@@ -488,7 +488,7 @@ void main() {
   });
 
   test('signs up through subpath-mounted routes', () async {
-    final database = SqliteDatabase.inMemory();
+    final database = await SqliteDatabase.inMemory();
     final backend = _backend(database);
     final app = DartHttp<void>(services: () {});
     backend.mount(app, basePath: '/auth');
@@ -517,12 +517,14 @@ void main() {
   });
 
   test('signs in through compatibility route after direct Better Auth signup on SQLite', () async {
-    await _expectDirectBetterAuthSignupThenCompatibilitySignin(database: SqliteDatabase.inMemory());
+    await _expectDirectBetterAuthSignupThenCompatibilitySignin(
+      database: await SqliteDatabase.inMemory(),
+    );
   });
 
   test('signs in through compatibility route after direct Better Auth signup on PGlite', () async {
     await _expectDirectBetterAuthSignupThenCompatibilitySignin(
-      database: PgliteDatabase.temporary().asPostgresPool(),
+      database: await PgliteDatabase.temporary().asPostgresPool(),
       databaseSchema: 'auth',
     );
   });

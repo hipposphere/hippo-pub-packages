@@ -23,7 +23,7 @@ dependencies:
     version: ^0.3.7
   dart_better_auth:
     hosted: https://pub.hippolabs.org
-    version: ^0.1.0
+    version: ^0.1.2
   hippobase_auth_models:
     hosted: https://pub.hippolabs.org
     version: ^0.2.0

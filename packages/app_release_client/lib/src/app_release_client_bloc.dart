@@ -17,7 +17,6 @@ import 'package:chopper/chopper.dart';
 import 'package:flutter/widgets.dart';
 import 'package:hippo_core/hippo_core.dart';
 import 'package:hippo_core_flutter/hippo_core_flutter.dart';
-import 'package:hippo_utils/hippo_utils.dart';
 
 class AppReleaseClientBloc extends BlocBase {
   final AppReleaseApiController apiController;
@@ -33,10 +32,10 @@ class AppReleaseClientBloc extends BlocBase {
 
   String? _appId;
 
-  final DataSubject<SelectedValue<List<AppReleaseChannel>>> channelsSubject;
-  final DataSubject<SelectedValue<AppReleaseChannel?>> selectedChannelSubject;
-  final DataSubject<SelectedValue<Uri?>?> appCastUrlSubject;
-  final DataSubject<SelectedValue<Object?>?> errorSubject;
+  final DataSubject<ValueChange<List<AppReleaseChannel>>> channelsSubject;
+  final DataSubject<ValueChange<AppReleaseChannel?>> selectedChannelSubject;
+  final DataSubject<ValueChange<Uri?>?> appCastUrlSubject;
+  final DataSubject<ValueChange<Object?>?> errorSubject;
 
   AppReleaseClientBloc._({
     required this.apiController,
@@ -91,10 +90,10 @@ class AppReleaseClientBloc extends BlocBase {
       currentVersion: currentVersion,
       publicChannelsOnly: publicChannelsOnly,
       channelsSubject: DataSubject.seeded(
-        const SelectedValue(<AppReleaseChannel>[]),
+        const ValueChange(<AppReleaseChannel>[]),
       ),
       selectedChannelSubject: DataSubject.seeded(
-        const SelectedValue<AppReleaseChannel?>(null),
+        const ValueChange<AppReleaseChannel?>(null),
       ),
       appCastUrlSubject: DataSubject.seeded(null),
       errorSubject: DataSubject.seeded(null),
@@ -121,7 +120,7 @@ class AppReleaseClientBloc extends BlocBase {
       final channels = await _loadChannels(
         hiddenChannelSlugs: hiddenChannelSlugs,
       );
-      channelsSubject.add(SelectedValue(channels));
+      channelsSubject.add(ValueChange(channels));
 
       final selectedChannel = _resolveSelectedChannel(
         channels: channels,
@@ -132,23 +131,23 @@ class AppReleaseClientBloc extends BlocBase {
         selectedChannel: selectedChannel,
       );
 
-      selectedChannelSubject.add(SelectedValue(selectedChannel));
+      selectedChannelSubject.add(ValueChange(selectedChannel));
       appCastUrlSubject.add(
-        SelectedValue(_buildAppCastUrl(selectedChannel?.slug)),
+        ValueChange(_buildAppCastUrl(selectedChannel?.slug)),
       );
       errorSubject.add(null);
     } catch (error) {
-      errorSubject.add(SelectedValue(error));
+      errorSubject.add(ValueChange(error));
 
       final fallbackChannel = AppReleaseChannel.fallback(
         slug: defaultChannelSlug,
         appId: _appId,
       );
 
-      channelsSubject.add(SelectedValue([fallbackChannel]));
-      selectedChannelSubject.add(SelectedValue(fallbackChannel));
+      channelsSubject.add(ValueChange([fallbackChannel]));
+      selectedChannelSubject.add(ValueChange(fallbackChannel));
       appCastUrlSubject.add(
-        SelectedValue(_buildAppCastUrl(fallbackChannel.slug)),
+        ValueChange(_buildAppCastUrl(fallbackChannel.slug)),
       );
     }
   }
@@ -174,10 +173,8 @@ class AppReleaseClientBloc extends BlocBase {
         selectedChannel.slug,
       );
     }
-    selectedChannelSubject.add(SelectedValue(selectedChannel));
-    appCastUrlSubject.add(
-      SelectedValue(_buildAppCastUrl(selectedChannel.slug)),
-    );
+    selectedChannelSubject.add(ValueChange(selectedChannel));
+    appCastUrlSubject.add(ValueChange(_buildAppCastUrl(selectedChannel.slug)));
     errorSubject.add(null);
   }
 

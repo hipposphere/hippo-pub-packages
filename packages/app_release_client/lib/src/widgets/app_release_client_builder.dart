@@ -9,13 +9,12 @@
 */
 import 'package:app_release_client/src/app_release_client_bloc.dart';
 import 'package:flutter/widgets.dart';
+import 'package:hippo_core/hippo_core.dart';
 import 'package:hippo_core_flutter/hippo_core_flutter.dart';
-import 'package:hippo_utils/hippo_utils.dart';
 
 class AppReleaseClientBuilder extends StatelessWidget {
   final AppReleaseClientBloc? bloc;
-  final Widget Function(BuildContext context, SelectedValue<Uri?>? value)
-  builder;
+  final Widget Function(BuildContext context, ValueChange<Uri?>? value) builder;
 
   const AppReleaseClientBuilder({super.key, required this.builder, this.bloc});
 

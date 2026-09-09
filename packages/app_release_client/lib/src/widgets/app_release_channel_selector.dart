@@ -10,8 +10,8 @@
 import 'package:app_release_client/src/app_release_client_bloc.dart';
 import 'package:app_release_client/src/models/app_release_channel.dart';
 import 'package:flutter/material.dart';
+import 'package:hippo_core/hippo_core.dart';
 import 'package:hippo_core_flutter/hippo_core_flutter.dart';
-import 'package:hippo_utils/hippo_utils.dart';
 
 class AppReleaseChannelSelector extends StatelessWidget {
   final AppReleaseClientBloc? bloc;
@@ -30,8 +30,8 @@ class AppReleaseChannelSelector extends StatelessWidget {
     final currentBloc = bloc ?? AppReleaseClientBloc.of(context);
 
     return CombinedDataValueBuilder<
-      SelectedValue<List<AppReleaseChannel>>,
-      SelectedValue<AppReleaseChannel?>
+      ValueChange<List<AppReleaseChannel>>,
+      ValueChange<AppReleaseChannel?>
     >(
       value1: currentBloc.channelsSubject,
       value2: currentBloc.selectedChannelSubject,
@@ -47,11 +47,11 @@ class AppReleaseChannelSelector extends StatelessWidget {
         }
 
         final selectedSlug = selectedChannel?.slug;
-        final hasSelectedValue =
+        final hasSelectedChannel =
             selectedSlug != null &&
             channels.any((channel) => channel.slug == selectedSlug);
 
-        final selectedValue = hasSelectedValue
+        final selectedValue = hasSelectedChannel
             ? selectedSlug
             : channels.first.slug;
         return DropdownButtonFormField<String>(

@@ -1,6 +1,6 @@
 name: app_release_client
 description: App release client package for channel selection and appcast URL resolution.
-version: 0.1.9
+version: 0.1.10
 homepage: https://hippolabs.org
 publish_to: "https://registry.hippolabs.org/pub/internal-pub/"
 resolution: workspace
@@ -12,9 +12,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  hippo_utils:
-    hosted: https://registry.hippolabs.org/pub/internal-pub/
-    version: ^0.3.2
   hippo_core:
     hosted: https://pub.hippolabs.org
     version: ^0.1.12

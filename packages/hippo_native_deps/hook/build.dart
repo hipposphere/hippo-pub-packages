@@ -55,9 +55,7 @@ void _publishHeaderOnlyDependency({
   required String versionMetadataKey,
 }) {
   final packageRoot = Directory.fromUri(input.packageRoot);
-  final includeDir = Directory.fromUri(
-    input.packageRoot.resolve(includeRelativePath),
-  );
+  final includeDir = Directory.fromUri(input.packageRoot.resolve(includeRelativePath));
   if (!includeDir.existsSync()) {
     throw StateError(
       '$dependencyLabel include directory missing at ${includeDir.path}. '
@@ -65,9 +63,7 @@ void _publishHeaderOnlyDependency({
     );
   }
 
-  final markerHeader = File.fromUri(
-    includeDir.uri.resolve(markerHeaderRelativePath),
-  );
+  final markerHeader = File.fromUri(includeDir.uri.resolve(markerHeaderRelativePath));
   if (!markerHeader.existsSync()) {
     throw StateError(
       '$dependencyLabel marker header missing at ${markerHeader.path}. '
@@ -75,20 +71,13 @@ void _publishHeaderOnlyDependency({
     );
   }
 
-  final versionFile = File.fromUri(
-    input.packageRoot.resolve(versionRelativePath),
-  );
-  final version = versionFile.existsSync()
-      ? versionFile.readAsStringSync().trim()
-      : 'unknown';
+  final versionFile = File.fromUri(input.packageRoot.resolve(versionRelativePath));
+  final version = versionFile.existsSync() ? versionFile.readAsStringSync().trim() : 'unknown';
 
   output.metadata[includeMetadataKey] = includeDir.absolute.path;
   output.metadata[versionMetadataKey] = version;
   output.dependencies.addAll([
-    for (final entity in includeDir.listSync(
-      recursive: true,
-      followLinks: false,
-    ))
+    for (final entity in includeDir.listSync(recursive: true, followLinks: false))
       if (entity is File) entity.absolute.uri,
     if (versionFile.existsSync()) versionFile.absolute.uri,
   ]);

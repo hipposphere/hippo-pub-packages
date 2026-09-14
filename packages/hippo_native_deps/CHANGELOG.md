@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Upgrade `code_assets` to 2.0.0.
+
 ## 0.1.0
 
 - Add `hippo_native_deps` package with hook metadata for vendored RapidJSON.

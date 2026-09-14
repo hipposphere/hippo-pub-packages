@@ -11,6 +11,7 @@ dev_dependencies:
 
 dependency_overrides:
   cli_util: 0.5.1
+  code_assets: ^2.0.0
   test_api: 0.7.12
 
 workspace:

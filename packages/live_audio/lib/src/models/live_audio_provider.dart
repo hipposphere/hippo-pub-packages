@@ -1,1 +1,0 @@
-enum LiveAudioProvider { gemini, openaiRealtime }

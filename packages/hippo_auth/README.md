@@ -3,9 +3,8 @@
 Authentication state, session management, API access, and login controllers for
 Hipposphere Flutter applications.
 
-This package intentionally does not depend on `hippo_components` or
-`hippo_utils`. For the ready-made login flow and authentication widgets, use
-[`hippo_auth_ui`](../hippo_auth_ui/README.md).
+This package provides the authentication SDK without depending on
+`hippo_components` or `hippo_utils`. Applications supply their own login UI.
 
 ```dart
 import 'package:hippo_auth/hippo_auth.dart';
